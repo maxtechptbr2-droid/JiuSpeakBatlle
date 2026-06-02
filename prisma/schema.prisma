@@ -1,0 +1,672 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// ENUMS FOR GAMIFIED BJJ PLATFORM
+// ==========================================
+
+enum UserRole {
+  ATHLETE
+  INSTRUCTOR
+  ADMIN
+}
+
+enum BeltRank {
+  WHITE
+  BLUE
+  PURPLE
+  BROWN
+  BLACK
+  RED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  STORE_PURCHASE
+  MARKETPLACE_BUY
+  MARKETPLACE_SELL
+  PVP_REWARD
+  ACHIEVEMENT_REWARD
+  SYSTEM_ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  REFUNDED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  TRIALING
+}
+
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum PvpMatchStatus {
+  PENDING
+  MATCHMAKING
+  ACTIVE
+  COMPLETED
+  DRAW
+  CANCELLED
+}
+
+enum NotificationType {
+  SYSTEM
+  PVP_INVITE
+  MARKET_SALE
+  FOLLOWER
+  ACHIEVEMENT_UNLOCKED
+  SOCIAL_INTERACTION
+}
+
+enum AuditActionType {
+  USER_LOGIN
+  USER_REGISTER
+  ACCESS_ROLE_CHANGE
+  CHEATS_ACTIVATED
+  PIX_DEPOSIT
+  WITHDRAW_REQUEST
+  WITHDRAW_PROCESS
+  MARKETPLAYCE_LIST
+  MARKETPLAYCE_BUY
+  PVP_MATCH_COMPLETE
+  LESSON_COMPLETE
+  SYSTEM_SETTING_CHANGE
+}
+
+// ==========================================
+// CORE DOMAIN MODELS
+// ==========================================
+
+model User {
+  id                String       @id @default(uuid())
+  email             String       @unique
+  name              String
+  password          String
+  isEmailVerified   Boolean      @default(false)
+  verificationToken String?
+  resetToken        String?
+  resetTokenExpires DateTime?
+  refreshToken      String?
+  avatar            String?
+  role              UserRole     @default(ATHLETE)
+  belt              BeltRank     @default(WHITE)
+  stripes           Int          @default(0)
+  xp                Int          @default(0)
+  level             Int          @default(1)
+  elo               Int          @default(1000)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relationships
+  wallet                    Wallet?
+  bankAccounts              BankAccount[]
+  subscriptions             Subscription[]
+  userAchievements          UserAchievement[]
+  inventory                 Inventory?
+  storeSales                StoreSale[]
+  marketplaceSalesAsBuyer   MarketplaceSale[]
+  marketplaceItemsForSale   MarketplaceItem[]
+  pvpMatchesAsChallenger    PvpMatch[]            @relation("ChallengerMatches")
+  pvpMatchesAsDefender      PvpMatch[]            @relation("DefenderMatches")
+  pvpMatchesAsWinner        PvpMatch[]            @relation("WinnerMatches")
+  pvpAnswers                PvpAnswer[]
+  rank                      Rank?
+  notifications             Notification[]
+  auditLogs                 AuditLog[]
+  socialPosts               SocialPost[]
+  comments                  Comment[]
+  likes                     Like[]
+  followers                 Follower[]            @relation("UserFollowers")
+  following                 Follower[]            @relation("UserFollowing")
+
+  @@index([email])
+  @@index([belt])
+  @@index([level])
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  balanceKC        Int      @default(0) // Kimono Coins (Platform virtual coin)
+  balanceBRL       Decimal  @default(0.00) @db.Decimal(12, 2) // Instructor/Saas real monetary balance
+  balanceAvailable Decimal  @default(0.00) @db.Decimal(12, 2) // Saldo disponível para saque
+  balancePending   Decimal  @default(0.00) @db.Decimal(12, 2) // Saldo pendente (vendas aprovadas)
+  totalEarned      Decimal  @default(0.00) @db.Decimal(12, 2) // Total ganho acumulado
+  totalWithdrawn   Decimal  @default(0.00) @db.Decimal(12, 2) // Total sacado acumulado
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relationships
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  withdrawals  Withdrawal[]
+
+  @@index([userId])
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  walletId    String
+  amountKC    Int?
+  amountBRL   Decimal?          @db.Decimal(12, 2)
+  type        TransactionType
+  status      TransactionStatus @default(PENDING)
+  description String?
+  referenceId String?           // Tracking code linked to Purchases (StoreSale, P2PSale ID)
+  createdAt   DateTime          @default(now())
+
+  // Relationships
+  wallet     Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  pixPayment PixPayment?
+
+  @@index([walletId])
+  @@index([type])
+  @@index([status])
+  @@index([referenceId])
+}
+
+model PixPayment {
+  id              String        @id @default(uuid())
+  transactionId   String        @unique
+  qrCode          String        @db.Text
+  qrCodeCopyPaste String        @db.Text
+  txid            String        @unique
+  amountBRL       Decimal       @db.Decimal(12, 2)
+  status          PaymentStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  expiresAt       DateTime
+  paidAt          DateTime?
+
+  // Relationships
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([txid])
+}
+
+model BankAccount {
+  id            String   @id @default(uuid())
+  userId        String
+  bankName      String
+  agency        String
+  accountNumber String
+  accountType   String   // Corrente, Poupança, etc.
+  pixKey        String?
+  pixKeyType    String?
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawals Withdrawal[]
+
+  @@index([userId])
+}
+
+model Withdrawal {
+  id            String           @id @default(uuid())
+  walletId      String
+  bankAccountId String
+  amountBRL     Decimal          @db.Decimal(12, 2)
+  status        WithdrawalStatus @default(PENDING)
+  pixKey        String
+  pixKeyType    String
+  notes         String?          @db.Text
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relationships
+  wallet      Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+
+  @@index([walletId])
+  @@index([bankAccountId])
+  @@index([status])
+}
+
+model WithdrawalAudit {
+  id           String   @id @default(uuid())
+  withdrawalId String
+  action       String   // REQUEST, BLOCKED_BALANCE, ADMIN_APPROVE, PIX_DISPATCHED, ADMIN_REJECT, RESTORED_BALANCE
+  actorId      String?
+  actorName    String?
+  details      String   @db.Text
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([withdrawalId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String
+  planId      String
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime           @default(now())
+  endDate     DateTime
+  canceledAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  // Relationships
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments SubscriptionPayment[]
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model Plan {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?  @db.Text
+  priceBRL    Decimal  @db.Decimal(12, 2)
+  interval    String   // monthly, yearly
+  features    String[] // Array of string benefits supported by PG
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  subscriptions Subscription[]
+
+  @@index([active])
+}
+
+model SubscriptionPayment {
+  id              String        @id @default(uuid())
+  subscriptionId  String
+  amountBRL       Decimal       @db.Decimal(12, 2)
+  status          PaymentStatus @default(PENDING)
+  txid            String?       @unique
+  qrCode          String?       @db.Text
+  qrCodeCopyPaste String?       @db.Text
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relationships
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([txid])
+}
+
+model Achievement {
+  id              String   @id @default(uuid())
+  title           String   @unique
+  description     String   @db.Text
+  xpReward        Int
+  coinReward      Int
+  requirementCode String   @unique // Internal programmatic check name (e.g., 'LessonsCompleted')
+  targetValue     Int      // Numerical threshold to lock/unlock
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+
+  // Relationships
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String    @id @default(uuid())
+  userId        String
+  achievementId String
+  currentValue  Int       @default(0)
+  isUnlocked    Boolean   @default(false)
+  unlockedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@index([isUnlocked])
+}
+
+model Inventory {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items InventoryItem[]
+
+  @@index([userId])
+}
+
+model InventoryItem {
+  id          String   @id @default(uuid())
+  inventoryId String
+  productId   String?  // References official catalog product, nullable if custom listing/drop
+  name        String
+  description String?  @db.Text
+  rarity      Rarity   @default(COMMON)
+  imageUrl    String?
+  isEquipped  Boolean  @default(false)
+  acquiredAt  DateTime @default(now())
+
+  // Relationships
+  inventory       Inventory        @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  product         StoreProduct?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  marketplaceItem MarketplaceItem?
+
+  @@index([inventoryId])
+  @@index([productId])
+}
+
+model StoreProduct {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String   @db.Text
+  priceKC     Int
+  priceBRL    Decimal? @db.Decimal(12, 2) // Optional fiat pricing for premium cosmetics
+  category    String   // GI, BELT_STRIPE, AVATAR, TITLE_TAG
+  rarity      Rarity   @default(COMMON)
+  imageUrl    String?
+  stock       Int?     // Null means infinite stock
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  storeSales     StoreSale[]
+  inventoryItems InventoryItem[]
+
+  @@index([active])
+  @@index([category])
+}
+
+model StoreSale {
+  id          String   @id @default(uuid())
+  productId   String
+  buyerId     String
+  pricePaidKC Int?
+  pricePaidBRL Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  product StoreProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  buyer   User         @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+
+  @@index([productId])
+  @@index([buyerId])
+}
+
+model MarketplaceItem {
+  id              String   @id @default(uuid())
+  inventoryItemId String   @unique
+  sellerId        String
+  priceKC         Int
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  inventoryItem InventoryItem    @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  seller        User             @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  sale          MarketplaceSale?
+
+  @@index([sellerId])
+  @@index([active])
+}
+
+model MarketplaceSale {
+  id                String   @id @default(uuid())
+  marketplaceItemId String   @unique
+  buyerId           String
+  pricePaidKC       Int
+  feePaidKC         Int      // Platform fee collected from transit
+  createdAt         DateTime @default(now())
+
+  // Relationships
+  marketplaceItem MarketplaceItem @relation(fields: [marketplaceItemId], references: [id], onDelete: Cascade)
+  buyer           User            @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+
+  @@index([marketplaceItemId])
+  @@index([buyerId])
+}
+
+model PvpMatch {
+  id                  String         @id @default(uuid())
+  challengerId        String
+  defenderId          String
+  winnerId            String?
+  challengerScore     Int            @default(0)
+  defenderScore       Int            @default(0)
+  xpReward            Int            @default(0)
+  coinReward          Int            @default(0)
+  eloChangeChallenger Int?
+  eloChangeDefender   Int?
+  status              PvpMatchStatus @default(PENDING)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relationships
+  challenger User       @relation("ChallengerMatches", fields: [challengerId], references: [id], onDelete: Cascade)
+  defender   User       @relation("DefenderMatches", fields: [defenderId], references: [id], onDelete: Cascade)
+  winner     User?      @relation("WinnerMatches", fields: [winnerId], references: [id], onDelete: SetNull)
+  rounds     PvpRound[]
+
+  @@index([challengerId])
+  @@index([defenderId])
+  @@index([winnerId])
+  @@index([status])
+}
+
+model PvpRound {
+  id          String   @id @default(uuid())
+  matchId     String
+  roundNumber Int
+  questionId  String
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  match    PvpMatch    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  question PvpQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  answers  PvpAnswer[]
+
+  @@index([matchId])
+  @@index([questionId])
+}
+
+model PvpQuestion {
+  id            String   @id @default(uuid())
+  text          String   @db.Text
+  category      String
+  difficulty    String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctOption String   // "A", "B", "C" or "D"
+  explanation   String?  @db.Text
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  // Relationships
+  pvpRounds   PvpRound[]
+  pvpAnswers  PvpAnswer[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model PvpAnswer {
+  id             String   @id @default(uuid())
+  roundId        String
+  userId         String
+  questionId     String
+  selectedOption String
+  isCorrect      Boolean
+  responseTimeMs Int
+  createdAt      DateTime @default(now())
+
+  // Relationships
+  round    PvpRound    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question PvpQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([roundId])
+  @@index([userId])
+  @@index([questionId])
+}
+
+model Rank {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  globalPosition Int?
+  beltPosition   Int?
+  weeklyRank     String   @default("BRONZE") // BRONZE, SILVER, GOLD, PLATINUM, CHAMPION
+  points         Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([points])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  content   String           @db.Text
+  type      NotificationType @default(SYSTEM)
+  isRead    Boolean          @default(false)
+  linkTo    String?          // Redirection link within the platform
+  createdAt DateTime         @default(now())
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model AuditLog {
+  id          String          @id @default(uuid())
+  actorId     String?
+  action      AuditActionType
+  description String          @db.Text
+  ipAddress   String?
+  userAgent   String?
+  amountBRL   Decimal?        @db.Decimal(12, 2)
+  amountKC    Int?
+  createdAt   DateTime        @default(now())
+
+  // Relationships
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model SocialPost {
+  id           String   @id @default(uuid())
+  authorId     String
+  content      String   @db.Text
+  category     String   // "#treinos", "#duvidas-posicoes", "#memes-tatame", "#campeonatos"
+  imageUrl     String?
+  upvotesCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    Like[]
+
+  @@index([authorId])
+  @@index([category])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  post   SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relationships
+  post SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Follower {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}

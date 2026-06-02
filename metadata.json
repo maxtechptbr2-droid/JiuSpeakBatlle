@@ -1,0 +1,6 @@
+{
+  "name": "JiuSpeak",
+  "description": "Plataforma gamificada brasileira de aprendizado, sparring virtual e comunidade de Jiu-Jitsu com XP, conquistas, mercado e arena PvP em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
