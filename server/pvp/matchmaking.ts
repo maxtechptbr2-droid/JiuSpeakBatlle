@@ -1,6 +1,7 @@
 import { getRedisClient } from "./redis";
 import { ArenaService, ArenaPlayer, BotConfig } from "./arena";
 import { authStore } from "../authStore";
+import { logPvP } from "../logger";
 
 export interface QueueUser {
   userId: string;
@@ -32,6 +33,7 @@ export class MatchmakingService {
 
     this.queue.set(user.userId, user);
     console.log(`➕ [FILA] Jogador ${user.name} entrou na fila de matchmaking (ELO: ${user.elo})`);
+    logPvP("QUEUE_JOIN", user.userId, { name: user.name, elo: user.elo });
     
     // Trigger tick immediately to see if we can pair right away
     this.pairPlayers();
@@ -42,6 +44,7 @@ export class MatchmakingService {
     await client.lrem(this.REDIS_QUEUE_KEY, 0, userId);
     this.queue.delete(userId);
     console.log(`➖ [FILA] Jogador de id ${userId} saiu da fila.`);
+    logPvP("QUEUE_LEAVE", userId);
   }
 
   static getQueueStatus(userId: string): { position: number; count: number } | null {
@@ -123,6 +126,8 @@ export class MatchmakingService {
         };
 
         ArenaService.createArena(matchId, challenger, defender);
+        logPvP("MATCH_START", p1.userId, { name: p1.name, opponentId: p2.userId, opponentName: p2.name, matchId, type: "HUMAN_PVP" });
+
         // Recurse to handle multiple potential pairs
         this.pairPlayers();
         break;
@@ -267,6 +272,7 @@ export class MatchmakingService {
     };
 
     ArenaService.createArena(matchId, challenger, defender);
+    logPvP("MATCH_START", p.userId, { name: p.name, opponentId: defender.id, opponentName: defender.name, matchId, type: "BOT_PVP", templateBelt: template.belt });
     return matchId;
   }
 }

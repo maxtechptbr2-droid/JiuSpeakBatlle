@@ -24,16 +24,26 @@ import {
 import { UserProfile, Course, Achievement, AuditLog, BeltRank } from './types';
 import { COURSES, ACHIEVEMENTS, INITIAL_AUDIT_LOGS } from './data';
 import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
-import Lessons from './components/Lessons';
-import PvPArena from './components/PvPArena';
-import StoreMarket from './components/StoreMarket';
-import SocialFeed from './components/SocialFeed';
-import CreatorPanel from './components/CreatorPanel';
-import AdminPanel from './admin';
-import AuthPortal from './components/AuthPortal';
-import FinancePanel from './components/FinancePanel';
-import SubscriptionPanel from './components/SubscriptionPanel';
+
+// Lazy loading views for optimized chunk loading and quick response times under high-load
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const Lessons = React.lazy(() => import('./components/Lessons'));
+const PvPArena = React.lazy(() => import('./components/PvPArena'));
+const StoreMarket = React.lazy(() => import('./components/StoreMarket'));
+const SocialFeed = React.lazy(() => import('./components/SocialFeed'));
+const CreatorPanel = React.lazy(() => import('./components/CreatorPanel'));
+const AdminPanel = React.lazy(() => import('./admin'));
+const AuthPortal = React.lazy(() => import('./components/AuthPortal'));
+const FinancePanel = React.lazy(() => import('./components/FinancePanel'));
+const SubscriptionPanel = React.lazy(() => import('./components/SubscriptionPanel'));
+
+// Spinner skeleton screen for lazy-loaded route transitions 
+const LoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center p-12 min-h-[400px] text-slate-400 gap-3" id="loading-fallback">
+    <div className="w-10 h-10 border-4 border-slate-700/50 border-t-yellow-500 rounded-full animate-spin"></div>
+    <span className="text-xs font-mono text-slate-500 tracking-wider uppercase">Carregando Tatame Virtual...</span>
+  </div>
+);
 
 export default function App() {
   
@@ -425,7 +435,9 @@ export default function App() {
             </div>
           </div>
         )}
-        <AuthPortal onLoginSuccess={handleLoginSuccess} showToast={showToast} />
+        <React.Suspense fallback={<LoadingFallback />}>
+          <AuthPortal onLoginSuccess={handleLoginSuccess} showToast={showToast} />
+        </React.Suspense>
       </div>
     );
   }
@@ -559,93 +571,95 @@ export default function App() {
         </div>
 
         {/* Mounted Views Router */}
-        {currentTab === 'dashboard' && (
-          <Dashboard 
-            user={user} 
-            achievements={achievements} 
-            updateUser={handleUpdateUserProfile} 
-            claimAchievement={claimAchievement}
-            onNavigate={setCurrentTab}
-          />
-        )}
+        <React.Suspense fallback={<LoadingFallback />}>
+          {currentTab === 'dashboard' && (
+            <Dashboard 
+              user={user} 
+              achievements={achievements} 
+              updateUser={handleUpdateUserProfile} 
+              claimAchievement={claimAchievement}
+              onNavigate={setCurrentTab}
+            />
+          )}
 
-        {currentTab === 'lessons' && (
-          <Lessons 
-            user={user} 
-            courses={courses} 
-            updateUser={handleUpdateUserProfile} 
-            onAddAuditLog={addAuditLog}
-            addXp={addXp}
-            addCoins={addCoins}
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'lessons' && (
+            <Lessons 
+              user={user} 
+              courses={courses} 
+              updateUser={handleUpdateUserProfile} 
+              onAddAuditLog={addAuditLog}
+              addXp={addXp}
+              addCoins={addCoins}
+              showToast={showToast}
+            />
+          )}
 
-        {currentTab === 'pvp' && (
-          <PvPArena 
-            user={user} 
-            updateUser={handleUpdateUserProfile} 
-            onAddAuditLog={addAuditLog}
-            addXp={addXp}
-            addCoins={addCoins}
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'pvp' && (
+            <PvPArena 
+              user={user} 
+              updateUser={handleUpdateUserProfile} 
+              onAddAuditLog={addAuditLog}
+              addXp={addXp}
+              addCoins={addCoins}
+              showToast={showToast}
+            />
+          )}
 
-        {currentTab === 'market' && (
-          <StoreMarket 
-            user={user} 
-            updateUser={handleUpdateUserProfile} 
-            onAddAuditLog={addAuditLog}
-            showToast={showToast}
-            setCurrentTab={setCurrentTab}
-          />
-        )}
+          {currentTab === 'market' && (
+            <StoreMarket 
+              user={user} 
+              updateUser={handleUpdateUserProfile} 
+              onAddAuditLog={addAuditLog}
+              showToast={showToast}
+              setCurrentTab={setCurrentTab}
+            />
+          )}
 
-        {currentTab === 'social' && (
-          <SocialFeed 
-            user={user} 
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'social' && (
+            <SocialFeed 
+              user={user} 
+              showToast={showToast}
+            />
+          )}
 
-        {currentTab === 'finance' && (
-          <FinancePanel 
-            user={user} 
-            updateUser={handleUpdateUserProfile} 
-            onAddAuditLog={addAuditLog}
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'finance' && (
+            <FinancePanel 
+              user={user} 
+              updateUser={handleUpdateUserProfile} 
+              onAddAuditLog={addAuditLog}
+              showToast={showToast}
+            />
+          )}
 
-        {currentTab === 'subscriptions' && (
-          <SubscriptionPanel 
-            user={user} 
-            updateUser={handleUpdateUserProfile} 
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'subscriptions' && (
+            <SubscriptionPanel 
+              user={user} 
+              updateUser={handleUpdateUserProfile} 
+              showToast={showToast}
+            />
+          )}
 
-        {currentTab === 'creator' && (
-          <CreatorPanel 
-            user={user} 
-            courses={courses} 
-            updateUser={handleUpdateUserProfile} 
-            onAddNewCourse={handleAddNewCourse}
-            onAddAuditLog={addAuditLog}
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'creator' && (
+            <CreatorPanel 
+              user={user} 
+              courses={courses} 
+              updateUser={handleUpdateUserProfile} 
+              onAddNewCourse={handleAddNewCourse}
+              onAddAuditLog={addAuditLog}
+              showToast={showToast}
+            />
+          )}
 
-        {currentTab === 'admin' && (
-          <AdminPanel 
-            user={user} 
-            auditLogs={auditLogs} 
-            updateUser={handleUpdateUserProfile} 
-            onClearLogs={clearAuditLogs}
-            showToast={showToast}
-          />
-        )}
+          {currentTab === 'admin' && (
+            <AdminPanel 
+              user={user} 
+              auditLogs={auditLogs} 
+              updateUser={handleUpdateUserProfile} 
+              onClearLogs={clearAuditLogs}
+              showToast={showToast}
+            />
+          )}
+        </React.Suspense>
 
       </main>
 

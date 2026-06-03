@@ -98,17 +98,17 @@ cd /var/www/jiuspeak
 npm install --omit=dev --legacy-peer-deps
 ```
 
-Crie o arquivo de variáveis de ambiente `.env` de produção:
+Crie o arquivo de variáveis de ambiente `.env` de produção com os parâmetros oficiais:
 
 ```bash
 cat <<EOF > .env
 NODE_ENV="production"
 PORT=3000
-DATABASE_URL="postgresql://jiuspeak_user:SuaSenhaSuperSeguraSubstituaAqui@localhost:5432/jiuspeak_db?schema=public"
-JWT_SECRET="ColoqueUmSegredoHashMuitoForteAquiNinguemDeveSaber"
-JWT_REFRESH_SECRET="ColoqueOutroSegredoHashMuitoForteDiferente"
-GEMINI_API_KEY="AIzaSyYourProductionGeminiApiKeyGoesHere"
-DISABLE_HMR=true
+DATABASE_URL="postgresql://root:98922678baboaA-40@localhost:5432/jiuspeak_db?schema=public"
+JWT_SECRET="6e8f4d2a9b7c1e5f8a3d6c9b2e7f4a1d8c5b9e2f6a3d7c1b8e4f9a2d5c7e1"
+JWT_REFRESH_SECRET="9c4e7a1d5b8f2c6e3a9d7b1f4c8e2a5d6f9b3e1c7a4d8f2b5e9c1d6a3f7b8"
+APP_URL="https://www.jiuspeak.com.br"
+GEMINI_API_KEY=""
 EOF
 ```
 

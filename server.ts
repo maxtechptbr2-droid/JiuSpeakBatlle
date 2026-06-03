@@ -2,11 +2,13 @@ import express from "express";
 import path from "path";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 import { rateLimit } from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import http from "http";
+import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
 import { authStore, simulatedSentEmails, inMemoryUsers } from "./server/authStore";
 import { AuthService, generateAccessToken, generateRefreshToken } from "./server/authService";
@@ -14,13 +16,33 @@ import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { getPrisma, assertDatabaseConnection } from "./server/db";
+import { getCached, invalidateCache } from "./server/cache";
+import { parsePagination, formatPaginatedResponse } from "./server/pagination";
+import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
 
 const app = express();
 const PORT = 3000;
 
-// Security & Sandbox Hardening Middlewares
+// Enable Gzip compression
+app.use(compression());
+
+// Security & Sandbox Hardening Middlewares with strict production constraints
+const allowedOrigins = [
+  "https://www.jiuspeak.com.br",
+  "https://jiuspeak.com.br"
+];
+
 app.use(cors({
-  origin: true,
+  origin: (origin: any, callback: any) => {
+    // Allow non-production or local or same-origin direct clients
+    if (!origin || process.env.NODE_ENV !== "production") {
+      return callback(null, true);
+    }
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error("Acesso bloqueado por diretrizes de CORS seguro de produção."));
+  },
   credentials: true
 }));
 
@@ -30,6 +52,33 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
+// Recursive XSS and HTML Input Sanitizer Middleware
+function sanitizeInput(obj: any): any {
+  if (typeof obj === "string") {
+    return obj
+      .replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, "")
+      .replace(/<[^>]*>?/gm, "")
+      .trim();
+  } else if (Array.isArray(obj)) {
+    return obj.map(sanitizeInput);
+  } else if (obj !== null && typeof obj === "object") {
+    const sanitized: any = {};
+    for (const key of Object.keys(obj)) {
+      sanitized[key] = sanitizeInput(obj[key]);
+    }
+    return sanitized;
+  }
+  return obj;
+}
+
+// Apply Global Input Sanitization Middleware for body parameters
+app.use((req: any, res: any, next: any) => {
+  if (req.body) {
+    req.body = sanitizeInput(req.body);
+  }
+  next();
+});
+
 const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 300, 
@@ -38,6 +87,19 @@ const apiRateLimiter = rateLimit({
   message: { error: "Muitas requisições. Rate limit ativado para segurança!" }
 });
 app.use("/api/", apiRateLimiter);
+
+// Specific strict auth limits to prevent brute-force or registration flood
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30, // Max 30 attempts per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Tentativas de autenticação excessivas detectadas. Favor aguardar 15 minutos!" }
+});
+app.use("/api/auth/register", authRateLimiter);
+app.use("/api/auth/login", authRateLimiter);
+app.use("/api/auth/forgot-password", authRateLimiter);
+app.use("/api/auth/reset-password", authRateLimiter);
 
 // Middleware
 app.use(express.json());
@@ -242,8 +304,20 @@ app.use((req: any, res: any, next: any) => {
   next();
 });
 
-const JWT_ACCESS_SECRET = process.env.JWT_SECRET || "super-secret-access-token-key-2026";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "super-secret-refresh-token-key-2026-999";
+const DEFAULT_JWT_SECRET = "super-secret-access-token-key-2026";
+const DEFAULT_JWT_REFRESH_SECRET = "super-secret-refresh-token-key-2026-999";
+
+const JWT_ACCESS_SECRET = (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET)
+  ? (process.env.NODE_ENV === "production" 
+      ? crypto.randomBytes(32).toString("hex") 
+      : DEFAULT_JWT_SECRET)
+  : process.env.JWT_SECRET;
+
+const JWT_REFRESH_SECRET = (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET)
+  ? (process.env.NODE_ENV === "production" 
+      ? crypto.randomBytes(32).toString("hex") 
+      : DEFAULT_JWT_REFRESH_SECRET)
+  : process.env.JWT_REFRESH_SECRET;
 
 // =========================================================================
 // IN-MEMORY DATA CACHES & CATALOG FOR INTERNAL MARKETPLACE
@@ -442,11 +516,9 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       return res.status(409).json({ error: "An account already exists with this email address." });
     }
 
-    // Role check - safe register defaulting to ATHLETE unless explicitly admin request
-    let selectedRole: "ATHLETE" | "ADMIN" = "ATHLETE";
-    if (role === "ADMIN") {
-      selectedRole = "ADMIN";
-    }
+    // Privilege Escalation Mitigation: Default strictly to ATHLETE. 
+    // ADMIN roles can only be granted by an existing administrator via the admin panel.
+    const selectedRole: "ATHLETE" | "ADMIN" = "ATHLETE";
 
     // Hash password using secure bcrypt configuration
     const passwordHash = await bcrypt.hash(password, 10);
@@ -462,6 +534,8 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       role: selectedRole,
       verificationToken,
     });
+
+    logAuth("REGISTER", email, true, { name, role: selectedRole });
 
     // Send Simulated Email
     const verificationUrl = `${req.protocol}://${req.get("host")}/verify?token=${verificationToken}`;
@@ -482,6 +556,8 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       devMessage: "Em modo de demonstração de produção, utilize o painel de depuração ou logs para visualizar o e-mail de confirmação."
     });
   } catch (error: any) {
+    logError("Failed to register new athlete user", error);
+    logAuth("REGISTER", req.body?.email || "unknown", false, { error: error.message });
     console.error("Error in register endpoint:", error);
     res.status(500).json({ error: "Internal server error." });
   }
@@ -501,6 +577,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     // Check brute-force constraints
     const blockCheck = await AuthService.checkBruteForceBlock({ email, ipAddress });
     if (blockCheck.isBlocked) {
+      logAuth("LOGIN", email, false, { ipAddress, blockReason: "Brute-force lockout active" });
       return res.status(429).json({ 
         error: `Múltiplas tentativas de login incorretas registradas. Bloqueio temporário ativo por mais ${blockCheck.remainingMinutes} minutos para proteger sua conta.` 
       });
@@ -509,6 +586,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     const user = await authStore.findByEmail(email);
     if (!user || !user.passwordHash) {
       await AuthService.recordLoginAttempt({ email, ipAddress, success: false });
+      logAuth("LOGIN", email, false, { ipAddress, reason: "No such user or password hash empty" });
       return res.status(401).json({ error: "Credenciais inválidas." });
     }
 
@@ -526,6 +604,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
         userAgent
       });
 
+      logAuth("LOGIN", email, false, { ipAddress, reason: "Password mismatch" });
       return res.status(401).json({ error: "Credenciais inválidas." });
     }
 
@@ -561,6 +640,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       userAgent
     });
 
+    logAuth("LOGIN", email, true, { ipAddress, userId: user.id });
+
     res.json({
       message: "Login realizado com sucesso!",
       accessToken,
@@ -579,6 +660,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       }
     });
   } catch (error: any) {
+    logError("Login handler crash", error);
+    logAuth("LOGIN", req.body?.email || "unknown", false, { error: error.message });
     console.error("Error in login endpoint:", error);
     res.status(500).json({ error: "Internal server error." });
   }
@@ -629,11 +712,29 @@ app.post("/api/auth/refresh", async (req: any, res: any) => {
 app.post("/api/auth/logout", async (req: any, res: any) => {
   try {
     const { refreshToken } = req.body;
+    let fallbackEmail = "unknown";
     if (refreshToken) {
+      try {
+        const decoded: any = jwt.decode(refreshToken);
+        if (decoded && decoded.id) {
+          const prisma = getPrisma();
+          if (prisma) {
+            const u = await prisma.user.findUnique({
+              where: { id: decoded.id },
+              select: { email: true }
+            });
+            if (u) fallbackEmail = u.email;
+          }
+        }
+      } catch (_) {}
+
       await AuthService.invalidateSession(refreshToken);
     }
+    logAuth("LOGOUT", fallbackEmail, true, { hasToken: !!refreshToken });
     res.json({ message: "Desconectado com sucesso." });
   } catch (error: any) {
+    logError("Error on logout handler", error);
+    logAuth("LOGOUT", "unknown", false, { error: error.message });
     console.error("Error in logout endpoint:", error);
     res.status(500).json({ error: "Internal server error." });
   }
@@ -864,12 +965,18 @@ app.post("/api/auth/reset-password", async (req: any, res: any) => {
   }
 });
 
-// 9. OUTBOX MONITOR (For Sandbox UX Testing)
+// 9. OUTBOX MONITOR (For Sandbox UX Testing - Disabled in Production for Security)
 app.get("/api/dev/emails", (req: any, res: any) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Funcionalidade desativada em ambiente de produção por motivos de segurança." });
+  }
   res.json({ emails: simulatedSentEmails });
 });
 
 app.post("/api/dev/emails/clear", (req: any, res: any) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Funcionalidade desativada em ambiente de produção por motivos de segurança." });
+  }
   simulatedSentEmails.length = 0;
   res.json({ status: "cleared" });
 });
@@ -877,13 +984,32 @@ app.post("/api/dev/emails/clear", (req: any, res: any) => {
 // 10. ADMIN & USERS LIST (Demonstrates Roles / ADMIN route)
 app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
+    const { skip, take, page, limit } = parsePagination(req.query, 20, 100);
+
     // Collect from real database or local in memory lists
     const usersList: any[] = [];
     const prisma = getPrisma();
+    let totalCount = 0;
+
     if (prisma) {
       try {
+        totalCount = await prisma.user.count();
         const list = await prisma.user.findMany({
           orderBy: { createdAt: "desc" },
+          skip,
+          take,
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            belt: true,
+            stripes: true,
+            level: true,
+            elo: true,
+            isEmailVerified: true,
+            createdAt: true,
+          }
         });
         list.forEach((u: any) => {
           usersList.push({
@@ -905,7 +1031,11 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
     }
 
     if (usersList.length === 0) {
-      for (const u of inMemoryUsers.values()) {
+      totalCount = inMemoryUsers.size;
+      const memArray = Array.from(inMemoryUsers.values());
+      const paginatedMem = memArray.slice(skip, skip + take);
+      
+      for (const u of paginatedMem) {
         usersList.push({
           id: u.id,
           email: u.email,
@@ -921,7 +1051,15 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
       }
     }
 
-    res.json({ users: usersList });
+    res.json({ 
+      users: usersList,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error: any) {
     console.error("Admin user list fetch error:", error);
     res.status(500).json({ error: "Server failed to fetch list." });
@@ -1122,6 +1260,7 @@ app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]
 // 14. GET ALL SUBSCRIPTIONS FOR REVIEW IN THE SYSTEM
 app.get("/api/admin/subscriptions", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
+    const { skip, take, page, limit } = parsePagination(req.query, 20, 100);
     const prisma = getPrisma();
     let resultList: any[] = [];
 
@@ -1132,7 +1271,8 @@ app.get("/api/admin/subscriptions", authenticateToken, requireRole(["ADMIN"]), a
             user: { select: { id: true, name: true, email: true } },
             plan: true
           },
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
+          take: 500 // Cap database readout to prevent locking
         });
         resultList = subs.map((s: any) => ({
           id: s.id,
@@ -1176,7 +1316,18 @@ app.get("/api/admin/subscriptions", authenticateToken, requireRole(["ADMIN"]), a
       }
     }
 
-    res.json({ subscriptions: list });
+    const totalCount = list.length;
+    const paginatedList = list.slice(skip, skip + take);
+
+    res.json({ 
+      subscriptions: paginatedList,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: "Erro ao coletar faturamento das assinaturas." });
   }
@@ -1246,6 +1397,7 @@ app.post("/api/admin/subscriptions/:id/action", authenticateToken, requireRole([
 // 16. GET ALL PIX DEPOSITS EXPENDITURES
 app.get("/api/admin/pix", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
+    const { skip, take, page, limit } = parsePagination(req.query, 20, 100);
     const prisma = getPrisma();
     let resultList: any[] = [];
 
@@ -1261,7 +1413,8 @@ app.get("/api/admin/pix", authenticateToken, requireRole(["ADMIN"]), async (req:
               }
             }
           },
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
+          take: 500 // Cap database readout to prevent locking
         });
 
         resultList = dbPix.map((p: any) => ({
@@ -1299,7 +1452,18 @@ app.get("/api/admin/pix", authenticateToken, requireRole(["ADMIN"]), async (req:
       }
     }
 
-    res.json({ pixPayments: combined });
+    const totalCount = combined.length;
+    const paginatedList = combined.slice(skip, skip + take);
+
+    res.json({ 
+      pixPayments: paginatedList,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: "Erro ao obter transações PIX." });
   }
@@ -1451,14 +1615,18 @@ app.post("/api/admin/marketplace/:id/action", authenticateToken, requireRole(["A
 // 20. GET REALTIME PLATFORM-WIDE AUDIT LOGS
 app.get("/api/admin/audit-logs", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
+    const { skip, take, page, limit } = parsePagination(req.query, 50, 150);
     const prisma = getPrisma();
     let queryLogs: any[] = [];
+    let totalCount = 0;
 
     if (prisma) {
       try {
+        totalCount = await prisma.auditLog.count();
         const dbLogs = await prisma.auditLog.findMany({
           orderBy: { createdAt: "desc" },
-          take: 100,
+          skip,
+          take,
           include: { actor: { select: { name: true, email: true } } }
         });
         queryLogs = dbLogs.map((l: any) => ({
@@ -1471,7 +1639,15 @@ app.get("/api/admin/audit-logs", authenticateToken, requireRole(["ADMIN"]), asyn
       } catch (_) {}
     }
 
-    res.json({ logs: queryLogs });
+    res.json({ 
+      logs: queryLogs,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: "Mecanismo indisponível para depurar logs gerais." });
   }
@@ -1569,30 +1745,56 @@ app.post("/api/admin/reports/:id/action", authenticateToken, requireRole(["ADMIN
 // =========================================================================
 app.get("/api/pvp/leaderboard", async (req: any, res: any) => {
   try {
-    const list: any[] = [];
-    const prisma = getPrisma();
-    if (prisma) {
-      try {
-        const queryUsers = await prisma.user.findMany({
-          orderBy: { elo: "desc" },
-          take: 10,
-        });
-        queryUsers.forEach((u: any) => {
-          list.push({
-            id: u.id,
-            name: u.name,
-            elo: u.elo,
-            belt: u.belt,
-            level: u.level,
-            avatar: u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.name}`
-          });
-        });
-      } catch (err) {
-        console.error("Failed to query prisma leaderboard:", err);
-      }
-    }
+    const { skip, take, page, limit } = parsePagination(req.query, 10, 50);
+    const cacheKey = `pvp:leaderboard:p_${page}_sz_${limit}`;
 
-    res.json({ leaderboard: list });
+    const result = await getCached(cacheKey, async () => {
+      const list: any[] = [];
+      const prisma = getPrisma();
+      let totalCount = 10;
+
+      if (prisma) {
+        try {
+          totalCount = await prisma.user.count();
+          const queryUsers = await prisma.user.findMany({
+            orderBy: { elo: "desc" },
+            skip,
+            take,
+            select: {
+              id: true,
+              name: true,
+              elo: true,
+              belt: true,
+              level: true,
+              avatar: true
+            }
+          });
+          queryUsers.forEach((u: any) => {
+            list.push({
+              id: u.id,
+              name: u.name,
+              elo: u.elo,
+              belt: u.belt,
+              level: u.level,
+              avatar: u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`
+            });
+          });
+        } catch (err) {
+          console.error("Failed to query prisma leaderboard:", err);
+        }
+      }
+      return { list, totalCount };
+    }, 30); // Cache for 30s as leaderboard needs to be semi-realtime but heavily requested.
+
+    res.json({ 
+      leaderboard: result.list,
+      pagination: {
+        total: result.totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(result.totalCount / limit)
+      }
+    });
   } catch (error: any) {
     res.status(500).json({ error: "Falha ao coletar dados do ranking PvP." });
   }
@@ -1624,6 +1826,7 @@ app.get("/api/finance/wallet", authenticateToken, async (req: any, res: any) => 
 // 1.1 GET regular user's own withdrawal history
 app.get("/api/finance/withdrawals", authenticateToken, async (req: any, res: any) => {
   try {
+    const { skip, take, page, limit } = parsePagination(req.query, 10, 50);
     const userId = req.user.id;
     const prisma = getPrisma();
     let dbResults: any[] = [];
@@ -1634,7 +1837,8 @@ app.get("/api/finance/withdrawals", authenticateToken, async (req: any, res: any
           where: {
             wallet: { userId }
           },
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
+          take: 100 // Cap to prevent memory leaks/overload
         });
         dbResults = withdraws.map((w: any) => ({
           id: w.id,
@@ -1667,7 +1871,18 @@ app.get("/api/finance/withdrawals", authenticateToken, async (req: any, res: any
     // Sort by Date Desc
     mergedList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    res.json({ withdrawals: mergedList });
+    const totalCount = mergedList.length;
+    const paginatedList = mergedList.slice(skip, skip + take);
+
+    res.json({ 
+      withdrawals: paginatedList,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: "Erro ao obter histórico de saques." });
   }
@@ -2132,6 +2347,7 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
 // 2. Admin fetches all withdrawal requests
 app.get("/api/admin/withdrawals", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
+    const { skip, take, page, limit } = parsePagination(req.query, 20, 100);
     const prisma = getPrisma();
     let dbResults: any[] = [];
     if (prisma) {
@@ -2139,10 +2355,11 @@ app.get("/api/admin/withdrawals", authenticateToken, requireRole(["ADMIN"]), asy
         const withdraws = await prisma.withdrawal.findMany({
           include: {
             wallet: {
-              include: { user: true }
+              include: { user: { select: { email: true, name: true } } }
             }
           },
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
+          take: 500 // Cap query depth
         });
         dbResults = withdraws.map((w: any) => ({
           id: w.id,
@@ -2174,7 +2391,18 @@ app.get("/api/admin/withdrawals", authenticateToken, requireRole(["ADMIN"]), asy
     // Sort by Date Desc
     mergedList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    res.json({ withdrawals: mergedList });
+    const totalCount = mergedList.length;
+    const paginatedList = mergedList.slice(skip, skip + take);
+
+    res.json({ 
+      withdrawals: paginatedList,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: "Erro ao carregar faturamento de retiradas." });
   }
@@ -2893,6 +3121,8 @@ app.post("/api/subscriptions/pay", authenticateToken, async (req: any, res: any)
             }
           });
 
+          logPayment("SUB_CREATE", Number(payment.amountBRL), userId, { planName: sub.plan.name, subId: sub.id, paymentId: payment.id, txid: payment.txid });
+
           return res.json({
             success: true,
             message: `Pagamento recebido! Obrigado por assinar o JiuSpeak ${sub.plan.name}!`,
@@ -2931,6 +3161,8 @@ app.post("/api/subscriptions/pay", authenticateToken, async (req: any, res: any)
         linkedSub.autoRenew = true;
 
         const plan = inMemoryPlans.find(p => p.id === linkedSub.planId);
+        const pAmount = plan ? Number(plan.priceBRL) : 29.9;
+        logPayment("SUB_CREATE", pAmount, userId, { planName: plan ? plan.name : "PRO", subId: linkedSub.id, memory: true });
         
         return res.json({
           success: true,
@@ -2938,7 +3170,7 @@ app.post("/api/subscriptions/pay", authenticateToken, async (req: any, res: any)
           activeSubscription: {
             type: plan ? plan.name : "PRO",
             expiresAt: linkedSub.endDate,
-            priceBRL: plan ? Number(plan.priceBRL) : 29.9,
+            priceBRL: pAmount,
             autoRenew: true
           }
         });
@@ -2946,7 +3178,8 @@ app.post("/api/subscriptions/pay", authenticateToken, async (req: any, res: any)
     }
 
     res.status(404).json({ error: "Ordem de pagamento de assinatura não encontrada." });
-  } catch (error) {
+  } catch (error: any) {
+    logError("Payment subscription confirm error", error);
     res.status(500).json({ error: "Erro ao processar processamento lógico do PIX." });
   }
 });
@@ -2967,12 +3200,14 @@ app.post("/api/subscriptions/cancel", authenticateToken, async (req: any, res: a
             where: { id: sub.id },
             data: { canceledAt: new Date() }
           });
+          logPayment("SUB_CANCEL", 0, userId, { subId: sub.id, database: true });
           return res.json({
             success: true,
             message: "Sua renovação automática de comissão SaaS foi suspensa. Você manterá os privilégios até o vencimento da fatura."
           });
         }
-      } catch (err) {
+      } catch (err: any) {
+        logError("Database subscription cancellation error", err);
         console.warn("DB sub cancel error:", err);
       }
     }
@@ -2981,6 +3216,7 @@ app.post("/api/subscriptions/cancel", authenticateToken, async (req: any, res: a
     if (sub) {
       sub.autoRenew = false;
       sub.canceledAt = new Date().toISOString();
+      logPayment("SUB_CANCEL", 0, userId, { subId: sub.id, memory: true });
       return res.json({
         success: true,
         message: "Sua renovação de comissão SaaS foi cancelada com sucesso na memória."
@@ -2988,7 +3224,8 @@ app.post("/api/subscriptions/cancel", authenticateToken, async (req: any, res: a
     }
 
     res.status(404).json({ error: "Você não possui nenhuma assinatura ativa a ser cancelada." });
-  } catch (error) {
+  } catch (error: any) {
+    logError("Payment subscription cancel error", error);
     res.status(500).json({ error: "Erro ao solicitar cancelamento da assinatura." });
   }
 });
@@ -3270,11 +3507,14 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
       }
     }
 
+    logPayment("PIX_INIT", value, user.id, { txid, type: paymentType, description: responsePayload.description });
+
     res.json({
       message: "Cobrança profissional PIX gerada com sucesso!",
       payment: responsePayload
     });
   } catch (err: any) {
+    logError("PIX generation failed", err);
     console.error(err);
     res.status(500).json({ error: "Falha ao gerar cobrança PIX." });
   }
@@ -3451,6 +3691,8 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
       });
     }
 
+    logPayment("PIX_CONFIRM", paymentAmount, mockUserObj?.id || "unknown", { txid, type: paymentType });
+
     res.json({
       success: true,
       message: `Webhook PIX processado com total êxito! Valor: R$ ${paymentAmount.toFixed(2)}.`,
@@ -3465,6 +3707,7 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
       } : null
     });
   } catch (err: any) {
+    logError("Webhook processing crash", err);
     console.error("Webhook processing crash:", err);
     res.status(500).json({ error: "Erro interno no servidor contábil ao processar o Webhook." });
   }
@@ -3477,60 +3720,102 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
 // 1. OBTEM TODOS OS ANÚNCIOS ATIVOS DO MERCADO
 app.get("/api/marketplace/items", async (req: any, res: any) => {
   try {
-    const prisma = getPrisma();
-    if (prisma) {
-      try {
-        const dbListings = await prisma.marketplaceItem.findMany({
-          where: { active: true },
-          include: { inventoryItem: true, seller: true }
-        });
-        
-        const items = dbListings.map((list: any) => ({
-          id: list.id,
-          inventoryItemId: list.inventoryItemId,
-          sellerId: list.sellerId,
-          sellerName: list.seller?.name || "Desconhecido",
-          price: list.priceKC,
-          currency: 'KC',
-          name: list.inventoryItem?.name || "Item Especial",
-          description: list.inventoryItem?.description || "",
-          category: (list.inventoryItem?.category || "gi").toLowerCase(),
-          rarity: list.inventoryItem?.rarity || "Comum",
-          imageUrl: list.inventoryItem?.imageUrl || ""
-        }));
-        return res.json({ items });
-      } catch (dbErr) {
-        console.warn("Prisma failed to load marketplace, using fallback:", dbErr);
+    const { skip, take, page, limit } = parsePagination(req.query, 12, 60);
+    const cacheKey = `marketplace:items:p_${page}_sz_${limit}`;
+
+    const cachedData = await getCached(cacheKey, async () => {
+      let items: any[] = [];
+      const prisma = getPrisma();
+      let totalCount = 0;
+
+      if (prisma) {
+        try {
+          totalCount = await prisma.marketplaceItem.count({ where: { active: true } });
+          const dbListings = await prisma.marketplaceItem.findMany({
+            where: { active: true },
+            include: { 
+              inventoryItem: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  rarity: true,
+                  imageUrl: true
+                }
+              }, 
+              seller: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              } 
+            },
+            orderBy: { id: "desc" },
+            skip,
+            take
+          });
+          
+          items = dbListings.map((list: any) => ({
+            id: list.id,
+            inventoryItemId: list.inventoryItemId,
+            sellerId: list.sellerId,
+            sellerName: list.seller?.name || "Desconhecido",
+            price: list.priceKC,
+            currency: 'KC',
+            name: list.inventoryItem?.name || "Item Especial",
+            description: list.inventoryItem?.description || "",
+            category: (list.inventoryItem?.category || "gi").toLowerCase(),
+            rarity: list.inventoryItem?.rarity || "Comum",
+            imageUrl: list.inventoryItem?.imageUrl || ""
+          }));
+        } catch (dbErr) {
+          console.warn("Prisma failed to load marketplace, using fallback:", dbErr);
+        }
       }
-    }
 
-    // Falls back to in-memory listings
-    const items = inMemoryMarketplaceItems.filter(li => li.active).map(li => {
-      const details = ALL_ITEMS_CATALOG[li.inventoryItemId] || {
-        id: li.inventoryItemId,
-        name: "Equipamento de Competição",
-        description: "Equipamento oficial de torneios.",
-        category: "gi",
-        price: li.priceKC,
-        rarity: "Comum",
-        imageUrl: ""
-      };
-      return {
-        id: li.id,
-        inventoryItemId: li.inventoryItemId,
-        sellerId: li.sellerId,
-        sellerName: li.sellerName || "Atleta Virtual",
-        price: li.priceKC,
-        currency: 'KC',
-        name: details.name,
-        description: details.description,
-        category: details.category,
-        rarity: details.rarity,
-        imageUrl: details.imageUrl
-      };
+      if (items.length === 0) {
+        const activeMemory = inMemoryMarketplaceItems.filter(li => li.active);
+        totalCount = activeMemory.length;
+        const slicedMem = activeMemory.slice(skip, skip + take);
+
+        items = slicedMem.map(li => {
+          const details = ALL_ITEMS_CATALOG[li.inventoryItemId] || {
+            id: li.inventoryItemId,
+            name: "Equipamento de Competição",
+            description: "Equipamento oficial de torneios.",
+            category: "gi",
+            price: li.priceKC,
+            rarity: "Comum",
+            imageUrl: ""
+          };
+          return {
+            id: li.id,
+            inventoryItemId: li.inventoryItemId,
+            sellerId: li.sellerId,
+            sellerName: li.sellerName || "Atleta Virtual",
+            price: li.priceKC,
+            currency: 'KC',
+            name: details.name,
+            description: details.description,
+            category: details.category?.toLowerCase() || "gi",
+            rarity: details.rarity,
+            imageUrl: details.imageUrl
+          };
+        });
+      }
+
+      return { items, totalCount };
+    }, 10); // Cache active market indexes for 10 seconds
+
+    res.json({ 
+      items: cachedData.items,
+      pagination: {
+        total: cachedData.totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(cachedData.totalCount / limit)
+      }
     });
-
-    res.json({ items });
   } catch (error) {
     res.status(500).json({ error: "Erro ao obter itens do marketplace." });
   }
@@ -4051,28 +4336,45 @@ function getRelativeTime(timestampStr: string | Date): string {
 // 1. GET ALL SOCIAL POSTS
 app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
   try {
-    const prisma = getPrisma();
+    const { skip, take, page, limit } = parsePagination(req.query, 10, 30);
+    const cacheKey = `social:posts:p_${page}_sz_${limit}`;
     const userId = req.user.id;
 
-    const dbPosts = await prisma.socialPost.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        author: {
-          select: { id: true, name: true, avatar: true, belt: true }
-        },
-        likes: true,
-        comments: {
-          orderBy: { createdAt: "asc" },
-          include: {
-            author: {
-              select: { id: true, name: true, avatar: true, belt: true }
+    const result = await getCached(cacheKey, async () => {
+      const prisma = getPrisma();
+      let dbPosts: any[] = [];
+      let totalCount = 0;
+
+      if (prisma) {
+        try {
+          totalCount = await prisma.socialPost.count();
+          dbPosts = await prisma.socialPost.findMany({
+            orderBy: { createdAt: "desc" },
+            skip,
+            take,
+            include: {
+              author: {
+                select: { id: true, name: true, avatar: true, belt: true }
+              },
+              likes: true,
+              comments: {
+                orderBy: { createdAt: "asc" },
+                include: {
+                  author: {
+                    select: { id: true, name: true, avatar: true, belt: true }
+                  }
+                }
+              }
             }
-          }
+          });
+        } catch (dbErr) {
+          console.warn("Failed to retrieve query posts, fallback empty", dbErr);
         }
       }
-    });
+      return { dbPosts, totalCount };
+    }, 5); // 5s Microcache for highly read/write active feed stream
 
-    const mappedPosts = dbPosts.map((post: any) => {
+    const mappedPosts = result.dbPosts.map((post: any) => {
       const hasLiked = post.likes.some((lk: any) => lk.userId === userId);
       return {
         id: post.id,
@@ -4096,7 +4398,15 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
       };
     });
 
-    res.json({ posts: mappedPosts });
+    res.json({ 
+      posts: mappedPosts,
+      pagination: {
+        total: result.totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(result.totalCount / limit)
+      }
+    });
   } catch (error) {
     console.error("Critical database error in social feed retrieval:", error);
     res.status(500).json({ error: "Erro ao obter lista de publicações." });
@@ -4209,6 +4519,11 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
       }
     }
 
+    // Invalidate the first page social feed cache combinations to ensure real-time consistency
+    await invalidateCache("social:posts:p_1_sz_10");
+    await invalidateCache("social:posts:p_1_sz_20");
+    await invalidateCache("social:posts:p_1_sz_30");
+
     res.status(201).json({ message: "Conteúdo publicado com sucesso!", post: savedPost });
   } catch (error) {
     res.status(500).json({ error: "Erro interno ao cadastrar postagem." });
@@ -4271,6 +4586,9 @@ app.post("/api/social/posts/:postId/like", authenticateToken, async (req: any, r
           });
 
           upvoteCount = updatedLikes;
+          await invalidateCache("social:posts:p_1_sz_10");
+          await invalidateCache("social:posts:p_1_sz_20");
+          await invalidateCache("social:posts:p_1_sz_30");
           return res.json({ hasUpvoted: isLikedNow, upvotes: upvoteCount });
         }
       } catch (dbErr) {
@@ -4314,6 +4632,9 @@ app.post("/api/social/posts/:postId/like", authenticateToken, async (req: any, r
     }
 
     upvoteCount = targetPost.upvotes;
+    await invalidateCache("social:posts:p_1_sz_10");
+    await invalidateCache("social:posts:p_1_sz_20");
+    await invalidateCache("social:posts:p_1_sz_30");
     res.json({ hasUpvoted: isLikedNow, upvotes: upvoteCount });
   } catch (error) {
     res.status(500).json({ error: "Erro ao alternar curtida da postagem." });
@@ -4660,12 +4981,52 @@ async function startServer() {
 
   const server = http.createServer(app);
   
-  // Attach Socket.IO to HTTP server allowing same-port ingestion
+  // Attach Socket.IO to HTTP server with high-performance production tuning
   const io = new SocketServer(server, {
     cors: {
-      origin: "*",
-      methods: ["GET", "POST"]
-    }
+      origin: process.env.NODE_ENV === "production"
+        ? ["https://www.jiuspeak.com.br", "https://jiuspeak.com.br"]
+        : "*",
+      methods: ["GET", "POST"],
+      credentials: true
+    },
+    pingTimeout: 10000,
+    pingInterval: 5000,
+    maxHttpBufferSize: 1e6, // 1MB peak size constraint to block socket buffer overflow/denial exploits
+    connectTimeout: 20000,
+    transports: ["websocket", "polling"],
+    cleanupEmptyChildNamespaces: true
+  });
+
+  // Socket.IO Packet Rate Limiting per user connection to prevent spam/denial exploits
+  const socketRateLimits = new Map<string, { count: number; resetAt: number }>();
+  io.use((socket, next) => {
+    socket.use(([event, ...args], nextEvent) => {
+      const now = Date.now();
+      const limitKey = socket.id;
+      const rate = socketRateLimits.get(limitKey) || { count: 0, resetAt: now + 5000 };
+
+      if (now > rate.resetAt) {
+        rate.count = 1;
+        rate.resetAt = now + 5000;
+        socketRateLimits.set(limitKey, rate);
+      } else {
+        rate.count++;
+        socketRateLimits.set(limitKey, rate);
+        if (rate.count > 40) { // Max 40 packets per 5 seconds
+          console.warn(`[SOCKET RATE LIMIT] Socket ${socket.id} blocked for spamming.`);
+          socket.emit("error:limiter", { message: "Spam block ativado pelo servidor." });
+          return;
+        }
+      }
+      nextEvent();
+    });
+
+    socket.on("disconnect", () => {
+      socketRateLimits.delete(socket.id);
+    });
+
+    next();
   });
 
   // Initialize companion engines
@@ -4689,6 +5050,17 @@ async function startServer() {
         if (!user) {
           socket.emit("auth:error", { message: "Usuário não localizado." });
           return;
+        }
+
+        // CONTROL MULTIPLE SESSÕES:
+        // Find if this user already has an active socket connected and disconnect it
+        const sockets = await io.fetchSockets();
+        for (const s of sockets) {
+          if (s.data.userId === user.id && s.id !== socket.id) {
+            console.log(`[MULTIPLE SESSIONS] Desconectando socket antigo ${s.id} do usuário ${user.name}`);
+            s.emit("auth:kick", { message: "Sua conta foi conectada em outro dispositivo." });
+            s.disconnect(true);
+          }
         }
 
         socket.data.userId = user.id;
@@ -4777,6 +5149,15 @@ async function startServer() {
         ArenaService.handlePlayerDisconnect(userId);
       }
       console.log(`🔌 Conexão de socket desfeita: ${socket.id}`);
+    });
+  });
+
+  // Global Express Error-handling logging middleware
+  app.use((err: any, req: any, res: any, next: any) => {
+    logError(`UNHANDLED_ROUTE_ERROR [${req.method} ${req.url}]`, err);
+    res.status(err.status || 500).json({
+      error: "Erro interno do servidor no Tatame Virtual.",
+      details: process.env.NODE_ENV !== "production" ? err.message : undefined
     });
   });
 

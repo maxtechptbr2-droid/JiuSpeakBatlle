@@ -3,6 +3,7 @@ import { bjjQuestionsPool, BJJQuestion } from "./questions";
 import { RankingService } from "./ranking";
 import { authStore } from "../authStore";
 import { generateBotComment } from "./ai";
+import { logPvP, logError } from "../logger";
 
 export interface BotConfig {
   belt: "WHITE" | "BLUE" | "PURPLE" | "BROWN" | "BLACK";
@@ -343,6 +344,13 @@ export class ArenaService {
     }
 
     console.log(`🏁 Partida concluída ${matchId}. Vencedor: ${winnerId || "Empate"}`);
+    logPvP("MATCH_END", winnerId || "TIE", { 
+      matchId, 
+      challengerId: arena.playerChallenger.id, 
+      challengerScore: arena.playerChallenger.score, 
+      defenderId: arena.playerDefender.id, 
+      defenderScore: arena.playerDefender.score 
+    });
 
     // If defender is a real player, calculate ranking points
     let ratingResults = null;
@@ -378,6 +386,7 @@ export class ArenaService {
 
       if (arena.playerChallenger.id === userId || arena.playerDefender.id === userId) {
         console.warn(`🚨 Jogador com ID ${userId} abandonou ou desconectou durante arena ativa!`);
+        logPvP("MATCH_ABORT", userId, { matchId, challengerId: arena.playerChallenger.id, defenderId: arena.playerDefender.id });
         
         // Define remaining player as Winner
         const winnerId = arena.playerChallenger.id === userId 

@@ -40,7 +40,7 @@ interface LeaderboardEntry {
 const BOT_SELECT_LIST = [
   {
     key: "WHITE",
-    name: "Luizinho 'Amassa-Pão'",
+    name: "Thomas (White Belt • USA)",
     belt: "Branca",
     beltBg: "bg-white text-slate-900 border border-slate-300",
     difficulty: "EASY",
@@ -48,12 +48,12 @@ const BOT_SELECT_LIST = [
     speed: 35,
     aggressiveness: 45,
     intelligence: 30,
-    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=luizinho_bjj",
-    desc: "Mete a força bruta, perde gás no primeiro minuto e esquece as regras táticas."
+    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=thomas_usa",
+    desc: "Estudante americano iniciante na sua academia. Fala de forma simples e precisa de ajuda com termos básicos."
   },
   {
     key: "BLUE",
-    name: "Renatinho 'Berimbolo'",
+    name: "Coach Tyler (California)",
     belt: "Azul",
     beltBg: "bg-blue-600 text-white",
     difficulty: "MEDIUM",
@@ -61,12 +61,12 @@ const BOT_SELECT_LIST = [
     speed: 55,
     aggressiveness: 85,
     intelligence: 50,
-    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=renatinho_bjj",
-    desc: "Fala muita gíria de tatame, super marrento e quer finalizar no pé."
+    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=tyler_cali",
+    desc: "Instrutor californiano que adora usar gírias locais e termos informais do dia-a-dia do tatame."
   },
   {
     key: "PURPLE",
-    name: "Felipe 'Guarda-Lasso'",
+    name: "Yuki (Purple Belt • Japan)",
     belt: "Roxa",
     beltBg: "bg-purple-700 text-white",
     difficulty: "MEDIUM",
@@ -74,12 +74,12 @@ const BOT_SELECT_LIST = [
     speed: 70,
     aggressiveness: 40,
     intelligence: 75,
-    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=felipe_bjj",
-    desc: "Especialista em flow state, joga super relaxado e focado na lapela."
+    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=yuki_tokyo",
+    desc: "Atleta tática japonesa focada em discussões sobre a guarda de lapela (lapel guard mechanics)."
   },
   {
     key: "BROWN",
-    name: "Roberto 'Pressão-Pesada'",
+    name: "Referee Marcus (IBJJF Referee)",
     belt: "Marrom",
     beltBg: "bg-amber-900 text-white",
     difficulty: "HARD",
@@ -88,11 +88,11 @@ const BOT_SELECT_LIST = [
     aggressiveness: 75,
     intelligence: 88,
     avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=roberto_bjj",
-    desc: "Passador brutal que amassa o quadril no tatame e foca nos ajustes finos."
+    desc: "Árbitro oficial da IBJJF. Desafie-o para testar seus conhecimentos em regras e pontuações de campeonatos."
   },
   {
     key: "BLACK",
-    name: "Mestre Rickson AI",
+    name: "Master John (Austin • Texas)",
     belt: "Preta",
     beltBg: "bg-slate-950 text-red-505 border border-red-500",
     difficulty: "HARD",
@@ -100,8 +100,8 @@ const BOT_SELECT_LIST = [
     speed: 95,
     aggressiveness: 90,
     intelligence: 98,
-    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=rickson_bjj",
-    desc: "Maestria absoluta, enxerga movimentos com antecedência conceitual mística."
+    avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=john_austin",
+    desc: "Mentor internacional sênior. Ele simula diálogos filosóficos e correções didáticas de alta complexidade."
   }
 ];
 
@@ -476,17 +476,17 @@ export default function PvPArena({
                     </span>
                   </div>
                   <h3 className="text-2xl font-display font-black text-white leading-tight">
-                    Tatame Virtual de Sparring ⚔️
+                    Arena de Conversação & Vocabulário 🗣️
                   </h3>
                   <p className="text-xs text-slate-400 mt-1.5 max-w-xl">
-                    Inspirado nos sistemas competitivos de League of Legends e Chess.com. Teste suas decisões táticas no ringue em formato de Quiz cronometrado de alta velocidade! Cada vitória confere ELO, moedas e eleva sua faixa de graduação.
+                    Pratique seu inglês sob o contexto real do tatame. Teste seus reflexos de vocabulário e tomadas de decisão estruturadas de forma dinâmica! Cada acerto consolida seus pontos de proficiência (ELO), concede moedas escolares e acelera sua progressão de faixa.
                   </p>
                 </div>
                 
                 <div className="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl shrink-0 text-center w-full sm:w-auto">
-                  <span className="block text-[9px] text-slate-500 font-mono tracking-wider">SEU ELO ATUAL</span>
+                  <span className="block text-[9px] text-slate-500 font-mono tracking-wider">ELO DE FLUÊNCIA</span>
                   <span className="text-2xl font-black text-indigo-400 tracking-tight font-mono">{user.elo || 1000}</span>
-                  <span className="block text-[8px] text-slate-405 font-mono mt-0.5">Faixa {user.belt}</span>
+                  <span className="block text-[8px] text-slate-405 font-mono mt-0.5">{user.belt === 'Branca' ? 'White Belt' : user.belt === 'Azul' ? 'Blue Belt' : user.belt === 'Roxa' ? 'Purple Belt' : user.belt === 'Marrom' ? 'Brown Belt' : 'Black Belt'}</span>
                 </div>
               </div>
 
@@ -501,8 +501,8 @@ export default function PvPArena({
                          🤖
                        </div>
                        <div>
-                         <h4 className="font-display font-extrabold text-xs text-slate-200">Sistemas Sparring de Combate IA</h4>
-                         <p className="text-[10px] text-slate-400">Desafie um oponente por graduação e assalto:</p>
+                         <h4 className="font-display font-extrabold text-xs text-slate-200">Prática Conversacional com IA</h4>
+                         <p className="text-[10px] text-slate-400">Selecione um parceiro de treino internacional:</p>
                        </div>
                      </div>
  
@@ -546,7 +546,7 @@ export default function PvPArena({
                              />
                              <div className="leading-tight overflow-hidden">
                                <span className={`inline-block text-[8px] font-black uppercase px-1.5 py-0.5 rounded mb-1.5 ${activeBot.beltBg}`}>
-                                 Faixa {activeBot.belt}
+                                 {activeBot.belt === 'Branca' ? 'White Belt' : activeBot.belt === 'Azul' ? 'Blue Belt' : activeBot.belt === 'Roxa' ? 'Purple Belt' : activeBot.belt === 'Marrom' ? 'Brown Belt' : 'Black Belt'}
                                </span>
                                <h5 className="font-display font-extrabold text-xs text-white truncate">{activeBot.name}</h5>
                              </div>
@@ -561,7 +561,7 @@ export default function PvPArena({
                              {/* Inteligência */}
                              <div className="space-y-0.5">
                                <div className="flex justify-between text-slate-500">
-                                 <span>INTELIGÊNCIA (ACERTO)</span>
+                                 <span>PRECISÃO DIDÁTICA</span>
                                  <span className="text-slate-350 font-bold">{activeBot.intelligence}%</span>
                                </div>
                                <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
@@ -572,7 +572,7 @@ export default function PvPArena({
                              {/* Velocidade */}
                              <div className="space-y-0.5">
                                <div className="flex justify-between text-slate-500">
-                                 <span>VELOCIDADE (RESPOSTA)</span>
+                                 <span>RITMO DE CONVERSAÇÃO</span>
                                  <span className="text-slate-350 font-bold">{activeBot.speed}%</span>
                                </div>
                                <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
@@ -583,7 +583,7 @@ export default function PvPArena({
                              {/* Agressividade */}
                              <div className="space-y-0.5">
                                <div className="flex justify-between text-slate-500">
-                                 <span>AGRESSIVIDADE (DIÁLOGO)</span>
+                                 <span>REQUISITOS TÉCNICOS</span>
                                  <span className="text-slate-350 font-bold">{activeBot.aggressiveness}%</span>
                                </div>
                                <div className="w-full h-1 bg-slate-900 rounded-full overflow-hidden">
@@ -600,7 +600,7 @@ export default function PvPArena({
                      onClick={() => joinBotMatch(BOT_SELECT_LIST[selectedBotIdx].key)}
                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-extrabold font-display text-xs transition duration-200 flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider shadow-md shadow-indigo-650/10"
                    >
-                     <Play className="w-3 h-3 fill-current" /> Desafiar {BOT_SELECT_LIST[selectedBotIdx].belt}
+                     <Play className="w-3 h-3 fill-current" /> Praticar com {BOT_SELECT_LIST[selectedBotIdx].name.split(' (')[0]}
                    </button>
                  </div>
 
@@ -611,16 +611,16 @@ export default function PvPArena({
                     <div className="w-10 h-10 bg-violet-950/50 rounded-xl border border-violet-500/30 flex items-center justify-center text-xl mb-3 text-violet-400">
                       <Sword className="w-5 h-5" />
                     </div>
-                    <h4 className="font-display font-extrabold text-sm text-white">Fila Ranqueada por ELO Online</h4>
+                    <h4 className="font-display font-extrabold text-sm text-white">Sessão Online com Outros Alunos</h4>
                     <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                      Conecte-se com lutadores reais da comunidade. O matchmaking do servidor buscará no cache do Redis os atletas mais próximos do seu nível para uma disputa síncrona.
+                      Conecte-se com alunos reais em ambiente síncrono. O pareamento buscará no banco de dados parceiros com o nível de conversação mais próximo ao seu.
                     </p>
                   </div>
                   <button
                     onClick={joinMatchmakingQueue}
                     className="mt-5 w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-extrabold font-display text-xs transition-all shadow-md shadow-indigo-600/10 hover:shadow-indigo-500/30 flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
                   >
-                    <Sword className="w-3.5 h-3.5" /> Encontrar Lutador Real
+                    <Sword className="w-3.5 h-3.5" /> Encontrar Parceiro de Conversação
                   </button>
                 </div>
 
@@ -630,7 +630,7 @@ export default function PvPArena({
               <div className="p-4 bg-slate-900/40 rounded-xl border border-slate-850/80 text-[11px] text-slate-400 flex items-start gap-3">
                 <span className="text-base shrink-0">💡</span>
                 <p className="leading-normal">
-                  <strong>Regras Táticas:</strong> Cada partida consiste em 5 rounds de perguntas sobre regras oficiais da IBJJF, história do esporte e posicionamento articular tático. Respostas rápidas e precisas rendem maior pontuação! Se um jogador desconecta, o outro é declarado vencedor por W.O.
+                  <strong>Estrutura Temática:</strong> Cada simulação consiste em 5 assaltos rápidos com questões práticas focadas em jargões de tatame, comandos de arbitragem (IBJJF), regras oficiais de campeonatos internacionais e conversação em viagens. Responda rápido e com precisão para turbinar sua fluência!
                 </p>
               </div>
 
@@ -643,7 +643,7 @@ export default function PvPArena({
               <div className="flex justify-between items-center pb-2 border-b border-slate-850">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-yellow-500" />
-                  <h4 className="font-display font-extrabold text-sm text-slate-205">Leaderboard de Elite (Top ELO)</h4>
+                  <h4 className="font-display font-extrabold text-sm text-slate-205">Ranking de Fluência (Top ELO)</h4>
                 </div>
                 <button 
                   onClick={fetchLeaderboard}

@@ -17,8 +17,8 @@ import {
 export const LOJA_ITEMS: InventoryItem[] = [
   {
     id: 'gi_gold',
-    name: 'Kimono Imperial Dourado',
-    description: 'Um quimono lendário com trançado dourado reluzente de alta densidade.',
+    name: 'Audioguia: Comandando Aulas em Inglês',
+    description: 'Manual de áudio sob demanda contendo mais de 70 comandos técnicos para ministrar seminários no exterior.',
     category: 'gi',
     price: 3500,
     currency: 'KC',
@@ -27,8 +27,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'gi_shibori',
-    name: 'Kimono Vulkan Shibori',
-    description: 'Edição limitada com tingimento tie-dye inspirado nas raízes samurai.',
+    name: 'Dicionário Ilustrado do Tatame (PDF)',
+    description: 'Guia definitivo com termos anatômicos, alavancas, posições de controle e técnicas traduzidas de maneira visual.',
     category: 'gi',
     price: 2400,
     currency: 'KC',
@@ -37,8 +37,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'gi_classic_blue',
-    name: 'Kimono Atama Blue Master',
-    description: 'O clássico quimono azul ultra resistente, ideal para competições da IBJJF.',
+    name: 'Manual Prático de Viagem para Atletas',
+    description: 'Manual de bolso com diálogos reais para aeroportos, alfândega, inscrições em torneios e hospedagem em equipe.',
     category: 'gi',
     price: 1200,
     currency: 'KC',
@@ -47,8 +47,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'stripe_gold',
-    name: 'Grau Dourado Adesivo',
-    description: 'Transforme o visual da sua faixa com graus em linha metálica brilhante.',
+    name: 'Cheat Sheet: Regras e Pontuações IBJJF',
+    description: 'Resumo estruturado de infrações, pontuações oficiais e gestos do árbitro traduzidos para o inglês regulamentar.',
     category: 'belt_stripe',
     price: 500,
     currency: 'KC',
@@ -57,8 +57,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'title_pitbull',
-    name: 'Título: "Pitbull dos Tatames"',
-    description: 'Título exclusivo exibível no perfil ao lado do seu nome.',
+    name: 'Guia de Termos Clínicos e Fisioterapia',
+    description: 'Guia linguístico sobre biomecânica, como descrever lesões, dores e alongamentos em consultas clínicas.',
     category: 'title',
     price: 400,
     currency: 'KC',
@@ -67,8 +67,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'title_monge',
-    name: 'Título: "Guardião da Guarda Fechada"',
-    description: 'O título definitivo para os lutadores táticos que adoram a guarda clássica.',
+    name: 'Modelo de Currículo (Resume) de Professor',
+    description: 'Template profissional pronto para professores e atletas concorrerem a vagas em academias americanas.',
     category: 'title',
     price: 300,
     currency: 'KC',
@@ -77,8 +77,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'avatar_samurai',
-    name: 'Fighter Pack: Ronin Sem Destino',
-    description: 'Exclusivo pacote de imagem estilo anime para seu lutador.',
+    name: 'Pack de Flashcards: Gírias de Tatame Americano',
+    description: 'Cartões interativos com expressões coloquiais e gírias reais dos tatames de San Diego e Los Angeles.',
     category: 'avatar',
     price: 800,
     currency: 'KC',
@@ -87,8 +87,8 @@ export const LOJA_ITEMS: InventoryItem[] = [
   },
   {
     id: 'vip_pass_30',
-    name: 'Passe Premium VIP (30 Dias)',
-    description: 'Acesso imediato a todas as aulas de mestres, suporte de IA e bônus de 2x XP.',
+    name: 'Assinatura Club Premium (30 Dias)',
+    description: 'Acesso total a aulas extras, mentoria por inteligência artificial e bônus contínuo de 2x moedas nas sessões.',
     category: 'badge',
     price: 49.90,
     currency: 'BRL',
@@ -140,108 +140,266 @@ export const INITIAL_MARKETPLACE_ITEMS: InventoryItem[] = [
 // Duolingo-style structured learning syllabus
 export const COURSES: Course[] = [
   {
-    id: 'course_fundamentals',
-    title: 'Fundamentos Básicos: Sobrevivendo na Faixa Branca',
-    description: 'Aprenda os pilares de postura, posicionamento sob pressão, defesas de esgrima, e fugas básicas de montada e controle lateral.',
-    creatorId: 'prof_alliance',
-    creatorName: 'Sensei Fábio Gurgel',
+    id: 'course_modulo_1',
+    title: 'Módulo 1 - Inglês Básico do Tatame',
+    description: 'Aprenda os nomes das posições fundamentais, comandos de segurança, peças do uniforme e anatomia BJJ em inglês. O alicerce essencial para qualquer atleta internacional.',
+    creatorId: 'prof_gracie',
+    creatorName: 'Mestre Roger Gracie',
     creatorBadge: 'Preto',
-    priceBRL: 0, // Free course
+    priceBRL: 0,
     rating: 4.9,
-    studentCount: 1420,
-    reviews: 320,
+    studentCount: 3120,
+    reviews: 580,
     imageUrl: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=400',
     lessons: [
       {
-        id: 'lesson_posture',
-        title: 'Lição 1: Postura Defensiva na Guarda Fechada',
-        description: 'Mantenha sua coluna reta, domine as mangas e evite ser puxado para o estrangulamento cruzado.',
+        id: 'les_m1_1',
+        title: 'Posições e Pegadas (Positions & Grips)',
+        description: 'Domine a terminologia clássica para posições de dominância e tipos de pegada no kimono.',
         duration: '10 min',
-        videoUrl: 'https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=400',
         quiz: [
           {
-            id: 'q1',
-            question: 'Qual é o maior perigo de quebrar a postura com a cabeça baixa dentro da guarda fechada?',
+            id: 'q_m1_1_1',
+            question: 'Como traduzimos "Puxar para a Guarda" e "Fuga de Quadril" para o inglês correto do Jiu-Jitsu?',
             options: [
-              'Levar um estrangulamento cruzado de manga ou sofrer um triângulo direto.',
-              'Ser raspado com a raspagem de tesoura facilmente.',
-              'Nenhum, cabeça baixa é ideal para fazer pressão na barriga do oponente.',
-              'Ser desclassificado por falta de combatividade.'
+              'Pull guard & Hip escape / Shrimping',
+              'Push floor & Skip butt',
+              'Jump guard & Move down',
+              'Bring body & Leg out'
             ],
             correctOptionIndex: 0,
-            explanation: 'Ao manter a cabeça baixa sem controle de pegadas, seu oponente ganha o controle da sua nuca, facilitando ataques de estrangulamento cruzado e ataques de braço/triângulo.',
-            avatarInstruction: 'Oss! Lembre-se: coluna reta é o seu escudo número um na guarda de qualquer passador experiente!'
+            explanation: '"Pull guard" é o termo técnico para puxar para a guarda e "Hip escape" ou "shrimping" (pelo movimento lembrar um camarão) refere-se à fuga de quadril.',
+            avatarInstruction: 'Hello! Lembre-se: no exterior, todos chamam a fuga de quadril de "shrimping". Fique atento!'
           },
           {
-            id: 'q2',
-            question: 'Onde suas mãos devem preferencialmente se apoiar para manter a distância e postura?',
+            id: 'q_m1_1_2',
+            question: 'Qual é o nome em inglês para a clássica posição de "Cem Quilos"?',
             options: [
-              'No chão frouxo ao lado dos quadris do adversário.',
-              'Nas axilas, bíceps ou na altura das faixas/calças do oponente, mantendo os cotovelos fechados.',
-              'Cruzadas atrás do próprio pescoço.',
-              'Segurando a gola dupla esticada até a nuca.'
+              'One hundred kilos',
+              'Side control or Side mount',
+              'Full chest pressure',
+              'Heavy lateral holding'
             ],
             correctOptionIndex: 1,
-            explanation: 'Apoiar nos bíceps ou no quadril com cotovelos colados bloqueia a subida do quadril do oponente e previne que ele faça esgrimas por baixo dos seus braços.',
-            avatarInstruction: 'Gire seus cotovelos para dentro para defender a esgrima e travar a subida dele!'
+            explanation: 'Embora alguns falem metros ou quilos em traduções literais, o termo correto e universalmente usado em todas as academias americanas é "Side control" ou "Side mount".',
+            avatarInstruction: 'Never say "one hundred kilos" unless you want to confuse your partner! Say "side control"!'
           }
         ]
       },
       {
-        id: 'lesson_shrimp',
-        title: 'Lição 2: Fuga de Quadril Lateral',
-        description: 'A movimentação mais crucial do Jiu-Jitsu. Saiba como criar espaço para repor a guarda.',
+        id: 'les_m1_2',
+        title: 'Uniforme e Gírias Iniciais',
+        description: 'Termos práticos sobre quimono, protetor bocal e faixas.',
         duration: '8 min',
-        videoUrl: 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=400',
         quiz: [
           {
-            id: 'q3',
-            question: 'Ao fazer a fuga de quadril para sair do controle lateral (cem quilos), para qual lado você deve girar?',
+            id: 'q_m1_2_1',
+            question: 'Como se fala "Quimono", "Faixa" e "Protetor Bucal" em inglês?',
             options: [
-              'Girar de costas para o oponente, oferecendo a pegada de costas.',
-              'Girar de frente, em direção (de barriga de lado) ao oponente, projetando a esgrima ou mão no quadril.',
-              'Ficar totalmente chapado com as costas no chão fazendo força para cima.',
-              'Girar em estrela sobre as próprias mãos.'
+              'Kimono, Strap, Teeth guard',
+              'Gi, Belt, Mouthguard',
+              'Uniform, Ribbon, Mouth cover',
+              'BJJ suit, Cord, Teeth buffer'
             ],
             correctOptionIndex: 1,
-            explanation: 'Girar de frente para o adversário coloca você sobre seu ombro de lado, liberando o quadril para se deslocar para trás, criando o vão necessário para enfiar o joelho de volta.',
-            avatarInstruction: 'Se ficar chapado no tatame, vai virar passageiro de balsa dos cem quilos! Gira de lado imediatamente!'
+            explanation: 'No inglês de Jiu-Jitsu, "Gi" é o termo preferencial para Quimono, "Belt" é Faixa, e "Mouthguard" é o Protetor Bucal.',
+            avatarInstruction: 'Safety first! Always ask: "Do you have your mouthguard on?" before a heavy round!'
           }
         ]
       }
     ]
   },
   {
-    id: 'course_spider',
-    title: 'Guarda Aranha e Laço Profissional',
-    description: 'Entenda os conceitos modernos de lavagem de gola, esticar o braço, ganchos cruzados e a demolição postural de passadores pesados.',
-    creatorId: 'prof_gracie',
-    creatorName: 'Mestre Roger Gracie',
+    id: 'course_modulo_2',
+    title: 'Módulo 2 - Conversação no Jiu-Jítsu',
+    description: 'Aprenda como convidar parceiros internacionais para treinar, estabelecer limites com segurança, elogiar e tirar dúvidas antes e depois do rola.',
+    creatorId: 'prof_mendes',
+    creatorName: 'Mestre Guilherme Mendes (AOJ)',
     creatorBadge: 'Preto',
-    priceBRL: 89.90, // Premium course
+    priceBRL: 0,
     rating: 5.0,
-    studentCount: 880,
+    studentCount: 2450,
+    reviews: 412,
+    imageUrl: 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=400',
+    lessons: [
+      {
+        id: 'les_m2_1',
+        title: 'Convidando para Treinar (Iniviting to Roll)',
+        description: 'Frases educadas e termos corretos para chamar alguém para rolar preservando a etiqueta do tatame.',
+        duration: '12 min',
+        quiz: [
+          {
+            id: 'q_m2_1_1',
+            question: 'Se você quer convidar alguém de forma natural para um "treino leve", qual frase expressa melhor essa intenção?',
+            options: [
+              'Would you like to do a light roll / flow roll?',
+              'Let’s fight light with no pressure',
+              'Do you want to play weak with me?',
+              'Can we simulate a soft combat?'
+            ],
+            correctOptionIndex: 0,
+            explanation: '"Roll" é o verbo para treinar/rolar. "Light roll" ou "Flow roll" são os termos perfeitos para pedir um treino leve focado em movimentação técnica.',
+            avatarInstruction: 'Be polite! In premium academies like AOJ, safe communication is highly valued.'
+          },
+          {
+            id: 'q_m2_1_2',
+            question: 'Como você avisa seu parceiro sobre uma lesão prévia para evitar contato forte na região?',
+            options: [
+              'I am broken here, please don\'t touch',
+              'I have a minor injury in my shoulder/knee, so let\'s watch out there, please.',
+              'My body is painful, be careful with your weight',
+              'Don\'t squeeze my bone because it hurts'
+            ],
+            correctOptionIndex: 1,
+            explanation: '"I have an injury in my..." é a expressão perfeita para sinalizar uma lesão prévia nas articulações antes de iniciar o rola, prevenindo acidentes.',
+            avatarInstruction: 'Comunicação limpa evita cirurgias! Avise sempre antes de começar: "Let\'s keep it playful, my knee is injured."'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'course_modulo_3',
+    title: 'Módulo 3 - Professor Internacional',
+    description: 'Prepare-se para ministrar seminários, dar aulas em inglês e dar instruções corretas aos seus alunos estrangeiros com clareza e respeito.',
+    creatorId: 'prof_danaher',
+    creatorName: 'Professor John Danaher',
+    creatorBadge: 'Preto',
+    priceBRL: 99.90,
+    rating: 4.8,
+    studentCount: 1890,
+    reviews: 322,
+    imageUrl: 'https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=400',
+    lessons: [
+      {
+        id: 'les_m3_1',
+        title: 'Ganhando a Esgrima e Controlando as Alavancas',
+        description: 'Aprenda os termos cruciais de distribuição de peso e criação de ganchos em inglês de nível didático.',
+        duration: '15 min',
+        quiz: [
+          {
+            id: 'q_m3_1_1',
+            question: 'Qual é o termo específico em inglês usado para descrever a "Esgrima" (passar o braço por baixo da axila)?',
+            options: [
+              'Underhook',
+              'Sword arm',
+              'Underarm slice',
+              'Inner hooker'
+            ],
+            correctOptionIndex: 0,
+            explanation: 'A esgrima é chamada universalmente de "Underhook" (se for por baixo) ou "Overhook" (se for por cima, abraçando o braço adversário).',
+            avatarInstruction: 'Danaher Mindset: "Underhook control is the basis of high-performance positional mechanics."'
+          },
+          {
+            id: 'q_m3_1_2',
+            question: 'Como o professor deve instruir em inglês para o aluno "colocar os dois ganchos" ao pegar as costas?',
+            options: [
+              'Put your two little feet inside',
+              'Insert both hooks',
+              'Catch the hips with legs',
+              'Secure the double locks'
+            ],
+            correctOptionIndex: 1,
+            explanation: 'O comando clássico usado por professores internacionais é "Insert both hooks" ou "Put your hooks in".',
+            avatarInstruction: 'Sem os ganchos ("hooks"), você não ganha os pontos do controle de costas e seu oponente escorrega fácil!'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'course_modulo_4',
+    title: 'Módulo 4 - Campeonatos Internacionais',
+    description: 'Entenda os termos de pontuação, as regras oficiais da IBJJF divulgadas em inglês e entenda instantaneamente as chamadas do árbitro internacional.',
+    creatorId: 'prof_alliance',
+    creatorName: 'Sensei Fábio Gurgel',
+    creatorBadge: 'Preto',
+    priceBRL: 0,
+    rating: 4.9,
+    studentCount: 1540,
     reviews: 198,
     imageUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400',
     lessons: [
       {
-        id: 'lesson_spider_entry',
-        title: 'Ponto de Alavanca: Pegadas de Calça e Mangas',
-        description: 'Como estabelecer a guarda aranha sem permitir que o oponente mate seu bíceps.',
+        id: 'les_m4_1',
+        title: 'Pontuação e Faltas (Points & Penalties)',
+        description: 'Conheça o valor de cada posição e como os árbitros chamam as vantagens e punições na gringa.',
+        duration: '12 min',
+        quiz: [
+          {
+            id: 'q_m4_1_1',
+            question: 'Quantos pontos vale uma "Raspagem" (Sweep) e uma "Passagem de Guarda" (Guard Pass) de acordo com o livro de regras internacional?',
+            options: [
+              'Sweep is 2 points, Guard pass is 3 points',
+              'Sweep is 3 points, Guard pass is 4 points',
+              'Sweep is 1 point, Guard pass is 2 points',
+              'Both positions are worth 2 points'
+            ],
+            correctOptionIndex: 0,
+            explanation: 'De acordo com as regras oficiais, aplicar uma raspagem qualificada ("sweep") concede 2 pontos, e estabilizar a passagem de guarda ("guard pass") por 3 segundos concede 3 pontos.',
+            avatarInstruction: 'Oss! Não confunda os pontos no calor da luta internacional. 2 para a raspagem, 3 para a passagem!'
+          },
+          {
+            id: 'q_m4_1_2',
+            question: 'Qual é o termo oficial para "Falta de combatividade" ou "Amarração"?',
+            options: [
+              'Stalling',
+              'Stopping the match',
+              'No fighting penalty',
+              'Holding game'
+            ],
+            correctOptionIndex: 0,
+            explanation: 'Amarrar a posição para atrasar o combate é chamado de "Stalling" (punido severamente pelas federações internacionais).',
+            avatarInstruction: 'Active combat is key. Se ficar parado na meia-guarda sem progredir, o juiz gritará "Stalling!" e te punirá.'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'course_modulo_5',
+    title: 'Módulo 5 - Inglês Real do Jiu-Jítsu',
+    description: 'Prepare-se para lidar com as gírias de rua das maiores academias da Califórnia, Texas e Nova York. Jargões de fóruns online de BJJ que ninguém ensina nos livros.',
+    creatorId: 'prof_alliance',
+    creatorName: 'Atleta Internacional JiuSpeak Team',
+    creatorBadge: 'Preto',
+    priceBRL: 149.90,
+    rating: 5.0,
+    studentCount: 1100,
+    reviews: 216,
+    imageUrl: 'https://images.unsplash.com/photo-1615117971313-71f77fe49927?auto=format&fit=crop&q=80&w=400',
+    lessons: [
+      {
+        id: 'les_m5_1',
+        title: 'Gírias Urbanas e Fóruns de Discussão (Reddit & Reddit BJJ)',
+        description: 'De oponentes "spazzing" a atletas "sandbaggers". Entenda bem o vocabulário das resenhas.',
         duration: '15 min',
         quiz: [
           {
-            id: 'q4',
-            question: 'Qual a tensão ideal na pegada de manga na guarda aranha?',
+            id: 'q_m5_1_1',
+            question: 'O que a comunidade americana quer dizer com o termo "Spazzing White Belt"?',
             options: [
-              'Braço esticado empurrando o bíceps enquanto o outro braço puxa a manga sob tensão constante.',
-              'Ambos os braços frouxos esperando a reação do passador.',
-              'Segurar as calças do oponente com as duas mãos.',
-              'Estruturar o triângulo fechando na axila.'
+              'Um aluno inteligente de faixa branca com técnica impecável.',
+              'Um faixa branca descontrolado, que treina com força desmedida e movimentos erráticos, arriscando machucar os parceiros.',
+              'O uniforme oficial de cor branca usado por passadores experientes.',
+              'Uma raspagem ultra rápida feita na guarda laçada.'
             ],
-            correctOptionIndex: 0,
-            explanation: 'O jogo de oposição (uma perna estica o bíceps travando o lado esquerdo e o outro braço puxa a manga sob controle rápido) desestabiliza o centro de gravidade do passador.',
-            avatarInstruction: 'Estique a perna como um macaco hidráulico e use a outra para hookar o quadril!'
+            correctOptionIndex: 1,
+            explanation: 'Um "spazzing white belt" é o típico iniciante descontrolado que compensa a falta de técnica com pura adrenalina e força bruta explosiva.',
+            avatarInstruction: 'Stay calm! Quando pegar um "spazzing belt", faça guarda fechada, controle a gola e deixe ele se cansar sozinho!'
+          },
+          {
+            id: 'q_m5_1_2',
+            question: 'O que significa o jargão sarcástico "Sandbagger"?',
+            options: [
+              'Um atleta que limpa os tatames no final do dia.',
+              'Um lutador que finge cansaço para surpreender no final.',
+              'Um competidor experiente que atrasa sua mudança de faixa de propósito para continuar ganhando campeonatos em categorias mais fracas.',
+              'O saco de pancadas usado em treinos de wrestling e condicionamento.'
+            ],
+            correctOptionIndex: 2,
+            explanation: '"Sandbagger" é o termo pejorativo usado para quem "segura a faixa", ou seja, o lutador que tem nível técnico de uma faixa superior, mas compete na inferior para garantir medalhas fáceis.',
+            avatarInstruction: 'Ninguém respeita um sandbagger na comunidade! O verdadeiro guerreiro quer sempre progredir para testar seus limites!'
           }
         ]
       }

@@ -46,15 +46,15 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
   };
 
   const menuItems = [
-    { id: 'dashboard', label: 'Painel Geral', icon: User, badge: null },
-    { id: 'lessons', label: 'Telas de Lições', icon: BookOpen, badge: 'Duolingo' },
-    { id: 'pvp', label: 'Arena PvP', icon: Sword, badge: 'Chess.com' },
-    { id: 'market', label: 'Loja e Mercado', icon: Store, badge: 'League' },
+    { id: 'dashboard', label: 'Painel do Aluno', icon: User, badge: null },
+    { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Aulas' },
+    { id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' },
+    { id: 'market', label: 'Biblioteca de Recursos', icon: Store, badge: 'Materiais' },
     { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' },
-    { id: 'subscriptions', label: 'Plano e Assinatura', icon: CreditCard, badge: 'SaaS' },
-    { id: 'social', label: 'Comunidade', icon: Users, badge: 'Discord' },
-    { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Creator' },
-    { id: 'admin', label: 'Segurança & Auditoria', icon: ShieldAlert, badge: 'Admin' },
+    { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
+    { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
+    { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Docente' },
+    { id: 'admin', label: 'Painel Admin', icon: ShieldAlert, badge: 'Auditoria' },
   ];
 
   return (
@@ -69,7 +69,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
             <h1 className="font-display font-extrabold text-2xl bg-gradient-to-r from-violet-400 via-indigo-200 to-white bg-clip-text text-transparent tracking-tight">
               JiuSpeak
             </h1>
-            <span className="text-[10px] text-slate-500 font-mono">v1.12 PROD</span>
+            <span className="text-[10px] text-slate-400 font-mono block">Inglês para Jiu-Jitsu</span>
           </div>
         </div>
         

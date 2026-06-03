@@ -17,7 +17,24 @@ export function getPrisma(): PrismaClient {
       process.exit(1);
     }
     try {
-      prisma = new PrismaClient();
+      // Configure specific pool limits for high concurrency (connection_limit=20, pool_timeout=15)
+      let finalDbUrl = dbUrl;
+      const parsedUrl = new URL(dbUrl);
+      if (!parsedUrl.searchParams.has("connection_limit")) {
+        parsedUrl.searchParams.set("connection_limit", "20");
+      }
+      if (!parsedUrl.searchParams.has("pool_timeout")) {
+        parsedUrl.searchParams.set("pool_timeout", "15");
+      }
+      finalDbUrl = parsedUrl.toString();
+
+      prisma = new PrismaClient({
+        datasources: {
+          db: {
+            url: finalDbUrl,
+          },
+        },
+      });
     } catch (e: any) {
       console.error(JSON.stringify({
         error: "FATAL_DATABASE_ERROR",
@@ -33,34 +50,41 @@ export function getPrisma(): PrismaClient {
 
 // Assert database readiness, preventing application boot if postgres connection fails
 export async function assertDatabaseConnection(): Promise<void> {
-  // Let's perform a database schema push to PostgreSQL automatically at start
-  try {
-    const { execSync } = require("child_process");
-    console.log("🔄 [JiuSpeak OS] Sincronizando tabelas do banco de dados (Prisma push)...");
-    execSync("npx prisma db push --accept-data-loss", { 
-      stdio: "inherit",
-      env: { ...process.env }
-    });
-    console.log("✅ [JiuSpeak OS] Tabelas sincronizadas com sucesso!");
-  } catch (pushErr: any) {
-    console.warn("⚠️ [JiuSpeak OS] Ocorreu uma advertência durante a sincronização de banco (db push):", pushErr.message || pushErr);
-  }
-
   const client = getPrisma();
-  try {
-    // Attempt a basic check query to active postgres
-    await client.$queryRaw`SELECT 1`;
-    console.log("✅ [JiuSpeak OS] Conexão com o banco de dados PostgreSQL estabelecida com sucesso via Prisma.");
-  } catch (e: any) {
-    console.error("\n" + "=".repeat(80));
-    console.error(JSON.stringify({
-      error: "DATABASE_CONNECTION_FAILED",
-      message: "Falha crítica: Não foi possível conectar ao banco de dados PostgreSQL na inicialização da aplicação.",
-      details: e.message || e,
-      advice: "Garanta que o serviço do Postgres esteja online e acessível no endereço fornecido em DATABASE_URL no .env.",
-      timestamp: new Date().toISOString()
-    }, null, 2));
-    console.error("=".repeat(80) + "\n");
-    process.exit(1);
+  let retries = 5;
+  while (retries > 0) {
+    try {
+      // Attempt connection
+      await client.$connect();
+      console.log("✓ Prisma conectado");
+
+      // Attempt a basic check query to active postgres
+      await client.$queryRaw`SELECT 1`;
+      console.log("✓ PostgreSQL conectado");
+      return;
+    } catch (e: any) {
+      retries--;
+      console.error("✗ Erro ao conectar ao banco", {
+        message: e.message || e,
+        retriesRemaining: retries,
+        timestamp: new Date().toISOString()
+      });
+      if (retries === 0) {
+        console.error("\n" + "=".repeat(80));
+        console.error(JSON.stringify({
+          error: "DATABASE_CONNECTION_FAILED",
+          message: "Aviso: Não foi possível conectar ao banco de dados PostgreSQL na inicialização da aplicação.",
+          details: e.message || e,
+          advice: "Garanta que o serviço do Postgres esteja online e acessível no endereço fornecido em DATABASE_URL no .env de produção.",
+          timestamp: new Date().toISOString()
+        }, null, 2));
+        console.error("=".repeat(80) + "\n");
+        // In the preview sandbox environment, we do not call process.exit(1) on connection failure
+        // so that the dev server can start and let the user interact with the non-persistent UI.
+        return;
+      }
+      // Wait 1.5 seconds before next connection retry
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
   }
 }

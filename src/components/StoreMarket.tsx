@@ -408,10 +408,10 @@ export default function StoreMarket({
         <div>
           <h3 className="text-xl md:text-2xl font-display font-extrabold text-white flex items-center gap-2">
             <Store className="w-6 h-6 text-violet-400" />
-            <span>Mercado & Loja de Cosméticos</span>
+            <span>Biblioteca de Recursos & Guias de Estudo</span>
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Gaste seus Kimono Coins conquistados em aulas e arenas, ou compre assinaturas VIP do clube.
+            Desbloqueie guias de conversação, cheat sheets oficiais de arbitragem, dicionários ilustrados e áudio-guias de tatame.
           </p>
         </div>
 
@@ -427,7 +427,7 @@ export default function StoreMarket({
           <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-violet-400" />
             <div>
-              <span className="block text-[9px] text-slate-500 font-mono">ASSINATURA</span>
+              <span className="block text-[9px] text-slate-500 font-mono">CLUB STATUS</span>
               <span className="text-sm font-bold text-slate-202 truncate max-w-[120px]">{user.subscription.type}</span>
             </div>
           </div>
@@ -437,10 +437,10 @@ export default function StoreMarket({
       {/* Economics selector micro tabs */}
       <div className="flex border-b border-slate-800 gap-1">
         {[
-          { id: 'loja', label: '🥋 Loja Oficial', desc: 'Kimono Coins' },
-          { id: 'market', label: '🤝 Mercado P2P', desc: 'Atletas trocando' },
-          { id: 'inventorio', label: '🎒 Meu Inventário', desc: `${user.inventory.length} itens` },
-          { id: 'vip', label: '👑 Assinatura VIP', desc: 'BRL / Pix' }
+          { id: 'loja', label: '📖 Materiais Oficiais', desc: 'Desbloquear com KC' },
+          { id: 'market', label: '🤝 Swap de Conteúdo', desc: 'Trocas entre alunos' },
+          { id: 'inventorio', label: '🎒 Biblioteca Pessoal', desc: `${user.inventory.length} itens` },
+          { id: 'vip', label: '👑 Planos Premium VIP', desc: 'BRL / Pix' }
         ].map((sub) => {
           const isActive = activeSubTab === sub.id;
           return (
@@ -714,7 +714,7 @@ export default function StoreMarket({
         <div className="space-y-6">
           {user.inventory.length === 0 ? (
             <div className="py-12 border-2 border-dashed border-slate-800 rounded-2xl text-center text-slate-500 text-xs">
-              Sua mochila está vazia! Conmpre e adquira grauzinhos ou panos na Loja oficial para vê-los aqui.
+              Sua biblioteca de materiais está vazia! Participe das lições e da arena prática para acumular Kimono Coins e desbloquear materiais oficiais.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -722,8 +722,8 @@ export default function StoreMarket({
                 // look up product details in official or custom lists
                 const item = LOJA_ITEMS.find(i => i.id === invId) || marketItems.find(i => i.id === invId) || {
                   id: invId,
-                  name: 'Equipamento de Competição',
-                  description: 'Peça oficial recebida via conquistas.',
+                  name: 'Guia de Conversação Prático',
+                  description: 'Material exclusivo recebido via conquistas ou conquistas de faixa.',
                   category: 'gi',
                   price: 0,
                   currency: 'KC',

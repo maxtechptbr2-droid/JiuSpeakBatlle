@@ -1,10 +1,23 @@
 import jwt from 'jsonwebtoken';
 import { getPrisma } from './db';
 import { AuditActionType } from '@prisma/client';
+import crypto from 'crypto';
 
 // Configurable exparations via env or defaults
-const JWT_ACCESS_SECRET = process.env.JWT_SECRET || 'super-secret-access-token-key-2026';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'super-secret-refresh-token-key-2026-999';
+const DEFAULT_JWT_SECRET = 'super-secret-access-token-key-2026';
+const DEFAULT_JWT_REFRESH_SECRET = 'super-secret-refresh-token-key-2026-999';
+
+const JWT_ACCESS_SECRET = (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET)
+  ? (process.env.NODE_ENV === "production" 
+      ? crypto.randomBytes(32).toString('hex') 
+      : DEFAULT_JWT_SECRET)
+  : process.env.JWT_SECRET;
+
+const JWT_REFRESH_SECRET = (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET)
+  ? (process.env.NODE_ENV === "production" 
+      ? crypto.randomBytes(32).toString('hex') 
+      : DEFAULT_JWT_REFRESH_SECRET)
+  : process.env.JWT_REFRESH_SECRET;
 
 // Expiration definitions in ms or strings as per jsonwebtoken standards
 const ACCESS_TOKEN_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '15m'; // enterprise normal default: 15 mins

@@ -143,13 +143,13 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
         <div>
           <div className="flex items-center gap-2 text-violet-400 text-xs font-mono uppercase tracking-wider mb-1">
             <Sparkles className="w-4 h-4 fill-violet-400/20 text-violet-400" />
-            <span>Tatame Virtual Iniciado</span>
+            <span>Escola de Idiomas JiuSpeak</span>
           </div>
           <h2 className="text-2xl md:text-3xl font-display font-extrabold text-white tracking-tight">
-            Oss, {user.name}! 🥊
+            Oss, {user.name}! 🎓
           </h2>
           <p className="text-slate-400 text-xs mt-1 max-w-xl">
-            Sua jornada virtual rumo à Faixa Preta de Jiu-Jitsu. Complete lições do Duolingo, participe de sparrings táticos estilo Chess.com e gerencie suas vendas acadêmicas.
+            Sua jornada educacional definitiva rumo à fluência em inglês para praticantes de Jiu-Jítsu. Domine a terminologia teórica nos nossos módulos acadêmicos, aprimore sua conversação em sessões práticas e explore materiais exclusivos.
           </p>
         </div>
 
@@ -158,13 +158,13 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
             onClick={() => onNavigate('lessons')}
             className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all flex items-center gap-2 cursor-pointer"
           >
-            <BookOpen className="w-3.5 h-3.5" /> Estudar Lição
+            <BookOpen className="w-3.5 h-3.5" /> Ver Módulos
           </button>
           <button 
             onClick={() => onNavigate('pvp')}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-medium text-xs rounded-xl transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Sword className="w-3.5 h-3.5 text-indigo-400" /> Desafiar PVP
+            <Sword className="w-3.5 h-3.5 text-indigo-400" /> Sessões Práticas
           </button>
         </div>
       </div>
@@ -408,10 +408,10 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
           <div className="bg-slate-950/40 p-6 rounded-2xl border border-slate-800/80">
             <div className="mb-4">
               <h3 className="font-display font-bold text-lg text-slate-200 flex items-center gap-2">
-                <span>🛣️</span> Trilha Gamificada de Faixas (Syllabus Route)
+                <span>🛣️</span> Progressão de Faixas Acadêmicas (Syllabus Route)
               </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Suba de nível praticando aulas teóricas e sparring PvP para progredir na hierarquia do Jiu-Jitsu.
+                Suba o nível da sua faixa avançando nos Módulos Curriculares e praticando seu vocabulário nas sessões interativas.
               </p>
             </div>
 
@@ -421,6 +421,12 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
               
               {beltRoadmap.map((node, idx) => {
                 const isActive = user.belt === node.belt;
+                const translatedBelt = 
+                  node.belt === 'Branca' ? 'White Belt' :
+                  node.belt === 'Azul' ? 'Blue Belt' :
+                  node.belt === 'Roxa' ? 'Purple Belt' :
+                  node.belt === 'Marrom' ? 'Brown Belt' : 'Black Belt';
+                
                 return (
                   <div 
                     key={node.belt}
@@ -435,20 +441,20 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                       {node.unlocked ? (
                         <CheckCircle2 className={`w-5 h-5 ${isActive ? 'text-violet-400 animate-pulse' : 'text-emerald-500'}`} />
                       ) : (
-                        <span className="text-xs font-bold font-mono">LOCKED</span>
+                        <span className="text-xs font-bold font-mono">BLOQUEADO</span>
                       )}
                       
                       {/* Interactive current pointer */}
                       {isActive && (
-                        <span className="absolute -top-3 bg-violet-600 text-[8px] font-mono font-black text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                          VOCÊ
+                        <span className="absolute -top-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-[8px] font-mono font-black text-white px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
+                          ATUAL
                         </span>
                       )}
                     </div>
 
                     {/* Metadata text */}
                     <div className="text-left md:text-center min-w-0">
-                      <p className="font-display font-medium text-xs text-slate-200">{node.belt} Belt</p>
+                      <p className="font-display font-bold text-xs text-slate-100">{translatedBelt}</p>
                       <span className="text-[10px] text-slate-500 block font-mono">
                         {node.belt === 'Branca' ? 'Iniciante' : `Min. Nível ${node.avgLvl}`}
                       </span>
@@ -460,8 +466,8 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
             
             <div className="bg-slate-900/50 p-3 h-11 rounded-lg border border-slate-800/40 mt-5 flex items-center justify-between text-xs font-mono text-slate-400">
               <span className="flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-spin" />
-                Dica da IA Gracie: "Mantenha gola tensionada e quadril solto."
+                <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                Dica do Mestre: "Mantenha gola tensionada e postura firme."
               </span>
               <span className="text-[10px] text-slate-500">Auto-Refresco 5s</span>
             </div>
