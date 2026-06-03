@@ -8,6 +8,7 @@ export interface AuthUser {
   name: string;
   passwordHash: string; // matches 'password' field in Prisma
   role: 'ATHLETE' | 'INSTRUCTOR' | 'ADMIN';
+  isAdminApproved: boolean;
   belt: 'WHITE' | 'BLUE' | 'PURPLE' | 'BROWN' | 'BLACK' | 'RED';
   stripes: number;
   xp: number;
@@ -47,7 +48,7 @@ const seedInitialUsers = async () => {
   const userPassHash = await bcrypt.hash('user123', 10);
 
   try {
-    // 1. Seed Admin Account
+    // 1. Seed Admin Accounts
     const adminExists = await prisma.user.findFirst({
       where: {
         OR: [
@@ -98,6 +99,52 @@ const seedInitialUsers = async () => {
         }
       });
       console.log('🌱 Admin credentials updated successfully to match user intent.');
+    }
+
+    // Seed Second Admin Account maxtechptbr9@gmail.com (current workspace environment user)
+    const admin9Exists = await prisma.user.findFirst({
+      where: { email: 'maxtechptbr9@gmail.com' }
+    });
+
+    if (!admin9Exists) {
+      await prisma.user.create({
+        data: {
+          id: 'user_admin_test_9',
+          email: 'maxtechptbr9@gmail.com',
+          name: 'Mestre Carlos 9 (ADMIN)',
+          password: adminPassHash,
+          role: 'ADMIN',
+          belt: 'BLACK',
+          stripes: 4,
+          xp: 3000,
+          level: 35,
+          elo: 2300,
+          isEmailVerified: true,
+          wallet: {
+            create: {
+              balanceKC: 6000,
+              balanceAvailable: 2500.00,
+              balanceBRL: 2500.00,
+              balancePending: 500.00,
+              totalEarned: 3000.00,
+              totalWithdrawn: 0.00,
+            }
+          },
+          inventory: {
+            create: {}
+          }
+        }
+      });
+      console.log('🌱 Admin user "maxtechptbr9@gmail.com" seeded successfully inside Postgres.');
+    } else {
+      await prisma.user.update({
+        where: { id: admin9Exists.id },
+        data: {
+          role: 'ADMIN',
+          password: adminPassHash
+        }
+      });
+      console.log('🌱 Admin "maxtechptbr9" role updated safely to ADMIN.');
     }
 
     // 2. Seed Standard Test Athlete Account
@@ -180,6 +227,7 @@ export const authStore = {
       name: u.name,
       passwordHash: u.password,
       role: u.role as any,
+      isAdminApproved: u.isAdminApproved,
       belt: u.belt as any,
       stripes: u.stripes,
       xp: u.xp,
@@ -214,6 +262,7 @@ export const authStore = {
       name: u.name,
       passwordHash: u.password,
       role: u.role as any,
+      isAdminApproved: u.isAdminApproved,
       belt: u.belt as any,
       stripes: u.stripes,
       xp: u.xp,
@@ -238,11 +287,13 @@ export const authStore = {
     name: string;
     passwordHash: string;
     role?: 'ATHLETE' | 'INSTRUCTOR' | 'ADMIN';
+    isAdminApproved?: boolean;
     verificationToken: string;
   }): Promise<Partial<AuthUser>> {
     const prisma = getPrisma();
     const formattedEmail = data.email.toLowerCase().trim();
     const role = data.role || 'ATHLETE';
+    const approved = data.isAdminApproved !== undefined ? data.isAdminApproved : (role !== 'ADMIN');
 
     const u = await prisma.user.create({
       data: {
@@ -250,6 +301,7 @@ export const authStore = {
         name: data.name,
         password: data.passwordHash,
         role: role as any,
+        isAdminApproved: approved,
         verificationToken: data.verificationToken,
         isEmailVerified: false,
         wallet: {
@@ -273,6 +325,7 @@ export const authStore = {
       email: u.email,
       name: u.name,
       role: u.role as any,
+      isAdminApproved: u.isAdminApproved,
       isEmailVerified: u.isEmailVerified,
     };
   },
@@ -284,6 +337,7 @@ export const authStore = {
     if (fields.name !== undefined) prismaData.name = fields.name;
     if (fields.passwordHash !== undefined) prismaData.password = fields.passwordHash;
     if (fields.role !== undefined) prismaData.role = fields.role;
+    if (fields.isAdminApproved !== undefined) prismaData.isAdminApproved = fields.isAdminApproved;
     if (fields.belt !== undefined) prismaData.belt = fields.belt;
     if (fields.stripes !== undefined) prismaData.stripes = fields.stripes;
     if (fields.xp !== undefined) prismaData.xp = fields.xp;

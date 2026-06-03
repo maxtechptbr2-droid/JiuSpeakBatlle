@@ -57,6 +57,7 @@ export interface AdminContextType {
   handleSuspendListing: (listingId: string) => Promise<void>;
   fetchAuditLogs: () => Promise<void>;
   handleUpdateUserScores: (userId: string, currentElo: number) => Promise<void>;
+  handleApproveUser: (userId: string) => Promise<void>;
   fetchReports: () => Promise<void>;
   handleReportDecision: (reportId: string, decision: 'DISMISS' | 'DELETE_CONTENT') => Promise<void>;
 
@@ -227,6 +228,30 @@ export function AdminProvider({
       }
     } catch (err) {
       showToast("Erro na requisição de cadastro.", "error");
+    }
+  };
+
+  const handleApproveUser = async (targetId: string) => {
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const res = await fetch('/api/admin/approve-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ userId: targetId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "Professor Administrador aprovado com sucesso!", "success");
+        fetchUsers();
+        fetchDashboardStats();
+      } else {
+        showToast(data.error || "Erro ao aprovar usuário.", "error");
+      }
+    } catch (err) {
+      showToast("Erro ao contatar servidor de aprovação.", "error");
     }
   };
 
@@ -631,6 +656,7 @@ export function AdminProvider({
       fetchUsers,
       handleChangeRole,
       handleUpdateUsersProfile,
+      handleApproveUser,
       fetchSubscriptions,
       handleSubscriptionAction,
       handleForceCronSimulate,

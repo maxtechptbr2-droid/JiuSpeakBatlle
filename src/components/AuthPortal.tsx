@@ -644,14 +644,14 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Perfil de Papel</label>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Perfil</label>
                     <select
                       value={role}
-                      onChange={e => setRole(e.target.value as any)}
-                      className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none transition-all cursor-pointer font-medium"
+                      onChange={e => setRole(e.target.value as 'ATHLETE' | 'ADMIN')}
+                      className="w-full bg-[#0a0f1d] border border-slate-800 text-xs text-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-violet-500 transition-all cursor-pointer font-sans"
                     >
-                      <option value="ATHLETE">Atleta Praticante (ATHLETE)</option>
-                      <option value="ADMIN">Professor Administrador (ADMIN)</option>
+                      <option value="ATHLETE">Atleta Praticante (Acesso Instantâneo)</option>
+                      <option value="ADMIN">Professor Administrador (Requer Aprovação Geral)</option>
                     </select>
                   </div>
 
@@ -660,7 +660,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                     disabled={loading}
                     className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    {loading ? <RefreshCw className="w-4.5 h-4.5 animate-spin" /> : <>Criar Conta de Aluno <Key className="w-4.5 h-4.5" /></>}
+                    {loading ? <RefreshCw className="w-4.5 h-4.5 animate-spin" /> : <>{role === 'ADMIN' ? 'Solicitar Acesso Professor' : 'Criar Conta de Aluno'} <Key className="w-4.5 h-4.5" /></>}
                   </button>
                 </form>
               )}

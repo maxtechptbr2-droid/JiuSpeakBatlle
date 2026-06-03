@@ -516,9 +516,9 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       return res.status(409).json({ error: "An account already exists with this email address." });
     }
 
-    // Privilege Escalation Mitigation: Default strictly to ATHLETE. 
-    // ADMIN roles can only be granted by an existing administrator via the admin panel.
-    const selectedRole: "ATHLETE" | "ADMIN" = "ATHLETE";
+    // Allow selected roles: ATHLETE (auto-approved) or ADMIN (requires admin approval)
+    const selectedRole: "ATHLETE" | "ADMIN" = (role === "ADMIN") ? "ADMIN" : "ATHLETE";
+    const isAdminApproved = (selectedRole !== "ADMIN");
 
     // Hash password using secure bcrypt configuration
     const passwordHash = await bcrypt.hash(password, 10);
@@ -532,6 +532,7 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       name,
       passwordHash,
       role: selectedRole,
+      isAdminApproved,
       verificationToken,
     });
 
@@ -545,12 +546,15 @@ app.post("/api/auth/register", async (req: any, res: any) => {
     authStore.logSentEmail(email, emailSubject, emailBody, verificationToken);
 
     res.status(201).json({
-      message: "Registro concluído com sucesso. Um e-mail de confirmação foi enviado.",
+      message: selectedRole === "ADMIN" 
+        ? "Conta de Professor Administrador criada com sucesso! Por segurança, seu perfil está aguardando aprovação do Administrador Geral."
+        : "Registro concluído com sucesso. Um e-mail de confirmação foi enviado.",
       user: {
         id: newUser.id,
         email: newUser.email,
         name: newUser.name,
         role: newUser.role,
+        isAdminApproved: newUser.isAdminApproved,
         isEmailVerified: false,
       },
       devMessage: "Em modo de demonstração de produção, utilize o painel de depuração ou logs para visualizar o e-mail de confirmação."
@@ -606,6 +610,14 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
       logAuth("LOGIN", email, false, { ipAddress, reason: "Password mismatch" });
       return res.status(401).json({ error: "Credenciais inválidas." });
+    }
+
+    // Ensure Professor Administrador has been approved by the general administrator
+    if (user.role === "ADMIN" && !user.isAdminApproved) {
+      logAuth("LOGIN", email, false, { ipAddress, reason: "Admin register pending approval from general admin" });
+      return res.status(403).json({ 
+        error: "Acesso pendente: O seu cadastro de Professor Administrador ainda não foi aprovado pelo Administrador Geral da plataforma. Por favor, aguarde o e-mail de liberação." 
+      });
     }
 
     // Success login registered
@@ -1090,6 +1102,36 @@ app.post("/api/admin/change-role", authenticateToken, requireRole(["ADMIN"]), as
     });
   } catch (error: any) {
     console.error("Admin change role error:", error);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 11.2 ADMIN APPROVE USER ADMIN ACCOUNT (Approves Professor/Admin pending registration)
+app.post("/api/admin/approve-user", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "Missing required parameter: userId." });
+    }
+
+    const updated = await authStore.updateUser(userId, { isAdminApproved: true });
+    if (!updated) {
+      return res.status(404).json({ error: "Usuário não localizado." });
+    }
+
+    // Log approval audit log
+    await AuthService.audit({
+      actorId: req.user?.id,
+      action: "ACCESS_ROLE_CHANGE",
+      description: `Professor Administrador (ID: ${userId}) foi expressamente aprovado pelo Administrador Geral.`,
+    });
+
+    res.json({
+      success: true,
+      message: "Professor Administrador aprovado com sucesso! O cadastro agora está ativo para login.",
+    });
+  } catch (error: any) {
+    console.error("Admin approve user error:", error);
     res.status(500).json({ error: "Internal server error." });
   }
 });

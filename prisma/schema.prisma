@@ -122,6 +122,7 @@ model User {
   refreshToken      String?
   avatar            String?
   role              UserRole     @default(ATHLETE)
+  isAdminApproved   Boolean      @default(true)
   belt              BeltRank     @default(WHITE)
   stripes           Int          @default(0)
   xp                Int          @default(0)

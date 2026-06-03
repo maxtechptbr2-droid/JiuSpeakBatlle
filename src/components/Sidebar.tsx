@@ -53,8 +53,12 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' },
     { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
     { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
-    { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Docente' },
-    { id: 'admin', label: 'Painel Admin', icon: ShieldAlert, badge: 'Auditoria' },
+    ...(user.role === 'admin' || user.role === 'professor' ? [
+      { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Docente' }
+    ] : []),
+    ...(user.role === 'admin' ? [
+      { id: 'admin', label: 'Painel Admin', icon: ShieldAlert, badge: 'Auditoria' }
+    ] : []),
   ];
 
   return (

@@ -25,6 +25,7 @@ export default function Users() {
     setEditingUser,
     fetchUsers,
     handleChangeRole,
+    handleApproveUser,
     handleUpdateUsersProfile,
     handleUpdateUserScores
   } = useAdmin();
@@ -123,13 +124,20 @@ export default function Users() {
                       </div>
                     </td>
                     <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold ${
-                        regUser.role === 'ADMIN' 
-                          ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20' 
-                          : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20'
-                      }`}>
-                        {regUser.role}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`px-2 py-0.5 rounded text-[9.5px] font-bold ${
+                          regUser.role === 'ADMIN' 
+                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20' 
+                            : 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20'
+                        }`}>
+                          {regUser.role}
+                        </span>
+                        {regUser.role === 'ADMIN' && regUser.isAdminApproved === false && (
+                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                            PENDENTE APROVAÇÃO
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3 text-xs">
                       <div className="space-y-0.5 font-mono text-[10.5px]">
@@ -138,6 +146,15 @@ export default function Users() {
                       </div>
                     </td>
                     <td className="py-3 px-3 text-right space-x-1 whitespace-nowrap">
+                      {regUser.role === 'ADMIN' && regUser.isAdminApproved === false && (
+                        <button
+                          type="button"
+                          onClick={() => handleApproveUser(regUser.id)}
+                          className="p-1 px-2.5 bg-emerald-650 hover:bg-emerald-600 text-[10px] text-white font-bold rounded border border-emerald-500 cursor-pointer transition-all inline-flex items-center gap-1 shadow-sm"
+                        >
+                          Liberar Acesso
+                        </button>
+                      )}
                       <button 
                         type="button"
                         onClick={() => setEditingUser(regUser)}

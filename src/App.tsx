@@ -64,36 +64,36 @@ export default function App() {
       try { return JSON.parse(cached); } catch (e) { /* fallback */ }
     }
     return {
-      id: 'atleta_7339',
-      name: 'Gustavo "Lobo Guará"',
+      id: 'atleta_73392',
+      name: 'Mestre Carlos 9 (ADMIN)',
       email: 'maxtechptbr9@gmail.com',
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
-      level: 1,
-      xp: 120,
-      xpNextLevel: 1000,
-      belt: 'Branca',
-      stripes: 0,
-      coins: 600,
-      elo: 1050,
-      winCount: 3,
-      lossCount: 2,
-      streak: 2,
+      level: 35,
+      xp: 3000,
+      xpNextLevel: 5000,
+      belt: 'Preto',
+      stripes: 4,
+      coins: 6000,
+      elo: 2300,
+      winCount: 154,
+      lossCount: 22,
+      streak: 45,
       lastActiveDate: new Date().toISOString(),
       academy: 'Atama Virtual Team',
-      category: 'Pena (-70kg)',
-      guardsPreference: 'Guarda Fechada de Aço',
-      submitsPreference: 'Estrangulamento Cruzado',
+      category: 'Absoluto',
+      guardsPreference: 'Guarda de Lapela Controlada',
+      submitsPreference: 'Chave de Calcanhar',
       inventory: [],
       enrolledCourses: ['course_fundamentals'],
       unlockedAchievements: [],
-      subscription: { type: 'Gratuito', priceBRL: 0 },
-      role: 'athlete',
-      balanceBRL: 420.00,
-      balanceAvailableBRL: 420.00,
-      balancePendingBRL: 155.00,
-      totalEarnedBRL: 575.00,
+      subscription: { type: 'Premium VIP', priceBRL: 149.90 },
+      role: 'admin',
+      balanceBRL: 2500.00,
+      balanceAvailableBRL: 2500.00,
+      balancePendingBRL: 500.00,
+      totalEarnedBRL: 3000.00,
       totalWithdrawnBRL: 0.00,
-      isEmailVerified: false
+      isEmailVerified: true
     };
   });
 
@@ -543,29 +543,38 @@ export default function App() {
               <span className="uppercase">Faixa {user.belt}</span>
             </div>
             
-            {/* Quick role-swap */}
-            <div className="flex items-center gap-1.5 ml-2">
-              <span className="text-slate-500 font-mono text-[10px] uppercase">Função:</span>
-              <select
-                value={user.role}
-                onChange={(e) => {
-                  setUser(prev => ({ ...prev, role: e.target.value as any }));
-                  showToast(`Chave de Função: perfil migrado para modo [${e.target.value}]!`, "info");
-                  
-                  addAuditLog(
-                     'security_alert',
-                     `Nível de Acesso Modificado: Perfil alterou seu papel para [${e.target.value}].`,
-                     undefined,
-                     undefined
-                  );
-                }}
-                className="bg-slate-900/80 border border-slate-800 text-slate-300 rounded font-mono text-[10px] p-1 cursor-pointer"
-              >
-                <option value="athlete">Atleta 🥋</option>
-                <option value="professor">Professor/Creator 🎓</option>
-                <option value="admin">Administrador 🛠️</option>
-              </select>
-            </div>
+            {/* Quick role-swap (restricted dynamically to actual administrators only) */}
+            {user.role === 'admin' ? (
+              <div className="flex items-center gap-1.5 ml-2">
+                <span className="text-slate-500 font-mono text-[10px] uppercase">Visão:</span>
+                <select
+                  value={user.role}
+                  onChange={(e) => {
+                    setUser(prev => ({ ...prev, role: e.target.value as any }));
+                    showToast(`Chave de Função: perfil migrado para modo [${e.target.value}]!`, "info");
+                    
+                    addAuditLog(
+                       'security_alert',
+                       `Nível de Acesso Modificado: Perfil alterou seu papel para [${e.target.value}].`,
+                       undefined,
+                       undefined
+                    );
+                  }}
+                  className="bg-slate-900/80 border border-slate-800 text-slate-300 rounded font-mono text-[10px] p-1 cursor-pointer"
+                >
+                  <option value="athlete">Atleta 🥋</option>
+                  <option value="professor">Professor/Creator 🎓</option>
+                  <option value="admin">Administrador 🛠️</option>
+                </select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 ml-2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-400">
+                <span className="uppercase">Função:</span>
+                <span className="text-slate-300 font-bold uppercase">
+                  {user.role === 'professor' ? 'Professor 🎓' : 'Atleta 🥋'}
+                </span>
+              </div>
+            )}
           </div>
 
         </div>
@@ -639,7 +648,7 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'creator' && (
+          {currentTab === 'creator' && (user.role === 'admin' || user.role === 'professor') && (
             <CreatorPanel 
               user={user} 
               courses={courses} 
@@ -650,7 +659,7 @@ export default function App() {
             />
           )}
 
-          {currentTab === 'admin' && (
+          {currentTab === 'admin' && user.role === 'admin' && (
             <AdminPanel 
               user={user} 
               auditLogs={auditLogs} 
