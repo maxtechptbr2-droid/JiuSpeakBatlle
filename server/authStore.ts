@@ -50,12 +50,7 @@ const seedInitialUsers = async () => {
   try {
     // 1. Seed Admin Accounts
     const adminExists = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { id: 'user_admin_test_1' },
-          { email: 'maxtechptbr@gmail.com' }
-        ]
-      }
+      where: { email: 'maxtechptbr@gmail.com' }
     });
 
     if (!adminExists) {
@@ -66,6 +61,7 @@ const seedInitialUsers = async () => {
           name: 'Mestre Carlos (ADMIN)',
           password: adminPassHash,
           role: 'ADMIN',
+          isAdminApproved: true,
           belt: 'BLACK',
           stripes: 4,
           xp: 2500,
@@ -95,10 +91,60 @@ const seedInitialUsers = async () => {
         data: {
           email: 'maxtechptbr@gmail.com',
           password: adminPassHash,
-          role: 'ADMIN'
+          role: 'ADMIN',
+          isAdminApproved: true
         }
       });
       console.log('🌱 Admin credentials updated successfully to match user intent.');
+    }
+
+    // Seed Admin Account maxtechptbr@gmail.con
+    const adminConExists = await prisma.user.findFirst({
+      where: { email: 'maxtechptbr@gmail.con' }
+    });
+
+    if (!adminConExists) {
+      await prisma.user.create({
+        data: {
+          id: 'user_admin_test_con',
+          email: 'maxtechptbr@gmail.con',
+          name: 'Mestre Carlos (SUPER ADMIN)',
+          password: adminPassHash,
+          role: 'ADMIN',
+          isAdminApproved: true,
+          belt: 'BLACK',
+          stripes: 4,
+          xp: 2500,
+          level: 30,
+          elo: 2200,
+          isEmailVerified: true,
+          wallet: {
+            create: {
+              balanceKC: 5000,
+              balanceAvailable: 1500.00,
+              balanceBRL: 1500.00,
+              balancePending: 350.00,
+              totalEarned: 1850.00,
+              totalWithdrawn: 0.00,
+            }
+          },
+          inventory: {
+            create: {}
+          }
+        }
+      });
+      console.log('🌱 Admin user "maxtechptbr@gmail.con" seeded successfully inside Postgres.');
+    } else {
+      await prisma.user.update({
+        where: { id: adminConExists.id },
+        data: {
+          email: 'maxtechptbr@gmail.con',
+          password: adminPassHash,
+          role: 'ADMIN',
+          isAdminApproved: true
+        }
+      });
+      console.log('🌱 Admin "maxtechptbr.con" credentials updated successfully.');
     }
 
     // Seed Second Admin Account maxtechptbr9@gmail.com (current workspace environment user)
