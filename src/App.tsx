@@ -420,7 +420,7 @@ export default function App() {
 
   if (!session) {
     return (
-      <div className="min-h-screen text-slate-200 bg-[#070a13] flex items-center justify-center p-4" id="app-wrapper">
+      <div className="min-h-screen text-slate-200 bg-[#070a13] flex flex-col items-stretch w-full overflow-x-hidden" id="app-wrapper">
         {toast && toast.visible && (
           <div className="fixed top-4 right-4 z-50 animate-bounce cursor-pointer max-w-sm w-full">
             <div className={`p-4 rounded-xl border shadow-xl flex items-center gap-3 ${
