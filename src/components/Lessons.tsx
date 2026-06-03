@@ -424,136 +424,266 @@ const PLAYBOOK_DATA: PlaybookSyllabus[] = [
     courseId: 'course_modulo_2',
     modules: [
       {
-        title: 'Mecânicas de Repetição & Ajustes (Drills & Corrections)',
-        description: 'Termos cruciais para repetição de drill, correção postural de colegas e etiqueta avançada de resenha de treino.',
+        title: 'Conversação & Diálogos de Treino (sparring conversation)',
+        description: 'Frases de tatame para interagir fluindo drills, propor ajustes, explicar posições e sanar dúvidas durante rolagens gringas.',
         lessons: [
           {
             id: 'les_m2_1',
-            title: 'Parcerias e Ajustes Posturais (Inviting & Flow)',
-            duration: '12 min',
-            overview: 'Descubra como convidar parceiros de forma nobre, aceitar recusas, sugerir correções educadas de peso e estruturar sequências repetitivas (drills) em alta velocidade.',
+            title: 'Lição 1: Drills (Mecânicas de Repetição no Tatame)',
+            duration: '10 min',
+            overview: 'Aprenda a propor sequências repetitivas organizadas (drills) e combinar tempos ou repetições alternadas com seu parceiro de treino estrangeiro.',
             vocabulary: [
-              { term: 'Light Roll / Flow Roll', translation: 'Treino leve fluído (foco técnico)', pronunciation: 'laɪt roʊl / floʊ roʊl' },
-              { term: 'Keep your posture', translation: 'Mantenha sua postura armada', pronunciation: 'kiːp jɔːr ˈpɒs.tʃər' },
-              { term: 'Tuck your elbows', translation: 'Cole seus cotovelos nas costelas', pronunciation: 'tʌk jɔːr ˈɛl.boʊz' },
-              { term: 'Do ten repetitions', translation: 'Faça dez repetições de drill', pronunciation: 'duː tɛn ˌrɛp.ɪˈtɪʃ.ənz' }
+              { term: 'Drill', translation: 'Fazer repetições técnicas sistemáticas', pronunciation: 'drɪl' },
+              { term: 'Repetitions / Reps', translation: 'Repetições de um movimento', pronunciation: 'ˌrɛp.ɪˈtɪʃ.ənz' },
+              { term: 'Flow roll', translation: 'Rola fluido com foco em transição mútua sem força', pronunciation: 'floʊ roʊl' },
+              { term: 'Your turn / My turn', translation: 'Sua vez / Minha vez', pronunciation: 'jɔːr tɜːrn / maɪ tɜːrn' }
             ],
             dialogue: [
-              { speaker: 'Colega Gringo', textEN: 'Let’s do some sweeps for drill first. Ten reps each side, alright?', textPT: 'Vamos fazer algumas raspagens como drill primeiro. Dez repetições de cada lado, beleza?' },
-              { speaker: 'Você', textEN: 'Awesome! Then we can do a nice flow roll, focus on movement.', textPT: 'Maravilha! Depois podemos fazer um flow roll bacana, com foco na movimentação.' }
+              { speaker: 'Partner', textEN: 'Let’s do some sweeps for drill first. Ten reps each side, alright?', textPT: 'Vamos fazer algumas raspagens como drill primeiro. Dez repetições de cada lado, beleza?' },
+              { speaker: 'You', textEN: 'Sounds perfect! Five reps on the left and five reps on the right. Then it’s your turn.', textPT: 'Parece perfeito! Cinco repetições na esquerda e cinco na direita. Depois é sua vez.' }
             ],
-            masterTip: 'Em academias estrangeiras premium, o termo "drill" é sagrado. Um "flow roll" não é uma competição até a morte, mas uma movimentação onde ambos dão espaço para ataques e defesas coordenadas. Respeite o ritmo!',
+            masterTip: 'Fazer drills é a alma da evolução na Faixa Azul gringa. Repita com foco máximo nos micro-detalhes sem tentar finalizar seu parceiro durante a fase de repetições repetitivas.',
             exercises: [
               {
                 id: 'ex_m2_1_mc',
                 type: 'multiple_choice',
-                question: 'Qual expressão expressa melhor seu desejo de convidar alguém para um treino de pura movimentação sem força máxima?',
+                question: 'Como dizemos em inglês "fazer repetições técnicas sistemáticas" e "treino leve fluído" no jiu-jítsu?',
                 options: [
-                  'Do you want to fight death match with me?',
-                  'Would you like to do a light roll / flow roll?',
-                  'Let’s play weak with zero power',
-                  'Can we simulate a soft punch?'
+                  'Do drills & Flow roll',
+                  'Make repetitive fights & Soft game',
+                  'Play copy & No force',
+                  'Run mockings & False control'
                 ],
-                correctOptionIndex: 1,
-                explanation: 'A frase unânime é "Do you want to flow roll?" ou "light roll", sinalizando foco total em transições e técnica apurada.'
+                correctOptionIndex: 0,
+                explanation: '"Drill" significa a repetição sistemática de movimentos para automatizar reflexos, e "flow roll" é o treino flexível focado na movimentação mútua.'
               },
               {
                 id: 'ex_m2_1_ls',
                 type: 'listening',
-                phraseEN: 'If you want to survive his closed guard, keep your posture high.',
-                question: 'O áudio alerta sobre qual perigo na guarda fechada?',
+                phraseEN: 'Let’s do ten reps of this sweep on each side and then flow roll.',
+                question: 'Qual a quantidade de repetições pedida e o que os atletas farão em seguida?',
                 options: [
-                  'Manter a cabeça no abdômen dele',
-                  'Desistir da luta antes de começar',
-                  'Manter a sua postura bem alta para sobreviver à guarda',
-                  'Arriscar sua rashguard de luxo'
+                  'Dez repetições da raspagem de cada lado e depois rolar de forma solta (flow roll)',
+                  'Vinte repetições totais e parar o treino de imediato',
+                  'Cinco quedas e lutar buscando finalizações rápidas',
+                  'Parar o treino técnico e beber água'
                 ],
-                correctOptionIndex: 2,
-                explanation: '"Keep your posture" é o mais importante comando defensivo na guarda fechada, impossibilitando estrangulamentos fáceis.'
+                correctOptionIndex: 0,
+                explanation: '"Ten reps... on each side and then flow roll" é traduzido como dez repetições de cada lado e depois fazer um treino fino e fluído.'
               },
               {
                 id: 'ex_m2_1_sp',
                 type: 'speaking',
-                phraseEN: 'Let’s pair up and drill the guard pass ten times each.',
-                question: 'Convide o parceiro para fazer drills de passagem de guarda:',
+                phraseEN: 'Let’s pair up and drill this guard pass.',
+                question: 'Fale em voz alta este convite para praticar passagem de guarda em dupla:',
                 options: [],
                 correctOptionIndex: 0,
-                explanation: '"Let\'s pair up" significa "Vamos nos juntar/fazer dupla" e "Drill" significa repetir sistematicamente.'
+                explanation: '"Let\'s pair up" significa "Vamos fazer dupla/parceria" e "drill this guard pass" chama para repetir a técnica de passagem.'
               },
               {
                 id: 'ex_m2_1_tr',
                 type: 'translation',
-                question: 'Traduza o clássico aviso de instrução: "TUCK YOUR ELBOWS IN"',
+                question: 'Traduza o comando fundamental do parceiro: "YOUR TURN"',
                 options: [],
                 correctOptionIndex: 0,
-                translationKey: 'colar',
-                wordBank: ['Mantenha os cotovelos fechados/enclausurados', 'Suba os calcanhares', 'Abra as pernas', 'Esgrime os braços'],
-                explanation: '"Tuck your elbows" serve para evitar dar o braço de bandeja ao adversário, mantendo-os colados ao seu corpo.'
+                translationKey: 'sua',
+                wordBank: ['Sua vez (de fazer)', 'Minha vez de bater', 'Pare o cronômetro', 'Fique por baixo'],
+                explanation: '"Your turn" significa literal e objetivamente "Sua vez" para iniciar a atividade.'
               }
             ]
           },
           {
             id: 'les_m2_2',
-            title: 'Chaves de Articulação e Alavancas Finais',
+            title: 'Lição 2: Correções (Ajustes e Postura Correta)',
             duration: '11 min',
-            overview: 'Domine a terminologia avançada para alavancas, chaves de braço retas (armlocks), americanas, kimuras e técnicas de finalização de azul.',
+            overview: 'Aprenda a dar feedbacks úteis de postura ou receber toques técnicos sobre erros de fechamento mecânico de braços e espaço corporal de controle.',
             vocabulary: [
-              { term: 'Armbar / Armlock', translation: 'Chave de braço clássica', pronunciation: 'ˈɑːrm.bɑːr' },
-              { term: 'Shoulder lock / Kimura', translation: 'Chave de ombro / Kimura', pronunciation: 'ˈʃoʊl.dər lɒk' },
-              { term: 'Straight foot lock', translation: 'Chave de bota / Pé reta', pronunciation: 'streɪt fʊt lɒk' },
-              { term: 'Leverage and pressure', translation: 'Alavanca e pressão mecânica', pronunciation: 'ˈliː.vər.ɪdʒ ænd ˈprɛʃ.ər' }
+              { term: 'Keep your elbow tight', translation: 'Mantenha seu cotovelo bem fechado/colado', pronunciation: 'kiːp jɔːr ˈɛl.boʊ taɪt' },
+              { term: 'Don\'t give him space', translation: 'Não dê espaço para ele se mover', pronunciation: 'doʊnt ɡɪv hɪm speɪs' },
+              { term: 'Keep your posture high', translation: 'Mantenha sua postura erguida/alta', pronunciation: 'kiːp jɔːr ˈpɒs.tʃər haɪ' },
+              { term: 'Tuck your chin', translation: 'Encolha seu queixo de proteção', pronunciation: 'tʌk jɔːr tʃɪn' }
             ],
             dialogue: [
-              { speaker: 'Training Partner', textEN: 'Watch out, that shoulder lock is extremely tight!', textPT: 'Cuidado, essa chave de ombro está extremamente justa!' },
-              { speaker: 'You', textEN: 'I will release the pressure, tap whenever you feel pain.', textPT: 'Vou aliviar a pressão, bata sempre que sentir dor.' }
+              { speaker: 'Partner', textEN: 'You need to keep your elbow tight, otherwise I will catch your arm.', textPT: 'Você precisa manter seu cotovelo colado, do contrário vou pegar seu braço.' },
+              { speaker: 'You', textEN: 'Got it! And I shouldn’t give him space to shrimp out, right?', textPT: 'Entendido! E eu não deveria dar espaço para ele fugir de quadril, certo?' }
             ],
-            masterTip: 'A palavra "armlock" ou "armbar" é universalmente aceita para a chave de braço. Lembre-se do ditado: "Tap early, tap safe" (bata cedo, bata em segurança) para evitar lesões.',
+            masterTip: 'No exterior, fechar os cotovelos é lei eterna. Se o seu parceiro gritar "Keep your elbow tight!", cole imediatamente seu cotovelo contra suas costelas para se defender.',
             exercises: [
               {
                 id: 'ex_m2_2_mc',
                 type: 'multiple_choice',
-                question: 'Como chamamos a famosa chave de ombro "Kimura" nas academias gringas?',
+                question: 'Qual a melhor maneira de falar "mantenha o cotovelo colado/fechado" para seu colega em inglês?',
                 options: [
-                  'Shoulder lock (Kimura)',
-                  'Finger lock',
-                  'Neck tie',
-                  'Hip toss'
+                  'Keep your elbow tight',
+                  'Do not open hand',
+                  'Shut down the arm',
+                  'Glue your elbow'
                 ],
                 correctOptionIndex: 0,
-                explanation: '"Shoulder lock" ou simplesmente "Kimura" é o nome dado para a chave de ombro.'
+                explanation: '"Keep your elbow tight" é a expressão ideal e universalmente usada para manter os cotovelos selados rentes ao corpo.'
               },
               {
                 id: 'ex_m2_2_ls',
                 type: 'listening',
-                phraseEN: 'He tapped out to a very tight armbar from the guard.',
-                question: 'Quem desistiu e como na gravação do tatame?',
+                phraseEN: 'Don’t give him space to shrimp or escape his hips.',
+                question: 'O áudio alerta para tapar quais aberturas no adversário?',
                 options: [
-                  'Ele bateu devido a um armbar muito justo partindo da guarda',
-                  'Ele conseguiu escapar por cima aplicando uma raspagem',
-                  'Ele segurou a calça e estabilizou no controle lateral',
-                  'Ele foi punido por falta de combatividade activa'
+                  'Não ceder espaço para ele fugir o quadril ou fazer o camarão',
+                  'Manter a lapela contrária presa com força bruta',
+                  'Começar a bater com a mão no chão para render-se',
+                  'Abanar o braço buscando uma chave americana direta'
                 ],
                 correctOptionIndex: 0,
-                explanation: '"Tapped out to a tight armbar" indica que ele desistiu diante de um armbar muito bem encaixado.'
+                explanation: '"Don\'t give him space to shrimp" significa não ceder espaço para ele fugir o quadril com o movimento de camarão.'
               },
               {
                 id: 'ex_m2_2_sp',
                 type: 'speaking',
-                phraseEN: 'Use your hips to create more leverage on the armbar.',
-                question: 'Sugira ao colega como ajustar a mecânica técnica para mais alavanca:',
+                phraseEN: 'Keep your elbow tight and protect your neck.',
+                question: 'Diga ao colega para fechar o cotovelo e salvar o pescoço:',
                 options: [],
                 correctOptionIndex: 0,
-                explanation: 'A frase correta orienta a usar o quadril ("hips") para criar mais alavanca ("leverage") no armbar.'
+                explanation: 'A frase avisa para manter o cotovelo bem fechado ("elbow tight") e proteger o pescoço de ataques ("protect your neck").'
               },
               {
                 id: 'ex_m2_2_tr',
                 type: 'translation',
-                question: 'Traduza o termo mecânico crucial: "LEVERAGE"',
+                question: 'Traduza o conselho postural do mestre gringo: "DON’T GIVE HIM SPACE"',
                 options: [],
                 correctOptionIndex: 0,
-                translationKey: 'alavanca',
-                wordBank: ['Alavanca / Torque', 'Fuga de costas', 'Passagem de guarda', 'Queda de quadril'],
-                explanation: '"Leverage" é o termo em física e mecânica de wrestling/BJJ usado para descrever o poder da alavanca corporal.'
+                translationKey: 'não',
+                wordBank: ['Não dê espaço para ele', 'Puxe a calça', 'Sente-se agora', 'Respire fundo'],
+                explanation: '"Don\'t give him space" serve para abafar e imobilizar a movimentação fluida do adversário por baixo.'
+              }
+            ]
+          },
+          {
+            id: 'les_m2_3',
+            title: 'Lição 3: Posições (Guardas Modernas e Pegadas de Controle)',
+            duration: '10 min',
+            overview: 'Entenda a nomenclatura americana para as guardas modernas de lapela e pés no quadril, e a importância estratégica das pegadas no quimono.',
+            vocabulary: [
+              { term: 'Control the sleeve', translation: 'Controle a manga do quimono', pronunciation: 'kənˈtroʊl ðə sliːv' },
+              { term: 'Pants grip', translation: 'Pegada na calça de segurança', pronunciation: 'pænts ɡrɪp' },
+              { term: 'De la Riva guard', translation: 'Guarda De la Riva tradicional', pronunciation: 'deɪ lɑː ˈriː.və ɡɑːrd' },
+              { term: 'Spider guard', translation: 'Guarda aranha clássica', pronunciation: 'ˈspaɪ.dər ɡɑːrd' }
+            ],
+            dialogue: [
+              { speaker: 'Partner', textEN: 'Make sure you control the sleeve when you play spider guard.', textPT: 'Garante que você controla a manga quando joga de guarda aranha.' },
+              { speaker: 'You', textEN: 'Yes! And I will establish a tight pants grip with my left hand too.', textPT: 'Sim! E vou estabelecer uma pegada justa de calça com a minha mão esquerda também.' }
+            ],
+            masterTip: 'Pegar na calça ("pants grip") ou segurar com garra a manga ("control the sleeve") são as premissas mecânicas básicas das guardas elásticas e modernas no tatame.',
+            exercises: [
+              {
+                id: 'ex_m2_3_mc',
+                type: 'multiple_choice',
+                question: 'Se o professor gringo lhe gritar "control the sleeve and make a pants grip", o que ele deseja que você segure?',
+                options: [
+                  'Controlar a manga e fazer uma pegada na calça',
+                  'Amarrar o calcanhar e fechar o estrangulador',
+                  'Levantar o queixo e fazer a ponte alta',
+                  'Desistir da pegada e recuar o quadril de imediato'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Sleeve" refere-se à manga do quimono e "pants grip" à pegada firme na altura do tecido da calça.'
+              },
+              {
+                id: 'ex_m2_3_ls',
+                type: 'listening',
+                phraseEN: 'Sleeve control is essential for a good spider guard.',
+                question: 'Qual pegada é destacada como indispensável para a guarda aranha?',
+                options: [
+                  'O controle firme de manga',
+                  'A pegada no calcanhar contrário',
+                  'A braçada dupla de ombro',
+                  'Agarrar o quimono nas costas'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Sleeve control is essential" realça que segurar as mangas é essencial para a saúde da guarda aranha.'
+              },
+              {
+                id: 'ex_m2_3_sp',
+                type: 'speaking',
+                phraseEN: 'Control the sleeve and establish your De la Riva guard.',
+                question: 'Instrua a fechar a pegada da manga e entrar com a De la Riva em voz alta:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase diz: "Controle a manga e estabeleça sua guarda De la Riva."'
+              },
+              {
+                id: 'ex_m2_3_tr',
+                type: 'translation',
+                question: 'Traduza o elemento essencial de ancoragem em pegada: "SLEEVE"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'manga',
+                wordBank: ['Manga (do casaco de Gi)', 'Perna da calça', 'Faixa com pontas', 'Pescoço defendido'],
+                explanation: '"Sleeve" é a manga do casaco (Gi), âncora principal para dezenas de técnicas.'
+              }
+            ]
+          },
+          {
+            id: 'les_m2_4',
+            title: 'Lição 4: Perguntas Comuns (Esclarecendo Dúvidas Técnicas)',
+            duration: '11 min',
+            overview: 'Veja como perguntar o passo a passo de uma técnica, pedir para repetir um detalhe de passagem ou aferir o estado físico de integridade do seu parceiro.',
+            vocabulary: [
+              { term: 'Can you show me that sweep again?', translation: 'Você pode me mostrar aquela raspagem de novo?', pronunciation: 'kæn juː ʃoʊ miː ðæt swiːp əˈɡɛn' },
+              { term: 'How do you escape this position?', translation: 'Como você se liberta/escapa desta posição?', pronunciation: 'haʊ duː juː ɪˈskeɪp ðɪs pəˈzɪʃ.ən' },
+              { term: 'Are you okay?', translation: 'Você está bem? (pergunta de segurança)', pronunciation: 'ɑːr juː oʊˈkeɪ' },
+              { term: 'Could you do that slowly?', translation: 'Você poderia fazer isso de forma mais lenta?', pronunciation: 'kʊd juː duː ðæt ˈsloʊ.li' }
+            ],
+            dialogue: [
+              { speaker: 'You', textEN: 'Can you show me that sweep again? I missed the pants grip detail.', textPT: 'Você pode me mostrar aquela raspagem de novo? Eu perdi o detalhe da pegada da calça.' },
+              { speaker: 'Partner', textEN: 'Sure! Let’s do that slowly so you can see where my hand goes.', textPT: 'Claro! Vamos fazer isso devagar para que você possa ver onde minha mão se posiciona.' }
+            ],
+            masterTip: 'Não tenha vergonha ou medo de interagir perguntando gringonites na aula! Dizer "How do you escape this?" demonstra extrema humildade e excelente respeito marcial.',
+            exercises: [
+              {
+                id: 'ex_m2_4_mc',
+                type: 'multiple_choice',
+                question: 'Qual pergunta você faz para pedir de modo respeitoso e correto para o colega refazer a exibição da raspagem?',
+                options: [
+                  'Can you show me that sweep again?',
+                  'Can we start the heavy fight now?',
+                  'How many points did I win today?',
+                  'Did you see my patch on the guard?'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Can you show me that sweep again?" é a frase clássica para pedir para rever a demonstração de raspagem ("sweep").'
+              },
+              {
+                id: 'ex_m2_4_ls',
+                type: 'listening',
+                phraseEN: 'Are you okay? Did you feel any pain in your shoulder?',
+                question: 'Qual a preocupação expressa pelo colega com base no áudio gringo?',
+                options: [
+                  'Saber se você está bem ou sentiu dores mecânicas no ombro',
+                  'Saber quantos graus você tem na sua faixa azul',
+                  'Exigir que você faça uma rolada em alta velocidade',
+                  'Pedir para trocar o quimono sujo na lavanderia'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Are you okay?" se traduz como "Você está bem?" e "shoulder pain" como dor física no ombro.'
+              },
+              {
+                id: 'ex_m2_4_sp',
+                type: 'speaking',
+                phraseEN: 'How do you escape this tight positional control?',
+                question: 'Pergunte em inglês como se desvencilhar de um controle de forma correta:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase diz: "Como você escapa deste controle posicional tão apertado/justo?"'
+              },
+              {
+                id: 'ex_m2_4_tr',
+                type: 'translation',
+                question: 'Traduza a indagação de segurança indispensável: "ARE YOU OKAY"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'você',
+                wordBank: ['Você está bem?', 'Puxou de guarda', 'Esgrime o pé', 'Arremessou longe'],
+                explanation: '"Are you okay?" é a primeira frase a ser disparada se você desconfiar que seu parceiro se machucou accidentamente.'
               }
             ]
           }
@@ -563,75 +693,335 @@ const PLAYBOOK_DATA: PlaybookSyllabus[] = [
   },
   {
     belt: 'Roxa',
-    title: 'Grade Curricular da Faixa Roxa',
+    title: 'Grade Curricular da Faixa Roxa (Purple Belt)',
     courseId: 'course_modulo_4',
     modules: [
       {
-        title: 'Mecânica Avançada, Estratégia & Arbitragem',
-        description: 'Táticas complexas de laço, berimbolo, amarrações de lapela e pontuações nas regras oficiais da IBJJF.',
+        title: 'Conversação Avançada & Estratégia de Combate (Advanced Sparring)',
+        description: 'Táticas refinadas e diálogos reais sobre ajuste de esgrima, travas na De la Riva, arranjos de cinto nas costas, mecanismos de passagem rápida e controle fino de pacing.',
         lessons: [
           {
             id: 'les_m4_1',
-            title: 'Pontuação Real nas Regras Internacionais',
-            duration: '12 min',
-            overview: 'Conheça o vocabulário oficial da arbitragem da IBJJF. Evite ser punido por amarração de luta ("stalling") ou falsas pegadas e saiba como solicitar sua vantagem na gringa.',
+            title: 'Lição 1: Half Guard (Ofensiva e Conexão de Esgrima)',
+            duration: '10 min',
+            overview: 'Domine a conversação avançada de meia-guarda gringa. Aprenda a instruir ou descrever o gancho de baixo (underhook), o esmagamento com o ombro (shoulder pressure) e a transição precisa de quadril.',
             vocabulary: [
-              { term: 'Sweep (2 points)', translation: 'Raspagem (concede 2 pontos)', pronunciation: 'swiːp' },
-              { term: 'Guard Pass (3 points)', translation: 'Passagem de guarda (3 pontos)', pronunciation: 'ɡɑːrd pæs' },
-              { term: 'Stalling', translation: 'Amarração / Falta de combatividade', pronunciation: 'ˈstɔː.lɪŋ' },
-              { term: 'Advantage / Penalty', translation: 'Vantagem / Punição', pronunciation: 'ədˈvɑːn.tɪdʒ / ˈpɛn.əl.ti' }
+              { term: 'Deep underhook', translation: 'Esgrima profunda debaixo do braço', pronunciation: 'diːp ˈʌndər.hʊk' },
+              { term: 'Knee shield / Half guard', translation: 'Escudo de joelho / Meia-guarda', pronunciation: 'niː ʃiːld / hæf ɡɑːrd' },
+              { term: 'Flattener', translation: 'O achatamento postural / Deixar plano de costas', pronunciation: 'ˈflæt.nər' },
+              { term: 'Underhook battle', translation: 'A disputa de esgrima', pronunciation: 'ˈʌndər.hʊk ˈbæt.əl' }
             ],
             dialogue: [
-              { speaker: 'Competitor', textEN: 'Referee, that was a safe sweep! I need my two points!', textPT: 'Árbitro, aquilo foi uma raspagem consolidada! Eu preciso dos meus dois pontos!' },
-              { speaker: 'Referee', textEN: 'No! There was no control of the hips on top. Play active, no stalling!', textPT: 'Não! Não houve controle de quadril por cima. Jogue ativo, sem amarração!' }
+              { speaker: 'Partner', textEN: 'We need to drill the half guard underhook battle right now.', textPT: 'Nós precisamos fazer o drill da disputa de esgrima na meia-guarda agora mesmo.' },
+              { speaker: 'You', textEN: 'Perfect! Keep your shoulder pressure heavy so I cannot recover my knee shield.', textPT: 'Perfeito! Mantenha a pressão de ombro forte para que eu não consiga recuperar o escudo de joelho.' }
             ],
-            masterTip: 'A punição de "amarração" no tatame ou campeonatos é chamada unicamente de "stalling". Se o árbitro gritar "stalling" apontando para você, mova-se imediatamente ou concederá pontos de graça para o oponente.',
+            masterTip: 'Na meia-guarda avançada, quem ganha a disputa de esgrima profunda ("deep underhook") domina o round. Lembre o parceiro de pôr seu peso por meio de forte "shoulder pressure".',
             exercises: [
               {
                 id: 'ex_m4_1_mc',
                 type: 'multiple_choice',
-                question: 'Qual o valor oficial de pontos para uma raspagem ("Sweep") seguido de uma passagem ("Guard Pass") nas regras?',
+                question: 'Como traduzimos "esgrima profunda" e "escudo de joelho" no contexto de meia-guarda?',
                 options: [
-                  '2 pontos para o Sweep, 3 pontos para o Guard Pass',
-                  '3 pontos para o Sweep, 4 pontos para o Guard Pass',
-                  '1 ponto para o Sweep, 2 pontos para o Guard Pass',
-                  'Ambos conferem 4 pontos de montada'
+                  'Deep underhook & Knee shield',
+                  'Low sword & Knee shield',
+                  'Inner hook & Leg shield',
+                  'Deep cover & Knee gate'
                 ],
                 correctOptionIndex: 0,
-                explanation: 'A correta relação matemática oficial de pontuação IBJJF confere 2 pontos à raspagem e 3 pontos adicionais à passagem estabilizada.'
+                explanation: '"Deep underhook" é o termo técnico para esgrima profunda de axila e "knee shield" é o famoso escudo com a canela/joelho.'
               },
               {
                 id: 'ex_m4_1_ls',
                 type: 'listening',
-                phraseEN: 'The referee warned him for stalling because he was holding the lapel for too long.',
-                question: 'Por qual motivo o lutador foi punido?',
+                phraseEN: 'Make sure you fight for a deep underhook before you try to sweep him.',
+                question: 'O que o mestre diz que é necessário garantir antes de tentar raspar na meia-guarda?',
                 options: [
-                  'Ele estava amarrando a luta segurando a lapela por muito tempo.',
-                  'Ele completou um estrangulamento voador rápido.',
-                  'Ele xingou a torcida organizada.',
-                  'Ele rasgou o quimono do adversário.'
+                  'Garantir uma esgrima profunda (deep underhook)',
+                  'Deitar de espádua no tatame',
+                  'Solicitar paradas médicas rápidas',
+                  'Dar as costas voluntariamente'
                 ],
                 correctOptionIndex: 0,
-                explanation: '"Warned for stalling" indica que foi advertido por amarrar e "holding the lapel" por travar na lapela sem combatividade.'
+                explanation: '"Fight for a deep underhook before you try to sweep" indica lutar pela esgrima antes do ataque de raspagem.'
               },
               {
                 id: 'ex_m4_1_sp',
                 type: 'speaking',
-                phraseEN: 'I got two points for the sweep and stabilized on side control.',
-                question: 'Pronuncie sua conquista de pontos para consagrar seu domínio tático:',
+                phraseEN: 'I will use a tight knee shield to prevent the half guard pass.',
+                question: 'Diga que você usará o escudo de joelho para frear a passagem de meia-guarda do estrangeiro:',
                 options: [],
                 correctOptionIndex: 0,
-                explanation: 'Esta frase explica que você obteve 2 pontos da raspagem e estabilizou perfeitamente nos cem quilos ("side control").'
+                explanation: 'Esta frase expressa que seu escudo de joelho ("knee shield") bloqueará a passagem de meia-guarda ("half guard pass").'
               },
               {
                 id: 'ex_m4_1_tr',
                 type: 'translation',
-                question: 'Traduza o jargão pejorativo no circuito competitivo: "SANDBAGGER"',
+                question: 'Traduza a ação essencial para neutralizar a meia-guarda: "DEEP UNDERHOOK"',
                 options: [],
                 correctOptionIndex: 0,
-                translationKey: 'segura',
-                wordBank: ['Aquele que segura de faixa de propósito para lutar com atletas mais fracos', 'O mestre da academia', 'Um passador ultra leve', 'Bolsa de areia'],
-                explanation: 'Um "Sandbagger" é o temido atleta que amarra sua faixa ou atrasa sua graduação de propósito para conquistar medalhas fáceis no circuito inferior.'
+                translationKey: 'esgrima',
+                wordBank: ['Esgrima profunda', 'Puxada de perna', 'Abafar o queixo', 'Pulo de calcanhar'],
+                explanation: '"Deep underhook" significa a conquista da esgrima bem afundada por baixo da axila.'
+              }
+            ]
+          },
+          {
+            id: 'les_m4_2',
+            title: 'Lição 2: De la Riva (Ganchos, Desequilíbrios e Conexões)',
+            duration: '12 min',
+            overview: 'Conecte ataques de raspagem na guarda De la Riva. Aprenda a gíria técnica para o gancho profundo (deep hook), quebrar a postura do passador (off-balancing) e o giro por baixo do quadril.',
+            vocabulary: [
+              { term: 'De la Riva hook', translation: 'O gancho característico de calcanhar na coxa externa', pronunciation: 'deɪ lɑː ˈriː.və hʊk' },
+              { term: 'Off-balancing / Kazushi', translation: 'Desequilíbrio mecânico gerado sobre o oponente', pronunciation: 'ɒf ˈbæl.əns.ɪŋ' },
+              { term: 'Ankle control', translation: 'Controle firme de calcanhar ou tornozelo', pronunciation: 'ˈæŋ.kəl kənˈtroʊl' },
+              { term: 'Deep hook', translation: 'Gancho profundo elástico do BJJ', pronunciation: 'diːp hʊk' }
+            ],
+            dialogue: [
+              { speaker: 'Professor', textEN: 'Ensure your De la Riva hook is tight and work on off-balancing him.', textPT: 'Garanta que o seu gancho De la Riva esteja justo e trabalhe no desequilíbrio dele.' },
+              { speaker: 'You', textEN: 'Understood. Should I pull his sleeve down while keeping ankle control?', textPT: 'Entendido. Eu devo puxar a manga dele para baixo mantendo o controle do calcanhar?' }
+            ],
+            masterTip: 'Para uma De la Riva efetiva, segurar o calcanhar do oponente é expressado como "ankle control" e o ato mecânico de desequilibrá-lo chama-se "off-balancing" ou "Kazushi".',
+            exercises: [
+              {
+                id: 'ex_m4_2_mc',
+                type: 'multiple_choice',
+                question: 'Qual o nome do conceito técnico usado para designar o desequilíbrio forçado sobre o oponente antes de raspar?',
+                options: [
+                  'Off-balancing (Kazushi)',
+                  'Fall down drive',
+                  'Tilt control',
+                  'Pants slide'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Off-balancing" (ou japonês "Kazushi") refere-se à preciosa quebra de base e equilíbrio que precede qualquer raspagem de luxo.'
+              },
+              {
+                id: 'ex_m4_2_ls',
+                type: 'listening',
+                phraseEN: 'Keep your ankle control solid to prevent him from backstepping.',
+                question: 'O que o conselho de áudio gringo visa prevenir ao segurar o calcanhar?',
+                options: [
+                  'Prevenir que ele dê um passo para trás para escapar (backstepping)',
+                  'Prevenir que ele caia no choro de cansaço',
+                  'Evitar que ele segure sua gola alta',
+                  'Garantir que a luta termine por pontos'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Prevent him from backstepping" indica que o controle de tornozelo impede que o oponente escape girando o pé para trás.'
+              },
+              {
+                id: 'ex_m4_2_sp',
+                type: 'speaking',
+                phraseEN: 'Use your De la Riva hook to off-balance your opponent.',
+                question: 'Instrua seu parceiro a usar o gancho De la Riva para desequilibrar o oponente:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase diz: "Use seu gancho De la Riva para desequilibrar o seu oponente." Teste seu flow de voz.'
+              },
+              {
+                id: 'ex_m4_2_tr',
+                type: 'translation',
+                question: 'Traduza o elemento vital de conexão De la Riva: "ANKLE CONTROL"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'controle',
+                wordBank: ['Controle de tornozelo/calcanhar', 'Pegada na manga', 'Espalha de frango', 'Pescoço sob laço'],
+                explanation: '"Ankle control" é a amarra fundamental no calcanhar que impossibilita a fuga de distância do adversário.'
+              }
+            ]
+          },
+          {
+            id: 'les_m4_3',
+            title: 'Lição 3: Back Control (Cintos de Segurança e Ganchos)',
+            duration: '11 min',
+            overview: 'Desvende os termos de domínio pelas costas. Entenda a anatomia do cinto de segurança (seatbelt control ou harness), os ganchos de perna (hooks) e caminhos para estrangulamento.',
+            vocabulary: [
+              { term: 'Seatbelt control / Harness', translation: 'Controle de cinto de segurança (braço por cima do ombro e outro por baixo)', pronunciation: 'ˈsiːt.bɛlt kənˈtroʊl / ˈhɑːrnɪs' },
+              { term: 'Rear-naked choke', translation: 'Mata-leão (estrangulamento pelas costas)', pronunciation: 'rɪər ˈneɪ.kɪd tʃoʊk' },
+              { term: 'Establish the hooks', translation: 'Estabelecer os ganchos (pernas na virilha oponente)', pronunciation: 'ɪˈstæb.lɪʃ ðə hʊks' },
+              { term: 'Choking hand', translation: 'Mão de estrangulamento (mão de ataque)', pronunciation: 'ˈtʃoʊ.kɪŋ hænd' }
+            ],
+            dialogue: [
+              { speaker: 'Partner', textEN: 'Your seatbelt control is highly tight! Do you have both hooks in?', textPT: 'Seu cinto de segurança está muito apertado! Você já colocou ambos os ganchos?' },
+              { speaker: 'You', textEN: 'Yes! Now I will secure my choking hand under your chin for the rear-naked choke.', textPT: 'Sim! Agora vou travar minha mão agressora abaixo do seu queixo para o mata-leão.' }
+            ],
+            masterTip: 'Cinto de segurança no Jiu-Jitsu é "seatbelt" ou "harness". O mata-leão clássico é conhecido internacionalmente apenas por "rear-naked choke" (ou sigla RNC). Evite cruzar os pés nas costas pois dá brecha a contra-ataques táticos doloridos.',
+            exercises: [
+              {
+                id: 'ex_m4_3_mc',
+                type: 'multiple_choice',
+                question: 'Como é traduzido o mundialmente famoso estrangulamento "Mata-Leão" no inglês de combate?',
+                options: [
+                  'Rear-naked choke (RNC)',
+                  'Back neck tie',
+                  'Throat press',
+                  'Lion killer sleep'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Rear-naked choke" (estrangulamento traseiro nu) é o termo oficial absoluto para o mata-leão.'
+              },
+              {
+                id: 'ex_m4_3_ls',
+                type: 'listening',
+                phraseEN: 'If you want details on back control, always maintain a tight seatbelt.',
+                question: 'Qual o conselho técnico expresso no áudio sobre manter o controle pelas costas?',
+                options: [
+                  'Sempre manter um cinto de segurança (seatbelt) justo',
+                  'Chamar o árbitro para marcar pontos de montada',
+                  'Atacar o quadril com alavanca lateral na perna',
+                  'Desistir e puxar guarda fechada'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Maintain a tight seatbelt" indica manter o cinto de segurança (cabeça/axila de controle) firme para que o adversário não deslize as costas.'
+              },
+              {
+                id: 'ex_m4_3_sp',
+                type: 'speaking',
+                phraseEN: 'Maintain your seatbelt control and establish the hooks.',
+                question: 'Comande as duas ações principais de estabilização de costas em voz alta:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase diz: "Mantenha o cinto de segurança e coloque os ganchos." Um conselho técnico valioso.'
+              },
+              {
+                id: 'ex_m4_3_tr',
+                type: 'translation',
+                question: 'Traduza a pegada que amarra o tronco pelas costas: "SEATBELT CONTROL"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'cinto',
+                wordBank: ['Controle de cinto de segurança (harness)', 'Puxada de manga', 'Voo duplo', 'Alavanca esticada'],
+                explanation: '"Seatbelt control" é o cabo de aço anatômico que grude seu peito nas costas do rival gringo.'
+              }
+            ]
+          },
+          {
+            id: 'les_m4_4',
+            title: 'Lição 4: Passing (Passagem de Guarda e Abafamento de Quadris)',
+            duration: '10 min',
+            overview: 'Conquiste os 3 pontos gringos. Domine o vocabulário das passagens modernas: passagem toureando (toreando pass), passagem de pressão (stack pass) e o controle pesado das pernas (knee cut).',
+            vocabulary: [
+              { term: 'Toreando pass', translation: 'Passagem toureando ou nas laterais jogando pernas', pronunciation: 'ˌtɒr.i.ˈæn.doʊ pæs' },
+              { term: 'Stack pass', translation: 'Passagem emborcando / pressionando quadril', pronunciation: 'stæk pæs' },
+              { term: 'Knee cut / Knee slice pass', translation: 'Passagem cruzando o joelho sobre a coxa', pronunciation: 'niː kʌt / niː slaɪs pæs' },
+              { term: 'Clear the legs', translation: 'Desvencilhar-se ou livrar-se das pernas', pronunciation: 'klɪər ðə lɛɡz' }
+            ],
+            dialogue: [
+              { speaker: 'Coach', textEN: 'Clear the legs! Lead with your knee cut and slide your thigh directly across his lap.', textPT: 'Livre-se das pernas! Comece com a passagem cruzando o joelho e deslize sua coxa sobre o colo dele.' },
+              { speaker: 'You', textEN: 'Excellent. If he blocks my knee cut, I will switch to a toreando pass on the other side.', textPT: 'Excelente. Se ele bloquear meu corte de joelho, vou alternar para uma passagem toureando do outro lado.' }
+            ],
+            masterTip: 'Passar a guarda tem apelidos icônicos em inglês. Tourear vira "toreando pass" ou "bullfighter pass". Emborcar chamando peso no quadril é "stack pass", empilhando o rival.',
+            exercises: [
+              {
+                id: 'ex_m4_4_mc',
+                type: 'multiple_choice',
+                question: 'O que significa "Knee cut pass" ou "Knee slice" no jargão tático do tatame internacional?',
+                options: [
+                  'Passagem cruzando o joelho / cortando a coxa',
+                  'Chave de joelho proibida nas regras',
+                  'Puxar para a guarda emborcada',
+                  'Uma lesão no ligamento cruzado posterior'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Knee cut" ou "Knee slice" é a passagem onde o joelho corta diagonalmente sobre a coxa de guarda do oponente.'
+              },
+              {
+                id: 'ex_m4_4_ls',
+                type: 'listening',
+                phraseEN: 'To stop his elastic guard, you must apply a heavy stack pass.',
+                question: 'Qual passagem é recomendada pelo mestre no áudio para parar as guardas elásticas?',
+                options: [
+                  'Uma passagem emborcando empilhando peso (stack pass)',
+                  'Dar cambalhotas por cima',
+                  'Puxar direto para a própria guarda',
+                  'Sentar e bater papo com o árbitro'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Heavy stack pass" instrui a emborcar e empilhar o oponente com pressão maciça para travar quadris elásticos.'
+              },
+              {
+                id: 'ex_m4_4_sp',
+                type: 'speaking',
+                phraseEN: 'I will clear his pants grip to execute a toreando pass.',
+                question: 'Diga ao parceiro que você vai estourar a pegada dele para passar toureando:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase diz: "Vou limpar a pegada de calça dele para executar uma passagem toureando." Isso demonstra excelente técnica fluída.'
+              },
+              {
+                id: 'ex_m4_4_tr',
+                type: 'translation',
+                question: 'Traduza o jargão tático que visa livrar-se de barreiras: "CLEAR THE LEGS"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'livrar',
+                wordBank: ['Livrar/desvencilhar as pernas', 'Espalhar o peito', 'Dar as costas no rola', 'Morder a lapela'],
+                explanation: '"Clear the legs" significa destravar e passar por fora da barreira elástica das pernas do oponente.'
+              }
+            ]
+          },
+          {
+            id: 'les_m4_5',
+            title: 'Lição 5: Strategy (Domínio do Ritmo e Instrução de Mestres)',
+            duration: '11 min',
+            overview: 'Compreenda e responda a conselhos de campeões gringos. Domine termos cruciais de gestão de fôlego (pacing), atacar fintas (feints ou baiting) e consolidar os pontos estratégicos no relógio.',
+            vocabulary: [
+              { term: 'Pacing / Pace yourself', translation: 'Ritmo tático / Controle o seu gás/energia', pronunciation: 'ˈpeɪs.ɪŋ / peɪs jɔːrˈsɛlf' },
+              { term: 'Bait him / Set a trap', translation: 'Iscar ele / Armar uma cilada ou armadilha', pronunciation: 'beɪt hɪm / sɛt ə træp' },
+              { term: 'Stamina management', translation: 'Gestão/economia de fôlego físico', pronunciation: 'ˈstæm.ɪ.nə ˈmæn.ɪdʒ.mənt' },
+              { term: 'Secure the points', translation: 'Garantir e segurar as pontuações na regra', pronunciation: 'sɪˈkjʊər ðə pɔɪnts' }
+            ],
+            dialogue: [
+              { speaker: 'Mestre', textEN: 'Pace yourself! Don’t burn your grips early in the fight. Bait him to open up.', textPT: 'Controle seu ritmo! Não gaste/estoure suas pegadas no início da luta. Isca ele para abrir sua postura.' },
+              { speaker: 'You', textEN: 'Understood. I will conserve my stamina and secure the points on the board.', textPT: 'Entendido. Vou poupar minhas energias e amarrar/assegurar os pontos na tabela.' }
+            ],
+            masterTip: 'Cuidado para não "burn your grips" (fritar/gastar a força dos seus dedos segurando à toa). "Baiting" significa dar uma falsa abertura atraente para que o rival ataque e caia em um bote de contra-ataque.',
+            exercises: [
+              {
+                id: 'ex_m4_5_mc',
+                type: 'multiple_choice',
+                question: 'Se um mestre gritar de fora do tatame "Pace yourself, don’t burn your grips!", qual a instrução?',
+                options: [
+                  'Controle seu ritmo e não canse a força dos dedos nas pegadas',
+                  'Aperte a gola dele até seu kimono rasgar',
+                  'Bata com a cabeça no chão para girar rápido',
+                  'Pule da área delimitada para travar a luta'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Pace yourself" aconselha gerenciar o ritmo de energia, e "don\'t burn your grips" é para evitar fadiga muscular dos dedos nas pegadas.'
+              },
+              {
+                id: 'ex_m4_5_ls',
+                type: 'listening',
+                phraseEN: 'Bait him with the collar grip and prepare a sweet sweep.',
+                question: 'Qual armadilha estratégica o lutador deve armar?',
+                options: [
+                  'Iscar/chamar o adversário com a pegada de gola e armar a raspagem',
+                  'Oferecer seu braço de graça para ele arrochar',
+                  'Deitar e fingir que está dormindo',
+                  'Oferecer água fresca para o juiz central'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Bait him with the collar grip... prepare a sweep" visa fingir uma acomodação de gola para encaixar a raspagem por baixo.'
+              },
+              {
+                id: 'ex_m4_5_sp',
+                type: 'speaking',
+                phraseEN: 'I must conserve my stamina and wait for the perfect moment.',
+                question: 'Sinalize sua tática conservadora verbalizando:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'Esta frase de alto calibre diz: "Eu preciso conservar meu gás de fôlego e esperar pelo momento cirúrgico." Excelente dicção.'
+              },
+              {
+                id: 'ex_m4_5_tr',
+                type: 'translation',
+                question: 'Traduza a ação que vence combates sem força extrema: "PACE YOURSELF"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'controle',
+                wordBank: ['Controle seu ritmo / dosa sua energia', 'Atropele com força máxima', 'Role rápido de costas', 'Aperte o queixo com dentes'],
+                explanation: '"Pace yourself" dita o tom e preserva sua energia para descarregar potência nos minutos finais regulamentares.'
               }
             ]
           }
