@@ -9,10 +9,11 @@ import bcrypt from "bcrypt";
 import http from "http";
 import { Server as SocketServer } from "socket.io";
 import { authStore, simulatedSentEmails, inMemoryUsers } from "./server/authStore";
+import { AuthService, generateAccessToken, generateRefreshToken } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
-import { getPrisma } from "./server/db";
+import { getPrisma, assertDatabaseConnection } from "./server/db";
 
 const app = express();
 const PORT = 3000;
@@ -243,23 +244,6 @@ app.use((req: any, res: any, next: any) => {
 
 const JWT_ACCESS_SECRET = process.env.JWT_SECRET || "super-secret-access-token-key-2026";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "super-secret-refresh-token-key-2026-999";
-
-// JWT Helper Functions
-function generateAccessToken(user: { id: string; email: string; role: string }) {
-  return jwt.sign(
-    { userId: user.id, email: user.email, role: user.role },
-    JWT_ACCESS_SECRET,
-    { expiresIn: "15m" }
-  );
-}
-
-function generateRefreshToken(user: { id: string }) {
-  return jwt.sign(
-    { userId: user.id },
-    JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
-  );
-}
 
 // =========================================================================
 // IN-MEMORY DATA CACHES & CATALOG FOR INTERNAL MARKETPLACE
@@ -507,23 +491,46 @@ app.post("/api/auth/register", async (req: any, res: any) => {
 app.post("/api/auth/login", async (req: any, res: any) => {
   try {
     const { email, password } = req.body;
+    const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString();
+    const userAgent = req.headers["user-agent"];
 
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required." });
+      return res.status(400).json({ error: "E-mail e senha são campos obrigatórios." });
+    }
+
+    // Check brute-force constraints
+    const blockCheck = await AuthService.checkBruteForceBlock({ email, ipAddress });
+    if (blockCheck.isBlocked) {
+      return res.status(429).json({ 
+        error: `Múltiplas tentativas de login incorretas registradas. Bloqueio temporário ativo por mais ${blockCheck.remainingMinutes} minutos para proteger sua conta.` 
+      });
     }
 
     const user = await authStore.findByEmail(email);
     if (!user || !user.passwordHash) {
+      await AuthService.recordLoginAttempt({ email, ipAddress, success: false });
       return res.status(401).json({ error: "Credenciais inválidas." });
     }
 
     // Verify Password Hash
     const isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordCorrect) {
+      await AuthService.recordLoginAttempt({ email, ipAddress, success: false });
+      
+      // Audit failure
+      await AuthService.audit({
+        actorId: user.id,
+        action: "USER_LOGIN",
+        description: `Falha de autenticação: entrada de senha incorreta para o login ${email}.`,
+        ipAddress,
+        userAgent
+      });
+
       return res.status(401).json({ error: "Credenciais inválidas." });
     }
 
-    // Optional Check: Is email confirmed? Let's keep it visible in UI but NOT block login so user can play immediately, OR block if desired. Let's allow login but show warning header!
+    // Success login registered
+    await AuthService.recordLoginAttempt({ email, ipAddress, success: true });
 
     // Generate tokens
     const accessToken = generateAccessToken({
@@ -532,10 +539,27 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       role: user.role!,
     });
 
-    const refreshToken = generateRefreshToken({ id: user.id! });
+    const refreshToken = generateRefreshToken(user.id!);
 
-    // Store refresh token in user session record (database / cache)
+    // Persist new Refresh Token in Postgres
+    await AuthService.registerSession({
+      userId: user.id!,
+      token: refreshToken,
+      ipAddress,
+      userAgent
+    });
+
+    // Simpler backwards compatibility sync
     await authStore.updateUser(user.id!, { refreshToken });
+
+    // Audit login success
+    await AuthService.audit({
+      actorId: user.id!,
+      action: "USER_LOGIN",
+      description: `Autenticação bem-sucedida para o usuário ${user.name} via login principal.`,
+      ipAddress,
+      userAgent
+    });
 
     res.json({
       message: "Login realizado com sucesso!",
@@ -560,37 +584,41 @@ app.post("/api/auth/login", async (req: any, res: any) => {
   }
 });
 
-// 3. REFRESH TOKEN (Roda de Refresh Tokens com rota segura)
+// 3. REFRESH TOKEN (Roda de Refresh Tokens com rota segura e auto-rotação)
 app.post("/api/auth/refresh", async (req: any, res: any) => {
   try {
     const { refreshToken } = req.body;
+    const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString();
+    const userAgent = req.headers["user-agent"];
 
     if (!refreshToken) {
       return res.status(400).json({ error: "Refresh token is required." });
     }
 
-    jwt.verify(refreshToken, JWT_REFRESH_SECRET, async (err: any, decoded: any) => {
-      if (err) {
-        return res.status(401).json({ error: "Refresh token is expired or unauthorized." });
-      }
-
-      const user = await authStore.findById(decoded.userId);
-      if (!user || user.refreshToken !== refreshToken) {
-        return res.status(401).json({ error: "Invalid refresh token." });
-      }
-
-      // Generate a new access token
-      const newAccessToken = generateAccessToken({
-        id: user.id!,
-        email: user.email!,
-        role: user.role!,
+    try {
+      const tokens = await AuthService.rotateToken({
+        refreshToken,
+        ipAddress,
+        userAgent
       });
 
       res.json({
-        accessToken: newAccessToken,
-        message: "O token de acesso foi atualizado com sucesso."
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        message: "O token de acesso e a sessão foram atualizados com sucesso."
       });
-    });
+    } catch (rotateErr: any) {
+      if (rotateErr.message === "SECURITY_BREACH_DETECTED") {
+        return res.status(401).json({ 
+          error: "Alerta de Segurança: Tentativa ilegal de reuso de sessão encontrada.",
+          advice: "Sua conta foi colocada em quarentena preventiva e todas as sessões ativas foram encerradas de imediato para sua segurança. Por favor, realize um novo login."
+        });
+      } else if (rotateErr.message === "TOKEN_EXPIRED") {
+        return res.status(401).json({ error: "Sua sessão de refresh expirou. Faça login novamente." });
+      } else {
+        return res.status(401).json({ error: "Sessão inválida ou expirada. Faça login novamente." });
+      }
+    }
   } catch (error: any) {
     console.error("Error in token refresh endpoint:", error);
     res.status(500).json({ error: "Internal server error." });
@@ -601,20 +629,72 @@ app.post("/api/auth/refresh", async (req: any, res: any) => {
 app.post("/api/auth/logout", async (req: any, res: any) => {
   try {
     const { refreshToken } = req.body;
-
     if (refreshToken) {
-      jwt.verify(refreshToken, JWT_REFRESH_SECRET, async (err: any, decoded: any) => {
-        if (!err && decoded) {
-          // Nullify refresh token in db/cache to invalidate permanently
-          await authStore.updateUser(decoded.userId, { refreshToken: null });
-        }
-      });
+      await AuthService.invalidateSession(refreshToken);
     }
-
     res.json({ message: "Desconectado com sucesso." });
   } catch (error: any) {
     console.error("Error in logout endpoint:", error);
     res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 4.1 SESSION RETRIEVAL (Listar sessões de login ativas no banco de dados)
+app.get("/api/auth/sessions", authenticateToken, async (req: any, res: any) => {
+  try {
+    const sessions = await AuthService.getUserSessions(req.user.id);
+    res.json({ sessions });
+  } catch (error: any) {
+    console.error("Error retrieving user sessions:", error);
+    res.status(500).json({ error: "Erro ao carregar as sessões ativas." });
+  }
+});
+
+// 4.2 SESSION REVOCATION (Anulação de sessões ativas adicionais)
+app.post("/api/auth/sessions/revoke-all", authenticateToken, async (req: any, res: any) => {
+  try {
+    await AuthService.revokeAllSessions(req.user.id);
+    await AuthService.audit({
+      actorId: req.user.id,
+      action: "ACCESS_ROLE_CHANGE",
+      description: "Usuário revogou todas as suas sessões ativas em outros dispositivos (Global Logoff).",
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    });
+    res.json({ message: "Todas as outras sessões foram encerradas com sucesso." });
+  } catch (error: any) {
+    console.error("Error revoking all sessions:", error);
+    res.status(500).json({ error: "Erro ao encerrar as sessões." });
+  }
+});
+
+app.post("/api/auth/sessions/:id/revoke", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    
+    const sess = await prisma.refreshToken.findUnique({ where: { id } });
+    if (!sess || sess.userId !== req.user.id) {
+      return res.status(403).json({ error: "Ação não autorizada ou sessão inexistente." });
+    }
+
+    await prisma.refreshToken.update({
+      where: { id },
+      data: { isRevoked: true }
+    });
+
+    await AuthService.audit({
+      actorId: req.user.id,
+      action: "ACCESS_ROLE_CHANGE",
+      description: `Usuário revogou manualmente uma sessão identificada pelo ID: ${id}.`,
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"]
+    });
+
+    res.json({ message: "Sessão individual encerrada com sucesso." });
+  } catch (error: any) {
+    console.error("Error revoking specific session:", error);
+    res.status(500).json({ error: "Erro ao encerrar a sessão selecionada." });
   }
 });
 
@@ -917,59 +997,46 @@ app.get("/api/admin/dashboard-stats", authenticateToken, requireRole(["ADMIN"]),
     let activeMarketItems = 0;
     
     // 1. Gather Users
-    if (prisma) {
-      try { totalUsers = await prisma.user.count(); } catch(_) {}
-    }
-    if (totalUsers === 0) {
-      totalUsers = inMemoryUsers.size;
+    try { 
+      totalUsers = await prisma.user.count(); 
+    } catch(err) {
+      console.error("Error drawing user statistics counts:", err);
     }
 
     // 2. Gather Subscriptions
-    if (prisma) {
-      try { activeSubscriptions = await prisma.subscription.count({ where: { status: "ACTIVE" } }); } catch(_) {}
-    }
-    if (activeSubscriptions === 0) {
-      activeSubscriptions = inMemorySubscriptions.filter(s => s.status === "ACTIVE").length;
+    try { 
+      activeSubscriptions = await prisma.subscription.count({ where: { status: "ACTIVE" } }); 
+    } catch(err) {
+      console.error("Error drawing subscription counts:", err);
     }
 
     // 3. PIX Deposits Completed
-    if (prisma) {
-      try {
-        const ag = await prisma.pixPayment.aggregate({
-          where: { status: "COMPLETED" },
-          _sum: { amountBRL: true }
-        });
-        totalPixVolume = Number(ag._sum.amountBRL || 0);
-      } catch(_) {}
-    }
-    if (totalPixVolume === 0) {
-      totalPixVolume = inMemoryPixPayments
-        .filter(p => p.status === "COMPLETED")
-        .reduce((sum, p) => sum + Number(p.amountBRL || 0), 0);
+    try {
+      const ag = await prisma.pixPayment.aggregate({
+        where: { status: "COMPLETED" },
+        _sum: { amountBRL: true }
+      });
+      totalPixVolume = Number(ag._sum.amountBRL || 0);
+    } catch(err) {
+      console.error("Error drawing pix volume calculations:", err);
     }
 
     // 4. Pending Cashouts Volume
-    if (prisma) {
-      try {
-        const ag = await prisma.withdrawal.aggregate({
-          where: { status: "PENDING" },
-          _sum: { amountBRL: true }
-        });
-        pendingWithdrawalsVolume = Number(ag._sum.amountBRL || 0);
-      } catch(_) {}
-    }
-    if (pendingWithdrawalsVolume === 0) {
-      pendingWithdrawalsVolume = inMemoryWithdrawals
-        .filter(w => w.status === "PENDING" || w.status === "PROCESSING")
-        .reduce((sum, w) => sum + Number(w.amountBRL || 0), 0);
+    try {
+      const ag = await prisma.withdrawal.aggregate({
+        where: { status: "PENDING" },
+        _sum: { amountBRL: true }
+      });
+      pendingWithdrawalsVolume = Number(ag._sum.amountBRL || 0);
+    } catch(err) {
+      console.error("Error drawing pending withdrawals calculations:", err);
     }
 
     // 5. Active Marketplace count
-    if (prisma) {
-      try { activeMarketItems = await prisma.marketplaceItem.count({ where: { active: true } }); } catch(_) {}
-    }
-    if (activeMarketItems === 0) {
-      activeMarketItems = inMemoryMarketplaceItems.filter(i => i.active).length;
+    try { 
+      activeMarketItems = await prisma.marketplaceItem.count({ where: { active: true } }); 
+    } catch(err) {
+      console.error("Error drawing active marketplace items:", err);
     }
 
     const pendingReports = inMemoryDenuncias.filter(r => r.status === "PENDING").length;
@@ -1479,37 +1546,15 @@ app.post("/api/admin/reports/:id/action", authenticateToken, requireRole(["ADMIN
       report.status = "RESOLVED_DELETE";
       const referenceId = report.referenceId;
 
+      const prisma = getPrisma();
       if (report.contentType === "POST") {
-        // Delete underlying post
-        const postIdx = inMemorySocialPosts.findIndex(p => p.id === referenceId);
-        if (postIdx !== -1) {
-          inMemorySocialPosts.splice(postIdx, 1);
-        }
-        
-        // Try DB Delete if prisma is online
-        const prisma = getPrisma();
-        if (prisma) {
-          try {
-            await prisma.socialPost.delete({ where: { id: referenceId } });
-          } catch (_) {}
-        }
+        try {
+          await prisma.socialPost.delete({ where: { id: referenceId } });
+        } catch (_) {}
       } else {
-        // Delete comment from postings
-        inMemorySocialPosts.forEach(post => {
-          if (post.comments) {
-            const commentIdx = post.comments.findIndex((c: any) => c.id === referenceId);
-            if (commentIdx !== -1) {
-              post.comments.splice(commentIdx, 1);
-            }
-          }
-        });
-
-        const prisma = getPrisma();
-        if (prisma) {
-          try {
-            await prisma.comment.delete({ where: { id: referenceId } });
-          } catch (_) {}
-        }
+        try {
+          await prisma.comment.delete({ where: { id: referenceId } });
+        } catch (_) {}
       }
     }
 
@@ -1545,21 +1590,6 @@ app.get("/api/pvp/leaderboard", async (req: any, res: any) => {
       } catch (err) {
         console.error("Failed to query prisma leaderboard:", err);
       }
-    }
-
-    if (list.length === 0) {
-      // Fetch in memory sorted
-      const sorted = Array.from(inMemoryUsers.values()).sort((a, b) => b.elo - a.elo).slice(0, 10);
-      sorted.forEach(u => {
-        list.push({
-          id: u.id,
-          name: u.name,
-          elo: u.elo,
-          belt: u.belt,
-          level: u.level,
-          avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.name}`
-        });
-      });
     }
 
     res.json({ leaderboard: list });
@@ -2504,19 +2534,7 @@ export async function getActiveSubscriptionForUser(userId: string) {
     }
   }
 
-  // Fallback to in-memory subscription
-  const sub = inMemorySubscriptions.find(s => s.userId === userId && s.status === "ACTIVE");
-  if (sub) {
-    const plan = inMemoryPlans.find(p => p.id === sub.planId);
-    return {
-      type: (plan ? plan.name : "FREE") as any,
-      expiresAt: sub.endDate,
-      priceBRL: plan ? Number(plan.priceBRL) : 0,
-      autoRenew: sub.autoRenew
-    };
-  }
-
-  // Default to FREE with no expiry
+  // Default to FREE with no expiry (Strict Database Engine)
   return {
     type: "FREE" as const,
     priceBRL: 0,
@@ -2577,27 +2595,19 @@ export async function seedPlansInDb() {
 app.get("/api/subscriptions/plans", async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
-    if (prisma) {
-      try {
-        const plans = await prisma.plan.findMany({ where: { active: true } });
-        const mapped = plans.map(p => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          priceBRL: Number(p.priceBRL),
-          interval: p.interval,
-          features: p.features,
-          active: p.active
-        }));
-        if (mapped.length > 0) {
-          return res.json({ plans: mapped });
-        }
-      } catch (err) {
-        console.warn("Prisma error loading plans, falling back to memory:", err);
-      }
-    }
-    res.json({ plans: inMemoryPlans });
+    const plans = await prisma.plan.findMany({ where: { active: true } });
+    const mapped = plans.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      priceBRL: Number(p.priceBRL),
+      interval: p.interval,
+      features: p.features,
+      active: p.active
+    }));
+    res.json({ plans: mapped });
   } catch (error) {
+    console.error("Critical database error in subscriptions plans endpoint:", error);
     res.status(500).json({ error: "Erro ao carregar os planos disponíveis." });
   }
 });
@@ -2642,32 +2652,8 @@ app.get("/api/subscriptions/current", authenticateToken, async (req: any, res: a
           });
         }
       } catch (err) {
-        console.warn("DB current sub error, fallback:", err);
+        console.error("Critical database error in user subscription retrieval:", err);
       }
-    }
-
-    // In-memory lookup
-    const mySubs = inMemorySubscriptions.filter(s => s.userId === userId);
-    if (mySubs.length > 0) {
-      mySubs.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const current = mySubs[0];
-      const plan = inMemoryPlans.find(p => p.id === current.planId);
-      const payments = inMemorySubscriptionPayments.filter(p => p.subscriptionId === current.id);
-      
-      return res.json({
-        subscription: {
-          id: current.id,
-          userId: current.userId,
-          planId: current.planId,
-          planName: plan ? plan.name : "UNKNOWN",
-          status: current.status,
-          startDate: current.startDate,
-          endDate: current.endDate,
-          canceledAt: current.canceledAt,
-          autoRenew: current.autoRenew
-        },
-        payments
-      });
     }
 
     res.json({ subscription: null, payments: [] });
@@ -4068,70 +4054,51 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
     const prisma = getPrisma();
     const userId = req.user.id;
 
-    if (prisma) {
-      try {
-        const dbPosts = await prisma.socialPost.findMany({
-          orderBy: { createdAt: "desc" },
+    const dbPosts = await prisma.socialPost.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: {
+          select: { id: true, name: true, avatar: true, belt: true }
+        },
+        likes: true,
+        comments: {
+          orderBy: { createdAt: "asc" },
           include: {
             author: {
               select: { id: true, name: true, avatar: true, belt: true }
-            },
-            likes: true,
-            comments: {
-              orderBy: { createdAt: "asc" },
-              include: {
-                author: {
-                  select: { id: true, name: true, avatar: true, belt: true }
-                }
-              }
             }
           }
-        });
-
-        const mappedPosts = dbPosts.map((post: any) => {
-          const hasLiked = post.likes.some((lk: any) => lk.userId === userId);
-          return {
-            id: post.id,
-            authorId: post.authorId,
-            authorName: post.author?.name || "Atleta Anônimo",
-            authorAvatar: post.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
-            authorBelt: post.author?.belt || "WHITE",
-            category: post.category,
-            content: post.content,
-            upvotes: post.likes.length,
-            hasUpvoted: hasLiked,
-            timestamp: getRelativeTime(post.createdAt),
-            comments: post.comments.map((comm: any) => ({
-              id: comm.id,
-              authorName: comm.author?.name || "Comentador",
-              authorAvatar: comm.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
-              authorBelt: comm.author?.belt || "WHITE",
-              content: comm.content,
-              timestamp: getRelativeTime(comm.createdAt)
-            }))
-          };
-        });
-
-        if (mappedPosts.length > 0) {
-          return res.json({ posts: mappedPosts });
         }
-      } catch (dbErr) {
-        console.warn("Prisma socialPost query failed, falling back to memory:", dbErr);
       }
-    }
+    });
 
-    // Memory Fallback
-    const mappedMock = inMemorySocialPosts.map(p => {
-      // dynamically verify like status for the user
-      if (!p.likedByUsers) p.likedByUsers = [];
-      const hasL = p.likedByUsers.includes(userId);
+    const mappedPosts = dbPosts.map((post: any) => {
+      const hasLiked = post.likes.some((lk: any) => lk.userId === userId);
       return {
-        ...p,
-        hasUpvoted: hasL
+        id: post.id,
+        authorId: post.authorId,
+        authorName: post.author?.name || "Atleta Anônimo",
+        authorAvatar: post.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+        authorBelt: post.author?.belt || "WHITE",
+        category: post.category,
+        content: post.content,
+        upvotes: post.likes.length,
+        hasUpvoted: hasLiked,
+        timestamp: getRelativeTime(post.createdAt),
+        comments: post.comments.map((comm: any) => ({
+          id: comm.id,
+          authorName: comm.author?.name || "Comentador",
+          authorAvatar: comm.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+          authorBelt: comm.author?.belt || "WHITE",
+          content: comm.content,
+          timestamp: getRelativeTime(comm.createdAt)
+        }))
       };
     });
-    res.json({ posts: mappedMock });
+
+    res.json({ posts: mappedPosts });
   } catch (error) {
+    console.error("Critical database error in social feed retrieval:", error);
     res.status(500).json({ error: "Erro ao obter lista de publicações." });
   }
 });
@@ -4688,6 +4655,9 @@ app.post("/api/social/notifications/read", authenticateToken, async (req: any, r
 // VITE DEV SERVER ENGINE INTEGRATION & SOCKET.IO SERVICES
 // =========================================================================
 async function startServer() {
+  // Assert PostgreSQL connectivity immediately, failing hard if offline
+  await assertDatabaseConnection();
+
   const server = http.createServer(app);
   
   // Attach Socket.IO to HTTP server allowing same-port ingestion

@@ -440,7 +440,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
 
               <div className="pt-2 text-center">
                 <span className="text-[11px] text-slate-500">
-                  Deseja validar o fluxo sem cadastro? Use <button type="button" onClick={() => { setEmail('admin@jiuspeak.com'); setPassword('admin123'); }} className="text-indigo-400 underline cursor-pointer">admin@jiuspeak.com</button> (admin123)
+                  Deseja validar o fluxo sem cadastro? Use <button type="button" onClick={() => { setEmail('maxtechptbr@gmail.com'); setPassword('98922678aA'); }} className="text-indigo-400 underline cursor-pointer">maxtechptbr@gmail.com</button> (98922678aA)
                 </span>
               </div>
             </form>

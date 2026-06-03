@@ -30,7 +30,7 @@ import PvPArena from './components/PvPArena';
 import StoreMarket from './components/StoreMarket';
 import SocialFeed from './components/SocialFeed';
 import CreatorPanel from './components/CreatorPanel';
-import AdminPanel from './components/AdminPanel';
+import AdminPanel from './admin';
 import AuthPortal from './components/AuthPortal';
 import FinancePanel from './components/FinancePanel';
 import SubscriptionPanel from './components/SubscriptionPanel';

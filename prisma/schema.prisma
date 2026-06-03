@@ -151,6 +151,7 @@ model User {
   likes                     Like[]
   followers                 Follower[]            @relation("UserFollowers")
   following                 Follower[]            @relation("UserFollowing")
+  refreshTokens             RefreshToken[]
 
   @@index([email])
   @@index([belt])
@@ -670,3 +671,31 @@ model Follower {
   @@index([followerId])
   @@index([followingId])
 }
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  issuedAt   DateTime @default(now())
+  isRevoked  Boolean  @default(false)
+  ipAddress  String?
+  userAgent  String?
+  replacedBy String?  // Stores the newer token in the rotation chain
+
+  @@index([userId])
+  @@index([token])
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  email     String
+  ipAddress String?
+  success   Boolean
+  timestamp DateTime @default(now())
+
+  @@index([email])
+  @@index([timestamp])
+}
+

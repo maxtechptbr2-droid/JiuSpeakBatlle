@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Trophy, 
   Flame, 
@@ -17,7 +17,12 @@ import {
   BookOpen,
   Sword,
   Coins,
-  Tv
+  Tv,
+  Monitor,
+  KeyRound,
+  ShieldAlert,
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { UserProfile, Achievement, BeltRank } from '../types';
 
@@ -31,6 +36,69 @@ interface DashboardProps {
 
 export default function Dashboard({ user, achievements, updateUser, claimAchievement, onNavigate }: DashboardProps) {
   const [isEditing, setIsEditing] = useState(false);
+
+  // Active sessions audit configurations
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  const loadSessions = async () => {
+    setIsLoadingSessions(true);
+    setSessionError(null);
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      if (!token) throw new Error('Autenticação necessária.');
+
+      const res = await fetch('/api/auth/sessions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Não foi possível carregar as sessões do PostgreSQL.');
+      const data = await res.json();
+      setSessions(data.sessions || []);
+    } catch (err: any) {
+      setSessionError(err.message || 'Erro de rede.');
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const handleRevokeAllOtherSessions = async () => {
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      if (!token) return;
+
+      const res = await fetch('/api/auth/sessions/revoke-all', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        await loadSessions();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRevokeSpecificSession = async (id: string) => {
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      if (!token) return;
+
+      const res = await fetch(`/api/auth/sessions/${id}/revoke`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        await loadSessions();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
   
   // Local state for editing form
   const [editForm, setEditForm] = useState({
@@ -244,6 +312,96 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                 <span className="text-lg font-bold text-yellow-500 tracking-tight">{getWinRate()}%</span>
               </div>
             </div>
+          </div>
+
+          {/* Active Database Sessions & Token Audits (Enterprise Security) */}
+          <div className="bg-slate-950/40 p-6 rounded-2xl border border-slate-800/80 space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h4 className="font-display font-bold text-sm text-slate-200">Segurança da Conta (Sessões SQL)</h4>
+                  <p className="text-[10px] text-slate-500 font-mono">AUTENTICAÇÃO ROTATIVA ENTERPRISE (OWASP ASVS)</p>
+                </div>
+              </div>
+              <button 
+                onClick={loadSessions}
+                disabled={isLoadingSessions}
+                className="p-1 px-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 rounded-lg text-xs flex items-center gap-1 transition-all cursor-pointer"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoadingSessions ? 'animate-spin' : ''}`} />
+                Atualizar
+              </button>
+            </div>
+
+            {sessionError && (
+              <div className="p-3 bg-red-950/20 border border-red-900/60 rounded-xl text-xs text-red-400 flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-red-500" />
+                <span>{sessionError}</span>
+              </div>
+            )}
+
+            {isLoadingSessions ? (
+              <div className="py-6 text-center text-xs text-slate-500 font-mono">
+                <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2 text-violet-500" />
+                Consultando sessões ativas no PostgreSQL...
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sessions.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Nenhuma outra sessão ativa encontrada.</p>
+                ) : (
+                  <div className="divide-y divide-slate-900">
+                    {sessions.map((sess: any) => {
+                      return (
+                        <div key={sess.id} className="py-2.5 flex items-center justify-between text-xs gap-4">
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <Monitor className={`w-4 h-4 mt-0.5 ${sess.isCurrent ? "text-emerald-400" : "text-slate-500"}`} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-slate-200 truncate max-w-[180px] md:max-w-[280px]">
+                                  {sess.userAgent || "Navegador Desconhecido"}
+                                </span>
+                                {sess.isCurrent && (
+                                  <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] px-1.5 py-0.2 rounded font-mono uppercase tracking-wider">
+                                    Atual
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                IP: <span className="text-slate-300">{sess.ipAddress || "Interno"}</span> • Criado em: <span className="text-slate-500">{new Date(sess.createdAt).toLocaleDateString()}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          {!sess.isCurrent && (
+                            <button
+                              onClick={() => handleRevokeSpecificSession(sess.id)}
+                              title="Encerrar sessão imediatamente"
+                              className="p-1 px-2.5 bg-slate-900 hover:bg-red-950/40 text-slate-500 hover:text-red-400 border border-slate-800 hover:border-red-900/40 rounded-lg text-[10px] uppercase font-mono transition-all cursor-pointer"
+                            >
+                              Encerrar
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {sessions.length > 1 && (
+                  <div className="pt-3 border-t border-slate-900 flex justify-end">
+                    <button
+                      onClick={handleRevokeAllOtherSessions}
+                      className="px-3 py-1.5 bg-red-950/20 hover:bg-red-950/40 border border-red-900/60 hover:border-red-900 text-red-200 hover:text-red-100 rounded-lg text-xs font-medium transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      Encerrar Outras Sessões Globais
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Gamified Belt Trail Roadmap (Duolingo Belt map) */}
