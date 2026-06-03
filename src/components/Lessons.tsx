@@ -30,7 +30,9 @@ import {
   CheckCircle2,
   LockKeyhole,
   CheckSquare,
-  Compass
+  Compass,
+  Search,
+  Heart
 } from 'lucide-react';
 import { UserProfile, Course, Lesson, QuizQuestion, BeltRank } from '../types';
 
@@ -44,6 +46,27 @@ interface LessonsProps {
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
+interface PlaybookLesson {
+  id: string;
+  title: string;
+  duration: string;
+  overview: string;
+  vocabulary: { term: string; translation: string; pronunciation: string }[];
+  dialogue: { speaker: string; textEN: string; textPT: string }[];
+  masterTip: string;
+  exercises: {
+    id: string;
+    type: 'multiple_choice' | 'listening' | 'speaking' | 'translation';
+    phraseEN?: string; // used for speaking/listening voice source
+    question: string;
+    options: string[]; // options for choice/listening
+    correctOptionIndex: number;
+    translationKey?: string; // correct translated text
+    wordBank?: string[]; // pieces for translation choice bubble
+    explanation: string;
+  }[];
+}
+
 // 1. Detailed Interactive syllabus matching the specified structure per belt rank
 interface PlaybookSyllabus {
   belt: BeltRank;
@@ -52,26 +75,7 @@ interface PlaybookSyllabus {
   modules: {
     title: string;
     description: string;
-    lessons: {
-      id: string;
-      title: string;
-      duration: string;
-      overview: string;
-      vocabulary: { term: string; translation: string; pronunciation: string }[];
-      dialogue: { speaker: string; textEN: string; textPT: string }[];
-      masterTip: string;
-      exercises: {
-        id: string;
-        type: 'multiple_choice' | 'listening' | 'speaking' | 'translation';
-        phraseEN?: string; // used for speaking/listening voice source
-        question: string;
-        options: string[]; // options for choice/listening
-        correctOptionIndex: number;
-        translationKey?: string; // correct translated text
-        wordBank?: string[]; // pieces for translation choice bubble
-        explanation: string;
-      }[];
-    }[];
+    lessons: PlaybookLesson[];
   }[];
 }
 
@@ -82,136 +86,331 @@ const PLAYBOOK_DATA: PlaybookSyllabus[] = [
     courseId: 'course_modulo_1',
     modules: [
       {
-        title: 'Boas-vindas & Pronomes (Greetings & Numbers)',
-        description: 'Fundamentos iniciais de etiqueta de tatame, saudações tradicionais de artes marciais e contagem oficial de rounds.',
+        title: 'Inglês Básico do Tatame (Basic Tatami English)',
+        description: 'Fundamentos iniciais de saudações, apresentações, termos anatômicos, direções corporais e comandos vitais de segurança.',
         lessons: [
           {
             id: 'les_m1_1',
-            title: 'Posições e Pegadas (Positions & Grips)',
-            duration: '10 min',
-            overview: 'O pontapé inicial no vocabulário de combate. Aprenda a cumprimentar parceiros internacionais, os nomes das principais amarras de pegada e comandos de emergência.',
+            title: 'Lição 1: Greetings (Saudações de Tatame e Respeito)',
+            duration: '8 min',
+            overview: 'Aprenda a saudar parceiros e professores em inglês com cortesia e respeito clássico do tatame gringo. Domine quando relaxar nas primeiras rolagens.',
             vocabulary: [
-              { term: 'Pull Guard', translation: 'Puxar para a guarda', pronunciation: 'pʊl ɡɑːrd' },
-              { term: 'Hip Escape', translation: 'Fuga de quadril', pronunciation: 'hɪp ɪˈskeɪp' },
-              { term: 'Grip / Collar & Sleeve', translation: 'Pegada / Gola e Manga', pronunciation: 'ɡrɪp / ˈkɒl.ər ænd sliːv' },
-              { term: 'Oss!', translation: 'Oss! (Saudação tradicional)', pronunciation: 'ɒs' }
+              { term: 'Slap and bump', translation: 'Tapa de mão e soquinho (cumprimento clássico)', pronunciation: 'slæp ænd bʌmp' },
+              { term: 'How is it going?', translation: 'Como vão as coisas? / E aí?', pronunciation: 'haʊ ɪz ɪt ˈɡoʊ.ɪŋ' },
+              { term: 'Oss!', translation: 'Oss! (Saudação tradicional de respeito)', pronunciation: 'ɒs' },
+              { term: 'Relax', translation: 'Relaxe / Não use força excessiva', pronunciation: 'rɪˈlæks' }
             ],
             dialogue: [
-              { speaker: 'Professor', textEN: 'Hello everybody, shake hands, slap and bump and let’s start the practice!', textPT: 'Olá pessoal, apertem as mãos, deem o tapa-e-soco e vamos iniciar o treino!' },
-              { speaker: 'Student', textEN: 'Oss Professor! Can we check how to perform a proper collar and sleeve grip first?', textPT: 'Oss Professor! Podemos conferir como fazer uma pegada correta de gola e manga primeiro?' }
+              { speaker: 'Partner', textEN: 'Hey bro, how is it going? Slap and bump!', textPT: 'E aí mano, como estão as coisas? Tapa e soquinho!' },
+              { speaker: 'You', textEN: 'Oss! Let’s have a light roll today, just relax.', textPT: 'Oss! Vamos dar um rola leve hoje, apenas relaxe.' }
             ],
-            masterTip: 'No exterior, o cumprimento clássico antes de começar o rola é de fato "slap and bump" (tocar as mãos e dar o soco amigável). Sempre mantenha a compostura, cumprimentando com respeito.',
+            masterTip: 'No exterior, o cumprimento clássico antes de começar o rola é de fato "slap and bump". Use "relax" quando perceber que o parceiro está tenso demais e usando força desnecessária.',
             exercises: [
               {
                 id: 'ex_m1_1_mc',
                 type: 'multiple_choice',
-                question: 'Como traduzimos "Puxar para a Guarda" e "Fuga de quadril" no inglês de tatame?',
+                question: 'Qual é o cumprimento clássico entre parceiros antes de iniciar o rola?',
                 options: [
-                  'Pull guard & Hip escape / Shrimping',
-                  'Push floor & Skip butt',
-                  'Jump guard & Move down',
-                  'Bring body & Leg out'
+                  'Slap and bump',
+                  'Hug and cry',
+                  'Jump and kick',
+                  'Push and pull'
                 ],
                 correctOptionIndex: 0,
-                explanation: '"Pull guard" é o termo exato para puxar para a guarda. "Hip escape" ou "shrimping" (pelo formato lembrar um camarão) refere-se à fuga de quadril clássica.'
+                explanation: '"Slap and bump" é o toque de mãos seguido do soquinho universal de amizade e respeito no tatame.'
               },
               {
                 id: 'ex_m1_1_ls',
                 type: 'listening',
-                phraseEN: 'Always secure a strong collar and sleeve grip before pulling guard.',
-                question: 'Escute a frase tocando no botão acima. Qual palavra chave em inglês refere-se à Pegada de Gola e Manga?',
+                phraseEN: 'Hello everybody, shake hands, slap and bump and let’s start the practice!',
+                question: 'O professor diz para "shake hands" e depois fazer o quê?',
                 options: [
-                  'Underhook protection',
-                  'Collar and sleeve grip',
-                  'Leg lock trap',
-                  'Ankle grip sweep'
+                  'Fazer o "slap and bump" de início de treino',
+                  'Dar três tapinhas de desistência',
+                  'Puxar direto para a guarda',
+                  'Trocar de quimono'
                 ],
-                correctOptionIndex: 1,
-                explanation: '"Collar and sleeve grip" significa literal e anatomicamente a pegada coordenada de gola e manga.'
+                correctOptionIndex: 0,
+                explanation: 'A frase encoraja saudar com "shake hands" (apertar mãos) e "slap and bump".'
               },
               {
                 id: 'ex_m1_1_sp',
                 type: 'speaking',
-                phraseEN: 'Let’s start with a light roll, slap and bump!',
-                question: 'Fale esta clássica frase de início de luta para testar sua dicção técnica.',
+                phraseEN: 'Just relax and let’s have a light roll today.',
+                question: 'Fale esta clássica sugestão para manter o rola calmo e descontraído:',
                 options: [],
                 correctOptionIndex: 0,
-                explanation: 'Esta frase estabelece que você quer rolar mais solto ("light roll") chamando para o tradicional cumprimento ("slap and bump")!'
+                explanation: 'Esta frase pede para o parceiro relaxar ("just relax") e fazer um combate leve ("light roll").'
               },
               {
                 id: 'ex_m1_1_tr',
                 type: 'translation',
-                question: 'Traduza o clássico comando para encerrar o rola ou desistir: "TAP OUT"',
+                question: 'Traduza o conselho fundamental para poupar energia: "RELAX"',
                 options: [],
                 correctOptionIndex: 0,
-                translationKey: 'bater',
-                wordBank: ['Bater (desistir)', 'Pular guarda', 'Cem quilos', 'Fuga lateral'],
-                explanation: '"Tap out" ou simplesmente "tap" significa dar os três tapinhas de desistência para interromper o combate com total segurança.'
+                translationKey: 'relaxe',
+                wordBank: ['Relaxe (fique calmo)', 'Aperte a gola', 'Fuga de quadril', 'Bata com o pé'],
+                explanation: '"Relax" significa relaxar e dosar a força de forma inteligente.'
               }
             ]
           },
           {
             id: 'les_m1_2',
-            title: 'Uniforme, Direções e Fisiologia Básica',
-            duration: '8 min',
-            overview: 'Conheça o seu uniforme de treino, os nomes corretos e termos anatômicos para braço, joelho, cotovelo e tornozelo para descrever lesões ou posições.',
+            title: 'Lição 2: Introductions (Apresentações e Oxigênio)',
+            duration: '9 min',
+            overview: 'Aprenda a dizer sua faixa, academia e professor de origem quando treinar em terras gringas. Lembre-se sempre de respirar e oxigenar o corpo!',
             vocabulary: [
-              { term: 'Gi / Kimono', translation: 'Quimono / Uniforme', pronunciation: 'ɡiː' },
-              { term: 'Belt & Stripes', translation: 'Faixa e Graus', pronunciation: 'bɛlt ænd straɪps' },
-              { term: 'Mouthguard / Rashguard', translation: 'Protetor bucal / Camiseta de lycra', pronunciation: 'ˈmaʊθ.ɡɑːrd' },
-              { term: 'Elbow / Joint', translation: 'Cotovelo / Articulação', pronunciation: 'ˈɛl.boʊ / dʒɔɪnt' }
+              { term: 'White belt', translation: 'Faixa branca', pronunciation: 'waɪt bɛlt' },
+              { term: 'Professor / Coach', translation: 'Professor / Treinador', pronunciation: 'prəˈfɛsər / koʊtʃ' },
+              { term: 'Academy', translation: 'Academia / Ginásio de treinos', pronunciation: 'əˈkædəmi' },
+              { term: 'Breathe', translation: 'Respire / Controlar a respiração', pronunciation: 'briːð' }
             ],
             dialogue: [
-              { speaker: 'Partner', textEN: 'Wait, my mouthguard fell out! Let me grab it quickly.', textPT: 'Espere, meu protetor bucal caiu! Deixe-me pegá-lo rapidamente.' },
-              { speaker: 'You', textEN: 'No problem, put it on and let’s start from side control.', textPT: 'Sem problemas, coloque-o e vamos recomeçar a partir dos cem quilos.' }
+              { speaker: 'Coach', textEN: 'Welcome! What belt rank are you and where is your academy?', textPT: 'Bem-vindo! Qual é a sua faixa e de onde é a sua academia?' },
+              { speaker: 'You', textEN: 'I am a white belt visiting from Brazil. I need to breathe!', textPT: 'Eu sou um faixa branca visitando do Brasil. Eu estou precisando respirar!' }
             ],
-            masterTip: 'Para o Kimono, o termo inglês unânime e preferencial nas academias gringas é "Gi". Para quem luta sem quimono, chamamos de "No-Gi". Esqueça "suit" ou "clothes".',
+            masterTip: 'Ao se apresentar no exterior, "white belt" indica seu nível de iniciante. Muitos alunos usam muita força e prendem o fôlego; então lembre-se de ouvir o conselho de "breathe"!',
             exercises: [
               {
                 id: 'ex_m1_2_mc',
                 type: 'multiple_choice',
-                question: 'Como chamamos as proteções básicas obrigatórias: "Protetor bucal" e o uniforme de lycra?',
+                question: 'Como se diz "Faixa Branca" no vocabulário oficial técnico?',
                 options: [
-                  'Teeth plate & Elastic shirt',
-                  'Mouthguard & Rashguard',
-                  'Dental shield & Sport fit',
-                  'Mouth cover & Silk cover'
+                  'White belt',
+                  'Pale belt',
+                  'Light rope',
+                  'Blank stripe'
                 ],
-                correctOptionIndex: 1,
-                explanation: '"Mouthguard" é o protetor bucal definitivo e "Rashguard" é a proteção de lycra usada sob o quimono.'
+                correctOptionIndex: 0,
+                explanation: '"White belt" é a designação universal na gringa para a faixa branca.'
               },
               {
                 id: 'ex_m1_2_ls',
                 type: 'listening',
-                phraseEN: 'Make sure your belt is tight and fix your rashguard.',
-                question: 'O que o instrutor pediu na gravação de voz?',
+                phraseEN: 'Make sure you keep calm and breathe during the round.',
+                question: 'Qual é o conselho básico na gravação?',
                 options: [
-                  'Amarre a sua faixa firme e ajuste sua rashguard',
-                  'Compre um novo quimono e saia do tatame',
-                  'Preste atenção ao ataque de cotovelo',
-                  'Inicie o rola de joelhos'
+                  'Manter a calma e respirar durante o round',
+                  'Atacar o pescoço imediatamente',
+                  'Desistir e sentar na beira do tatame',
+                  'Iniciar a luta em pé'
                 ],
                 correctOptionIndex: 0,
-                explanation: '"Make sure your belt is tight" significa garantir que sua faixa está bem amarrada/apertada.'
+                explanation: '"Breathe during the round" instrui o atleta a respirar e não prender o ar sob pressão.'
               },
               {
                 id: 'ex_m1_2_sp',
                 type: 'speaking',
-                phraseEN: 'My left elbow and wrist are injured, be careful please.',
-                question: 'Fale a frase sinalizando dores nas articulações:',
+                phraseEN: 'I am a white belt visiting your academy today.',
+                question: 'Apresente-se polidamente na recepção ou ao instrutor gringo:',
                 options: [],
                 correctOptionIndex: 0,
-                explanation: '"Elbow" (cotovelo) e "wrist" (punho) são chaves para evitar finalizações excessivas por parte de parceiros brutamontes.'
+                explanation: 'A frase diz: "Eu sou um faixa branca visitando sua academia hoje."'
               },
               {
                 id: 'ex_m1_2_tr',
                 type: 'translation',
-                question: 'Traduza o termo anatômico: "ANKLE"',
+                question: 'Traduza a ação vital ensinada no treino: "BREATHE"',
                 options: [],
                 correctOptionIndex: 0,
-                translationKey: 'tornozelo',
-                wordBank: ['Tornozelo', 'Pescoço', 'Cotovelo', 'Ombro'],
-                explanation: '"Ankle" significa tornozelo, muito usado para descrever chaves de pé como o clássico "ankle lock".'
+                translationKey: 'respire',
+                wordBank: ['Respire', 'Derrube', 'Pressione', 'Feche a guarda'],
+                explanation: '"Breathe" significa respirar de forma cadenciada e focada.'
+              }
+            ]
+          },
+          {
+            id: 'les_m1_3',
+            title: 'Lição 3: Body Parts (Partes Anatômicas e a Ponte)',
+            duration: '10 min',
+            overview: 'Descreva perfeitamente seções do seu corpo no tatame para fins de alvos mecânicos ou para sinalizar lesões. Entenda a importância de fazer a ponte ("bridge").',
+            vocabulary: [
+              { term: 'Elbow / Wrist', translation: 'Cotovelo / Punho', pronunciation: 'ˈɛl.boʊ / rɪst' },
+              { term: 'Neck / Throat', translation: 'Pescoço / Garganta', pronunciation: 'nɛk / θroʊt' },
+              { term: 'Ankle / Knee', translation: 'Tornozelo / Joelho', pronunciation: 'ˈæŋ.kəl / niː' },
+              { term: 'Bridge', translation: 'Ponte / Barrigada de quadril', pronunciation: 'brɪdʒ' }
+            ],
+            dialogue: [
+              { speaker: 'Instructor', textEN: 'Tuck in your elbows and make a strong bridge to escape.', textPT: 'Encolha seus cotovelos e faça uma boa ponte para escapar.' },
+              { speaker: 'You', textEN: 'Yes sir, I will bridge and shrimp immediately!', textPT: 'Sim senhor, eu vou fazer uma ponte e fugir o quadril imediatamente!' }
+            ],
+            masterTip: 'A ponte ("bridge") consiste em tirar os quadris do chão usando impulso dos pés. Trata-se da mecânica básica número um para desestabilizar quem tenta te prender montado.',
+            exercises: [
+              {
+                id: 'ex_m1_3_mc',
+                type: 'multiple_choice',
+                question: 'Como chamamos a famosa "Barrigada / Ponte" para escapar da montada ou dos cem quilos?',
+                options: [
+                  'Bridge',
+                  'Wall jump',
+                  'Floor slide',
+                  'Table lift'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Bridge" é o termo exato em inglês para ponte corporal de barrigada.'
+              },
+              {
+                id: 'ex_m1_3_ls',
+                type: 'listening',
+                phraseEN: 'My left elbow and wrist are feeling a bit sore.',
+                question: 'Quais articulações estão doloridas na gravação?',
+                options: [
+                  'Cotovelo e punho esquerdo',
+                  'Pescoço e garganta',
+                  'Tornozelo e joelho direito',
+                  'Costas e quadril'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Left elbow" refere-se ao cotovelo esquerdo e "wrist" refere-se ao punho.'
+              },
+              {
+                id: 'ex_m1_3_sp',
+                type: 'speaking',
+                phraseEN: 'Protect your neck and bridge to escape his mount.',
+                question: 'Fale o comando técnico instruindo seu colega por baixo:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase diz: "Proteja seu pescoço e faça a ponte para escapar da montada dele."'
+              },
+              {
+                id: 'ex_m1_3_tr',
+                type: 'translation',
+                question: 'Traduza o termo "ELBOW" essencial no controle defensivo:',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'cotovelo',
+                wordBank: ['Cotovelo', 'Perna', 'Quimono', 'Faixa de graus'],
+                explanation: '"Elbow" é o cotovelo, parte vital a ser mantida fechada e protegida.'
+              }
+            ]
+          },
+          {
+            id: 'les_m1_4',
+            title: 'Lição 4: Directions (Direções de Movimento e o Camarão)',
+            duration: '10 min',
+            overview: 'Aprenda expressões de deslocamento corporal no tatame. Estude como mover-se para frente, trás, sob ou sobre as pernas, e domine a fuga de quadril ("shrimp").',
+            vocabulary: [
+              { term: 'Shrimp', translation: 'Camarão / Fuga de quadril lateral', pronunciation: 'ʃrɪmp' },
+              { term: 'Under / Over', translation: 'Por baixo / Por cima', pronunciation: 'ˈʌndər / ˈoʊvər' },
+              { term: 'Forward / Backward', translation: 'Para frente / Para trás', pronunciation: 'ˈfɔːrwərd / ˈbækwərd' },
+              { term: 'Left / Right', translation: 'Esquerda / Direita', pronunciation: 'lɛft / raɪt' }
+            ],
+            dialogue: [
+              { speaker: 'Partner', textEN: 'Shrimp to your left and slide your knee under my belly.', textPT: 'Fuja o quadril para a sua esquerda e deslize seu joelho por baixo da minha barriga.' },
+              { speaker: 'You', textEN: 'Alright, I will shrimp backward to recover guard.', textPT: 'Certo, vou fazer a fuga de quadril para trás para recuperar a guarda.' }
+            ],
+            masterTip: 'Nas academias gringas, o verbo "to shrimp" é sinônimo direto de fugir o quadril. A semelhança anatômica com o recolhimento do camarão explica este termo fascinante.',
+            exercises: [
+              {
+                id: 'ex_m1_4_mc',
+                type: 'multiple_choice',
+                question: 'Por que o movimento de fuga de quadril lateral é universalmente apelidado de "Shrimp"?',
+                options: [
+                  'Porque o corpo dobra na lateral lembrando o encolhimento de um camarão',
+                  'Porque você escorrega como um caranguejo marinho',
+                  'Porque é uma técnica originária de países asiáticos',
+                  'Porque é feito apenas na hora de deitar de costas no tatame'
+                ],
+                correctOptionIndex: 0,
+                explanation: 'A flexão lateral de quadril simula o movimento do camarão ("shrimp"), facilitando a criação de espaço.'
+              },
+              {
+                id: 'ex_m1_4_ls',
+                type: 'listening',
+                phraseEN: 'Shrimp to the right side and go under his arm.',
+                question: 'Onde o lutador deve se deslocar com base no ouvido?',
+                options: [
+                  'Fugir de quadril para o lado direito e ir por baixo do braço dele',
+                  'Puxar para a guarda fechada pulando com força',
+                  'Colocar a mão na lapela e esticar os cotovelos',
+                  'Pedir tempo técnico para o árbitro da partida'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Shrimp to the right side and go under his arm" significa exatamente esta direção técnica de fuga.'
+              },
+              {
+                id: 'ex_m1_4_sp',
+                type: 'speaking',
+                phraseEN: 'I will shrimp backward to escape this tight grip.',
+                question: 'Diga a seu colega que você precisa fugir o quadril para trás devido ao aperto:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase traduz-se como: "Eu vou fugir o quadril para trás para escapar desta pegada justa."'
+              },
+              {
+                id: 'ex_m1_4_tr',
+                type: 'translation',
+                question: 'Traduza o termo direcional de controle: "UNDER"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'por baixo',
+                wordBank: ['Por baixo / sob', 'Para cima / alto', 'Rolamento rápido', 'Bater três vezes'],
+                explanation: '"Under" significa por baixo, essencial para passar pernas ou braços na meia-guarda.'
+              }
+            ]
+          },
+          {
+            id: 'les_m1_5',
+            title: 'Lição 5: Basic Commands (Comandos e Controle de Guarda)',
+            duration: '11 min',
+            overview: 'Domine ordens de comando corriqueiras usadas nos tatames internacionais. Entenda as ações estratégicas de abrir e fechar a guarda ("guard controls"), levantar ("sit up") e desistências seguras.',
+            vocabulary: [
+              { term: 'Open your guard', translation: 'Abra a sua guarda', pronunciation: 'ˈoʊpən jɔːr ɡɑːrd' },
+              { term: 'Close your guard', translation: 'Feche a sua guarda', pronunciation: 'kloʊz jɔːr ɡɑːrd' },
+              { term: 'Sit up', translation: 'Sente-se / Subir sentando', pronunciation: 'sɪt ʌp' },
+              { term: 'Tap out', translation: 'Bater em desistência técnica (desistir)', pronunciation: 'tæp aʊt' }
+            ],
+            dialogue: [
+              { speaker: 'Professor', textEN: 'Don’t lay flat on your back! Sit up and close your guard!', textPT: 'Não fique estirado de costas no chão! Sente-se e feche sua guarda!' },
+              { speaker: 'You', textEN: 'Got it, is it safe to open my guard for a sweep?', textPT: 'Entendido, é seguro abrir minha guarda para uma raspagem?' }
+            ],
+            masterTip: 'Erguer o tronco ("sit up") evita que seu oponente amasse seu queixo nas costas. Fechar a guarda ("close your guard") é seu colete à prova de balas fundamental.',
+            exercises: [
+              {
+                id: 'ex_m1_5_mc',
+                type: 'multiple_choice',
+                question: 'O que o comando técnico "Sit up and close your guard" instrui?',
+                options: [
+                  'Suba com o tronco (sentar-se) e feche a sua guarda',
+                  'Abra as pernas e deite-se de barriga para baixo',
+                  'Enrole seu adversário pelo calcanhar',
+                  'Bata três vezes com o punho no tatame gringo'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Sit up" significa levantar o tronco sentando-se e "close your guard" significa cruzar os pés nas costas do oponente.'
+              },
+              {
+                id: 'ex_m1_5_ls',
+                type: 'listening',
+                phraseEN: 'If she has a tight submission, you must tap out immediately.',
+                question: 'O áudio instrui a fazer o quê caso o golpe esteja muito encaixado?',
+                options: [
+                  'Você deve bater em desistência (desistir) imediatamente',
+                  'Você deve empurrar o cotovelo dela',
+                  'Você deve gritar para chamar o árbitro principal',
+                  'Você deve saltar nas pernas dela de cabeça'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Tap out immediately" é a regra áurea de respeito e saúde física do atleta no BJJ.'
+              },
+              {
+                id: 'ex_m1_5_sp',
+                type: 'speaking',
+                phraseEN: 'Open your guard and prepare to sweep your opponent.',
+                question: 'Fale em voz alta este comando de estratégia ofensiva:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: '"Open your guard and prepare to sweep" instrui a abrir a guarda e se preparar para raspar.'
+              },
+              {
+                id: 'ex_m1_5_tr',
+                type: 'translation',
+                question: 'Traduza a ação de proteção básica: "CLOSE YOUR GUARD"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'feche sua guarda',
+                wordBank: ['Feche a sua guarda', 'Pule de cabeça', 'Faça a ponte alta', 'Sente no banco'],
+                explanation: '"Close your guard" instrui a trancar a guarda fechada protetoramente.'
               }
             ]
           }
@@ -290,6 +489,71 @@ const PLAYBOOK_DATA: PlaybookSyllabus[] = [
                 translationKey: 'colar',
                 wordBank: ['Mantenha os cotovelos fechados/enclausurados', 'Suba os calcanhares', 'Abra as pernas', 'Esgrime os braços'],
                 explanation: '"Tuck your elbows" serve para evitar dar o braço de bandeja ao adversário, mantendo-os colados ao seu corpo.'
+              }
+            ]
+          },
+          {
+            id: 'les_m2_2',
+            title: 'Chaves de Articulação e Alavancas Finais',
+            duration: '11 min',
+            overview: 'Domine a terminologia avançada para alavancas, chaves de braço retas (armlocks), americanas, kimuras e técnicas de finalização de azul.',
+            vocabulary: [
+              { term: 'Armbar / Armlock', translation: 'Chave de braço clássica', pronunciation: 'ˈɑːrm.bɑːr' },
+              { term: 'Shoulder lock / Kimura', translation: 'Chave de ombro / Kimura', pronunciation: 'ˈʃoʊl.dər lɒk' },
+              { term: 'Straight foot lock', translation: 'Chave de bota / Pé reta', pronunciation: 'streɪt fʊt lɒk' },
+              { term: 'Leverage and pressure', translation: 'Alavanca e pressão mecânica', pronunciation: 'ˈliː.vər.ɪdʒ ænd ˈprɛʃ.ər' }
+            ],
+            dialogue: [
+              { speaker: 'Training Partner', textEN: 'Watch out, that shoulder lock is extremely tight!', textPT: 'Cuidado, essa chave de ombro está extremamente justa!' },
+              { speaker: 'You', textEN: 'I will release the pressure, tap whenever you feel pain.', textPT: 'Vou aliviar a pressão, bata sempre que sentir dor.' }
+            ],
+            masterTip: 'A palavra "armlock" ou "armbar" é universalmente aceita para a chave de braço. Lembre-se do ditado: "Tap early, tap safe" (bata cedo, bata em segurança) para evitar lesões.',
+            exercises: [
+              {
+                id: 'ex_m2_2_mc',
+                type: 'multiple_choice',
+                question: 'Como chamamos a famosa chave de ombro "Kimura" nas academias gringas?',
+                options: [
+                  'Shoulder lock (Kimura)',
+                  'Finger lock',
+                  'Neck tie',
+                  'Hip toss'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Shoulder lock" ou simplesmente "Kimura" é o nome dado para a chave de ombro.'
+              },
+              {
+                id: 'ex_m2_2_ls',
+                type: 'listening',
+                phraseEN: 'He tapped out to a very tight armbar from the guard.',
+                question: 'Quem desistiu e como na gravação do tatame?',
+                options: [
+                  'Ele bateu devido a um armbar muito justo partindo da guarda',
+                  'Ele conseguiu escapar por cima aplicando uma raspagem',
+                  'Ele segurou a calça e estabilizou no controle lateral',
+                  'Ele foi punido por falta de combatividade activa'
+                ],
+                correctOptionIndex: 0,
+                explanation: '"Tapped out to a tight armbar" indica que ele desistiu diante de um armbar muito bem encaixado.'
+              },
+              {
+                id: 'ex_m2_2_sp',
+                type: 'speaking',
+                phraseEN: 'Use your hips to create more leverage on the armbar.',
+                question: 'Sugira ao colega como ajustar a mecânica técnica para mais alavanca:',
+                options: [],
+                correctOptionIndex: 0,
+                explanation: 'A frase correta orienta a usar o quadril ("hips") para criar mais alavanca ("leverage") no armbar.'
+              },
+              {
+                id: 'ex_m2_2_tr',
+                type: 'translation',
+                question: 'Traduza o termo mecânico crucial: "LEVERAGE"',
+                options: [],
+                correctOptionIndex: 0,
+                translationKey: 'alavanca',
+                wordBank: ['Alavanca / Torque', 'Fuga de costas', 'Passagem de guarda', 'Queda de quadril'],
+                explanation: '"Leverage" é o termo em física e mecânica de wrestling/BJJ usado para descrever o poder da alavanca corporal.'
               }
             ]
           }
@@ -579,9 +843,117 @@ export default function Lessons({
     return user.belt === 'Preto' ? 'Preto' : user.belt;
   });
 
+  const [expandedBelts, setExpandedBelts] = useState<Record<string, boolean>>({
+    'Branca': true,
+    'Azul': true,
+    'Roxa': true,
+    'Marrom': true,
+    'Preto': true
+  });
+
+  const isLessonVisible = (lesson: PlaybookLesson) => {
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      const titleMatches = lesson.title.toLowerCase().includes(q);
+      const overviewMatches = lesson.overview ? lesson.overview.toLowerCase().includes(q) : false;
+      const vocabMatches = lesson.vocabulary ? lesson.vocabulary.some(v => 
+        v.term.toLowerCase().includes(q) || v.translation.toLowerCase().includes(q)
+      ) : false;
+      if (!titleMatches && !overviewMatches && !vocabMatches) {
+        return false;
+      }
+    }
+    if (filterFavoritesOnly && !favoriteLessonIds.includes(lesson.id)) {
+      return false;
+    }
+    if (filterCompletedOnly && !completedLessonIds.includes(lesson.id)) {
+      return false;
+    }
+    return true;
+  };
+
+  const toggleBeltExpanded = (belt: string) => {
+    setExpandedBelts(prev => ({
+      ...prev,
+      [belt]: !prev[belt]
+    }));
+  };
+
   // Active module/lesson selected in sidebar navigation
   const [activeModuleIdx, setActiveModuleIdx] = useState<number>(0);
   const [activeLessonIdx, setActiveLessonIdx] = useState<number>(0);
+
+  // Search, Favorites, and Completion filters for interactive workbook
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [favoriteLessonIds, setFavoriteLessonIds] = useState<string[]>(() => {
+    const cached = localStorage.getItem('jiuspeak_favorites_list');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+  
+  const [filterFavoritesOnly, setFilterFavoritesOnly] = useState<boolean>(false);
+  const [filterCompletedOnly, setFilterCompletedOnly] = useState<boolean>(false);
+
+  const toggleFavorite = (id: string, name: string) => {
+    let newList;
+    if (favoriteLessonIds.includes(id)) {
+      newList = favoriteLessonIds.filter(item => item !== id);
+      showToast(`Removida dos favoritos: "${name}"`, 'info');
+    } else {
+      newList = [...favoriteLessonIds, id];
+      showToast(`Adicionada aos favoritos: "${name}" ❤️`, 'success');
+    }
+    setFavoriteLessonIds(newList);
+    localStorage.setItem('jiuspeak_favorites_list', JSON.stringify(newList));
+  };
+
+  const toggleLessonCompletion = (id: string, title: string) => {
+    if (completedLessonIds.includes(id)) {
+      const newList = completedLessonIds.filter(item => item !== id);
+      setCompletedLessonIds(newList);
+      localStorage.setItem('jiuspeak_completed_lessons_list', JSON.stringify(newList));
+      showToast(`Aula "${title}" marcada como pendente.`, 'info');
+    } else {
+      markLessonAsCompleted(id);
+    }
+  };
+
+  const goToNextLesson = () => {
+    const currentSyllabus = PLAYBOOK_DATA.find(p => p.belt === selectedBelt) || PLAYBOOK_DATA[0];
+    const currentLessonsList = currentSyllabus.modules[0]?.lessons || [];
+    
+    if (activeLessonIdx + 1 < currentLessonsList.length) {
+      setActiveLessonIdx(activeLessonIdx + 1);
+      setStudyTab('study');
+      setActiveExerciseStep(0);
+      resetAnswers();
+      const nextTitle = currentLessonsList[activeLessonIdx + 1].title;
+      showToast(`Próxima lição carregada: "${nextTitle}"`, 'success');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const beltOrder: BeltRank[] = ['Branca', 'Azul', 'Roxa', 'Marrom', 'Preto'];
+      const currentIndex = beltOrder.indexOf(selectedBelt);
+      if (currentIndex !== -1 && currentIndex + 1 < beltOrder.length) {
+        const nextBelt = beltOrder[currentIndex + 1];
+        setSelectedBelt(nextBelt);
+        setActiveModuleIdx(0);
+        setActiveLessonIdx(0);
+        setStudyTab('study');
+        setActiveExerciseStep(0);
+        resetAnswers();
+        showToast(`Parabéns! Módulo Concluído! Avançando para a faixa ${nextBelt}! 🥋`, 'success');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showToast('Parabéns! Você alcançou o final absoluto de toda a Apostila Interativa JiuSpeak! 🏆🥋', 'success');
+      }
+    }
+  };
   
   // Custom states for study material vs active exercises
   const [studyTab, setStudyTab] = useState<'study' | 'exercises'>('study');
@@ -809,9 +1181,8 @@ export default function Lessons({
     } else {
       // Completed last exercise in playbook! Lock in completion persistently
       markLessonAsCompleted(activeLesson.id);
-      setStudyTab('study');
-      setActiveExerciseStep(0);
-      resetAnswers();
+      showToast(`Parabéns! Você completou com sucesso todos os exercícios de "${activeLesson.title}"! 🎉`, 'success');
+      goToNextLesson();
     }
   };
 
@@ -927,120 +1298,212 @@ export default function Lessons({
         {/* Left pane: Lesson Tree & Course Navigation (4 cols) */}
         <div className="lg:col-span-4 bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-5">
           
-          {/* Active course block banner */}
-          <div className={`p-4 rounded-xl bg-gradient-to-br ${getBeltColorHeader(selectedBelt)}`}>
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] font-mono uppercase bg-slate-950/20 px-2 py-0.5 rounded font-bold">
-                MÓDULO DE CURSO
-              </span>
-              {!isEnrolledInActiveBelt && (
-                <span className="bg-yellow-500 text-slate-950 text-[8px] px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1 animate-pulse">
-                  <Lock className="w-2.5 h-2.5" /> BLOQUEADO
-                </span>
-              )}
-            </div>
-            <h4 className="font-display font-extrabold text-sm mt-2 leading-tight">
-              {activeSyllabus.title}
-            </h4>
-            <p className="text-[10px] opacity-90 mt-1 leading-relaxed">
-              {activeSyllabus.modules[0]?.description || 'Aprenda vocabulários técnicos específicos de tatame americano para campeonatos e aulas.'}
-            </p>
-
-            {/* In-belt progress line */}
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <div className="flex justify-between text-[9px] font-mono">
-                <span>CONCLUÍDO DO MÓDULO:</span>
-                <span>{overallBeltProgressPercent}% ({completedLessonsInBelt}/{totalLessonsInBelt})</span>
-              </div>
-              <div className="w-full bg-slate-950/25 h-1 rounded-full mt-1.5 overflow-hidden">
-                <div className="bg-white h-1 rounded-full" style={{ width: `${overallBeltProgressPercent}%` }} />
-              </div>
-            </div>
-          </div>
-
-          {!isEnrolledInActiveBelt && (
-            <div className="p-3.5 bg-yellow-500/10 border border-yellow-500/35 rounded-xl space-y-2 text-center text-xs text-yellow-300">
-              <p className="leading-normal">
-                Você ainda não está matriculado neste módulo avançado gringo para obter as credenciais oficiais.
-              </p>
-              <button
-                onClick={handleTriggerEnroll}
-                className="w-full py-2 bg-yellow-500 text-slate-950 hover:bg-yellow-450 rounded-lg text-xs font-black uppercase tracking-wider transition-all"
-              >
-                🔓 Desbloquear Módulo via Pix
-              </button>
-            </div>
-          )}
-
-          {/* Module Lessons tree navigator */}
-          <div className="space-y-4">
-            <h5 className="text-[11px] font-mono text-slate-450 uppercase tracking-widest pl-1 font-bold">
-              Estrutura de Aulas da Apostila
+          <div className="space-y-1">
+            <h5 className="text-xs font-display font-extrabold text-white tracking-wide uppercase">
+              📚 Navegação da Apostila
             </h5>
-
-            <div className="space-y-4">
-              {activeSyllabus.modules.map((mod, mIdx) => (
-                <div key={mIdx} className="space-y-2">
-                  <div className="text-[10px] text-slate-500 font-semibold uppercase flex items-center gap-1">
-                    <Compass className="w-3.5 h-3.5 text-violet-400" />
-                    <span>{mod.title}</span>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {mod.lessons.map((les, lIdx) => {
-                      const isActive = activeModuleIdx === mIdx && activeLessonIdx === lIdx;
-                      const isCompleted = completedLessonIds.includes(les.id);
-
-                      return (
-                        <button
-                          key={les.id}
-                          onClick={() => {
-                            setActiveModuleIdx(mIdx);
-                            setActiveLessonIdx(lIdx);
-                          }}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                            isActive
-                              ? 'bg-violet-950/20 border-violet-500 text-white'
-                              : 'bg-slate-900/40 border-slate-850 hover:border-slate-800 text-slate-350 hover:text-slate-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-mono shrink-0 ${
-                              isActive ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-400'
-                            }`}>
-                              {lIdx + 1}
-                            </div>
-                            <div className="min-w-0">
-                              <span className="block text-xs font-semibold truncate leading-tight">
-                                {les.title}
-                              </span>
-                              <span className="text-[9px] text-slate-500 font-mono inline-block">
-                                ⏱️ {les.duration}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Completed lesson checked graphic indicator */}
-                          {isCompleted ? (
-                            <div className="w-5 h-5 bg-emerald-500/15 border border-emerald-505 rounded-full flex items-center justify-center text-[9px] text-emerald-400">
-                              ✔
-                            </div>
-                          ) : (
-                            <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-[10px] text-slate-500 font-sans leading-tight">
+              Filtre e estude todos os graus de faixas gringas.
+            </p>
           </div>
 
-          <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-850 flex items-start gap-2.5 text-[10px] text-slate-400 mt-4 leading-normal">
+          {/* Search box for workbook */}
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Buscar título ou vocabulário..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800/80 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder-slate-500 focus:ring-1 focus:ring-violet-500 focus:outline-none transition-all font-sans"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1.5 p-1 text-[10px] text-slate-400 hover:text-slate-100 bg-slate-800/60 hover:bg-slate-800 rounded font-mono"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filter buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setFilterFavoritesOnly(!filterFavoritesOnly)}
+              className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                filterFavoritesOnly
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : 'bg-slate-900 border-slate-850 hover:border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Heart className={`w-3 h-3 ${filterFavoritesOnly ? 'fill-rose-400' : ''}`} />
+              <span>Favoritos ({favoriteLessonIds.length})</span>
+            </button>
+            <button
+              onClick={() => setFilterCompletedOnly(!filterCompletedOnly)}
+              className={`py-1.5 px-2 rounded-xl text-[11px] font-semibold border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                filterCompletedOnly
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-slate-900 border-slate-850 hover:border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <CheckCircle className="w-3 h-3 text-emerald-400" />
+              <span>Concluídas ({completedLessonIds.length})</span>
+            </button>
+          </div>
+
+          {/* Collapsible Belt Chapters List */}
+          <div className="space-y-3 pt-1">
+            {(['Branca', 'Azul', 'Roxa', 'Marrom', 'Preto'] as BeltRank[]).map((belt) => {
+              const syllabus = PLAYBOOK_DATA.find(p => p.belt === belt);
+              if (!syllabus) return null;
+
+              // Extract all lessons from modules list
+              const allLessons = syllabus.modules.flatMap(m => m.lessons);
+              
+              // Filter visible lessons in this belt
+              const visibleLessons = allLessons.map((les, originalIdx) => ({
+                lesson: les,
+                originalIdx
+              })).filter(item => isLessonVisible(item.lesson));
+
+              // Don't show empty chapters if searching/filtering is active and nothing matches
+              const isSearchOrFilterActive = searchQuery.trim() !== '' || filterFavoritesOnly || filterCompletedOnly;
+              if (isSearchOrFilterActive && visibleLessons.length === 0) return null;
+
+              const isExpanded = expandedBelts[belt] || isSearchOrFilterActive;
+              const completedCountInBelt = allLessons.filter(l => completedLessonIds.includes(l.id)).length;
+              
+              const beltLabel = belt === 'Branca' ? 'White Belt' :
+                                belt === 'Azul' ? 'Blue Belt' :
+                                belt === 'Roxa' ? 'Purple Belt' :
+                                belt === 'Marrom' ? 'Brown Belt' : 'Black Belt';
+
+              const beltEmoji = belt === 'Branca' ? '⚪' :
+                                 belt === 'Azul' ? '🔵' :
+                                 belt === 'Roxa' ? '🟣' :
+                                 belt === 'Marrom' ? '🟤' : '⚫';
+
+              // Visual details dependent on belt rank
+              let headerStyle = 'bg-slate-900/60 hover:bg-slate-900 border-slate-850 text-slate-300';
+              if (selectedBelt === belt) {
+                if (belt === 'Branca') headerStyle = 'bg-white/10 border-slate-400/30 text-white';
+                else if (belt === 'Azul') headerStyle = 'bg-blue-600/10 border-blue-500/30 text-blue-300';
+                else if (belt === 'Roxa') headerStyle = 'bg-purple-600/10 border-purple-500/30 text-purple-300';
+                else if (belt === 'Marrom') headerStyle = 'bg-amber-900/10 border-amber-800/30 text-amber-300';
+                else if (belt === 'Preto') headerStyle = 'bg-red-950/10 border-red-900/30 text-red-400';
+              }
+
+              return (
+                <div key={belt} className="border border-slate-850/80 rounded-xl overflow-hidden bg-slate-950/20">
+                  {/* Chapter Header Link */}
+                  <button
+                    onClick={() => toggleBeltExpanded(belt)}
+                    className={`w-full flex items-center justify-between p-3 text-xs font-bold transition-all border-b border-transparent ${headerStyle}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm select-none">{beltEmoji}</span>
+                      <div className="text-left">
+                        <span className="block font-display tracking-wide">{beltLabel}</span>
+                        <span className="text-[9px] text-slate-500 font-mono font-normal">
+                          {completedCountInBelt}/{allLessons.length} Aulas Concluídas
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className={`w-3.5 h-3.5 text-slate-500 transition-all ${isExpanded ? 'rotate-90 text-slate-300' : ''}`} />
+                  </button>
+
+                  {/* Chapter Lessons List Dropdown */}
+                  {isExpanded && (
+                    <div className="p-1.5 space-y-1 divide-y divide-slate-900/40">
+                      {visibleLessons.length === 0 ? (
+                        <p className="text-[10px] text-slate-500 text-center py-3 font-sans">
+                          Sem aulas correspondentemente filtradas.
+                        </p>
+                      ) : (
+                        visibleLessons.map(({ lesson, originalIdx }) => {
+                          const isCompleted = completedLessonIds.includes(lesson.id);
+                          const isFav = favoriteLessonIds.includes(lesson.id);
+                          const isActive = selectedBelt === belt && activeLessonIdx === originalIdx && activeModuleIdx === 0;
+
+                          return (
+                            <div
+                              key={lesson.id}
+                              onClick={() => {
+                                setSelectedBelt(belt);
+                                setActiveModuleIdx(0);
+                                setActiveLessonIdx(originalIdx);
+                              }}
+                              className={`group w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-all cursor-pointer text-xs ${
+                                isActive
+                                  ? 'bg-violet-600/10 text-white font-bold border border-violet-500/20 ring-1 ring-violet-500/5'
+                                  : 'hover:bg-slate-900/50 text-slate-400 hover:text-slate-200 border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={`w-5 h-5 rounded flex items-center justify-center text-[9px] font-mono shrink-0 ${
+                                  isActive ? 'bg-violet-600 text-white' : 'bg-slate-900 border border-slate-800 text-slate-500'
+                                }`}>
+                                  {originalIdx + 1}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className={`block truncate leading-snug ${isActive ? 'text-violet-300 font-bold' : ''}`}>
+                                    {lesson.title}
+                                  </span>
+                                  <span className="text-[8.5px] text-slate-500 font-mono">
+                                    ⏱️ {lesson.duration}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Interactive Inline Actions */}
+                              <div className="flex items-center gap-1 shrink-0 ml-1.5">
+                                {/* Favorite button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(lesson.id, lesson.title);
+                                  }}
+                                  className="p-1 bg-transparent hover:bg-slate-800 rounded transition-all"
+                                  title={isFav ? "Remover dos Favoritos" : "Favoritar Aula"}
+                                >
+                                  <Heart className={`w-3.5 h-3.5 transition-all hover:scale-110 ${
+                                    isFav ? 'text-rose-500 fill-rose-500' : 'text-slate-600 group-hover:text-slate-400'
+                                  }`} />
+                                </button>
+
+                                {/* Checkbox completion state button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleLessonCompletion(lesson.id, lesson.title);
+                                  }}
+                                  className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                                    isCompleted
+                                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                                      : 'border-slate-800 bg-slate-900 hover:border-slate-550 text-transparent hover:text-slate-500'
+                                  }`}
+                                  title={isCompleted ? "Marcar como pendente" : "Marcar como concluída"}
+                                >
+                                  <Check className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-850 flex items-start gap-2 text-[10px] text-slate-400 mt-4 leading-normal">
             <span>🥋</span>
             <p>
-              Complete as aulas práticas de speaking e listening para fixar os conteúdos de tatame no cérebro e faturar muitos <strong>Kimono Coins</strong> para trocar na biblioteca de recursos!
+              Estude os termos no tatame no Brasil e gringa, marque seus favoritos e conclua os questionários e de speaking para faturar moedas!
             </p>
           </div>
 
@@ -1101,10 +1564,52 @@ export default function Lessons({
             {studyTab === 'study' && activeLesson && (
               <div className="p-6 space-y-6 animate-fadeIn">
                 
+                {/* Real-time notebook controls */}
+                <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-300">Status desta lição:</span>
+                    {completedLessonIds.includes(activeLesson.id) ? (
+                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
+                        ✔ AULA CONCLUÍDA
+                      </span>
+                    ) : (
+                      <span className="bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">
+                        PENDENTE
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={() => toggleFavorite(activeLesson.id, activeLesson.title)}
+                      className={`flex-1 sm:flex-none py-1.5 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        favoriteLessonIds.includes(activeLesson.id)
+                          ? 'bg-rose-500/15 border-rose-500/35 text-rose-400'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30'
+                      }`}
+                    >
+                      <Heart className={`w-3.5 h-3.5 ${favoriteLessonIds.includes(activeLesson.id) ? 'fill-rose-500' : ''}`} />
+                      <span>{favoriteLessonIds.includes(activeLesson.id) ? 'Favoritada' : 'Favoritar'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => toggleLessonCompletion(activeLesson.id, activeLesson.title)}
+                      className={`flex-1 sm:flex-none py-1.5 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        completedLessonIds.includes(activeLesson.id)
+                          ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                          : 'bg-violet-600 text-white border-violet-500 hover:bg-violet-500'
+                      }`}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>{completedLessonIds.includes(activeLesson.id) ? 'Desmarcar Conclusão' : 'Marcar como Concluída'}</span>
+                    </button>
+                  </div>
+                </div>
+                
                 {/* Introduction */}
                 <div className="bg-slate-900/30 p-4 rounded-xl border border-slate-850 space-y-2">
-                  <span className="text-[9px] font-mono tracking-widest text-violet-400 bg-violet-950/20 px-2 py-0.5 rounded font-black inline-block uppercase">
-                    Apresentação no Tatame
+                  <span className="text-[9px] font-mono tracking-widest text-violet-400 bg-violet-950/20 px-2 py-0.5 rounded font-black inline-block uppercase animate-pulse">
+                    🎯 Objetivo da Lição
                   </span>
                   <p className="text-xs text-slate-300 leading-relaxed">
                     {activeLesson.overview}
@@ -1208,17 +1713,24 @@ export default function Lessons({
                   </div>
                 </div>
 
-                {/* Call to active exercises action */}
-                <div className="pt-4 border-t border-slate-900 flex justify-end">
+                {/* Call to active exercises action and Next Lesson skipped */}
+                <div className="pt-4 border-t border-slate-900 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                  <button
+                    onClick={goToNextLesson}
+                    className="w-full sm:w-auto px-5 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white text-xs font-bold font-display rounded-xl uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span>⏩ Próxima Aula (Avançar)</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       if (!handleCheckEnrollment()) return;
                       setStudyTab('exercises');
                       resetAnswers();
                     }}
-                    className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold font-display rounded-xl uppercase tracking-wider transition-all shadow-lg shadow-violet-500/10 flex items-center gap-2"
+                    className="w-full sm:w-auto px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold font-display rounded-xl uppercase tracking-wider transition-all shadow-lg shadow-violet-500/10 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>💪 Ir para Exercícios Práticos</span>
+                    <span>💪 Praticar Quiz / Exercícios</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                 </div>
