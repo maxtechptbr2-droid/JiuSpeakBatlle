@@ -22,9 +22,14 @@ import {
   KeyRound,
   ShieldAlert,
   RefreshCw,
-  Trash2
+  Trash2,
+  Clock,
+  Target,
+  Award,
+  Shield,
+  ListOrdered
 } from 'lucide-react';
-import { UserProfile, Achievement, BeltRank } from '../types';
+import { UserProfile, Achievement, BeltRank, Course } from '../types';
 
 interface DashboardProps {
   user: UserProfile;
@@ -32,10 +37,197 @@ interface DashboardProps {
   updateUser: (newUser: Partial<UserProfile>) => void;
   claimAchievement: (id: string) => void;
   onNavigate: (tab: string) => void;
+  courses?: Course[];
 }
 
-export default function Dashboard({ user, achievements, updateUser, claimAchievement, onNavigate }: DashboardProps) {
+export default function Dashboard({ user, achievements, updateUser, claimAchievement, onNavigate, courses = [] }: DashboardProps) {
   const [isEditing, setIsEditing] = useState(false);
+
+  // Track completed lessons for real-time progress calculations
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+  useEffect(() => {
+    const cached = localStorage.getItem('jiuspeak_completed_lessons_list');
+    if (cached) {
+      try {
+        setCompletedLessons(JSON.parse(cached));
+      } catch (e) {
+        console.error("Failed to load completed lessons list", e);
+      }
+    }
+  }, []);
+
+  // Compute stats based on courses & completed lessons
+  const totalLessons = courses.reduce((acc, c) => acc + (c.lessons?.length || 0), 0);
+  const completedCount = completedLessons.length;
+  const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+
+  // Next lesson identification dynamically
+  const getNextLesson = () => {
+    if (!courses || courses.length === 0) return null;
+    for (const course of courses) {
+      if (course.lessons) {
+        for (const lesson of course.lessons) {
+          if (!completedLessons.includes(lesson.id)) {
+            return {
+              courseTitle: course.title,
+              lesson: lesson
+            };
+          }
+        }
+      }
+    }
+    // Fallback: first lesson in first course if all are finished or none found
+    return {
+      courseTitle: courses[0]?.title || 'Inglês Básico do Tatame',
+      lesson: courses[0]?.lessons?.[0] || null
+    };
+  };
+
+  const nextLessonInfo = getNextLesson();
+
+  // Real-time ticking study timer
+  const [studySeconds, setStudySeconds] = useState<number>(0);
+  useEffect(() => {
+    const stored = localStorage.getItem('jiuspeak_total_study_seconds');
+    if (stored) {
+      setStudySeconds(parseInt(stored, 10));
+    } else {
+      // Intuitively estimate based on completed count so they don't see 0 mins when they already studied
+      const estimatedSecs = (completedCount * 12 * 60) + 480; // 12 mins per lesson + 8 mins initial buffer
+      setStudySeconds(estimatedSecs);
+      localStorage.setItem('jiuspeak_total_study_seconds', estimatedSecs.toString());
+    }
+  }, [completedCount]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStudySeconds(prev => {
+        const next = prev + 1;
+        localStorage.setItem('jiuspeak_total_study_seconds', next.toString());
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatStudyTime = (secs: number) => {
+    const hrs = Math.floor(secs / 3600);
+    const mins = Math.floor((secs % 3600) / 60);
+    const remainingSecs = secs % 60;
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${remainingSecs}s`;
+    }
+    return `${mins}m ${remainingSecs}s`;
+  };
+
+  // Daily Missions status checked & persisted safely for today's date
+  const getTodayDateString = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const [mission1Count, setMission1Count] = useState<number>(0); // Watch 1 class
+  const [mission2Count, setMission2Count] = useState<number>(0); // Complete 1 exercise
+
+  useEffect(() => {
+    const today = getTodayDateString();
+    const m1 = localStorage.getItem(`jiuspeak_m1_class_${today}`) === 'true';
+    const m2 = localStorage.getItem(`jiuspeak_m2_exercise_${today}`) === 'true';
+    setMission1Count(m1 ? 1 : 0);
+    setMission2Count(m2 ? 1 : 0);
+  }, []);
+
+  const toggleMission1 = () => {
+    const today = getTodayDateString();
+    const nextVal = mission1Count === 0 ? 1 : 0;
+    setMission1Count(nextVal);
+    localStorage.setItem(`jiuspeak_m1_class_${today}`, nextVal === 1 ? 'true' : 'false');
+  };
+
+  const toggleMission2 = () => {
+    const today = getTodayDateString();
+    const nextVal = mission2Count === 0 ? 1 : 0;
+    setMission2Count(nextVal);
+    localStorage.setItem(`jiuspeak_m2_exercise_${today}`, nextVal === 1 ? 'true' : 'false');
+  };
+
+  // Realistic dynamic bjj belt CSS widget
+  const renderBjjBeltCSS = (belt: BeltRank, stripes: number) => {
+    const beltColors: Record<BeltRank, string> = {
+      'Branca': 'bg-slate-200 border-slate-350 text-slate-800',
+      'Azul': 'bg-blue-600 border-blue-700 text-blue-50',
+      'Roxa': 'bg-purple-700 border-purple-800 text-purple-50',
+      'Marrom': 'bg-amber-800 border-amber-900 text-amber-50',
+      'Preto': 'bg-neutral-900 border-neutral-950 text-red-500',
+    };
+
+    const barColor = belt === 'Preto' ? 'bg-red-600' : 'bg-neutral-900';
+    const beltBg = beltColors[belt] || 'bg-slate-200 border-slate-350 text-slate-800';
+
+    return (
+      <div className={`relative h-12 w-full max-w-[320px] rounded-xl shadow-inner border flex items-center justify-between overflow-hidden p-1.5 ${beltBg}`}>
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-black/15 pointer-events-none" />
+        <span className="z-10 pl-3 font-display font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 bg-current rounded-full" />
+          {belt === 'Branca' && 'White Belt'}
+          {belt === 'Azul' && 'Blue Belt'}
+          {belt === 'Roxa' && 'Purple Belt'}
+          {belt === 'Marrom' && 'Brown Belt'}
+          {belt === 'Preto' && 'Black Belt'}
+          {` (${belt})`}
+        </span>
+        <div className={`relative h-full w-[85px] rounded border border-white/5 flex items-center justify-evenly px-2 ${barColor}`}>
+          {stripes === 0 ? (
+            <span className="text-[7px] font-mono text-white/50 font-bold tracking-tighter">0 GRAUS</span>
+          ) : (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div 
+                key={i} 
+                className={`h-6 w-1 rounded-sm transition-all ${
+                  i < stripes ? 'bg-white shadow-sm shadow-black/80' : 'bg-transparent'
+                }`} 
+              />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Student ranking states and fetching
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchBoard = async () => {
+      setLoadingLeaderboard(true);
+      try {
+        const res = await fetch('/api/pvp/leaderboard');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.leaderboard && data.leaderboard.length > 0) {
+            setLeaderboard(data.leaderboard.slice(0, 5));
+          } else {
+            setLeaderboard(STATIC_LEADERBOARD);
+          }
+        } else {
+          setLeaderboard(STATIC_LEADERBOARD);
+        }
+      } catch (e) {
+        setLeaderboard(STATIC_LEADERBOARD);
+      } finally {
+        setLoadingLeaderboard(false);
+      }
+    };
+    fetchBoard();
+  }, []);
+
+  const STATIC_LEADERBOARD = [
+    { id: '1', name: 'Jean-Jacques Machado', elo: 2450, belt: 'Preto', level: 32, avatar: '🤼' },
+    { id: '2', name: 'Kyra Gracie', elo: 2320, belt: 'Marrom', level: 28, avatar: '🥋' },
+    { id: '3', name: 'Braulio Estima', elo: 2210, belt: 'Marrom', level: 25, avatar: '🧬' },
+    { id: '4', name: 'Marcelo Garcia', elo: 2190, belt: 'Preto', level: 35, avatar: '🦁' },
+    { id: '5', name: 'Renzo Gracie', elo: 2120, belt: 'Preto', level: 30, avatar: '🦅' }
+  ];
 
   // Active sessions audit configurations
   const [sessions, setSessions] = useState<any[]>([]);
@@ -174,7 +366,237 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
         
         {/* Left Side (Col span 2) athlete profiles & pathways */}
         <div className="xl:col-span-2 space-y-6">
-          
+
+          {/* Card Principal: Continue de Onde Parou */}
+          <div className="bg-gradient-to-br from-[#121c32] via-[#0b101c] to-[#0d1627] p-6 rounded-2xl border border-indigo-500/20 shadow-xl relative overflow-hidden group">
+            {/* Ambient Background Glows */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/15 transition-all duration-500 pointer-events-none" />
+            <div className="absolute bottom-0 left-10 w-40 h-40 bg-violet-600/5 rounded-full blur-3xl pointer-events-none" />
+            
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[10px] bg-indigo-500/15 text-indigo-400 font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border border-indigo-500/20 flex items-center gap-1.5 shadow-sm">
+                <Clock className="w-3.5 h-3.5 animate-pulse text-indigo-400" />
+                Estação de Estudos
+              </span>
+              <span className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Sincronizado via LocalStorage
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+              {/* Left & Middle details: Course Info */}
+              <div className="md:col-span-2 space-y-3.5">
+                <span className="text-[10px] text-slate-500 font-mono uppercase font-bold tracking-wider">Continue de Onde Parou:</span>
+                <div>
+                  <h4 className="text-white text-base font-extrabold tracking-tight line-clamp-1">
+                    {nextLessonInfo?.lesson?.title || 'Todas as aulas concluídas! 🎉'}
+                  </h4>
+                  <p className="text-slate-400 text-xs font-normal mt-1 leading-relaxed line-clamp-2">
+                    {nextLessonInfo?.lesson?.description || 'Você completou 100% da apostila. Continue praticando seu inglês nas arenas PvP e desafiando novos oponentes.'}
+                  </p>
+                </div>
+
+                {nextLessonInfo?.lesson && (
+                  <button
+                    onClick={() => onNavigate('lessons')}
+                    className="mt-1.5 p-1.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" /> Estudar Agora ({nextLessonInfo.lesson.duration})
+                  </button>
+                )}
+              </div>
+
+              {/* Right details: Progress Circle / Stats */}
+              <div className="bg-[#070b14]/50 p-4 rounded-xl border border-slate-900 flex flex-col justify-center items-center gap-3 text-center">
+                <div className="relative flex items-center justify-center">
+                  {/* Progress Ring */}
+                  <svg className="w-20 h-20 transform -rotate-90">
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="34"
+                      className="text-slate-850"
+                      strokeWidth="5"
+                      stroke="currentColor"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="34"
+                      className="text-violet-500 transition-all duration-1000"
+                      strokeWidth="5"
+                      strokeDasharray={2 * Math.PI * 34}
+                      strokeDashoffset={2 * Math.PI * 34 * (1 - progressPercent / 100)}
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="transparent"
+                    />
+                  </svg>
+                  <span className="absolute text-xs font-black font-mono text-white">
+                    {progressPercent}%
+                  </span>
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="block text-[9.5px] text-slate-500 font-bold tracking-wider uppercase font-mono">Progresso Total</span>
+                  <span className="text-[10.5px] font-mono text-indigo-350 font-bold">
+                    {completedCount} de {totalLessons} Aulas
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom bar studies metadata: elapsed study timer */}
+            <div className="mt-5 pt-4 border-t border-slate-900/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
+              <div className="flex items-center gap-2 text-slate-400 font-mono">
+                <Clock className="w-4 h-4 text-slate-500" />
+                <span>Tempo Estudado (Sessão Ativa):</span>
+                <span className="text-indigo-400 font-bold text-xs">{formatStudyTime(studySeconds)}</span>
+              </div>
+              <span className="text-[10px] text-slate-500 font-mono italic">
+                Aulas assistidas geram Kimono Coins de recompensa automaticamente.
+              </span>
+            </div>
+          </div>
+
+          {/* Missões Diárias e Faixa Atual Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Panel: Missão Diária */}
+            <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-900">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-indigo-400" />
+                    <div>
+                      <h4 className="font-display font-bold text-sm text-slate-200">Missões Diárias</h4>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Fature XP + Kimono Coins</p>
+                    </div>
+                  </div>
+                  <span className="bg-[#0f1d32] text-indigo-400 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-500/20 font-mono">
+                    {((mission1Count + mission2Count) === 2) ? 'Completo! 🎉' : `${mission1Count + mission2Count}/2 Concluído`}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-snug mb-4">
+                  Complete essas missões de estudo hoje e garanta bônus extras de proficiência na plataforma!
+                </p>
+
+                <div className="space-y-2.5">
+                  <div 
+                    onClick={toggleMission1}
+                    className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                      mission1Count > 0 
+                        ? 'bg-emerald-950/15 border-emerald-500/30' 
+                        : 'bg-[#060a12] border-slate-900 hover:border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-5 h-5 rounded-sm flex items-center justify-center transition-all border ${
+                        mission1Count > 0 
+                          ? 'bg-emerald-600 border-emerald-500 text-white' 
+                          : 'border-slate-700 bg-slate-900 group-hover:border-indigo-500'
+                      }`}>
+                        {mission1Count > 0 && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-xs font-bold ${mission1Count > 0 ? 'text-emerald-400 line-through font-medium' : 'text-slate-300'}`}>
+                          Assistir 1 aula acadêmica
+                        </p>
+                        <span className="text-[9.5px] text-slate-500 block font-mono">Válido em qualquer módulo</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex flex-col gap-0.5 whitespace-nowrap text-[8.5px] font-mono">
+                      <span className="text-orange-400 font-black">+100 XP</span>
+                      <span className="text-violet-400 font-black">+10 KC</span>
+                    </div>
+                  </div>
+
+                  <div 
+                    onClick={toggleMission2}
+                    className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                      mission2Count > 0 
+                        ? 'bg-emerald-950/15 border-emerald-500/30' 
+                        : 'bg-[#060a12] border-slate-900 hover:border-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-5 h-5 rounded-sm flex items-center justify-center transition-all border ${
+                        mission2Count > 0 
+                          ? 'bg-emerald-600 border-emerald-500 text-white' 
+                          : 'border-slate-700 bg-slate-900 group-hover:border-indigo-500'
+                      }`}>
+                        {mission2Count > 0 && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-xs font-bold ${mission2Count > 0 ? 'text-emerald-400 line-through font-medium' : 'text-slate-300'}`}>
+                          Completar 1 exercício prático
+                        </p>
+                        <span className="text-[9.5px] text-slate-500 block font-mono">Válido na Arena PvP</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex flex-col gap-0.5 whitespace-nowrap text-[8.5px] font-mono">
+                      <span className="text-orange-400 font-black">+150 XP</span>
+                      <span className="text-violet-400 font-black">+15 KC</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3.5 border-t border-slate-900/60 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                <span>Reseta à meia-noite</span>
+                { (mission1Count + mission2Count) === 2 && (
+                  <span className="text-emerald-400 font-bold uppercase animate-pulse">Parabéns! Tudo Completo</span>
+                )}
+              </div>
+            </div>
+
+            {/* Panel: Faixa Atual */}
+            <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-900">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-5 h-5 text-violet-400" />
+                    <div>
+                      <h4 className="font-display font-bold text-sm text-slate-200">Faixa Atual</h4>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Patente de Fluência</p>
+                    </div>
+                  </div>
+                  <span className="text-[9px] text-slate-400 font-mono">Nível {user.level}</span>
+                </div>
+
+                <div className="py-2.5 flex justify-center">
+                  {renderBjjBeltCSS(user.belt, user.stripes)}
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-snug mt-2 text-center md:text-left">
+                  {user.belt === 'Branca' && 'Sua jornada iniciou! Domine o vocabulário básico, nomes de kimono e posições do tatame.'}
+                  {user.belt === 'Azul' && 'Faixa Azul! Você já domina termos de guarda, raspagens e transições básicas.'}
+                  {user.belt === 'Roxa' && 'Faixa Roxa! O domínio de estrangulamentos complexos e combos dinâmicos começou.'}
+                  {user.belt === 'Marrom' && 'Faixa Marrom! Excelente fluência com capacidade de explicar técnicas livremente.'}
+                  {user.belt === 'Preto' && 'Faixa Preta! Fluência impecável e domínio técnico integral de terminologia BJJ.'}
+                </p>
+              </div>
+
+              {/* Belt progression bar */}
+              <div className="mt-4 pt-3 border-t border-slate-900/60 space-y-1">
+                <div className="flex justify-between items-center text-[10.5px] font-mono text-slate-400">
+                  <span>XP Atual: <span className="text-white font-bold">{user.xp} XP</span></span>
+                  <span>Próximo nível: <span className="text-indigo-400 font-bold">{user.xpNextLevel} XP</span></span>
+                </div>
+                <div className="w-full bg-slate-900 rounded-full h-1 relative overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-violet-600 to-indigo-500 h-full rounded-full transition-all duration-300" 
+                    style={{ width: `${Math.min(100, (user.xp / user.xpNextLevel) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
           {/* Athlete Profile Card */}
           <div className="bg-slate-950/40 p-6 rounded-2xl border border-slate-800/80 relative">
             <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-800">
@@ -477,7 +899,89 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
 
         {/* Right Side: Daily Flame Streaks & Achievements Board */}
         <div className="space-y-6">
-          
+
+          {/* Ranking de Alunos (Top Fluency) */}
+          <div className="bg-slate-950/40 p-6 rounded-2xl border border-slate-800/80 relative overflow-hidden group">
+            {/* Elegant Background Grid Subtle Glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 pointer-events-none transition-all duration-500" />
+            
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-900">
+              <div className="flex items-center gap-2">
+                <ListOrdered className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-display font-bold text-base text-slate-205">Ranking de Alunos</h3>
+                  <p className="text-[10px] text-slate-500 font-mono">Duelos de Fluência (Top ELO)</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-slate-500 font-bold text-emerald-450">Ativo</span>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Pratique no tatame para acumular pontos de ELO e escalar até o topo da academia JiuSpeak!
+            </p>
+
+            {loadingLeaderboard ? (
+              <div className="py-8 text-center text-xs text-slate-500 font-mono">
+                <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2 text-violet-505" />
+                Carregando posições...
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {leaderboard.map((player, idx) => {
+                  const isUser = player.name === user.name;
+                  const rankIcons = ['🥇', '🥈', '🥉'];
+                  const isTop3 = idx < 3;
+                  
+                  return (
+                    <div 
+                      key={player.id || idx}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                        isUser 
+                          ? 'bg-violet-605/10 border-violet-500/35 ring-1 ring-violet-500/20' 
+                          : 'bg-[#070b13] border-slate-900/60 hover:border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {/* Position Indicator */}
+                        <div className="w-6 h-6 flex items-center justify-center font-mono text-xs font-black text-slate-400">
+                          {isTop3 ? rankIcons[idx] : `#${idx + 1}`}
+                        </div>
+                        
+                        {/* Avatar bubble */}
+                        <div className="w-7 h-7 bg-slate-800/80 rounded-full flex items-center justify-center text-sm border border-slate-700/50 shadow-sm relative shrink-0">
+                          {player.avatar || '🥋'}
+                          {/* Mini-belt color dot */}
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-950 ${
+                            player.belt === 'Branca' ? 'bg-slate-300' :
+                            player.belt === 'Azul' ? 'bg-blue-500' :
+                            player.belt === 'Roxa' ? 'bg-purple-600' :
+                            player.belt === 'Marrom' ? 'bg-amber-700' : 'bg-red-650'
+                          }`} />
+                        </div>
+
+                        {/* Name & level */}
+                        <div className="min-w-0">
+                          <p className={`text-xs font-bold truncate ${isUser ? 'text-violet-300' : 'text-slate-200'}`}>
+                            {player.name}
+                            {isUser && <span className="ml-1 text-[8.5px] font-black uppercase text-violet-400 bg-violet-600/10 px-1 rounded">Você</span>}
+                          </p>
+                          <span className="text-[9.5px] text-slate-500 block font-mono">
+                            Nível {player.level || 1} • {player.belt || 'Branca'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ELO or score */}
+                      <div className="text-right whitespace-nowrap bg-indigo-505/5 px-2 py-1 rounded border border-indigo-500/10 font-bold text-xs text-indigo-400">
+                        <span>{player.elo} <span className="text-[9.2px] text-slate-500 font-normal">ELO</span></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Daily Streak Board (Duolingo Style) */}
           <div className="bg-slate-950/40 p-6 rounded-2xl border border-slate-800/80">
             <div className="flex items-center justify-between mb-4">

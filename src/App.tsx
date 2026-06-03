@@ -588,6 +588,7 @@ export default function App() {
               updateUser={handleUpdateUserProfile} 
               claimAchievement={claimAchievement}
               onNavigate={setCurrentTab}
+              courses={courses}
             />
           )}
 
