@@ -25,6 +25,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { UserProfile, SocialPost, Comment, BeltRank } from '../types';
+import { AvatarWithFrame } from './AvatarWithFrame';
 
 interface SocialFeedProps {
   user: UserProfile;
@@ -41,6 +42,7 @@ interface NetworkUser {
   followersCount: number;
   followingCount: number;
   isFollowing: boolean;
+  equippedFrame?: any;
 }
 
 interface SocialNotification {
@@ -476,12 +478,13 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
             onSubmit={handleCreatePost}
             className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4"
           >
-            <div className="flex gap-3">
-              <img 
-                src={user.avatar} 
-                alt={user.name} 
-                className="w-10 h-10 rounded-xl object-cover border border-slate-705 shrink-0"
-                referrerPolicy="no-referrer"
+            <div className="flex gap-3 items-center">
+              <AvatarWithFrame
+                avatarUrl={user.avatar}
+                userName={user.name}
+                frame={user.equippedFrame}
+                size="sm"
+                className="shrink-0"
               />
               <textarea 
                 required
@@ -548,12 +551,13 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                   >
                     {/* Post header author metadata */}
                     <div className="flex justify-between items-start gap-4">
-                      <div className="flex gap-3">
-                        <img 
-                          src={post.authorAvatar} 
-                          alt={post.authorName} 
-                          className="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0"
-                          referrerPolicy="no-referrer"
+                      <div className="flex gap-3 items-center">
+                        <AvatarWithFrame
+                          avatarUrl={post.authorAvatar}
+                          userName={post.authorName}
+                          frame={post.authorFrame}
+                          size="sm"
+                          className="shrink-0"
                         />
                         <div>
                           <h4 className="font-display font-semibold text-xs text-slate-205 flex items-center gap-1.5 flex-wrap">
@@ -606,17 +610,26 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                         {post.comments && post.comments.length > 0 && (
                           <div className="space-y-3 pl-3 border-l-2 border-slate-800">
                             {post.comments.map((comm) => (
-                              <div key={comm.id} className="bg-slate-900/30 p-3 rounded-xl border border-slate-850/60 space-y-1 text-xs">
-                                <div className="flex justify-between items-center">
-                                  <h5 className="font-semibold text-[11px] text-slate-205 flex items-center gap-1.5">
-                                    {comm.authorName}
-                                    <span className={`text-[7px] px-1 rounded font-black uppercase ${getBeltBg(comm.authorBelt)}`}>
-                                      🥋 {translateBelt(comm.authorBelt)}
-                                    </span>
-                                  </h5>
-                                  <span className="text-[9px] text-slate-500 font-mono">{comm.timestamp}</span>
+                              <div key={comm.id} className="bg-slate-900/30 p-3 rounded-xl border border-slate-850/60 flex gap-3 text-xs items-start">
+                                <AvatarWithFrame
+                                  avatarUrl={comm.authorAvatar}
+                                  userName={comm.authorName}
+                                  frame={comm.authorFrame || null}
+                                  size="xs"
+                                  className="shrink-0"
+                                />
+                                <div className="space-y-1 flex-1">
+                                  <div className="flex justify-between items-center">
+                                    <h5 className="font-semibold text-[11px] text-slate-205 flex items-center gap-1.5">
+                                      {comm.authorName}
+                                      <span className={`text-[7px] px-1 rounded font-black uppercase ${getBeltBg(comm.authorBelt)}`}>
+                                        🥋 {translateBelt(comm.authorBelt)}
+                                      </span>
+                                    </h5>
+                                    <span className="text-[9px] text-slate-500 font-mono">{comm.timestamp}</span>
+                                  </div>
+                                  <p className="text-slate-400 font-normal leading-relaxed mt-0.5">{comm.content}</p>
                                 </div>
-                                <p className="text-slate-400 font-normal leading-relaxed mt-0.5">{comm.content}</p>
                               </div>
                             ))}
                           </div>
@@ -660,11 +673,11 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
           {/* Active Player Social Profile Summary */}
           <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3.5 text-center">
             <div className="flex flex-col items-center">
-              <img 
-                src={user.avatar} 
-                alt={user.name} 
-                className="w-14 h-14 rounded-full object-cover border-2 border-violet-502/60"
-                referrerPolicy="no-referrer"
+              <AvatarWithFrame
+                avatarUrl={user.avatar}
+                userName={user.name}
+                frame={user.equippedFrame}
+                size="md"
               />
               <h4 className="font-display font-extrabold text-white text-xs mt-2 truncate max-w-full">
                 {user.name}
@@ -714,11 +727,11 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                   >
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex gap-2 min-w-0">
-                        <img 
-                          src={net.avatar} 
-                          alt={net.name} 
-                          className="w-7 h-7 rounded-lg object-cover border border-slate-700 shrink-0"
-                          referrerPolicy="no-referrer"
+                        <AvatarWithFrame
+                          avatarUrl={net.avatar}
+                          userName={net.name}
+                          frame={net.equippedFrame}
+                          size="xs"
                         />
                         <div className="min-w-0 leading-none">
                           <span className="block font-semibold text-slate-201 text-[11px] truncate">{net.name}</span>

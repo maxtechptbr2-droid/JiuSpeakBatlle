@@ -30,6 +30,7 @@ const Dashboard = React.lazy(() => import('./components/Dashboard'));
 const Lessons = React.lazy(() => import('./components/Lessons'));
 const PvPArena = React.lazy(() => import('./components/PvPArena'));
 const StoreMarket = React.lazy(() => import('./components/StoreMarket'));
+const InventoryPanel = React.lazy(() => import('./components/InventoryPanel'));
 const SocialFeed = React.lazy(() => import('./components/SocialFeed'));
 const CreatorPanel = React.lazy(() => import('./components/CreatorPanel'));
 const AdminPanel = React.lazy(() => import('./admin'));
@@ -122,9 +123,51 @@ export default function App() {
   });
 
   // Navigation state
-  const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  const [currentTab, setCurrentTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname === '/store') {
+        return 'market';
+      }
+      if (window.location.pathname === '/inventory') {
+        return 'inventory';
+      }
+    }
+    return 'dashboard';
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [cheatModalOpen, setCheatModalOpen] = useState<boolean>(false);
+
+  // Synchronize tabs with browser address bar (Vanilla SPA Routing)
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/store') {
+        setCurrentTab('market');
+      } else if (path === '/inventory') {
+        setCurrentTab('inventory');
+      } else if (path === '/') {
+        setCurrentTab('dashboard');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (currentTab === 'market') {
+      if (window.location.pathname !== '/store') {
+        window.history.pushState(null, '', '/store');
+      }
+    } else if (currentTab === 'inventory') {
+      if (window.location.pathname !== '/inventory') {
+        window.history.pushState(null, '', '/inventory');
+      }
+    } else {
+      if (window.location.pathname === '/store' || window.location.pathname === '/inventory') {
+        window.history.pushState(null, '', '/');
+      }
+    }
+  }, [currentTab]);
 
   // Custom Inline Toast System
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error'; visible: boolean } | null>(null);
@@ -199,7 +242,8 @@ export default function App() {
           balancePendingBRL: apiUser.balancePendingBRL !== undefined ? apiUser.balancePendingBRL : 155.00,
           totalEarnedBRL: apiUser.totalEarnedBRL !== undefined ? apiUser.totalEarnedBRL : 575.00,
           totalWithdrawnBRL: apiUser.totalWithdrawnBRL !== undefined ? apiUser.totalWithdrawnBRL : 0.00,
-          isEmailVerified: apiUser.isEmailVerified
+          isEmailVerified: apiUser.isEmailVerified,
+          equippedFrame: apiUser.equippedFrame || null
         });
         return true;
       }
@@ -622,6 +666,15 @@ export default function App() {
               onAddAuditLog={addAuditLog}
               showToast={showToast}
               setCurrentTab={setCurrentTab}
+            />
+          )}
+
+          {currentTab === 'inventory' && (
+            <InventoryPanel 
+              user={user} 
+              updateUser={handleUpdateUserProfile} 
+              onAddAuditLog={addAuditLog}
+              showToast={showToast}
             />
           )}
 

@@ -23,6 +23,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
+import { AvatarWithFrame } from './AvatarWithFrame';
 
 interface SidebarProps {
   user: UserProfile;
@@ -50,6 +51,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Aulas' },
     { id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' },
     { id: 'market', label: 'Biblioteca de Recursos', icon: Store, badge: 'Materiais' },
+    { id: 'inventory', label: 'Mochila & Inventário', icon: Award, badge: 'Itens' },
     { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' },
     { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
     { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
@@ -90,14 +92,14 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
       <div className="p-5 border-b border-slate-800/60 bg-slate-900/25">
         <div className="flex items-center gap-3 mb-4">
           <div className="relative">
-            <img 
-              src={user.avatar} 
-              alt={user.name} 
-              className="w-12 h-12 rounded-xl border border-slate-700 object-cover"
-              referrerPolicy="no-referrer"
+            <AvatarWithFrame
+              avatarUrl={user.avatar}
+              userName={user.name}
+              frame={user.equippedFrame}
+              size="sm"
             />
             {!['Gratuito', 'FREE'].includes(user.subscription.type) && (
-              <span className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-slate-950 text-[10px] px-1 rounded-full font-bold flex items-center gap-0.5 animate-pulse">
+              <span className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-slate-950 text-[10px] px-1 rounded-full font-bold flex items-center gap-0.5 animate-pulse z-10">
                 <Sparkles className="w-2.5 h-2.5 fill-slate-950" /> {user.subscription.type}
               </span>
             )}

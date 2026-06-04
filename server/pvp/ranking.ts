@@ -1,4 +1,5 @@
 import { authStore } from "../authStore";
+import { getPrisma } from "../db";
 
 export class RankingService {
   /**
@@ -140,9 +141,9 @@ export class RankingService {
     }
 
     // Audit logs entry if Prisma exists
-    const prisma = require("../db").getPrisma();
-    if (prisma) {
-      try {
+    try {
+      const prisma = getPrisma();
+      if (prisma) {
         await prisma.auditLog.create({
           data: {
             actorId: playerAId,
@@ -157,9 +158,9 @@ export class RankingService {
             description: `Partida PVP concluída. ELO: ${oldEloB} -> ${newEloB}. Ganhou: ${coinsB} moedas e ${xpB} XP.`
           }
         });
-      } catch (err) {
-        console.warn("Audit logs creation skipped.", err);
       }
+    } catch (err) {
+      console.warn("Audit logs creation skipped or Prisma connection offline.", err);
     }
 
     return {

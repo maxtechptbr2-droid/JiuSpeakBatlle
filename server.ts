@@ -10,7 +10,7 @@ import bcrypt from "bcrypt";
 import http from "http";
 import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
-import { authStore, simulatedSentEmails, inMemoryUsers } from "./server/authStore";
+import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts } from "./server/authStore";
 import { AuthService, generateAccessToken, generateRefreshToken } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
@@ -21,6 +21,8 @@ import { parsePagination, formatPaginatedResponse } from "./server/pagination";
 import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
 
 const app = express();
+app.set("trust proxy", 1);
+export let globalIo: any = null;
 const PORT = 3000;
 
 // Enable Gzip compression
@@ -1811,14 +1813,47 @@ app.get("/api/pvp/leaderboard", async (req: any, res: any) => {
               avatar: true
             }
           });
+
+          const userIds = queryUsers.map((u: any) => u.id);
+          const equippedItems = await (prisma.inventoryItem as any).findMany({
+            where: {
+              inventory: {
+                userId: { in: userIds }
+              },
+              isEquipped: true,
+              product: {
+                category: "FRAME"
+              }
+            },
+            include: {
+              inventory: true,
+              product: true
+            }
+          });
+
+          const frameMap = new Map<string, any>();
+          equippedItems.forEach((item: any) => {
+            if (item.inventory?.userId) {
+              frameMap.set(item.inventory.userId, {
+                id: item.product?.id || item.id,
+                name: item.name,
+                rarity: item.product?.rarity || item.rarity,
+                description: item.description,
+                imageUrl: item.product?.imageUrl || item.imageUrl
+              });
+            }
+          });
+
           queryUsers.forEach((u: any) => {
+            const equippedFrame = frameMap.get(u.id) || null;
             list.push({
               id: u.id,
               name: u.name,
               elo: u.elo,
               belt: u.belt,
               level: u.level,
-              avatar: u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`
+              avatar: u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`,
+              equippedFrame
             });
           });
         } catch (err) {
@@ -4273,6 +4308,482 @@ app.get("/api/marketplace/audit", async (req: any, res: any) => {
 });
 
 // =========================================================================
+// ENDPOINTS DA LOJA VIRTUAL PREMIUM BJJ (COSMETIC ENGINE & TRANSACTION WALLETS)
+// =========================================================================
+
+// 1. LIST PARTICIPANT STORE PRODUCTS (WITH FILTERS, SEARCH AND OPTIMIZED SKIP PAGINATION)
+app.get("/api/store", async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
+
+    const { category, rarity, search, page = '1', limit = '8' } = req.query;
+
+    const pageNum = parseInt(page as string, 10) || 1;
+    const limitNum = parseInt(limit as string, 10) || 8;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Building filtration criteria mapping standard BJJ classifications 
+    const whereClause: any = { active: true };
+
+    if (category && category !== "all" && category !== "Todos") {
+      // Map Portuguese categories to Database stored tags
+      const categoryMap: Record<string, string> = {
+        "Avatares": "AVATAR",
+        "Molduras": "FRAME",
+        "Títulos": "TITLE",
+        "Emotes": "EMOTE",
+        "Efeitos Especiais": "EFFECT",
+        "AVATAR": "AVATAR",
+        "FRAME": "FRAME",
+        "TITLE": "TITLE",
+        "EMOTE": "EMOTE",
+        "EFFECT": "EFFECT"
+      };
+      whereClause.category = categoryMap[category as string] || (category as string).toUpperCase();
+    }
+
+    if (rarity && rarity !== "all" && rarity !== "Todos") {
+      if (rarity === "MYTHIC" || rarity === "Mítico") {
+        whereClause.rarity = "LEGENDARY";
+        whereClause.priceKC = { gte: 4000 };
+      } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
+        whereClause.rarity = "LEGENDARY";
+        whereClause.priceKC = { lt: 4000 };
+      } else {
+        // Map other Portuguese rarities to Prisma Enums
+        const rarityMap: Record<string, string> = {
+          "Comum": "COMMON",
+          "COMMON": "COMMON",
+          "Raro": "RARE",
+          "RARE": "RARE",
+          "Épico": "EPIC",
+          "EPIC": "EPIC"
+        };
+        whereClause.rarity = rarityMap[rarity as string] || (rarity as string).toUpperCase();
+      }
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search as string, mode: "insensitive" } },
+        { description: { contains: search as string, mode: "insensitive" } }
+      ];
+    }
+
+    // Direct database retrieval with optimized indices
+    const items = await prisma.storeProduct.findMany({
+      where: whereClause,
+      orderBy: { priceKC: "asc" },
+      skip,
+      take: limitNum
+    });
+
+    const total = await prisma.storeProduct.count({ where: whereClause });
+
+    // Format output and dynamically inject the premium "MYTHIC" rarity tier
+    const formattedItems = items.map((item: any) => {
+      const isMythic = item.rarity === "LEGENDARY" && item.priceKC >= 4000;
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        priceKC: item.priceKC,
+        priceBRL: item.priceBRL ? Number(item.priceBRL) : undefined,
+        category: item.category, // e.g. AVATAR, FRAME
+        rarity: isMythic ? "MYTHIC" : item.rarity,
+        imageUrl: item.imageUrl,
+        stock: item.stock,
+        active: item.active
+      };
+    });
+
+    res.json({
+      success: true,
+      items: formattedItems,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
+
+  } catch (error: any) {
+    console.error("Erro ao listar catálogo da Loja Virtual:", error);
+    res.status(500).json({ error: "Erro interno ao carregar catálogo da loja." });
+  }
+});
+
+// 2. SECURE TRANSACTION INSTRUCTION FOR BUYING COSMETICS WITH COINS
+app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { productId } = req.body;
+    const buyerId = req.user.id;
+    const buyerName = req.user.name;
+
+    if (!productId) {
+      return res.status(400).json({ error: "Selecione o produto que deseja obter." });
+    }
+
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(550).json({ error: "Banco de dados indisponível." });
+    }
+
+    // A. FETCH PRODUCT DETAILS
+    const product = await prisma.storeProduct.findUnique({
+      where: { id: productId, active: true }
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "O cosmético selecionado não foi encontrado ou está esgotado." });
+    }
+
+    // B. VALIDATE USER PURSE & IN-MEMORY CLUSTER LIMITS
+    const buyerObj = await authStore.findById(buyerId);
+    if (!buyerObj) {
+      return res.status(444).json({ error: "Perfil de lutador não localizado." });
+    }
+
+    const currentCoins = buyerObj.coins ?? 0;
+    if (currentCoins < product.priceKC) {
+      return res.status(400).json({ 
+        error: `Saldo insuficiente! Você precisa de ${product.priceKC} KC, mas seu saldo atual é de ${currentCoins} KC.` 
+      });
+    }
+
+    // C. ENSURE OWNERSHIP IS UNIQUE FOR PREMIUM CAROUSELS (No double spending or double buy of same exact cosmetics)
+    const userInventory = await prisma.inventory.findUnique({
+      where: { userId: buyerId },
+      include: { items: true }
+    });
+
+    let inventoryId = userInventory?.id;
+    if (!userInventory) {
+      const createdInv = await prisma.inventory.create({
+        data: { userId: buyerId }
+      });
+      inventoryId = createdInv.id;
+    }
+
+    const isAlreadyOwned = userInventory?.items.some((it: any) => it.productId === productId);
+    if (isAlreadyOwned) {
+      return res.status(400).json({ 
+        error: "Item já adquirido! Este material cosmético ou guia de recursos já faz parte de seu tatame." 
+      });
+    }
+
+    // D. FINANCIAL DEDUCTION VIA DB TRANSIT CORE
+    // 1. Deduct from wallet
+    const updatedCoins = currentCoins - product.priceKC;
+    await authStore.updateUser(buyerId, { coins: updatedCoins });
+
+    // 2. Add to user's local memory tracker (anti-fraud double check fallback)
+    const buyerInv = inMemoryUserInventories.get(buyerId) || [];
+    inMemoryUserInventories.set(buyerId, [...buyerInv, productId]);
+
+    // 3. Create inventory item representing asset unlock
+    const itemId = `inv_item_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    await prisma.inventoryItem.create({
+      data: {
+        id: itemId,
+        inventoryId: inventoryId!,
+        productId: product.id,
+        name: product.name,
+        description: product.description,
+        rarity: product.rarity,
+        imageUrl: product.imageUrl || "",
+        isEquipped: false
+      }
+    });
+
+    // 4. Register audit logs for sales ledger and admin trace
+    const saleId = `store_sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    await prisma.storeSale.create({
+      data: {
+        id: saleId,
+        productId: product.id,
+        buyerId,
+        pricePaidKC: product.priceKC
+      }
+    });
+
+    // 5. Append transaction block under wallet ledger
+    const userWallet = await prisma.wallet.findUnique({
+      where: { userId: buyerId }
+    });
+    if (userWallet) {
+      await prisma.transaction.create({
+        data: {
+          walletId: userWallet.id,
+          amountKC: -product.priceKC,
+          type: "STORE_PURCHASE",
+          status: "COMPLETED",
+          description: `Desbloqueio de cosmético: ${product.name}`,
+          referenceId: saleId
+        }
+      });
+    }
+
+    // F. SECURITY AUDIT DISPATCH
+    await prisma.auditLog.create({
+      data: {
+        actorId: buyerId,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceKC} KC. Saldo deduzido para ${updatedCoins} KC.`,
+        amountKC: product.priceKC
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Desbloqueio concluído! O item "${product.name}" agora está ativo em seu tatame.`,
+      updatedCoins,
+      item: {
+        id: itemId,
+        productId: product.id,
+        name: product.name,
+        description: product.description,
+        rarity: product.rarity === "LEGENDARY" && product.priceKC >= 4000 ? "MYTHIC" : product.rarity,
+        imageUrl: product.imageUrl
+      }
+    });
+
+  } catch (error: any) {
+    console.error("Crash nos bolls de compra da loja virtual:", error);
+    res.status(500).json({ error: "Processamento de faturamento da loja falhou. Tente novamente." });
+  }
+});
+
+// 3. GET ACTIVE REGISTERED PERSONAL LOCKERS
+app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
+
+    const inventory = await prisma.inventory.findUnique({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            product: true
+          },
+          orderBy: { acquiredAt: "desc" }
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      items: inventory?.items || []
+    });
+  } catch (error: any) {
+    console.error("Erro ao carregar inventário de usuário:", error);
+    res.status(500).json({ error: "Incapaz de acessar mochila e recursos do atleta." });
+  }
+});
+
+// 4. EQUIP INVENTORY ITEM (MUTUALLY EXCLUSIVE BY CATEGORY)
+app.post("/api/inventory/equip", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { itemId } = req.body;
+    const userId = req.user.id;
+
+    if (!itemId) {
+      return res.status(400).json({ error: "ID do item não fornecido." });
+    }
+
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
+
+    // A. FETCH SELECTED ITEM & CHECK OWNERSHIP
+    const item = await prisma.inventoryItem.findFirst({
+      where: {
+        id: itemId,
+        inventory: {
+          userId: userId
+        }
+      },
+      include: {
+        product: true
+      }
+    });
+
+    if (!item) {
+      return res.status(404).json({ error: "Item de inventário não encontrado ou não pertence ao seu atleta." });
+    }
+
+    // Determine category from product or name fallback
+    const category = item.product?.category;
+    if (!category) {
+      return res.status(400).json({ error: "Não foi possível determinar a categoria do cosmético para equipar." });
+    }
+
+    // B. UNEQUIP PREVIOUS ACTIVE ITEMS OF THE SAME CATEGORY
+    const activeSameCategoryItems = await prisma.inventoryItem.findMany({
+      where: {
+        inventory: {
+          userId: userId
+        },
+        isEquipped: true,
+        product: {
+          category: category
+        }
+      }
+    });
+
+    const activeIds = activeSameCategoryItems.map((it: any) => it.id);
+    if (activeIds.length > 0) {
+      await prisma.inventoryItem.updateMany({
+        where: {
+          id: {
+            in: activeIds
+          }
+        },
+        data: {
+          isEquipped: false
+        }
+      });
+    }
+
+    // C. EQUIP CURRENT ITEM
+    const updatedItem = await prisma.inventoryItem.update({
+      where: { id: itemId },
+      data: { isEquipped: true },
+      include: {
+        product: true
+      }
+    });
+
+    // D. IF ITEM IS AN AVATAR, UPDATE USER AVATAR IN DATABASE & LIVE SOCKETS
+    const isAvatar = category?.toUpperCase() === 'AVATAR';
+    if (isAvatar) {
+      const avatarUrl = item.imageUrl || item.product?.imageUrl;
+      if (avatarUrl) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { avatar: avatarUrl }
+        });
+
+        if (globalIo) {
+          try {
+            const sockets = await globalIo.fetchSockets();
+            for (const s of sockets) {
+              if (s.data.userId === userId) {
+                if (s.data.userProfile) {
+                  s.data.userProfile.avatar = avatarUrl;
+                }
+                s.emit("profile:avatar_updated", { avatar: avatarUrl });
+              }
+            }
+          } catch (ioErr) {
+            console.error("Erro ao notificar sockets sobre avatar alterado:", ioErr);
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Cosmético "${item.name}" equipado com sucesso!`,
+      item: updatedItem
+    });
+
+  } catch (error: any) {
+    console.error("Erro técnico ao equipar item:", error);
+    res.status(500).json({ error: "Erro interno ao processar equipamento de cosmético." });
+  }
+});
+
+// 5. UNEQUIP INVENTORY ITEM
+app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { itemId } = req.body;
+    const userId = req.user.id;
+
+    if (!itemId) {
+      return res.status(400).json({ error: "ID do item não fornecido." });
+    }
+
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
+
+    // Check ownership & include product info for category checking
+    const item = await prisma.inventoryItem.findFirst({
+      where: {
+        id: itemId,
+        inventory: {
+          userId: userId
+        }
+      },
+      include: {
+        product: true
+      }
+    });
+
+    if (!item) {
+      return res.status(404).json({ error: "Item do inventário não corresponde ou não foi localizado." });
+    }
+
+    // Update state to unequipped
+    const updatedItem = await prisma.inventoryItem.update({
+      where: { id: itemId },
+      data: { isEquipped: false },
+      include: {
+        product: true
+      }
+    });
+
+    // If item is an avatar, restore default general placeholder avatar
+    const category = item.product?.category;
+    const isAvatar = category?.toUpperCase() === 'AVATAR';
+    if (isAvatar) {
+      const defaultAvatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150";
+      await prisma.user.update({
+        where: { id: userId },
+        data: { avatar: defaultAvatar }
+      });
+
+      if (globalIo) {
+        try {
+          const sockets = await globalIo.fetchSockets();
+          for (const s of sockets) {
+            if (s.data.userId === userId) {
+              if (s.data.userProfile) {
+                s.data.userProfile.avatar = defaultAvatar;
+              }
+              s.emit("profile:avatar_updated", { avatar: defaultAvatar });
+            }
+          }
+        } catch (ioErr) {
+          console.error("Erro ao notificar sockets sobre avatar alterado:", ioErr);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Item desequipado.`,
+      item: updatedItem
+    });
+
+  } catch (error: any) {
+    console.error("Erro ao desequipar item:", error);
+    res.status(500).json({ error: "Erro interno ao desequipar cosmético." });
+  }
+});
+
+// =========================================================================
 // SOCIAL INTERNAL NETWORK ENDPOINTS (POSTS, LIKES, COMMENTS, FOLLOWS, NOTIFS)
 // =========================================================================
 
@@ -4409,34 +4920,84 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
               }
             }
           });
+
+          const allUserIds = new Set<string>();
+          dbPosts.forEach((post: any) => {
+            if (post.authorId) allUserIds.add(post.authorId);
+            if (post.comments) {
+              post.comments.forEach((comm: any) => {
+                if (comm.authorId) allUserIds.add(comm.authorId);
+              });
+            }
+          });
+
+          const equippedItems = await (prisma.inventoryItem as any).findMany({
+            where: {
+              inventory: {
+                userId: { in: Array.from(allUserIds) }
+              },
+              isEquipped: true,
+              product: {
+                category: "FRAME"
+              }
+            },
+            include: {
+              inventory: true,
+              product: true
+            }
+          });
+
+          const frameMap: Record<string, any> = {};
+          equippedItems.forEach((item: any) => {
+            if (item.inventory?.userId) {
+              frameMap[item.inventory.userId] = {
+                id: item.product?.id || item.id,
+                name: item.name,
+                rarity: item.product?.rarity || item.rarity,
+                description: item.description,
+                imageUrl: item.product?.imageUrl || item.imageUrl
+              };
+            }
+          });
+
+          return { dbPosts, totalCount, frameMap };
         } catch (dbErr) {
           console.warn("Failed to retrieve query posts, fallback empty", dbErr);
         }
       }
-      return { dbPosts, totalCount };
+      return { dbPosts, totalCount, frameMap: {} };
     }, 5); // 5s Microcache for highly read/write active feed stream
+
+    const frameLookup = result.frameMap || {};
 
     const mappedPosts = result.dbPosts.map((post: any) => {
       const hasLiked = post.likes.some((lk: any) => lk.userId === userId);
+      const authorFrame = frameLookup[post.authorId] || null;
+
       return {
         id: post.id,
         authorId: post.authorId,
         authorName: post.author?.name || "Atleta Anônimo",
         authorAvatar: post.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
         authorBelt: post.author?.belt || "WHITE",
+        authorFrame,
         category: post.category,
         content: post.content,
         upvotes: post.likes.length,
         hasUpvoted: hasLiked,
         timestamp: getRelativeTime(post.createdAt),
-        comments: post.comments.map((comm: any) => ({
-          id: comm.id,
-          authorName: comm.author?.name || "Comentador",
-          authorAvatar: comm.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
-          authorBelt: comm.author?.belt || "WHITE",
-          content: comm.content,
-          timestamp: getRelativeTime(comm.createdAt)
-        }))
+        comments: post.comments.map((comm: any) => {
+          const commenterFrame = frameLookup[comm.authorId] || null;
+          return {
+            id: comm.id,
+            authorName: comm.author?.name || "Comentador",
+            authorAvatar: comm.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+            authorBelt: comm.author?.belt || "WHITE",
+            authorFrame: commenterFrame,
+            content: comm.content,
+            timestamp: getRelativeTime(comm.createdAt)
+          };
+        })
       };
     });
 
@@ -5040,6 +5601,8 @@ async function startServer() {
     cleanupEmptyChildNamespaces: true
   });
 
+  globalIo = io;
+
   // Socket.IO Packet Rate Limiting per user connection to prevent spam/denial exploits
   const socketRateLimits = new Map<string, { count: number; resetAt: number }>();
   io.use((socket, next) => {
@@ -5076,6 +5639,16 @@ async function startServer() {
   MatchmakingService.init();
 
   // Try database seeding
+  try {
+    await seedInitialUsers();
+  } catch (err) {
+    console.error("Failed to seed initial users:", err);
+  }
+  try {
+    await seedStoreProducts();
+  } catch (err) {
+    console.error("Failed to seed store products:", err);
+  }
   await seedQuestionsInDb();
   await seedPlansInDb();
 
@@ -5136,14 +5709,47 @@ async function startServer() {
 
       const activeProfile = updatedProfile || profile;
 
+      const prisma = getPrisma();
+      let equippedFrame = null;
+      if (prisma) {
+        try {
+          const equippedItem = await (prisma.inventoryItem as any).findFirst({
+            where: {
+              inventory: {
+                userId: userId
+              },
+              isEquipped: true,
+              product: {
+                category: "FRAME"
+              }
+            },
+            include: {
+              product: true
+            }
+          });
+          if (equippedItem) {
+            equippedFrame = {
+              id: equippedItem.product?.id || equippedItem.id,
+              name: equippedItem.name,
+              rarity: equippedItem.product?.rarity || equippedItem.rarity,
+              description: equippedItem.description,
+              imageUrl: equippedItem.product?.imageUrl || equippedItem.imageUrl
+            };
+          }
+        } catch (dbErr) {
+          console.warn("Could not query frame in matching process:", dbErr);
+        }
+      }
+
       await MatchmakingService.enterQueue({
         userId,
         name: activeProfile.name || "Atleta Anônimo",
         avatar: activeProfile.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150",
         elo: activeProfile.elo || 1000,
         socketId: socket.id,
-        joinedAt: Date.now()
-      });
+        joinedAt: Date.now(),
+        equippedFrame
+      } as any);
 
       socket.emit("matchmaking:queued", {
         status: "QUEUED",

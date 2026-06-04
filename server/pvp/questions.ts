@@ -1,3 +1,5 @@
+import { getPrisma } from "../db";
+
 export interface BJJQuestion {
   id: string;
   text: string;
@@ -136,10 +138,10 @@ export const bjjQuestionsPool: BJJQuestion[] = [
 
 // Seed in Prisma DB if database active
 export async function seedQuestionsInDb() {
-  const prisma = require("../db").getPrisma();
-  if (!prisma) return;
-
   try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+
     const count = await prisma.pvpQuestion.count();
     if (count === 0) {
       console.log("🌱 Semeando banco de dados com perguntas de BJJ de alta fidelidade...");

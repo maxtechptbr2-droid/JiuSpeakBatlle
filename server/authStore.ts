@@ -40,7 +40,7 @@ export const simulatedSentEmails: Array<{
 }> = [];
 
 // Seed initial test administrative and athlete accounts into the PostgreSQL database.
-const seedInitialUsers = async () => {
+export const seedInitialUsers = async () => {
   const prisma = getPrisma();
   if (!prisma) return;
 
@@ -247,12 +247,974 @@ const seedInitialUsers = async () => {
 
   } catch (error) {
     console.error('❌ Critical error seeding initial user accounts into PostgreSQL:', error);
-    process.exit(1);
   }
 };
 
-// Execute seeding sequence immediately
-seedInitialUsers();
+// Seed initial Store cosmetics into PostgreSQL database.
+export const seedStoreProducts = async () => {
+  const prisma = getPrisma();
+  if (!prisma) return;
+
+  try {
+    const count = await prisma.storeProduct.count();
+    if (count >= 100) {
+      console.log('✅ Store already has at least 100 seeded products. Skipping product seeding.');
+      return;
+    }
+
+    const seedProducts = [
+      // ==========================================
+      // AVATARS (30 items)
+      // ==========================================
+      {
+        id: "prod_avatar_pitbull",
+        name: "Avatar: Pitbull Lendário",
+        description: "O lendário cão de combate do tatame pronto para rolar.",
+        priceKC: 1500,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_cyber_samurai",
+        name: "Avatar: Samurai Cibernético",
+        description: "Espírito guerreiro ancestral revestido de armadura tecnológica.",
+        priceKC: 5000,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_panda_bjj",
+        name: "Avatar: Mestre Panda BJJ",
+        description: "Aparência calma, mas joga com pressão pesada de cem quilos.",
+        priceKC: 800,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1508138221679-760a23a2285b?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_chapa",
+        name: "Avatar: Chapa Quente",
+        description: "Aquele atleta do rola solto e do gás infinito.",
+        priceKC: 300,
+        category: "AVATAR",
+        rarity: "COMMON",
+        imageUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=85&w=200"
+      },
+      {
+        id: "prod_avatar_shogun",
+        name: "Avatar: Shogun Supremo",
+        description: "O líder militar supremo da dinastia de guerreiros do Dojô.",
+        priceKC: 7500,
+        category: "AVATAR",
+        rarity: "MYTHIC",
+        imageUrl: "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_ninja_shadow",
+        name: "Avatar: Sombra do Shinobi",
+        description: "Sorrateiro e letal na penumbra, mestre das chaves de pé.",
+        priceKC: 4000,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1555679427-1f6dfcce188b?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_mestre_antigo",
+        name: "Avatar: Grão-Mestre de Elite",
+        description: "Guardião da linhagem pura do jiu-jitsu tradicional.",
+        priceKC: 8050,
+        category: "AVATAR",
+        rarity: "MYTHIC",
+        imageUrl: "https://images.unsplash.com/photo-1519074002996-a69e7ac46a42?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_lioness_matte",
+        name: "Avatar: Leoa do Absoluto",
+        description: "Sua determinação a consagra rainha do tatame competitivo.",
+        priceKC: 3500,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1602491453977-63adc9f4a56f?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_ronin_bjj",
+        name: "Avatar: Ronin Errante",
+        description: "Sem mestre fixo, coleciona medalhas em todas as federações.",
+        priceKC: 2500,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_guard_passer",
+        name: "Avatar: Passador Implacável",
+        description: "Especialista em amassar guardas flexíveis com técnica ancestral.",
+        priceKC: 1200,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_berimbolo_king",
+        name: "Avatar: Rei do Berimbolo",
+        description: "Gira como pião na velocidade da luz para pegar as costas.",
+        priceKC: 2200,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_championship_gold",
+        name: "Avatar: Campeão do Grand Slam",
+        description: "Ostentando o ouro nos maiores palcos esportivos do globo.",
+        priceKC: 1900,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_oss_avatar",
+        name: "Avatar: Boneco do Dojo",
+        description: "Humilde, focado e sempre pronto para levar cem amassos ao dia.",
+        priceKC: 350,
+        category: "AVATAR",
+        rarity: "COMMON",
+        imageUrl: "https://images.unsplash.com/photo-1534567153574-2b12153a87f0?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_faixa_preta_pro",
+        name: "Avatar: Samurai Faixa Preta",
+        description: "Sua vida é consagrada aos princípios e técnicas de combate refinado.",
+        priceKC: 4500,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_samurai_cat",
+        name: "Avatar: Felino do Dojô",
+        description: "Tem sete vidas e cai em pé em todas as tentativas de queda.",
+        priceKC: 1500,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_gorilla_press",
+        name: "Avatar: Gorila da Pressão",
+        description: "Usa e abusa da força física aliada ao posicionamento perfeito.",
+        priceKC: 3804,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1534567153574-2b12153a87f0?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_leglock_monster",
+        name: "Avatar: Monstro do Leglock",
+        description: "Um mergulhador das pernas, perigo garantido se pisar perto dele.",
+        priceKC: 2400,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_kimono_azul",
+        name: "Avatar: Competidor de Azul",
+        description: "Guerreiro clássico trajando armadura azul de lona trançada.",
+        priceKC: 1000,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_kimono_branco",
+        name: "Avatar: Iniciante Perseverante",
+        description: "Seu kimono branco ainda está limpo, mas a determinação é cinza.",
+        priceKC: 250,
+        category: "AVATAR",
+        rarity: "COMMON",
+        imageUrl: "https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_speedy_ninja",
+        name: "Avatar: Ninja Veloz",
+        description: "Especialista em transições acrobáticas no tatame do futuro.",
+        priceKC: 1100,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_as_do_absoluto",
+        name: "Avatar: Ás do Absoluto",
+        description: "O atleta mais leve que enfileira gigantes no topo dos pódios.",
+        priceKC: 3200,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_tatame_kid",
+        name: "Avatar: Garoto do Tatame",
+        description: "Treina desde os 4 anos de idade, mestre na arte das chaves.",
+        priceKC: 950,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_velha_guarda",
+        name: "Avatar: Veterano Velha Guarda",
+        description: "Guarda fechada inexpugnável e piadas antigas antes de amassar.",
+        priceKC: 2101,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_guardeiro_sinistro",
+        name: "Avatar: Guardeiro Macabro",
+        description: "Te puxa pra guarda com um sorriso assustador na cara.",
+        priceKC: 1050,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_dragao_tatame",
+        name: "Avatar: Dragão Reluzente",
+        description: "Representação do espírito mitológico que guia lutadores lendários.",
+        priceKC: 9000,
+        category: "AVATAR",
+        rarity: "MYTHIC",
+        imageUrl: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_tigre_bjj",
+        name: "Avatar: Tigre de Bengala BJJ",
+        description: "Velocidade feroz e garras afiadas para finalizar em 12 segundos.",
+        priceKC: 3600,
+        category: "AVATAR",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1504198453319-5ce911bafcde?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_faixa_coral",
+        name: "Avatar: Mestre Faixa Coral",
+        description: "Meio século de dedicação, fonte inesgotável de sabedoria marcial.",
+        priceKC: 7800,
+        category: "AVATAR",
+        rarity: "MYTHIC",
+        imageUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_capuz_ninja",
+        name: "Avatar: Ninja Invisível",
+        description: "Invisível até o momento em que a lapela está no seu pescoço.",
+        priceKC: 1800,
+        category: "AVATAR",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1555679427-1f6dfcce188b?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_kamikaze_bjj",
+        name: "Avatar: Kamikaze do Tatame",
+        description: "Não calcula riscos, mergulha de cabeça em todas as finalizações.",
+        priceKC: 1300,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1534567153574-2b12153a87f0?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_avatar_guerreiro_espartano",
+        name: "Avatar: Gladiador de Lona",
+        description: "Sua determinação a par de guerreiros espartanos antigos.",
+        priceKC: 1250,
+        category: "AVATAR",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1519074002996-a69e7ac46a42?auto=format&fit=crop&q=80&w=200"
+      },
+
+      // ==========================================
+      // MOLDURAS (25 items)
+      // ==========================================
+      {
+        id: "prod_frame_gold_aurora",
+        name: "Moldura: Aurora Dourada",
+        description: "Uma moldura cintilante em dourado real para coroar sua foto de perfil.",
+        priceKC: 2000,
+        category: "FRAME",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_frame_neon_glaze",
+        name: "Moldura: Holo-Neon Roxa",
+        description: "Efeitos neon ultra-brilhantes em tom de faixa roxa competitiva.",
+        priceKC: 1200,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=85&w=200"
+      },
+      {
+        id: "prod_frame_samurai_armor",
+        name: "Moldura: Placas do Shogun",
+        description: "Moldura detalhada com placas de ferro de armaduras samurais.",
+        priceKC: 2550,
+        category: "FRAME",
+        rarity: "LEGENDARY",
+        imageUrl: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_frame_bamboo_classic",
+        name: "Moldura: Bambu Secreto",
+        description: "Modesta moldura talhada em bambu orgânico do templo.",
+        priceKC: 300,
+        category: "FRAME",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_sakura_petals",
+        name: "Moldura: Pétalas de Sakura",
+        description: "Charmosas pétalas cor-de-rosa caem em volta de sua foto.",
+        priceKC: 850,
+        category: "FRAME",
+        rarity: "RARE",
+        imageUrl: "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&q=80&w=200"
+      },
+      {
+        id: "prod_frame_carbon_fiber",
+        name: "Moldura: Fibra de Carbono",
+        description: "Revestimento tecnológico de alta resistência mecânica para o dojô.",
+        priceKC: 1400,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=85&w=200"
+      },
+      {
+        id: "prod_frame_tatame_border",
+        name: "Moldura: Linha Vermelha de Combate",
+        description: "Design inspirado na borda de segurança regulamentar internacional.",
+        priceKC: 200,
+        category: "FRAME",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_faixa_azul_frame",
+        name: "Moldura: Faixa Azul Lapela",
+        description: "Firme e encorpado tom azulado que simboliza a maturidade técnica.",
+        priceKC: 250,
+        category: "FRAME",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_faixa_roxa_frame",
+        name: "Moldura: Realeza Roxa",
+        description: "Brilho místico dedicado aos que começam a dominar o berimbolo.",
+        priceKC: 750,
+        category: "FRAME",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_faixa_marrom_frame",
+        name: "Moldura: Terra Marrom",
+        description: "Textura arenosa pesada simbolizando o limiar do cinturão negro.",
+        priceKC: 1350,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_faixa_preta_frame",
+        name: "Moldura: Faixa Preta Absoluta",
+        description: "Soberba moldura de fios pretos e ponteira vermelha clássica de respeito.",
+        priceKC: 2500,
+        category: "FRAME",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_ninja_darkness",
+        name: "Moldura: Sombra do Shinobi",
+        description: "Design furtivo envelopado por sombras cinzas acetinadas.",
+        priceKC: 1600,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_draconic_fire",
+        name: "Moldura: Fogo do Dragão",
+        description: "Chamas flamejantes orientais crepitam ao redor do seu perfil.",
+        priceKC: 5000,
+        category: "FRAME",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_ocean_wave",
+        name: "Moldura: Grande Onda de BJJ",
+        description: "Inspirada na gravura clássica japonesa com grandes redemoinhos de água.",
+        priceKC: 1850,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_championship_gold_frame",
+        name: "Moldura: Ouro Supremo",
+        description: "O brilho mais puro reservado para campeões de categoria e absoluto.",
+        priceKC: 3000,
+        category: "FRAME",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_gold_bronze_vintage",
+        name: "Moldura: Bronze Escovado",
+        description: "Acabamento retrô em bronze metálico acetinado.",
+        priceKC: 600,
+        category: "FRAME",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_silver_medal_frame",
+        name: "Moldura: Prata Refletiva",
+        description: "Fino contorno prateado espelhado com acabamento polido.",
+        priceKC: 800,
+        category: "FRAME",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_cyberpunk_matrix",
+        name: "Moldura: Matrix Cibernética",
+        description: "Feixes digitais verdes rolando pelas frestas de sua imagem de perfil.",
+        priceKC: 1500,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_lava_flow",
+        name: "Moldura: Lava Vulcânica",
+        description: "Quente como o calor do dojo no verão de 40 graus carioca.",
+        priceKC: 2400,
+        category: "FRAME",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_ice_crystal",
+        name: "Moldura: Gelo Glacial",
+        description: "Mantenha a mente fria e calculista sob o pior dos amassos.",
+        priceKC: 900,
+        category: "FRAME",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_bjj_stars",
+        name: "Moldura: Constelação BJJ",
+        description: "Estrelas cintilantes que representam as cinco regiões da federação.",
+        priceKC: 1300,
+        category: "FRAME",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_minimalist_dark",
+        name: "Moldura: Escuro Minimalista",
+        description: "Borda extra fina em preto fosco para os amantes do minimalismo.",
+        priceKC: 150,
+        category: "FRAME",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_imperial_gold",
+        name: "Moldura: Aura Imperial",
+        description: "Luxo indescritível com detalhes de filigranas de ouro feudal.",
+        priceKC: 6500,
+        category: "FRAME",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_tribal_warrior",
+        name: "Moldura: Marcas de Guerra",
+        description: "Inscrições tribais esculpidas que contam sua história no tatame.",
+        priceKC: 700,
+        category: "FRAME",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_frame_vortex_void",
+        name: "Moldura: Vazio Abissal",
+        description: "Buraco negro elegante que suga olhares de seus oponentes.",
+        priceKC: 2800,
+        category: "FRAME",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+
+      // ==========================================
+      // TÍTULOS (20 items)
+      // ==========================================
+      {
+        id: "prod_title_rubber_guard",
+        name: "Título: 'Perna de Polvo'",
+        description: "Sua elasticidade e destreza na guarda aberta são assustadoras.",
+        priceKC: 400,
+        category: "TITLE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_sandbagger",
+        name: "Título: 'Sandbagger Profissional'",
+        description: "Mostre que você joga como marrom mas ainda veste faixa branca sim.",
+        priceKC: 900,
+        category: "TITLE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_unbreakable",
+        name: "Título: 'INQUEBRÁVEL'",
+        description: "A alcunha daqueles cuja barreira defensiva jamais se rompe.",
+        priceKC: 4500,
+        category: "TITLE",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_world_champion",
+        name: "Título: 'Lenda Mundial (Mundial Gold)'",
+        description: "Uma honra suprema, reservada à elite que governou o topo do pódio.",
+        priceKC: 8000,
+        category: "TITLE",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_bushido_code",
+        name: "Título: 'Caminho do Bushido'",
+        description: "Lealdade, disciplina, honra e coragem inabaláveis em combate.",
+        priceKC: 4000,
+        category: "TITLE",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_cree_boy",
+        name: "Título: 'Atleta Casca Grossa'",
+        description: "Aguenta pancada, calor de 50 graus e treina com kimono rasgado.",
+        priceKC: 300,
+        category: "TITLE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_choke_master",
+        name: "Título: 'Executor de Lapelas'",
+        description: "Especialista sutil em fazer oponentes dormirem suavemente no tatame.",
+        priceKC: 1000,
+        category: "TITLE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_ankles_collector",
+        name: "Título: 'Colecionador de Tornozelos'",
+        description: "Nenhum tornozelo está seguro quando este atleta se joga nas pernas.",
+        priceKC: 2000,
+        category: "TITLE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_oss_spammer",
+        name: "Título: 'Spammer de OSS'",
+        description: "Diz 'Oss' a cada frase, inclusive para o cobrador do ônibus.",
+        priceKC: 150,
+        category: "TITLE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_double_gold",
+        name: "Título: 'Peso & Absoluto (Double Gold)'",
+        description: "Dono absoluto da categoria de peso e do absoluto livre de limites.",
+        priceKC: 5000,
+        category: "TITLE",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_berimbolo_prince",
+        name: "Título: 'Doutor do Berimbolo'",
+        description: "Sua tese acadêmica foi baseada na rotação pélvica de 360 graus.",
+        priceKC: 1800,
+        category: "TITLE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_mat_owner",
+        name: "Título: 'Dono do Tatame'",
+        description: "Chega primeiro no treino, sai por último e ajuda a limpar a lona.",
+        priceKC: 1200,
+        category: "TITLE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_gord_pass",
+        name: "Título: 'Amassador de Guardeiros'",
+        description: "Sua passagem causa claustrofobia generalizada no ginásio.",
+        priceKC: 2200,
+        category: "TITLE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_shou_ninja",
+        name: "Título: 'Shinobi Invisível'",
+        description: "Ninguém ouve seus passos antes da finalização plástica.",
+        priceKC: 2400,
+        category: "TITLE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_samurai_honor",
+        name: "Título: 'Honra do Samurai'",
+        description: "Prefere bater o braço a violar a etiqueta técnica ideal de respeito.",
+        priceKC: 3500,
+        category: "TITLE",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_creepy_kid",
+        name: "Título: 'Iniciante Destemido'",
+        description: "Não importa se é campeão mundial, ele chama pro rola do mesmo jeito.",
+        priceKC: 250,
+        category: "TITLE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_half_guard_king",
+        name: "Título: 'Lorde da Meia Guarda'",
+        description: "Diz a lenda que ele acorda dormindo em meia guarda profunda.",
+        priceKC: 950,
+        category: "TITLE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_takedown_machine",
+        name: "Título: 'Máquina de Quedas'",
+        description: "Seu double leg quebra as leis da física tradicional do tatame.",
+        priceKC: 1100,
+        category: "TITLE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_jiu_jitsu_lifestyle",
+        name: "Título: 'BJJ Lifestyle'",
+        description: "Dieta Gracie, açaí diário, roupão de banho por cima do kimono.",
+        priceKC: 500,
+        category: "TITLE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_title_grand_master",
+        name: "Título: 'Eterno Faixa Vermelha'",
+        description: "Representante mitológico do mais alto degrau do jiu-jitsu mundial.",
+        priceKC: 7500,
+        category: "TITLE",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+
+      // ==========================================
+      // EMOTES (15 items)
+      // ==========================================
+      {
+        id: "prod_emote_shaka_oss",
+        name: "Emote: Shaka de Respeito",
+        description: "O clássico 'Shaka + Oss' para cumprimentar antes do massacre.",
+        priceKC: 250,
+        category: "EMOTE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_tap_quickly",
+        name: "Emote: Bate Três Vezes!",
+        description: "Uma animação elegante de desitência saudável e rápida.",
+        priceKC: 750,
+        category: "EMOTE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_samurai_bow",
+        name: "Emote: Curvatura de Respeito",
+        description: "Incline o corpo demonstrando humildade perante o mestre do dojo.",
+        priceKC: 200,
+        category: "EMOTE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_shaka_boom",
+        name: "Emote: Punch virtual",
+        description: "Aquele soquinho que selamos com o parceiro de treino antes de começar.",
+        priceKC: 300,
+        category: "EMOTE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_king_crown",
+        name: "Emote: Coroa Virtuosa",
+        description: "Coloca uma coroa reluzente dourada sobre os cabelos do avatar.",
+        priceKC: 2500,
+        category: "EMOTE",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_ninja_disappear",
+        name: "Emote: Chafariz de fumaça",
+        description: "Fuga teatral ninja explodindo bomba de fumaça cinzenta na lona.",
+        priceKC: 1550,
+        category: "EMOTE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_meditation_pose",
+        name: "Emote: Zen Budista",
+        description: "Seu boneco flutua por alguns segundos concentrando energia cósmica.",
+        priceKC: 900,
+        category: "EMOTE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_flex_biceps",
+        name: "Emote: Mostra o Gás!",
+        description: "Contraia o muque esbanjando energia ilimitada de treino.",
+        priceKC: 350,
+        category: "EMOTE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_facepalm_guard",
+        name: "Emote: Puxou pra Guarda de Novo?",
+        description: "O desespero clássico de enfrentar guardeiros incansáveis.",
+        priceKC: 800,
+        category: "EMOTE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_creepy_grin",
+        name: "Emote: Sorriso Amigável",
+        description: "Aquele sorriso maroto que o parceiro dá após travar seu pescoço.",
+        priceKC: 400,
+        category: "EMOTE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_gold_medal_kiss",
+        name: "Emote: Beijando o Ouro",
+        description: "Simule a merecida pose tradicional de beijar a medalha de primeiro lugar.",
+        priceKC: 1800,
+        category: "EMOTE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_heart_hands_oss",
+        name: "Emote: Coração de Oss",
+        description: "Mãos fazendo coraçãozinho com um OSS flutuando fofinho por cima.",
+        priceKC: 300,
+        category: "EMOTE",
+        rarity: "COMMON",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_no_neck",
+        name: "Emote: Cadê meu Pescoço?",
+        description: "Atleta esconde a cabeça simulando ausência total de pescoço para travas.",
+        priceKC: 850,
+        category: "EMOTE",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_wrist_lock_evil",
+        name: "Emote: Malícia do Mão de Vaca",
+        description: "Visual engraçado tramando um wrist lock inesperado saindo da meia.",
+        priceKC: 1600,
+        category: "EMOTE",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_emote_legend_dance",
+        name: "Emote: Ginga da Vitória",
+        description: "Dancinha tradicional do pódio de campeonatos internacionais absolutos.",
+        priceKC: 3000,
+        category: "EMOTE",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+
+      // ==========================================
+      // EFEITOS ESPECIAIS (10 items)
+      // ==========================================
+      {
+        id: "prod_effect_smoke",
+        name: "Efeito: Nuvem de Magnésio",
+        description: "Fumaça de magnésio envolve seu competidor ao carregar cards PVP.",
+        priceKC: 1200,
+        category: "EFFECT",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_thunder",
+        name: "Efeito: Divindade do Relâmpago",
+        description: "Raios crepitam ao fundo de sua moldura durante o matchmaking.",
+        priceKC: 3500,
+        category: "EFFECT",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_galaxy",
+        name: "Efeito: Cosmo Fluído BJJ",
+        description: "Partículas cósmicas fluem sobre o layout com brilho iridescente.",
+        priceKC: 4850,
+        category: "EFFECT",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_cherry_blossoms",
+        name: "Efeito: Chuva de Sakura",
+        description: "Chuva de flores cor-de-rosa caindo lentamente por trás do seu card.",
+        priceKC: 1800,
+        category: "EFFECT",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_shadows_shinobi",
+        name: "Efeito: Sombras do Dojo",
+        description: "Uma névoa preta e densa e misteriosa sobe pelos cantos exteriores.",
+        priceKC: 4200,
+        category: "EFFECT",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_golden_sparkles",
+        name: "Efeito: Faíscas de Ouro",
+        description: "Centelhas brilhantes e puras de pedras brilhantes flutuando pelo card.",
+        priceKC: 3800,
+        category: "EFFECT",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_rage_aura",
+        name: "Efeito: Aura do Lutador",
+        description: "Chamas místicas cor de fogo vermelho envolvendo todo o seu perfil.",
+        priceKC: 6000,
+        category: "EFFECT",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_digital_rain",
+        name: "Efeito: Cascata Teológica",
+        description: "Símbolos e bytes rolando sob o fundo como o filme Matrix do Jiu Speak.",
+        priceKC: 2200,
+        category: "EFFECT",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_blood_sweat",
+        name: "Efeito: Sangue & Suor",
+        description: "Pingos clássicos de suor e fagulhas vermelhas de atitude no combate.",
+        priceKC: 950,
+        category: "EFFECT",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_effect_void_gate",
+        name: "Efeito: Portal do Vazio",
+        description: "Portal galáctico cinzento que gira vagarosamente atrás da sua foto.",
+        priceKC: 7500,
+        category: "EFFECT",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      }
+    ];
+
+    for (const prod of seedProducts) {
+      await prisma.storeProduct.upsert({
+        where: { id: prod.id },
+        update: {
+          name: prod.name,
+          description: prod.description,
+          priceKC: prod.priceKC,
+          category: prod.category,
+          rarity: prod.rarity as any,
+          imageUrl: prod.imageUrl,
+          active: true
+        },
+        create: {
+          id: prod.id,
+          name: prod.name,
+          description: prod.description,
+          priceKC: prod.priceKC,
+          category: prod.category,
+          rarity: prod.rarity as any,
+          imageUrl: prod.imageUrl,
+          active: true
+        }
+      });
+    }
+
+    console.log(`🌱 ${seedProducts.length} Store Products seeded inside PostgreSQL database!`);
+
+  } catch (error) {
+    console.error('❌ Critical error seeding Store Products:', error);
+  }
+};
 
 // Exclusively relational data store actions
 export const authStore = {

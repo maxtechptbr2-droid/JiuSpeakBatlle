@@ -26,6 +26,7 @@ import {
   Play
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
+import { AvatarWithFrame } from './AvatarWithFrame';
 import { io, Socket } from 'socket.io-client';
 
 interface LeaderboardEntry {
@@ -35,6 +36,7 @@ interface LeaderboardEntry {
   belt: string;
   level: number;
   avatar: string;
+  equippedFrame?: any;
 }
 
 const BOT_SELECT_LIST = [
@@ -140,6 +142,7 @@ export default function PvPArena({
     avatar: string;
     elo: number;
     isBot: boolean;
+    equippedFrame?: any;
   } | null>(null);
 
   // Active round quiz details
@@ -275,7 +278,8 @@ export default function PvPArena({
         name: matchedOpponent.name,
         avatar: matchedOpponent.avatar,
         elo: matchedOpponent.elo,
-        isBot: matchedOpponent.isBot
+        isBot: matchedOpponent.isBot,
+        equippedFrame: matchedOpponent.equippedFrame || null
       });
 
       setArenaState('versus');
@@ -677,11 +681,11 @@ export default function PvPArena({
                           ) : (
                             <span className="w-3.5 text-center text-[10px] font-mono text-slate-500">{idx + 1}</span>
                           )}
-                          <img 
-                            src={player.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`} 
-                            alt={player.name} 
-                            className="w-7 h-7 rounded-full object-cover border border-slate-800"
-                            referrerPolicy="no-referrer"
+                          <AvatarWithFrame
+                            avatarUrl={player.avatar}
+                            userName={player.name}
+                            frame={player.equippedFrame}
+                            size="xs"
                           />
                           <div className="leading-tight">
                             <span className={`block text-[11px] font-semibold truncate max-w-[120px] ${isSelf ? 'text-indigo-300' : 'text-slate-350'}`}>
@@ -784,12 +788,13 @@ export default function PvPArena({
           <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-6">
             
             {/* Challenger Card */}
-            <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-805 text-center space-y-4">
-              <img 
-                src={user.avatar} 
-                alt={user.name} 
-                className="w-20 h-20 rounded-2xl object-cover border border-slate-750 mx-auto shadow-md"
-                referrerPolicy="no-referrer"
+            <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-805 text-center space-y-4 flex flex-col items-center">
+              <AvatarWithFrame
+                avatarUrl={user.avatar}
+                userName={user.name}
+                frame={user.equippedFrame}
+                size="lg"
+                className="mx-auto"
               />
               <div>
                 <p className="font-display font-black text-sm text-slate-200 uppercase truncate">{user.name}</p>
@@ -819,12 +824,13 @@ export default function PvPArena({
             </div>
 
             {/* Defender Card */}
-            <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-805 text-center space-y-4">
-              <img 
-                src={opponent.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150"} 
-                alt={opponent.name} 
-                className="w-20 h-20 rounded-2xl object-cover border border-slate-750 mx-auto shadow-md"
-                referrerPolicy="no-referrer"
+            <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-805 text-center space-y-4 flex flex-col items-center">
+              <AvatarWithFrame
+                avatarUrl={opponent.avatar}
+                userName={opponent.name}
+                frame={opponent.equippedFrame}
+                size="lg"
+                className="mx-auto"
               />
               <div>
                 <p className="font-display font-black text-sm text-slate-200 uppercase truncate">{opponent.name}</p>
@@ -941,11 +947,11 @@ export default function PvPArena({
                 {/* Atleta Challenger (Você) */}
                 <div className={`p-4 rounded-xl border flex items-center justify-between ${answeredCount.challenger ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-slate-900 border-slate-800/60'}`}>
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={user.avatar} 
-                      alt="" 
-                      className="w-8 h-8 rounded-full object-cover"
-                      referrerPolicy="no-referrer"
+                    <AvatarWithFrame
+                      avatarUrl={user.avatar}
+                      userName={user.name}
+                      frame={user.equippedFrame}
+                      size="xs"
                     />
                     <div>
                       <span className="block text-xs font-bold text-slate-200">Você</span>
@@ -962,11 +968,11 @@ export default function PvPArena({
                 {/* Atleta Defender (Oponente) */}
                 <div className={`p-4 rounded-xl border flex items-center justify-between ${answeredCount.defender ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-slate-900 border-slate-800/60'}`}>
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={opponent.avatar} 
-                      alt="" 
-                      className="w-8 h-8 rounded-full object-cover"
-                      referrerPolicy="no-referrer"
+                    <AvatarWithFrame
+                      avatarUrl={opponent.avatar}
+                      userName={opponent.name}
+                      frame={opponent.equippedFrame}
+                      size="xs"
                     />
                     <div>
                       <span className="block text-xs font-bold text-slate-200 leading-none truncate max-w-[100px]">{opponent.name}</span>
@@ -1032,11 +1038,12 @@ export default function PvPArena({
               {/* Bot Dynamic Comment Speech Balloon */}
               {(roundResult as any).botComment && (
                 <div className="bg-indigo-950/20 border border-indigo-505/30 p-4 rounded-2xl flex items-start gap-3.5 animate-fadeIn">
-                  <img 
-                    src={opponent.avatar} 
-                    alt={opponent.name} 
-                    className="w-9 h-9 rounded-full border border-slate-800 bg-slate-905 object-cover shrink-0"
-                    referrerPolicy="no-referrer"
+                  <AvatarWithFrame
+                    avatarUrl={opponent.avatar}
+                    userName={opponent.name}
+                    frame={opponent.equippedFrame}
+                    size="sm"
+                    className="shrink-0"
                   />
                   <div className="space-y-1">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-extrabold block">{opponent.name} diz:</span>

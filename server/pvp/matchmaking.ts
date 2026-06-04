@@ -110,7 +110,8 @@ export class MatchmakingService {
           isBot: false,
           score: 0,
           currentAnswer: null,
-          currentResponseTime: null
+          currentResponseTime: null,
+          equippedFrame: (p1 as any).equippedFrame || null
         };
 
         const defender: ArenaPlayer = {
@@ -122,7 +123,8 @@ export class MatchmakingService {
           isBot: false,
           score: 0,
           currentAnswer: null,
-          currentResponseTime: null
+          currentResponseTime: null,
+          equippedFrame: (p2 as any).equippedFrame || null
         };
 
         ArenaService.createArena(matchId, challenger, defender);
@@ -249,7 +251,8 @@ export class MatchmakingService {
       isBot: false,
       score: 0,
       currentAnswer: null,
-      currentResponseTime: null
+      currentResponseTime: null,
+      equippedFrame: (p as any).equippedFrame || null
     };
 
     const defender: ArenaPlayer = {

@@ -40,6 +40,13 @@ export interface UserProfile {
   balancePendingBRL: number;   // Saldo pendente (vendas aprovadas)
   totalEarnedBRL: number;      // Total ganho (faturamento bruto aprovado)
   totalWithdrawnBRL: number;   // Total acumulado que foi sacado
+  equippedFrame?: {
+    id: string;
+    name: string;
+    rarity: string;
+    description?: string;
+    imageUrl?: string;
+  } | null;
 }
 
 export interface InventoryItem {
@@ -146,6 +153,7 @@ export interface Comment {
   authorBelt: BeltRank;
   content: string;
   timestamp: string;
+  authorFrame?: any;
 }
 
 export interface SocialPost {
@@ -160,6 +168,7 @@ export interface SocialPost {
   hasUpvoted: boolean;
   comments: Comment[];
   timestamp: string;
+  authorFrame?: any;
 }
 
 export interface AuditLog {

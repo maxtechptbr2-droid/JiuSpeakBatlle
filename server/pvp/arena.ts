@@ -24,6 +24,7 @@ export interface ArenaPlayer {
   currentAnswer: string | null;
   currentResponseTime: number | null;
   botConfig?: BotConfig;
+  equippedFrame?: any;
 }
 
 export interface ArenaState {
