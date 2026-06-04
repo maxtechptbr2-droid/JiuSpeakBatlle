@@ -97,6 +97,19 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   };
 
   // Submit register account
+  const getCsrfHeader = async (): Promise<Record<string, string>> => {
+    try {
+      const res = await fetch('/api/security/csrf');
+      if (res.ok) {
+        const data = await res.json();
+        return { 'X-CSRF-Token': data.csrfToken };
+      }
+    } catch (err) {
+      console.warn('Failed to pre-fetch CSRF Token:', err);
+    }
+    return {};
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !name || !password) {
@@ -109,9 +122,13 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
+      const csrfHeaders = await getCsrfHeader();
       const res = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...csrfHeaders
+        },
         body: JSON.stringify({ email, name, password, role }),
       });
 
@@ -149,9 +166,13 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
+      const csrfHeaders = await getCsrfHeader();
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...csrfHeaders
+        },
         body: JSON.stringify({ email, password }),
       });
 
@@ -187,9 +208,13 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
+      const csrfHeaders = await getCsrfHeader();
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...csrfHeaders
+        },
         body: JSON.stringify({ email }),
       });
 
@@ -228,9 +253,13 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
+      const csrfHeaders = await getCsrfHeader();
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...csrfHeaders
+        },
         body: JSON.stringify({ token, newPassword }),
       });
 
@@ -267,9 +296,13 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
+      const csrfHeaders = await getCsrfHeader();
       const res = await fetch('/api/auth/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...csrfHeaders
+        },
         body: JSON.stringify({ token }),
       });
 

@@ -181,8 +181,8 @@ export default function StoreMarket({
     return () => clearInterval(timer);
   }, []);
 
-  const promoProductIds = ['prod_frame_neon_glaze', 'prod_effect_smoke', 'gi_shibori'];
-  const limitedProductIds = ['prod_frame_gold_aurora', 'prod_effect_galaxy', 'gi_gold'];
+  const promoProductIds = ['prod_frame_neon_glaze', 'prod_effect_smoke', 'gi_shibori', 'prod_theme_classic_dark', 'prod_belt_neon_blue'];
+  const limitedProductIds = ['prod_frame_gold_aurora', 'prod_effect_galaxy', 'gi_gold', 'prod_theme_cyberpunk_neon', 'prod_belt_rainbow', 'prod_legend_gi_gold'];
 
   const addToCart = (product: any) => {
     const isOwned = user.inventory.includes(product.id);
@@ -300,8 +300,11 @@ export default function StoreMarket({
       if (storeCategory === 'Avatares') apiCategory = 'AVATAR';
       else if (storeCategory === 'Molduras') apiCategory = 'FRAME';
       else if (storeCategory === 'Títulos') apiCategory = 'TITLE';
-      else if (storeCategory === 'Emotes') apiCategory = 'EMOTE';
-      else if (storeCategory === 'Efeitos Especiais') apiCategory = 'EFFECT';
+      else if (storeCategory === 'Emotes' || storeCategory === 'Emojis') apiCategory = 'EMOTE';
+      else if (storeCategory === 'Efeitos Especiais' || storeCategory === 'Efeitos visuais') apiCategory = 'EFFECT';
+      else if (storeCategory === 'Temas') apiCategory = 'THEME';
+      else if (storeCategory === 'Faixas especiais') apiCategory = 'BELT';
+      else if (storeCategory === 'Itens lendários') apiCategory = 'LEGENDARY';
 
       let apiRarity = storeRarity;
       if (storeRarity === 'Comum') apiRarity = 'COMMON';
@@ -1091,7 +1094,7 @@ export default function StoreMarket({
               
               {/* Category Pills Selector */}
               <div className="flex flex-wrap gap-1.5 animate-fade-in" id="store-category-filters">
-                {['Todos', 'Avatares', 'Molduras', 'Títulos', 'Emotes', 'Efeitos Especiais'].map((cat) => {
+                {['Todos', 'Avatares', 'Molduras', 'Títulos', 'Emojis', 'Temas', 'Efeitos visuais', 'Faixas especiais', 'Itens lendários'].map((cat) => {
                   const isActive = storeCategory === cat;
                   return (
                     <button
@@ -1192,9 +1195,12 @@ export default function StoreMarket({
                       case 'AVATAR': return { icon: '👤', name: 'Avatar' };
                       case 'FRAME': return { icon: '🖼️', name: 'Moldura' };
                       case 'TITLE': return { icon: '🏷️', name: 'Título' };
-                      case 'EMOTE': return { icon: '💬', name: 'Emote' };
-                      case 'EFFECT': return { icon: '✨', name: 'Efe. Especial' };
-                      default: return { icon: '🥋', name: 'Suporte' };
+                      case 'EMOTE': return { icon: '💬', name: 'Emoji' };
+                      case 'EFFECT': return { icon: '✨', name: 'Efe. Visual' };
+                      case 'THEME': return { icon: '🎨', name: 'Tema' };
+                      case 'BELT': return { icon: '🥋', name: 'Faixa Esp.' };
+                      case 'LEGENDARY': return { icon: '👑', name: 'Lendário' };
+                      default: return { icon: '🎒', name: 'Especial' };
                     }
                   };
 

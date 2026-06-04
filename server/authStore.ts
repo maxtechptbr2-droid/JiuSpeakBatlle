@@ -41,6 +41,10 @@ export const simulatedSentEmails: Array<{
 
 // Seed initial test administrative and athlete accounts into the PostgreSQL database.
 export const seedInitialUsers = async () => {
+  if (process.env.NODE_ENV === "production") {
+    console.log("⚠️ Production Mode: Seeding test accounts or seed users bypassed.");
+    return;
+  }
   const prisma = getPrisma();
   if (!prisma) return;
 
@@ -257,8 +261,8 @@ export const seedStoreProducts = async () => {
 
   try {
     const count = await prisma.storeProduct.count();
-    if (count >= 100) {
-      console.log('✅ Store already has at least 100 seeded products. Skipping product seeding.');
+    if (count >= 130) {
+      console.log('✅ Store already has at least 130 seeded products. Skipping product seeding.');
       return;
     }
 
@@ -1181,10 +1185,110 @@ export const seedStoreProducts = async () => {
         category: "EFFECT",
         rarity: "MYTHIC",
         imageUrl: ""
+      },
+      {
+        id: "prod_theme_classic_dark",
+        name: "Tema: Clássico Dojô Escuro",
+        description: "Altera o plano de fundo e o painel de faturamento para um clássico cinza e violeta escuro.",
+        priceKC: 1200,
+        category: "THEME",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_theme_cherry_blossom",
+        name: "Tema: Dojô das Cerejeiras",
+        description: "Transforma sua jornada em uma serena floresta de cerejeiras com detalhes rosa e preto.",
+        priceKC: 2500,
+        category: "THEME",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_theme_cyberpunk_neon",
+        name: "Tema: Arena Cyber Neon",
+        description: "Visual cibernético inspirado nos campeonatos internacionais noturnos de Tóquio.",
+        priceKC: 5000,
+        category: "THEME",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_theme_royal_gold",
+        name: "Tema: Tatame Imperial Dourado",
+        description: "O prestígio definitivo. Interface inteiramente folheada a ouro com nuances reais.",
+        priceKC: 8000,
+        category: "THEME",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_belt_neon_blue",
+        name: "Faixa Especial: Azul Neon Cintilante",
+        description: "Sua faixa padrão com um brilho neon ciano radiante que se move.",
+        priceKC: 1500,
+        category: "BELT",
+        rarity: "RARE",
+        imageUrl: ""
+      },
+      {
+        id: "prod_belt_lava",
+        name: "Faixa Especial: Magma em Fusão",
+        description: "Efeito animado de lava incandescente escorrendo ao redor do seu rank atual.",
+        priceKC: 3000,
+        category: "BELT",
+        rarity: "EPIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_belt_glitch",
+        name: "Faixa Especial: Glitch Cyberpunk",
+        description: "Faixa futurista com estática visual instável de distorção holo-digital.",
+        priceKC: 4500,
+        category: "BELT",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_belt_rainbow",
+        name: "Faixa Especial: Arco-Íris Místico",
+        description: "Transições suaves de gradiente em todas as cores do prisma pelo tatame.",
+        priceKC: 9000,
+        category: "BELT",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_legend_katana",
+        name: "Item Lendário: Katana de Hattori Hanzo",
+        description: "Uma verdadeira obra de arte de aço dobrado. Símbolo de precisão.",
+        priceKC: 10000,
+        category: "LEGENDARY",
+        rarity: "LEGENDARY",
+        imageUrl: ""
+      },
+      {
+        id: "prod_legend_gi_gold",
+        name: "Item Lendário: Kimono Imperial de Ouro",
+        description: "Kimono sagrado indestrutível tecido inteiramente com fios dourados de elite.",
+        priceKC: 15000,
+        category: "LEGENDARY",
+        rarity: "MYTHIC",
+        imageUrl: ""
+      },
+      {
+        id: "prod_legend_badge",
+        name: "Item Lendário: Insígnia Ancestral Gracie",
+        description: "A joia da coroa da tradição do Jiu-Jitsu brasileiro absoluto.",
+        priceKC: 20000,
+        category: "LEGENDARY",
+        rarity: "MYTHIC",
+        imageUrl: ""
       }
     ];
 
     for (const prod of seedProducts) {
+      const dbRarity = prod.rarity === "MYTHIC" ? "LEGENDARY" : prod.rarity;
       await prisma.storeProduct.upsert({
         where: { id: prod.id },
         update: {
@@ -1192,7 +1296,7 @@ export const seedStoreProducts = async () => {
           description: prod.description,
           priceKC: prod.priceKC,
           category: prod.category,
-          rarity: prod.rarity as any,
+          rarity: dbRarity as any,
           imageUrl: prod.imageUrl,
           active: true
         },
@@ -1202,7 +1306,7 @@ export const seedStoreProducts = async () => {
           description: prod.description,
           priceKC: prod.priceKC,
           category: prod.category,
-          rarity: prod.rarity as any,
+          rarity: dbRarity as any,
           imageUrl: prod.imageUrl,
           active: true
         }

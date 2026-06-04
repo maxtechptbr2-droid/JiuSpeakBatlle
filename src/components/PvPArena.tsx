@@ -35,6 +35,9 @@ interface LeaderboardEntry {
   elo: number;
   belt: string;
   level: number;
+  stripes: number;
+  score: number;
+  region: string;
   avatar: string;
   equippedFrame?: any;
 }
@@ -189,6 +192,8 @@ export default function PvPArena({
   } | null>(null);
 
   // Leaderboard data
+  const [rankingType, setRankingType] = useState<'global' | 'regional' | 'mensal' | 'semanal'>('global');
+  const [rankingRegion, setRankingRegion] = useState<string>('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState<boolean>(false);
   const [matchmakingTime, setMatchmakingTime] = useState<number>(0);
@@ -197,10 +202,14 @@ export default function PvPArena({
   const startTimeRef = useRef<number>(0);
 
   // Fetch PostgreSQL active matches PvP ELO Leaderboard
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (type: string = rankingType, region: string = rankingRegion) => {
     setIsLoadingLeaderboard(true);
     try {
-      const res = await fetch('/api/pvp/leaderboard');
+      let url = `/api/pvp/leaderboard?type=${type}`;
+      if (type === 'regional' && region) {
+        url += `&region=${encodeURIComponent(region)}`;
+      }
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setLeaderboard(data.leaderboard || []);
@@ -212,9 +221,12 @@ export default function PvPArena({
     }
   };
 
+  useEffect(() => {
+    fetchLeaderboard(rankingType, rankingRegion);
+  }, [rankingType, rankingRegion]);
+
   // 1. Initialize Socket.IO connection and bind event loops of matches
   useEffect(() => {
-    fetchLeaderboard();
 
     // Create single socket instance
     const newSocket = io({
@@ -647,15 +659,59 @@ export default function PvPArena({
               <div className="flex justify-between items-center pb-2 border-b border-slate-850">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-yellow-500" />
-                  <h4 className="font-display font-extrabold text-sm text-slate-205">Ranking de Fluência (Top ELO)</h4>
+                  <h4 className="font-display font-extrabold text-sm text-slate-205">Ranking de Fluência (Score BJJ)</h4>
                 </div>
                 <button 
-                  onClick={fetchLeaderboard}
+                  onClick={() => fetchLeaderboard(rankingType, rankingRegion)}
                   className="text-[10px] text-indigo-400 hover:text-indigo-305 transition font-mono cursor-pointer"
                 >
                   Atualizar
                 </button>
               </div>
+
+              {/* Leaderboard Type Selector Tabs */}
+              <div className="grid grid-cols-4 gap-1 p-1 bg-slate-900/70 rounded-xl border border-slate-855">
+                {(['global', 'regional', 'mensal', 'semanal'] as const).map((tab) => {
+                  const isActive = rankingType === tab;
+                  const label = tab === 'global' ? 'Global' : tab === 'regional' ? 'Regional' : tab === 'mensal' ? 'Mensal' : 'Semanal';
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setRankingType(tab);
+                        if (tab !== 'regional') setRankingRegion('');
+                      }}
+                      className={`py-1.5 px-0.5 rounded-lg text-[9px] font-display font-bold transition-all duration-200 cursor-pointer text-center truncate ${
+                        isActive 
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/50' 
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Special Controls for Regional selection */}
+              {rankingType === 'regional' && (
+                <div className="flex gap-1.5 items-center justify-between pb-1 animate-fadeIn">
+                  <span className="text-[10px] text-slate-400 font-medium">Filtrar Região:</span>
+                  <select
+                    value={rankingRegion}
+                    onChange={(e) => setRankingRegion(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 text-[10px] rounded px-2 py-1 text-slate-250 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono cursor-pointer"
+                  >
+                    <option value="">Todas Regiões</option>
+                    <option value="Sudeste">Sudeste</option>
+                    <option value="Sul">Sul</option>
+                    <option value="Nordeste">Nordeste</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Centro-Oeste">Centro-Oeste</option>
+                    <option value="Internacional">Internacional</option>
+                  </select>
+                </div>
+              )}
 
               {isLoadingLeaderboard ? (
                 <div className="py-12 flex justify-center items-center">
@@ -663,7 +719,7 @@ export default function PvPArena({
                 </div>
               ) : leaderboard.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-500">
-                  Nenhum registro no placar. Complete os primeiros sparring para pontuar!
+                  Nenhum registro no placar nesta categoria. Complete sparring para pontuar!
                 </div>
               ) : (
                 <div className="divide-y divide-slate-900 max-h-96 overflow-y-auto pr-1">
@@ -688,18 +744,34 @@ export default function PvPArena({
                             size="xs"
                           />
                           <div className="leading-tight">
-                            <span className={`block text-[11px] font-semibold truncate max-w-[120px] ${isSelf ? 'text-indigo-300' : 'text-slate-350'}`}>
-                              {player.name} {isSelf && "(Você)"}
+                            <span className={`block text-[11px] font-semibold truncate max-w-[110px] ${isSelf ? 'text-indigo-300' : 'text-slate-350'}`}>
+                               {player.name} {isSelf && "(Você)"}
                             </span>
-                            <span className={`inline-block text-[8px] font-black uppercase px-1 rounded-sm mt-0.5 ${getBeltBg(player.belt)}`}>
-                              {getBeltLabel(player.belt)}
-                            </span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`inline-block text-[7px] font-black uppercase px-1 rounded-sm ${getBeltBg(player.belt)}`}>
+                                {getBeltLabel(player.belt)}
+                              </span>
+                              {player.stripes > 0 && (
+                                <span className="text-[7.5px] font-black text-amber-500 font-mono" title={`${player.stripes} Graus`}>
+                                  {player.stripes}G
+                                </span>
+                              )}
+                              {player.region && (
+                                <span className="text-[7.5px] font-medium text-slate-500 truncate max-w-[50px]" title={player.region}>
+                                  {player.region}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        <div className="text-right leading-tight">
-                          <span className="block text-xs font-bold font-mono text-indigo-400">{player.elo}</span>
-                          <span className="text-[9px] text-slate-500 font-mono">Lvl {player.level || 1}</span>
+                        <div className="text-right leading-tight min-w-[70px]">
+                          <span className="block text-xs font-extrabold font-mono text-indigo-400" title="Score de Ranking (Score BJJ)">
+                            {player.score || player.elo} <span className="text-[8px] text-slate-500 font-normal">pts</span>
+                          </span>
+                          <span className="text-[8px] text-slate-500 font-mono">
+                            {player.elo} ELO • Lvl {player.level || 1}
+                          </span>
                         </div>
                       </div>
                     );

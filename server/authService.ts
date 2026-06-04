@@ -7,13 +7,13 @@ import crypto from 'crypto';
 const DEFAULT_JWT_SECRET = 'super-secret-access-token-key-2026';
 const DEFAULT_JWT_REFRESH_SECRET = 'super-secret-refresh-token-key-2026-999';
 
-const JWT_ACCESS_SECRET = (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET)
+export const JWT_ACCESS_SECRET = (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET)
   ? (process.env.NODE_ENV === "production" 
       ? crypto.randomBytes(32).toString('hex') 
       : DEFAULT_JWT_SECRET)
   : process.env.JWT_SECRET;
 
-const JWT_REFRESH_SECRET = (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET)
+export const JWT_REFRESH_SECRET = (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET)
   ? (process.env.NODE_ENV === "production" 
       ? crypto.randomBytes(32).toString('hex') 
       : DEFAULT_JWT_REFRESH_SECRET)

@@ -1,12 +1,31 @@
 import { authStore } from "../authStore";
 import { getPrisma } from "../db";
 
+// Belt Priority Map (BLACK -> BROWN -> PURPLE -> BLUE -> WHITE)
+// RED is mapped higher than BLACK just in case it appears.
+export const BELT_PRIORITY: Record<string, number> = {
+  RED: 6,
+  BLACK: 5,
+  BROWN: 4,
+  PURPLE: 3,
+  BLUE: 2,
+  WHITE: 1
+};
+
+export const REGIONS = ["Sudeste", "Sul", "Nordeste", "Norte", "Centro-Oeste", "Internacional"];
+
+export function getUserRegion(userId: string): string {
+  const hash = [...userId].reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return REGIONS[hash % REGIONS.length];
+}
+
+export function calculateRankScore(elo: number, level: number, stripes: number): number {
+  return (elo * 0.5) + (level * 50) + (stripes * 25);
+}
+
 export class RankingService {
   /**
-   * Computes Elo Rating adjustment following standard ELO math constraints (Chess.com / LoL structure)
-   * 
-   * Expected: Ea = 1 / (1 + 10^((Rb - Ra) / 400))
-   * Change: Ra_new = Ra + K * (Sa - Ea)
+   * Computes Elo Rating adjustment following standard ELO math constraints
    */
   static calculateElo(ratingA: number, ratingB: number, outcome: "WIN" | "LOSS" | "DRAW"): { changeA: number; changeB: number } {
     const K = 32; // standard K-Factor
@@ -32,7 +51,8 @@ export class RankingService {
   }
 
   /**
-   * Updates user profile in-db or locally: level, xp, elo, coins
+   * Updates user profile in-db or locally: level, xp, elo, coins.
+   * FIX: Removed automatic belt and stripe promotions ("Faixas evoluem automaticamente" fixed).
    */
   static async applyMatchResults(
     playerAId: string, 
@@ -101,21 +121,11 @@ export class RankingService {
     const resA = processXpAndLevel(playerA?.xp || 0, playerA?.level || 1, xpA);
     const resB = processXpAndLevel(playerB?.xp || 0, playerB?.level || 1, xpB);
 
-    // Process Belt Upgrades automatically on level milestones for progression fun
-    const determineBelt = (level: number, currentBelt: string): any => {
-      if (level >= 30) return "BLACK";
-      if (level >= 22) return "BROWN";
-      if (level >= 15) return "PURPLE";
-      if (level >= 8) return "BLUE";
-      return currentBelt; // keep existing otherwise
-    };
-
-    const nextBeltA = determineBelt(resA.nextLevel, playerA?.belt || "WHITE");
-    const nextBeltB = determineBelt(resB.nextLevel, playerB?.belt || "WHITE");
-
-    // stripes increase every 2 levels within current belt limits
-    const nextStripesA = Math.min(4, Math.floor(resA.nextLevel % 7) / 2);
-    const nextStripesB = Math.min(4, Math.floor(resB.nextLevel % 7) / 2);
+    // FIX: Belts and stripes DO NOT automatically transition during standard match play.
+    const nextBeltA = playerA?.belt || "WHITE";
+    const nextBeltB = playerB?.belt || "WHITE";
+    const nextStripesA = playerA?.stripes || 0;
+    const nextStripesB = playerB?.stripes || 0;
 
     // 4. Update databases safely
     if (playerA) {
@@ -167,5 +177,167 @@ export class RankingService {
       playerA: { elo: newEloA, eloChange: changeA, coinsGained: coinsA, xpGained: xpA, levelUp: resA.levelUp },
       playerB: { elo: newEloB, eloChange: changeB, coinsGained: coinsB, xpGained: xpB, levelUp: resB.levelUp }
     };
+  }
+
+  /**
+   * Enterprise-grade Ranking Engine
+   * Generates highly optimized leaderboards for Global, Regional, Weekly, and Monthly ladders.
+   */
+  static async getLeaderboardData(
+    type: "global" | "regional" | "mensal" | "semanal",
+    targetRegion?: string,
+    skip: number = 0,
+    take: number = 50
+  ): Promise<{ list: any[]; totalCount: number }> {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return { list: [], totalCount: 0 };
+    }
+
+    try {
+      // 1. Fetch active users (with select optimization)
+      const queryUsers = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          elo: true,
+          belt: true,
+          level: true,
+          stripes: true,
+          avatar: true
+        }
+      });
+
+      // 2. Fetch cosmetic frames currently equipped (batch request)
+      const userIds = queryUsers.map((u) => u.id);
+      const equippedItems = await (prisma.inventoryItem as any).findMany({
+        where: {
+          inventory: {
+            userId: { in: userIds }
+          },
+          isEquipped: true,
+          product: {
+            category: "FRAME"
+          }
+        },
+        include: {
+          inventory: true,
+          product: true
+        }
+      });
+
+      const frameMap = new Map<string, any>();
+      equippedItems.forEach((item: any) => {
+        if (item.inventory?.userId) {
+          frameMap.set(item.inventory.userId, {
+            id: item.product?.id || item.id,
+            name: item.name,
+            rarity: item.product?.rarity || item.rarity,
+            description: item.description,
+            imageUrl: item.product?.imageUrl || item.imageUrl
+          });
+        }
+      });
+
+      // 3. If type is "mensal" or "semanal", fetch recent match historical outcomes to compute performance
+      const recentEloGains = new Map<string, number>();
+      if (type === "mensal" || type === "semanal") {
+        const daysLimit = type === "semanal" ? 7 : 30;
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysLimit);
+
+        const recentMatches = await prisma.pvpMatch.findMany({
+          where: {
+            status: "COMPLETED",
+            createdAt: { gte: startDate }
+          },
+          select: {
+            challengerId: true,
+            defenderId: true,
+            winnerId: true,
+            eloChangeChallenger: true,
+            eloChangeDefender: true
+          }
+        });
+
+        recentMatches.forEach((m) => {
+          if (m.winnerId) {
+            // challenger gain
+            const chGain = m.eloChangeChallenger ? Math.max(0, m.eloChangeChallenger) : 0;
+            const defGain = m.eloChangeDefender ? Math.max(0, m.eloChangeDefender) : 0;
+
+            recentEloGains.set(m.challengerId, (recentEloGains.get(m.challengerId) || 0) + chGain);
+            recentEloGains.set(m.defenderId, (recentEloGains.get(m.defenderId) || 0) + defGain);
+          }
+        });
+      }
+
+      // Map users to display objects with pre-calculated custom metrics
+      let list = queryUsers.map((u) => {
+        const beltStr = String(u.belt).toUpperCase();
+        const baseScore = calculateRankScore(u.elo, u.level, u.stripes);
+        const region = getUserRegion(u.id);
+        const equippedFrame = frameMap.get(u.id) || null;
+
+        // Custom scoring rules as per tier instruction
+        let finalScore = baseScore;
+        if (type === "semanal" || type === "mensal") {
+          // Dynamic calculation: historical activity + 5% background base tie-breaker
+          const recentGains = recentEloGains.get(u.id) || 0;
+          finalScore = (recentGains * 2) + (baseScore * 0.05);
+        }
+
+        return {
+          id: u.id,
+          name: u.name,
+          elo: u.elo,
+          belt: u.belt,
+          level: u.level,
+          stripes: u.stripes,
+          score: Math.round(finalScore * 10) / 10,
+          region,
+          avatar: u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`,
+          equippedFrame
+        };
+      });
+
+      // 4. Implement Filtering for Regional Ranking
+      if (type === "regional") {
+        if (targetRegion) {
+          list = list.filter((u) => u.region.toLowerCase() === targetRegion.toLowerCase());
+        }
+      }
+
+      // 5. Apply the professional Olympic / BJJ Heroes sorting priority:
+      // - Belt Rank Priority desc (Black -> Brown -> Purple -> Blue -> White)
+      // - Computed Score desc
+      // - Base ELO desc
+      list.sort((a, b) => {
+        const priorityA = BELT_PRIORITY[String(a.belt).toUpperCase()] || 0;
+        const priorityB = BELT_PRIORITY[String(b.belt).toUpperCase()] || 0;
+
+        if (priorityB !== priorityA) {
+          return priorityB - priorityA; // Highest belt priority first
+        }
+        if (b.score !== a.score) {
+          return b.score - a.score; // Highest custom score first
+        }
+        return b.elo - a.elo; // Tie breaker on base ELO
+      });
+
+      // Attach overall position ranks
+      list = list.map((item, idx) => ({
+        ...item,
+        rankIndex: idx + 1
+      }));
+
+      const totalCount = list.length;
+      const paginatedList = list.slice(skip, skip + take);
+
+      return { list: paginatedList, totalCount };
+    } catch (err) {
+      console.error("Critical error in getLeaderboardData engine:", err);
+      return { list: [], totalCount: 0 };
+    }
   }
 }

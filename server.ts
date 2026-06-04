@@ -11,10 +11,11 @@ import http from "http";
 import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
 import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts } from "./server/authStore";
-import { AuthService, generateAccessToken, generateRefreshToken } from "./server/authService";
+import { AuthService, generateAccessToken, generateRefreshToken, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
+import { RankingService } from "./server/pvp/ranking";
 import { getPrisma, assertDatabaseConnection } from "./server/db";
 import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
@@ -28,6 +29,9 @@ const PORT = 3000;
 // Enable Gzip compression
 app.use(compression());
 
+// Parse JSON request bodies early so subsequent middlewares (like input sanitization) can preview request data
+app.use(express.json({ limit: "5mb" }));
+
 // Security & Sandbox Hardening Middlewares with strict production constraints
 const allowedOrigins = [
   "https://www.jiuspeak.com.br",
@@ -36,20 +40,35 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin: any, callback: any) => {
-    // Allow non-production or local or same-origin direct clients
-    if (!origin || process.env.NODE_ENV !== "production") {
-      return callback(null, true);
-    }
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin) return callback(null, true);
+    
+    const isAllowed = 
+      allowedOrigins.includes(origin) ||
+      origin.startsWith("http://localhost:") ||
+      origin.startsWith("http://127.0.0.1:") ||
+      /\.(google\.com|run\.app)$/.test(origin);
+
+    if (isAllowed) {
       return callback(null, true);
     }
     return callback(new Error("Acesso bloqueado por diretrizes de CORS seguro de produção."));
   },
-  credentials: true
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"]
 }));
 
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:", "http:"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      connectSrc: ["'self'", "https:", "http:", "ws:", "wss:"],
+      frameAncestors: ["'self'", "https://ai.studio", "https://*.google.com", "https://*.run.app"],
+    },
+  },
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
@@ -81,12 +100,60 @@ app.use((req: any, res: any, next: any) => {
   next();
 });
 
+// Advanced Cryptographic Anti-CSRF Protection Engine
+const CSRF_SECRET = crypto.randomBytes(32).toString("hex");
+
+function generateCsrfToken(): string {
+  const salt = crypto.randomBytes(8).toString("hex");
+  const hash = crypto.createHmac("sha256", CSRF_SECRET).update(salt).digest("hex");
+  return `${salt}.${hash}`;
+}
+
+function verifyCsrfToken(token: any): boolean {
+  if (!token || typeof token !== "string") return false;
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+  const [salt, hash] = parts;
+  const expectedHash = crypto.createHmac("sha256", CSRF_SECRET).update(salt).digest("hex");
+  return hash === expectedHash;
+}
+
+function csrfProtection(req: any, res: any, next: any) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return next();
+  }
+  
+  // Custom API requests sending Bearer Authorization are naturally immune to CSRF
+  const authHeader = req.headers["authorization"];
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return next();
+  }
+
+  const csrfHeader = req.headers["x-csrf-token"];
+  if (csrfHeader && verifyCsrfToken(csrfHeader)) {
+    return next();
+  }
+
+  return res.status(403).json({ error: "Falha de segurança: Assinatura Anti-CSRF inválida ou ausente nos cabeçalhos da requisição." });
+}
+
+// Global CSRF protection middleware registered before other routes
+app.use(csrfProtection);
+
+// Expose secure endpoint to pull updated CSRF token on boot/refresh
+app.get("/api/security/csrf", (req: any, res: any) => {
+  res.json({ csrfToken: generateCsrfToken() });
+});
+
 const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 300, 
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Muitas requisições. Rate limit ativado para segurança!" }
+  message: { error: "Muitas requisições. Rate limit ativado para segurança!" },
+  keyGenerator: (req: any) => {
+    return req.ip || req.headers["x-forwarded-for"]?.toString() || req.socket.remoteAddress || "anonymous";
+  }
 });
 app.use("/api/", apiRateLimiter);
 
@@ -96,15 +163,15 @@ const authRateLimiter = rateLimit({
   max: 30, // Max 30 attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Tentativas de autenticação excessivas detectadas. Favor aguardar 15 minutos!" }
+  message: { error: "Tentativas de autenticação excessivas detectadas. Favor aguardar 15 minutos!" },
+  keyGenerator: (req: any) => {
+    return req.ip || req.headers["x-forwarded-for"]?.toString() || req.socket.remoteAddress || "anonymous";
+  }
 });
 app.use("/api/auth/register", authRateLimiter);
 app.use("/api/auth/login", authRateLimiter);
 app.use("/api/auth/forgot-password", authRateLimiter);
 app.use("/api/auth/reset-password", authRateLimiter);
-
-// Middleware
-app.use(express.json());
 
 // Global Auditing Middleware
 app.use((req: any, res: any, next: any) => {
@@ -306,20 +373,7 @@ app.use((req: any, res: any, next: any) => {
   next();
 });
 
-const DEFAULT_JWT_SECRET = "super-secret-access-token-key-2026";
-const DEFAULT_JWT_REFRESH_SECRET = "super-secret-refresh-token-key-2026-999";
-
-const JWT_ACCESS_SECRET = (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET)
-  ? (process.env.NODE_ENV === "production" 
-      ? crypto.randomBytes(32).toString("hex") 
-      : DEFAULT_JWT_SECRET)
-  : process.env.JWT_SECRET;
-
-const JWT_REFRESH_SECRET = (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET)
-  ? (process.env.NODE_ENV === "production" 
-      ? crypto.randomBytes(32).toString("hex") 
-      : DEFAULT_JWT_REFRESH_SECRET)
-  : process.env.JWT_REFRESH_SECRET;
+// JWT Secrets imported from AuthService are utilized here for enterprise-scale unified sessions.
 
 // =========================================================================
 // IN-MEMORY DATA CACHES & CATALOG FOR INTERNAL MARKETPLACE
@@ -1513,89 +1567,14 @@ app.get("/api/admin/pix", authenticateToken, requireRole(["ADMIN"]), async (req:
   }
 });
 
-// 17. MANUALLY SET PIX TRANSACTION PAYMENT AS PAID OR EXPIRED
+// 17. MANUALLY SET PIX TRANSACTION PAYMENT AS PAID OR EXPIRED (MANUAL APPROVAL REMOVED/DISABLED BY SECURITY POLICY)
 app.post("/api/admin/pix/:id/action", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
-    const { id } = req.params; // this can be either id or txid
-    const { action } = req.body; // APPROVE or EXPIRE
-
-    if (action !== "APPROVE" && action !== "EXPIRE") {
-      return res.status(400).json({ error: "Ação de depósitos PIX inválida. Opte por APPROVE ou EXPIRE." });
-    }
-
-    // Let's call our existing internal webhook processing block to sync wallets correctly!
-    // We already have a "/api/finance/pix-webhook" which has robust logic for crediting wallets and updating DBs.
-    // Let's perform a redirection or call our business rules on the same script dynamically!
-    let txidToUse = id;
-    
-    // Find the txid from in memory or DB first if we were passed a simpler id
-    const matchedPayment = inMemoryPixPayments.find(p => p.txid === id || p.id === id);
-    if (matchedPayment) {
-      txidToUse = matchedPayment.txid;
-    }
-
-    if (action === "APPROVE") {
-      // Trigger simulating payment processing webhook!
-      const webhookCallbackUrl = `/api/finance/pix-webhook`;
-      // Direct execute: Simulate payment notification from BACEN
-      try {
-        const host = req.get('host');
-        await fetch(`http://${host || 'localhost:3000'}/api/finance/pix-webhook`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event: "pix.received",
-            pix: [
-              {
-                txid: txidToUse,
-                valor: matchedPayment ? matchedPayment.amountBRL : 100.00,
-                horario: new Date().toISOString()
-              }
-            ]
-          })
-        });
-      } catch (localHookErr) {
-        // Fallback manually updating memory databases if fetch fails
-        console.warn("Direct webhook callback failed, resolving fallback update:", localHookErr);
-        const idx = inMemoryPixPayments.findIndex(p => p.txid === txidToUse);
-        if (idx !== -1) {
-          inMemoryPixPayments[idx].status = "COMPLETED";
-          inMemoryPixPayments[idx].paidAt = new Date().toISOString();
-          
-          // Credit user coins manually!
-          const uId = inMemoryPixPayments[idx].userId;
-          const uObj = inMemoryUsers.get(uId);
-          if (uObj) {
-            uObj.balanceAvailableBRL = Number(uObj.balanceAvailableBRL || 0) + Number(inMemoryPixPayments[idx].amountBRL);
-            uObj.coins = Number(uObj.coins || 0) + Math.round(Number(inMemoryPixPayments[idx].amountBRL) * 1.5);
-            await authStore.updateUser(uId, {
-              balanceAvailableBRL: uObj.balanceAvailableBRL,
-              coins: uObj.coins
-            });
-          }
-        }
-      }
-    } else {
-      // Expire transaction
-      const idx = inMemoryPixPayments.findIndex(p => p.txid === txidToUse);
-      if (idx !== -1) {
-        inMemoryPixPayments[idx].status = "EXPIRED";
-      }
-      
-      const prisma = getPrisma();
-      if (prisma) {
-        try {
-          await prisma.pixPayment.update({
-            where: { txid: txidToUse },
-            data: { status: "EXPIRED" }
-          });
-        } catch (_) {}
-      }
-    }
-
-    res.json({ success: true, message: `Status do PIX administrativamente alterado para ${action === "APPROVE" ? "Pago (Aprovado)" : "Expirado"}` });
+    return res.status(403).json({ 
+      error: "Aprovação manual de PIX desabilitada por motivos de segurança e integridade financeira corporativa. A confirmação ocorre exclusivamente de forma totalmente automatizada via Webhook oficial." 
+    });
   } catch (error) {
-    res.status(500).json({ error: "Erro ao modificar conciliação de PIX." });
+    res.status(500).json({ error: "Erro ao tentar processar conciliação." });
   }
 });
 
@@ -1790,78 +1769,15 @@ app.post("/api/admin/reports/:id/action", authenticateToken, requireRole(["ADMIN
 app.get("/api/pvp/leaderboard", async (req: any, res: any) => {
   try {
     const { skip, take, page, limit } = parsePagination(req.query, 10, 50);
-    const cacheKey = `pvp:leaderboard:p_${page}_sz_${limit}`;
+    const type = (req.query.type || "global") as "global" | "regional" | "mensal" | "semanal";
+    const region = req.query.region ? String(req.query.region).trim() : undefined;
+
+    // Utilize optimized caching to support enterprise scale
+    const cacheKey = `pvp:leaderboard:v2_${type}_reg_${region || "all"}_p_${page}_sz_${limit}`;
 
     const result = await getCached(cacheKey, async () => {
-      const list: any[] = [];
-      const prisma = getPrisma();
-      let totalCount = 10;
-
-      if (prisma) {
-        try {
-          totalCount = await prisma.user.count();
-          const queryUsers = await prisma.user.findMany({
-            orderBy: { elo: "desc" },
-            skip,
-            take,
-            select: {
-              id: true,
-              name: true,
-              elo: true,
-              belt: true,
-              level: true,
-              avatar: true
-            }
-          });
-
-          const userIds = queryUsers.map((u: any) => u.id);
-          const equippedItems = await (prisma.inventoryItem as any).findMany({
-            where: {
-              inventory: {
-                userId: { in: userIds }
-              },
-              isEquipped: true,
-              product: {
-                category: "FRAME"
-              }
-            },
-            include: {
-              inventory: true,
-              product: true
-            }
-          });
-
-          const frameMap = new Map<string, any>();
-          equippedItems.forEach((item: any) => {
-            if (item.inventory?.userId) {
-              frameMap.set(item.inventory.userId, {
-                id: item.product?.id || item.id,
-                name: item.name,
-                rarity: item.product?.rarity || item.rarity,
-                description: item.description,
-                imageUrl: item.product?.imageUrl || item.imageUrl
-              });
-            }
-          });
-
-          queryUsers.forEach((u: any) => {
-            const equippedFrame = frameMap.get(u.id) || null;
-            list.push({
-              id: u.id,
-              name: u.name,
-              elo: u.elo,
-              belt: u.belt,
-              level: u.level,
-              avatar: u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(u.name)}`,
-              equippedFrame
-            });
-          });
-        } catch (err) {
-          console.error("Failed to query prisma leaderboard:", err);
-        }
-      }
-      return { list, totalCount };
-    }, 30); // Cache for 30s as leaderboard needs to be semi-realtime but heavily requested.
+      return await RankingService.getLeaderboardData(type, region, skip, take);
+    }, 15); // Cache for 15s to be semi real-time yet highly efficient.
 
     res.json({ 
       leaderboard: result.list,
@@ -1873,6 +1789,7 @@ app.get("/api/pvp/leaderboard", async (req: any, res: any) => {
       }
     });
   } catch (error: any) {
+    console.error("Error fetching leaderboard data:", error);
     res.status(500).json({ error: "Falha ao coletar dados do ranking PvP." });
   }
 });
@@ -2236,6 +2153,29 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
 
     const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
 
+    // ---------------- ANTI-FRAUD VALIDATION 0: Fixed Bank Details check (Requirement 3) ----------------
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        const existingBankAccount = await prisma.bankAccount.findFirst({ where: { userId: user.id! } });
+        if (existingBankAccount) {
+          if (pixKey && existingBankAccount.pixKey && pixKey !== existingBankAccount.pixKey) {
+            return res.status(403).json({ 
+              error: "Por razões de segurança e em observância às normas de integridade bancária, nenhum usuário pode alterar os dados bancários/pix registrados por conta própria." 
+            });
+          }
+        }
+      } catch (dbExErr) {}
+    }
+    const priorInMemWithdrawal = inMemoryWithdrawals.find(w => w.userId === user.id!);
+    if (priorInMemWithdrawal) {
+      if (pixKey && priorInMemWithdrawal.pixKey && priorInMemWithdrawal.pixKey !== pixKey) {
+        return res.status(403).json({ 
+          error: "Por razões de segurança e em observância às normas de integridade bancária, nenhum usuário pode alterar os dados bancários/pix registrados por conta própria." 
+        });
+      }
+    }
+
     // ---------------- ANTI-FRAUD VALIDATION 1: Minimum & Maximum boundaries ----------------
     const MIN_WITHDRAW = 10.00;
     const MAX_WITHDRAW = 5000.00;
@@ -2260,7 +2200,6 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
     
     // Attempt DB matching as well
     let hasDbPending = false;
-    const prisma = getPrisma();
     if (prisma) {
       try {
         const dbPending = await prisma.withdrawal.findFirst({
@@ -3058,7 +2997,7 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
 
     // Generate random Pix specs for paid plans
     const txid = "tx_sub_" + Math.random().toString(36).substring(2, 10) + Date.now();
-    const qrText = `00020126580014BR.GOV.BCB.PIX0136e0886bd6-8aab-4bef-811c-a1c2293816jiuspeakqrcodepixprod52040000530398654054${price.toFixed(2)}5802BR5925JiuSpeak%20Saas%20Gamificado6009SAO%20PAULO62070503***6304ED24`;
+    const { qrCodeCopyPaste: qrText } = generatePixCopyPaste(txid, price);
     
     let subId = "sub_" + Math.random().toString(36).substring(2, 10);
     let paymentId = "sp_" + Math.random().toString(36).substring(2, 10);
@@ -3142,122 +3081,111 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
   }
 });
 
-// 4. APPROVE/PAY FOR A SUBSCRIPTION (SIMULATING PAYMENT SETTLEMENT)
+// 4. APPROVE/PAY FOR A SUBSCRIPTION (SIMULATING PAYMENT SETTLEMENT - THROUGH WEBHOOK SECURE WRAPPER ROUTE)
 app.post("/api/subscriptions/pay", authenticateToken, async (req: any, res: any) => {
   try {
     const { paymentId, txid } = req.body;
     const userId = req.user.id;
     const prisma = getPrisma();
 
+    let resolvedTxid = txid;
+    let resolvedAmount = 29.90; // Default subscription rate
+
+    // Look up the actual record to get the registered TXID and amount
     if (prisma) {
       try {
-        let payment = await prisma.subscriptionPayment.findFirst({
+        const payment = await prisma.subscriptionPayment.findFirst({
           where: {
             OR: [
-              { id: paymentId },
-              { txid }
+              { id: paymentId || "nonexistent" },
+              { txid: txid || "nonexistent" }
             ]
-          },
-          include: { subscription: true }
-        });
-
-        if (payment) {
-          if (payment.status === "COMPLETED") {
-            return res.json({ success: true, message: "Pagamento já foi processado anteriormente." });
           }
-
-          // Deactivate prior subscriptions
-          await prisma.subscription.updateMany({
-            where: { userId, status: "ACTIVE" },
-            data: { status: "CANCELED", canceledAt: new Date() }
-          });
-
-          // Confirm active
-          await prisma.subscriptionPayment.update({
-            where: { id: payment.id },
-            data: { status: "COMPLETED", paidAt: new Date() }
-          });
-
-          const sub = await prisma.subscription.update({
-            where: { id: payment.subscriptionId },
-            data: {
-              status: "ACTIVE",
-              startDate: new Date(),
-              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            },
-            include: { plan: true }
-          });
-
-          // Audit log
-          await prisma.auditLog.create({
-            data: {
-              actorId: userId,
-              action: "PIX_DEPOSIT",
-              description: `Assinatura de SaaS: Pagamento do plano "${sub.plan.name}" compensado. Assinatura ativa!`,
-              amountBRL: payment.amountBRL
-            }
-          });
-
-          logPayment("SUB_CREATE", Number(payment.amountBRL), userId, { planName: sub.plan.name, subId: sub.id, paymentId: payment.id, txid: payment.txid });
-
-          return res.json({
-            success: true,
-            message: `Pagamento recebido! Obrigado por assinar o JiuSpeak ${sub.plan.name}!`,
-            activeSubscription: {
-              type: sub.plan.name,
-              expiresAt: sub.endDate.toISOString(),
-              priceBRL: Number(sub.plan.priceBRL),
-              autoRenew: true
-            }
-          });
+        });
+        if (payment) {
+          resolvedTxid = payment.txid;
+          resolvedAmount = Number(payment.amountBRL);
         }
-      } catch (err) {
-        console.warn("DB pay simulation error:", err);
+      } catch (_) {}
+    }
+
+    if (!resolvedTxid) {
+      const memPayment = inMemorySubscriptionPayments.find(p => p.id === paymentId || p.txid === txid);
+      if (memPayment) {
+        resolvedTxid = memPayment.txid;
+        resolvedAmount = Number(memPayment.amountBRL);
       }
     }
 
-    // Memory fallback find
-    const memPayment = inMemorySubscriptionPayments.find(p => p.id === paymentId || p.txid === txid);
-    if (memPayment) {
-      if (memPayment.status === "COMPLETED") {
-        return res.json({ success: true, message: "Pagamento já foi processado anteriormente." });
-      }
+    if (!resolvedTxid) {
+      return res.status(404).json({ error: "Ordem de pagamento de assinatura não encontrada para conciliação." });
+    }
 
-      memPayment.status = "COMPLETED";
-      memPayment.paidAt = new Date().toISOString();
+    // Force call the webhook simulation of payment received!
+    // Since this is called from the UI, we emulate the Banco central webhook request structure.
+    // This goes through 100% of the PIX webhook validations, anti-fraud checks, and logs.
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+    
+    // We emulate calling the `/api/finance/pix-webhook` logics internally on this same application
+    const webhookPayload = {
+      txid: resolvedTxid,
+      amountBRL: resolvedAmount,
+      status: "approved"
+    };
 
-      // Deactivate other sub
-      inMemorySubscriptions = inMemorySubscriptions.map(s => s.userId === userId && s.status === "ACTIVE" ? { ...s, status: "CANCELED", canceledAt: new Date().toISOString() } : s);
+    // Run the webhook flow by calling /api/finance/pix-webhook cleanly via fetch
+    try {
+      const host = req.get('host') || 'localhost:3000';
+      const response = await fetch(`http://${host}/api/finance/pix-webhook`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Forwarded-For": clientIp
+        },
+        body: JSON.stringify(webhookPayload)
+      });
+      
+      const data = await response.json();
+      if (response.ok && data.success) {
+        // Fetch newly activated subscription details to respond nicely to the frontend
+        let activeSubInfo: any = {
+          type: "VIP",
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          priceBRL: resolvedAmount,
+          autoRenew: true
+        };
 
-      // Active
-      const linkedSub = inMemorySubscriptions.find(s => s.id === memPayment.subscriptionId);
-      if (linkedSub) {
-        linkedSub.status = "ACTIVE";
-        linkedSub.startDate = new Date().toISOString();
-        linkedSub.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        linkedSub.autoRenew = true;
+        if (prisma) {
+          try {
+            const currentSub = await prisma.subscription.findFirst({
+              where: { userId, status: "ACTIVE" },
+              include: { plan: true }
+            });
+            if (currentSub) {
+              activeSubInfo = {
+                type: currentSub.plan.name,
+                expiresAt: currentSub.endDate.toISOString(),
+                priceBRL: Number(currentSub.plan.priceBRL),
+                autoRenew: true
+              };
+            }
+          } catch (_) {}
+        }
 
-        const plan = inMemoryPlans.find(p => p.id === linkedSub.planId);
-        const pAmount = plan ? Number(plan.priceBRL) : 29.9;
-        logPayment("SUB_CREATE", pAmount, userId, { planName: plan ? plan.name : "PRO", subId: linkedSub.id, memory: true });
-        
         return res.json({
           success: true,
-          message: `Pagamento recebido! Obrigado por assinar o JiuSpeak ${plan ? plan.name : "Premium"}!`,
-          activeSubscription: {
-            type: plan ? plan.name : "PRO",
-            expiresAt: linkedSub.endDate,
-            priceBRL: pAmount,
-            autoRenew: true
-          }
+          message: `O pagamento PIX de R$ ${resolvedAmount.toFixed(2)} foi processado e auditado automatizado! Sua assinatura está ativa.`,
+          activeSubscription: activeSubInfo
         });
+      } else {
+        return res.status(response.status).json({ error: data.error || "A validação automatizada de webhook rejeitou este pagamento." });
       }
+    } catch (fetchErr) {
+      return res.status(500).json({ error: "Erro na conciliação automatizada de webhook." });
     }
-
-    res.status(404).json({ error: "Ordem de pagamento de assinatura não encontrada." });
   } catch (error: any) {
     logError("Payment subscription confirm error", error);
-    res.status(500).json({ error: "Erro ao processar processamento lógico do PIX." });
+    res.status(500).json({ error: "Erro ao conciliar faturamento de assinatura por webhook." });
   }
 });
 
@@ -3495,6 +3423,21 @@ app.get("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
   }
 });
 
+// HELPER FUNCTION: GENERATE CENTRAL PIX COPY & PASTE (REQUIRES CONFIGURATION AND FORWARDS VALUE ONLY TO CENTRAL PIX KEY OF CENTRAL ADMINISTRATOR)
+function generatePixCopyPaste(txid: string, amount: number): { qrCodeCopyPaste: string; qrcodeBase64: string } {
+  const key = process.env.MASTER_PIX_KEY || "admin@jiuspeak.com.br";
+  const name = process.env.MASTER_PIX_NAME || "Mestres do Jiu-Jitsu LTDA";
+  const bank = process.env.MASTER_BANK || "Banco do Brasil S.A.";
+
+  const cleanKey = key.replace(/[^a-zA-Z0-9@.-]/g, "");
+  const cleanName = encodeURIComponent(name.slice(0, 25));
+
+  const qrCodeCopyPaste = `00020101021226${cleanKey.length + 18}0014br.gov.bcb.pix25${cleanKey.length + 2}${cleanKey}5204000053039865405${amount.toFixed(2).replace('.', '')}5802BR59${cleanName.length.toString().padStart(2, '0')}${cleanName}6009SAO%20PAULO62070503${txid.slice(0, 10)}6304`;
+  const qrcodeBase64 = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeCopyPaste)}`;
+  
+  return { qrCodeCopyPaste, qrcodeBase64 };
+}
+
 // 2. CREATE a new PIX payment
 app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
   try {
@@ -3510,15 +3453,14 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
     const txid = `TXIDPIX${Math.random().toString(36).substring(2, 11).toUpperCase()}${Date.now().toString().slice(-4)}`;
-    const qrCodeMock = `00020101021226830014br.gov.bcb.pix2561api.jiuspeak.com/pix/v2/${txid}5204000053039865405${value.toFixed(2).replace('.', '')}5802BR5915JiuSpeak%20SaaS6009Sao%2520Paulo62070503${txid.slice(0, 10)}6304`;
-    const qrCodeBase64 = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeMock)}`;
+    const { qrCodeCopyPaste, qrcodeBase64 } = generatePixCopyPaste(txid, value);
 
     const responsePayload = {
       txid,
       amountBRL: value,
       status: "PENDING",
-      qrCode: qrCodeBase64,
-      qrCodeCopyPaste: qrCodeMock,
+      qrCode: qrcodeBase64,
+      qrCodeCopyPaste: qrCodeCopyPaste,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       paidAt: null,
@@ -3597,22 +3539,29 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
   }
 });
 
-// 3. PIX WEBHOOK Simulation
+// 3. PIX WEBHOOK endpoint (Strict validation of TXID, Value, and Logs)
 app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
   try {
-    const { txid, status } = req.body;
+    const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+    
+    // Extract txid and incoming payment status
+    // Supports both simple schema and BACEN webhook array wrapping
+    const txid = req.body.txid || req.body.pix?.[0]?.txid;
+    const status = req.body.status || (req.body.event === "pix.received" ? "approved" : "pending");
+
     if (!txid) {
       return res.status(400).json({ error: "O parâmetro txid é obrigatório para identificação." });
     }
 
+    const prisma = getPrisma();
+
+    // 1. REJECT STATUSES OTHER THAN APPROVED (EXPIRED, CANCELED, ETC.)
     if (status !== "approved") {
-      // Just flag as expired/refused in memory
       const idx = inMemoryPixPayments.findIndex(p => p.txid === txid);
       if (idx !== -1) {
         inMemoryPixPayments[idx].status = "EXPIRED";
       }
 
-      const prisma = getPrisma();
       if (prisma) {
         try {
           const pp = await prisma.pixPayment.findUnique({ where: { txid } });
@@ -3628,165 +3577,312 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
           }
         } catch (dbErr) {}
       }
-
       return res.json({ message: "Webhook recebido: Pagamento PIX marcado como cancelado/expirado." });
     }
 
-    // Step A. Query/update in memory
-    const inMemIdx = inMemoryPixPayments.findIndex(p => p.txid === txid);
-    let mockUserObj: any = null;
-    let paymentAmount = 0;
-    let paymentType = "DEPOSIT";
+    // 2. DISCOVER REGISTERED PAYMENT SPECS (DB AND MEMORY INBOUND CHANNELS)
+    let dbPixPayment: any = null;
+    let dbSubPayment: any = null;
 
-    if (inMemIdx !== -1) {
-      if (inMemoryPixPayments[inMemIdx].status === "COMPLETED") {
-        return res.json({ message: "Aviso: Este pagamento PIX já havia sido processado e creditado anteriormente (Idempotência)." });
-      }
-      inMemoryPixPayments[inMemIdx].status = "COMPLETED";
-      inMemoryPixPayments[inMemIdx].paidAt = new Date().toISOString();
-      paymentAmount = inMemoryPixPayments[inMemIdx].amountBRL;
-      paymentType = inMemoryPixPayments[inMemIdx].type;
-      mockUserObj = await authStore.findById(inMemoryPixPayments[inMemIdx].userId);
-    }
-
-    let isDbProcessed = false;
-
-    // Step B. Query/update Database
-    const prisma = getPrisma();
     if (prisma) {
       try {
-        const pixPayment = await prisma.pixPayment.findUnique({
+        dbPixPayment = await prisma.pixPayment.findUnique({
           where: { txid },
           include: { transaction: { include: { wallet: true } } }
         });
-
-        if (pixPayment) {
-          paymentAmount = Number(pixPayment.amountBRL);
-          paymentType = pixPayment.transaction.type;
-          const userWallet = pixPayment.transaction.wallet;
-          const userId = userWallet.userId;
-
-          if (pixPayment.status === "COMPLETED") {
-            return res.json({ message: "Aviso: Este pagamento PIX já se encontra liquidado no Banco de Dados (Idempotência)." });
-          }
-
-          // DB execution under confirmation check:
-          // Update PixPayment status to COMPLETED
-          await prisma.pixPayment.update({
-            where: { id: pixPayment.id },
-            data: { 
-              status: "COMPLETED",
-              paidAt: new Date()
-            }
+        if (!dbPixPayment) {
+          dbSubPayment = await prisma.subscriptionPayment.findFirst({
+            where: { txid },
+            include: { subscription: true }
           });
-
-          // Update Transaction status to COMPLETED
-          await prisma.transaction.update({
-            where: { id: pixPayment.transactionId },
-            data: { status: "COMPLETED" }
-          });
-
-          // Fetch the current user profile state
-          const u = await authStore.findById(userId);
-          if (u) {
-            let nextAvailable = u.balanceAvailableBRL ?? 0;
-            let nextPending = u.balancePendingBRL ?? 0;
-            let nextEarned = u.totalEarnedBRL ?? 0;
-
-            if (paymentType === "MARKETPLACE_SELL") {
-              const prevPending = Number(userWallet.balancePending);
-              const prevEarned = Number(userWallet.totalEarned);
-              
-              nextPending = Number((prevPending + paymentAmount).toFixed(2));
-              nextEarned = Number((prevEarned + paymentAmount).toFixed(2));
-
-              // Never calculate balance dynamically by query! Increment column values directly!
-              await prisma.wallet.update({
-                where: { id: userWallet.id },
-                data: {
-                  balancePending: nextPending,
-                  totalEarned: nextEarned
-                }
-              });
-            } else {
-              const prevAvailable = Number(userWallet.balanceAvailable);
-              nextAvailable = Number((prevAvailable + paymentAmount).toFixed(2));
-
-              await prisma.wallet.update({
-                where: { id: userWallet.id },
-                data: {
-                  balanceAvailable: nextAvailable,
-                  balanceBRL: nextAvailable // keep legacy balance in sync
-                }
-              });
-            }
-
-            // Sync authStore state too
-            await authStore.updateUser(userId, {
-              balanceAvailableBRL: nextAvailable,
-              balancePendingBRL: nextPending,
-              totalEarnedBRL: nextEarned,
-            });
-
-            mockUserObj = u;
-          }
-
-          // Generate confirming entries of AuditLog table
-          await prisma.auditLog.create({
-            data: {
-              actorId: userId,
-              action: "PIX_DEPOSIT",
-              description: `PIX Webhook Confirmado [Sucesso]: Recebido retorno do banco parceiro. Transação ${txid} processada com sucesso no valor de R$ ${paymentAmount.toFixed(2)}. Saldo creditado e consolidado na carteira física.`,
-              amountBRL: paymentAmount
-            }
-          });
-
-          isDbProcessed = true;
         }
-      } catch (dbErr) {
-        console.warn("DB update failure inside Webhook process. Relying on fallback:", dbErr);
+      } catch (e) {
+        console.warn("Prisma search for webhook txid error:", e);
       }
     }
 
-    // Step C: Fallback updates if db layer did not fully process it but we have in-memory users
-    if (!isDbProcessed && mockUserObj) {
-      let nextAvailable = mockUserObj.balanceAvailableBRL ?? 0;
-      let nextPending = mockUserObj.balancePendingBRL ?? 0;
-      let nextEarned = mockUserObj.totalEarnedBRL ?? 0;
+    const memPixPayment = inMemoryPixPayments.find(p => p.txid === txid);
+    const memSubPayment = inMemorySubscriptionPayments.find(p => p.txid === txid);
 
-      if (paymentType === "MARKETPLACE_SELL") {
-        nextPending = Number((nextPending + paymentAmount).toFixed(2));
-        nextEarned = Number((nextEarned + paymentAmount).toFixed(2));
-      } else {
-        nextAvailable = Number((nextAvailable + paymentAmount).toFixed(2));
+    // 3. VALIDATE TXID (Requirement 7)
+    if (!dbPixPayment && !dbSubPayment && !memPixPayment && !memSubPayment) {
+      const logMsg = `REJEITADO - TXID INCORRETO: Tentativa de conciliação do TXID inexistente: ${txid} vindo do IP: ${clientIp}.`;
+      console.warn(logMsg);
+      
+      if (prisma) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: null,
+            action: "PIX_DEPOSIT",
+            description: `ALERTA FINANCEIRO: Tentativa de simular webhook bancário com TXID inexistente no ecossistema: "${txid}". IP Origem: ${clientIp}. Rejeitado.`,
+            ipAddress: clientIp,
+            userAgent: req.headers["user-agent"]
+          }
+        }).catch(() => {});
+      }
+      return res.status(404).json({ error: "Chave de transação PIX (TXID) não encontrada no ecossistema." });
+    }
+
+    // Determine expected/registered billing value
+    let registeredAmount = 0;
+    let paymentType = "DEPOSIT"; // DEPOSIT, MARKETPLACE_SELL or SUBSCRIPTION
+    let targetUserId = "system";
+
+    if (dbPixPayment) {
+      registeredAmount = Number(dbPixPayment.amountBRL);
+      paymentType = dbPixPayment.transaction.type;
+      targetUserId = dbPixPayment.transaction.wallet.userId;
+    } else if (dbSubPayment) {
+      registeredAmount = Number(dbSubPayment.amountBRL);
+      paymentType = "SUBSCRIPTION";
+      targetUserId = dbSubPayment.subscription.userId;
+    } else if (memPixPayment) {
+      registeredAmount = Number(memPixPayment.amountBRL);
+      paymentType = memPixPayment.type;
+      targetUserId = memPixPayment.userId;
+    } else if (memSubPayment) {
+      registeredAmount = Number(memSubPayment.amountBRL);
+      paymentType = "SUBSCRIPTION";
+      const matchingSub = inMemorySubscriptions.find(s => s.id === memSubPayment.subscriptionId);
+      if (matchingSub) targetUserId = matchingSub.userId;
+    }
+
+    // 4. VALIDATE RECEIVED VALUE (Requirement 6)
+    const receivedVal = parseFloat(req.body.amountBRL || req.body.amount || req.body.valor || req.body.pix?.[0]?.valor);
+    if (isNaN(receivedVal) || receivedVal <= 0) {
+      const logMsg = `REJEITADO - VALOR EMBUTIDO INVÁLIDO: Webhook para TXID ${txid} sem valor numérico de pagamento. Recebido: ${receivedVal}`;
+      console.warn(logMsg);
+      
+      if (prisma) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: targetUserId !== "system" ? targetUserId : null,
+            action: "PIX_DEPOSIT",
+            description: `ALERTA FINANCEIRO: Webhook bancário recebido com valor inválido ou ausente para TXID ${txid}. Origem IP: ${clientIp}.`,
+            ipAddress: clientIp,
+            userAgent: req.headers["user-agent"]
+          }
+        }).catch(() => {});
+      }
+      return res.status(400).json({ error: "O valor de pagamento PIX transmitido pelo Webhook é inválido ou ausente." });
+    }
+
+    if (Math.abs(receivedVal - registeredAmount) > 0.01) {
+      const logMsg = `REJEITADO - DIVERGÊNCIA DE VALORES DETECTADA: Webhook para TXID ${txid}. Esperado R$ ${registeredAmount.toFixed(2)}, recebido R$ ${receivedVal.toFixed(2)}. IP: ${clientIp}`;
+      console.error(logMsg);
+
+      if (prisma) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: targetUserId !== "system" ? targetUserId : null,
+            action: "PIX_DEPOSIT",
+            description: `ALERTA DE SEGURANÇA CONTRA FRAUDE: Tentativa de conciliação PIX com valor divergente para TXID ${txid}. Cadastrado: R$ ${registeredAmount.toFixed(2)} | Webhook: R$ ${receivedVal.toFixed(2)}. Bloqueado por auditoria financeira automática. IP: ${clientIp}.`,
+            amountBRL: receivedVal,
+            ipAddress: clientIp,
+            userAgent: req.headers["user-agent"]
+          }
+        }).catch(() => {});
+      }
+      return res.status(400).json({ error: `Divergência de valores. Este TXID possui cobrança de R$ ${registeredAmount.toFixed(2)}, mas o valor enviado foi R$ ${receivedVal.toFixed(2)}.` });
+    }
+
+    // 5. PROCESS PAYMENTS SECURELY & GENERATE AUDIT LOGS (Requirement 8)
+    let responseMsg = "";
+    let isDbProcessed = false;
+
+    if (dbPixPayment) {
+      if (dbPixPayment.status === "COMPLETED") {
+        return res.json({ message: "Idempotência: Este faturamento PIX já foi liquidado anteriormente." });
       }
 
-      await authStore.updateUser(mockUserObj.id!, {
-        balanceAvailableBRL: nextAvailable,
-        balancePendingBRL: nextPending,
-        totalEarnedBRL: nextEarned,
+      await prisma.pixPayment.update({
+        where: { id: dbPixPayment.id },
+        data: { 
+          status: "COMPLETED",
+          paidAt: new Date()
+        }
       });
+
+      await prisma.transaction.update({
+        where: { id: dbPixPayment.transactionId },
+        data: { status: "COMPLETED" }
+      });
+
+      const userWallet = dbPixPayment.transaction.wallet;
+      const u = await authStore.findById(targetUserId);
+
+      if (u) {
+        let nextAvailable = u.balanceAvailableBRL ?? 0;
+        let nextPending = u.balancePendingBRL ?? 0;
+        let nextEarned = u.totalEarnedBRL ?? 0;
+
+        if (paymentType === "MARKETPLACE_SELL") {
+          const prevPending = Number(userWallet.balancePending);
+          const prevEarned = Number(userWallet.totalEarned);
+          
+          nextPending = Number((prevPending + registeredAmount).toFixed(2));
+          nextEarned = Number((prevEarned + registeredAmount).toFixed(2));
+
+          await prisma.wallet.update({
+            where: { id: userWallet.id },
+            data: {
+              balancePending: nextPending,
+              totalEarned: nextEarned
+            }
+          });
+        } else {
+          const prevAvailable = Number(userWallet.balanceAvailable);
+          nextAvailable = Number((prevAvailable + registeredAmount).toFixed(2));
+
+          await prisma.wallet.update({
+            where: { id: userWallet.id },
+            data: {
+              balanceAvailable: nextAvailable,
+              balanceBRL: nextAvailable
+            }
+          });
+        }
+
+        // Sync authStore state
+        await authStore.updateUser(targetUserId, {
+          balanceAvailableBRL: nextAvailable,
+          balancePendingBRL: nextPending,
+          totalEarnedBRL: nextEarned,
+        });
+      }
+
+      responseMsg = `Depósito via PIX liquidado! R$ ${registeredAmount.toFixed(2)} creditados com sucesso.`;
+      isDbProcessed = true;
+    } 
+    else if (dbSubPayment) {
+      if (dbSubPayment.status === "COMPLETED") {
+        return res.json({ message: "Idempotência: Esta assinatura já está paga e ativa." });
+      }
+
+      // Deactivate other subscriptions first
+      await prisma.subscription.updateMany({
+        where: { userId: targetUserId, status: "ACTIVE" },
+        data: { status: "CANCELED", canceledAt: new Date() }
+      });
+
+      // Update payment
+      await prisma.subscriptionPayment.update({
+        where: { id: dbSubPayment.id },
+        data: { status: "COMPLETED", paidAt: new Date() }
+      });
+
+      // Activate sub
+      const activeDbSub = await prisma.subscription.update({
+        where: { id: dbSubPayment.subscriptionId },
+        data: {
+          status: "ACTIVE",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        },
+        include: { plan: true }
+      });
+
+      responseMsg = `Plano VIP "${activeDbSub.plan.name}" ativado com confirmação de pagamento via Webhook!`;
+      isDbProcessed = true;
     }
 
-    logPayment("PIX_CONFIRM", paymentAmount, mockUserObj?.id || "unknown", { txid, type: paymentType });
+    // 6. SYNC IN-MEMORY DATABASE FALLBACKS
+    const inMemPixIdx = inMemoryPixPayments.findIndex(p => p.txid === txid);
+    if (inMemPixIdx !== -1) {
+      if (inMemoryPixPayments[inMemPixIdx].status !== "COMPLETED") {
+        inMemoryPixPayments[inMemPixIdx].status = "COMPLETED";
+        inMemoryPixPayments[inMemPixIdx].paidAt = new Date().toISOString();
+        
+        const uId = inMemoryPixPayments[inMemPixIdx].userId;
+        const uObj = inMemoryUsers.get(uId);
+        if (uObj) {
+          if (paymentType === "MARKETPLACE_SELL") {
+            uObj.balancePendingBRL = Number(uObj.balancePendingBRL || 0) + registeredAmount;
+            uObj.totalEarnedBRL = Number(uObj.totalEarnedBRL || 0) + registeredAmount;
+          } else {
+            uObj.balanceAvailableBRL = Number(uObj.balanceAvailableBRL || 0) + registeredAmount;
+          }
+          await authStore.updateUser(uId, {
+            balanceAvailableBRL: uObj.balanceAvailableBRL,
+            balancePendingBRL: uObj.balancePendingBRL,
+            totalEarnedBRL: uObj.totalEarnedBRL,
+          });
+        }
+      }
+    }
+
+    const inMemSubPay = inMemorySubscriptionPayments.find(p => p.txid === txid);
+    if (inMemSubPay) {
+      if (inMemSubPay.status !== "COMPLETED") {
+        inMemSubPay.status = "COMPLETED";
+        inMemSubPay.paidAt = new Date().toISOString();
+
+        const linkedSub = inMemorySubscriptions.find(s => s.id === inMemSubPay.subscriptionId);
+        if (linkedSub) {
+          inMemorySubscriptions = inMemorySubscriptions.map(s => s.userId === linkedSub.userId && s.status === "ACTIVE" ? { ...s, status: "CANCELED", canceledAt: new Date().toISOString() } : s);
+
+          linkedSub.status = "ACTIVE";
+          linkedSub.startDate = new Date().toISOString();
+          linkedSub.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        }
+      }
+    }
+
+    // Apply Memory Only Fallback user state updates if not DB processed
+    if (!isDbProcessed) {
+      const uObj = await authStore.findById(targetUserId);
+      if (uObj) {
+        let nextAvailable = uObj.balanceAvailableBRL ?? 0;
+        let nextPending = uObj.balancePendingBRL ?? 0;
+        let nextEarned = uObj.totalEarnedBRL ?? 0;
+
+        if (paymentType === "MARKETPLACE_SELL") {
+          nextPending = Number((nextPending + registeredAmount).toFixed(2));
+          nextEarned = Number((nextEarned + registeredAmount).toFixed(2));
+        } else if (paymentType === "DEPOSIT") {
+          nextAvailable = Number((nextAvailable + registeredAmount).toFixed(2));
+        }
+
+        await authStore.updateUser(targetUserId, {
+          balanceAvailableBRL: nextAvailable,
+          balancePendingBRL: nextPending,
+          totalEarnedBRL: nextEarned,
+        });
+      }
+    }
+
+    // 7. RECORD DETAILED AUDITABLE FINANCIAL LOGS (Requirement 8)
+    if (prisma) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: targetUserId !== "system" ? targetUserId : null,
+          action: "PIX_DEPOSIT",
+          description: `CONCILIAÇÃO AUTOMÁTICA [SUCESSO]: Recebimento bancário via PIX liquidado e auditado automaticamente. TXID: ${txid}. Valor: R$ ${registeredAmount.toFixed(2)}. Destinatário ID: ${targetUserId}. IP Origem: ${clientIp}.`,
+          amountBRL: registeredAmount,
+          ipAddress: clientIp,
+          userAgent: req.headers["user-agent"]
+        }
+      }).catch((logErr) => console.warn("Failed posting secure auditLog inside Webhook:", logErr));
+    }
+
+    logPayment("PIX_CONFIRM", registeredAmount, targetUserId || "sys", { txid, type: paymentType });
 
     res.json({
       success: true,
-      message: `Webhook PIX processado com total êxito! Valor: R$ ${paymentAmount.toFixed(2)}.`,
+      message: responseMsg || `PIX de R$ ${registeredAmount.toFixed(2)} processado com absoluto sucesso.`,
       txid,
-      paymentType,
-      creditedAmount: paymentAmount,
-      wallet: mockUserObj ? {
-        balanceAvailableBRL: mockUserObj.balanceAvailableBRL ?? 0,
-        balancePendingBRL: mockUserObj.balancePendingBRL ?? 0,
-        totalEarnedBRL: mockUserObj.totalEarnedBRL ?? 0,
-        totalWithdrawnBRL: mockUserObj.totalWithdrawnBRL ?? 0
-      } : null
+      creditedAmount: registeredAmount,
+      wallet: targetUserId !== "system" ? await authStore.findById(targetUserId).then(u => u ? {
+        balanceAvailableBRL: u.balanceAvailableBRL ?? 0,
+        balancePendingBRL: u.balancePendingBRL ?? 0,
+        totalEarnedBRL: u.totalEarnedBRL ?? 0,
+        totalWithdrawnBRL: u.totalWithdrawnBRL ?? 0,
+      } : null) : null
     });
   } catch (err: any) {
     logError("Webhook processing crash", err);
     console.error("Webhook processing crash:", err);
-    res.status(500).json({ error: "Erro interno no servidor contábil ao processar o Webhook." });
+    res.status(500).json({ error: "Erro interno no servidor contábil ao processar o Webhook de pagamento." });
   }
 });
 
@@ -4335,12 +4431,20 @@ app.get("/api/store", async (req: any, res: any) => {
         "Molduras": "FRAME",
         "Títulos": "TITLE",
         "Emotes": "EMOTE",
+        "Emojis": "EMOTE",
+        "Temas": "THEME",
         "Efeitos Especiais": "EFFECT",
+        "Efeitos visuais": "EFFECT",
+        "Faixas especiais": "BELT",
+        "Itens lendários": "LEGENDARY",
         "AVATAR": "AVATAR",
         "FRAME": "FRAME",
         "TITLE": "TITLE",
         "EMOTE": "EMOTE",
-        "EFFECT": "EFFECT"
+        "EFFECT": "EFFECT",
+        "THEME": "THEME",
+        "BELT": "BELT",
+        "LEGENDARY": "LEGENDARY"
       };
       whereClause.category = categoryMap[category as string] || (category as string).toUpperCase();
     }
@@ -5607,6 +5711,7 @@ async function startServer() {
   const socketRateLimits = new Map<string, { count: number; resetAt: number }>();
   io.use((socket, next) => {
     socket.use(([event, ...args], nextEvent) => {
+      // 1. Packet Rate Limit check
       const now = Date.now();
       const limitKey = socket.id;
       const rate = socketRateLimits.get(limitKey) || { count: 0, resetAt: now + 5000 };
@@ -5624,6 +5729,14 @@ async function startServer() {
           return;
         }
       }
+
+      // 2. Strict Auth State Validation Check (Socket Security)
+      if (event !== "auth:register" && event !== "disconnect" && !socket.data.userId) {
+        console.warn(`[SOCKET SECURITY ALERT] Unauthenticated socket event '${event}' rejected on connection ${socket.id}.`);
+        socket.emit("auth:error", { message: "Conexão insegura: autenticação JWT é requerida." });
+        return;
+      }
+
       nextEvent();
     });
 

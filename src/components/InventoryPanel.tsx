@@ -246,6 +246,9 @@ export default function InventoryPanel({
   const equippedTitle = items.find(it => it.isEquipped && it.product?.category === 'TITLE');
   const equippedEmote = items.find(it => it.isEquipped && it.product?.category === 'EMOTE');
   const equippedEffect = items.find(it => it.isEquipped && it.product?.category === 'EFFECT');
+  const equippedTheme = items.find(it => it.isEquipped && it.product?.category === 'THEME');
+  const equippedBelt = items.find(it => it.isEquipped && it.product?.category === 'BELT');
+  const equippedLegendary = items.find(it => it.isEquipped && it.product?.category === 'LEGENDARY');
 
   // Beautiful cosmetic badge styler
   const getRarityBadgeStyle = (rarity: string) => {
@@ -536,6 +539,48 @@ export default function InventoryPanel({
                 {equippedEmote && <X onClick={() => handleUnequipItem(equippedEmote)} className="w-3 h-3 text-slate-500 hover:text-red-400 cursor-pointer" />}
               </div>
 
+              {/* Category: Theme */}
+              <div className={`p-2 rounded-xl flex items-center justify-between border ${equippedTheme ? 'bg-violet-950/20 border-violet-500/30' : 'bg-slate-950/40 border-slate-900'}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">🎨</span>
+                  <div className="leading-tight">
+                    <span className="block text-[8px] text-slate-500 font-mono">TEMA</span>
+                    <span className="text-[10px] font-semibold truncate text-slate-350 max-w-[80px] block">
+                      {equippedTheme ? equippedTheme.name : 'Padrão'}
+                    </span>
+                  </div>
+                </div>
+                {equippedTheme && <X onClick={() => handleUnequipItem(equippedTheme)} className="w-3 h-3 text-slate-500 hover:text-red-400 cursor-pointer" />}
+              </div>
+
+              {/* Category: Special Belt */}
+              <div className={`p-2 rounded-xl flex items-center justify-between border ${equippedBelt ? 'bg-violet-950/20 border-violet-500/30' : 'bg-slate-950/40 border-slate-900'}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">🥋</span>
+                  <div className="leading-tight">
+                    <span className="block text-[8px] text-slate-500 font-mono">FAIXA ESP.</span>
+                    <span className="text-[10px] font-semibold truncate text-slate-350 max-w-[80px] block">
+                      {equippedBelt ? equippedBelt.name : 'Padrão'}
+                    </span>
+                  </div>
+                </div>
+                {equippedBelt && <X onClick={() => handleUnequipItem(equippedBelt)} className="w-3 h-3 text-slate-500 hover:text-red-400 cursor-pointer" />}
+              </div>
+
+              {/* Category: Legendary Item */}
+              <div className={`p-2 rounded-xl flex items-center justify-between border ${equippedLegendary ? 'bg-violet-950/20 border-violet-500/30' : 'bg-slate-950/40 border-slate-900'}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base">👑</span>
+                  <div className="leading-tight">
+                    <span className="block text-[8px] text-slate-500 font-mono">LENDÁRIO</span>
+                    <span className="text-[10px] font-semibold truncate text-slate-350 max-w-[80px] block">
+                      {equippedLegendary ? equippedLegendary.name : 'Vazio'}
+                    </span>
+                  </div>
+                </div>
+                {equippedLegendary && <X onClick={() => handleUnequipItem(equippedLegendary)} className="w-3 h-3 text-slate-500 hover:text-red-400 cursor-pointer" />}
+              </div>
+
             </div>
 
             {/* Row-wide category slot for special effects */}
@@ -578,8 +623,11 @@ export default function InventoryPanel({
                   { value: 'AVATAR', label: '👤 Avatares' },
                   { value: 'FRAME', label: '🖼️ Molduras' },
                   { value: 'TITLE', label: '🏷️ Títulos' },
-                  { value: 'EMOTE', label: '💬 Emotes' },
-                  { value: 'EFFECT', label: '✨ Efeitos' }
+                  { value: 'EMOTE', label: '💬 Emojis' },
+                  { value: 'EFFECT', label: '✨ Efeitos' },
+                  { value: 'THEME', label: '🎨 Temas' },
+                  { value: 'BELT', label: '🥋 Faixas Esp.' },
+                  { value: 'LEGENDARY', label: '👑 Lendários' }
                 ].map((cat) => {
                   const isActive = activeCategory === cat.value;
                   return (
@@ -652,9 +700,12 @@ export default function InventoryPanel({
                       case 'AVATAR': return { icon: '👤', text: 'Avatar' };
                       case 'FRAME': return { icon: '🖼️', text: 'Moldura' };
                       case 'TITLE': return { icon: '🏷', text: 'Título' };
-                      case 'EMOTE': return { icon: '💬', text: 'Emote' };
+                      case 'EMOTE': return { icon: '💬', text: 'Emoji' };
                       case 'EFFECT': return { icon: '✨', text: 'Efeito' };
-                      default: return { icon: '🎒', text: 'Cosmético' };
+                      case 'THEME': return { icon: '🎨', text: 'Tema' };
+                      case 'BELT': return { icon: '🥋', text: 'Faixa Esp.' };
+                      case 'LEGENDARY': return { icon: '👑', text: 'Lendário' };
+                      default: return { icon: '🎒', text: 'Especial' };
                     }
                   };
 

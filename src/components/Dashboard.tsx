@@ -952,10 +952,10 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                           {player.avatar || '🥋'}
                           {/* Mini-belt color dot */}
                           <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-950 ${
-                            player.belt === 'Branca' ? 'bg-slate-300' :
-                            player.belt === 'Azul' ? 'bg-blue-500' :
-                            player.belt === 'Roxa' ? 'bg-purple-600' :
-                            player.belt === 'Marrom' ? 'bg-amber-700' : 'bg-red-650'
+                            (player.belt === 'Branca' || String(player.belt).toUpperCase() === 'WHITE') ? 'bg-slate-205 border-slate-300' :
+                            (player.belt === 'Azul' || String(player.belt).toUpperCase() === 'BLUE') ? 'bg-blue-500' :
+                            (player.belt === 'Roxa' || String(player.belt).toUpperCase() === 'PURPLE') ? 'bg-purple-600' :
+                            (player.belt === 'Marrom' || String(player.belt).toUpperCase() === 'BROWN') ? 'bg-amber-700' : 'bg-red-650'
                           }`} />
                         </div>
 
@@ -966,7 +966,18 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                             {isUser && <span className="ml-1 text-[8.5px] font-black uppercase text-violet-400 bg-violet-600/10 px-1 rounded">Você</span>}
                           </p>
                           <span className="text-[9.5px] text-slate-500 block font-mono">
-                            Nível {player.level || 1} • {player.belt || 'Branca'}
+                            Nível {player.level || 1} • {
+                              (() => {
+                                const b = String(player.belt || '').toUpperCase();
+                                if (b === 'WHITE') return 'Branca';
+                                if (b === 'BLUE') return 'Azul';
+                                if (b === 'PURPLE') return 'Roxa';
+                                if (b === 'BROWN') return 'Marrom';
+                                if (b === 'BLACK') return 'Preta';
+                                if (b === 'RED') return 'Vermelha';
+                                return player.belt || 'Branca';
+                              })()
+                            }
                           </span>
                         </div>
                       </div>
