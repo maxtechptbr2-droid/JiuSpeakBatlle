@@ -15,7 +15,7 @@ export const FEMALE_NAMES = [
   "Isabela Costa",
   "Gabriela Silva",
   "Bianca Oliveira",
-  "Larissa Martins",
+  "Flavio Martins",
   "Amanda Rocha",
   "Eduarda Alves",
   "Camila Ferreira",
@@ -63,12 +63,18 @@ export const avatarMappingList: AvatarMapping[] = [
     const bgColors = ["ff4a5a", "4a60ff", "7e49ff", "ffffff", "2a2a2a", "a65c2e"];
     const bgColor = bgColors[index % bgColors.length];
     
+    const isMale = name.toLowerCase().includes("flavio") || name.toLowerCase().includes("flávio");
+    const gender = isMale ? ("male" as const) : ("female" as const);
+    const eyebrows = isMale 
+      ? "variant01,variant06,variant07,variant08" 
+      : "variant02,variant03,variant04,variant05";
+    
     return {
-      id: order, // IDs 1 to 20 for female
-      gender: "female" as const,
+      id: order, // IDs 1 to 20 for female but can override gender
+      gender,
       name,
-      // Dicebear adventurer avatar with feminine custom look
-      image: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&backgroundColor=${bgColor}&radius=50&mouth=smile&eyebrows=variant02,variant03,variant04,variant05`,
+      // Dicebear adventurer avatar with custom look
+      image: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}&backgroundColor=${bgColor}&radius=50&mouth=smile&eyebrows=${eyebrows}`,
       order
     };
   }),
