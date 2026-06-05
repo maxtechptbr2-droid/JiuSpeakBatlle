@@ -1,4 +1,4 @@
-import { authStore } from "../authStore";
+import { authStore, patchUserObjectWithDeterministicAvatar } from "../authStore";
 import { getPrisma } from "../db";
 
 // Belt Priority Map (BLACK -> BROWN -> PURPLE -> BLUE -> WHITE)
@@ -196,7 +196,7 @@ export class RankingService {
 
     try {
       // 1. Fetch active users (with select optimization)
-      const queryUsers = await prisma.user.findMany({
+      const rawUsers = await prisma.user.findMany({
         select: {
           id: true,
           name: true,
@@ -207,6 +207,7 @@ export class RankingService {
           avatar: true
         }
       });
+      const queryUsers = rawUsers.map((u) => patchUserObjectWithDeterministicAvatar({ ...u }));
 
       // 2. Fetch cosmetic frames currently equipped (batch request)
       const userIds = queryUsers.map((u) => u.id);

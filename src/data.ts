@@ -12,6 +12,8 @@ import {
   AuditLog, 
   Achievement 
 } from './types';
+import { avatarMappingList } from './avatarMapping';
+
 
 // Predefined official shop products (Kimono Coins or real cash)
 export const LOJA_ITEMS: InventoryItem[] = [
@@ -411,8 +413,8 @@ export const COURSES: Course[] = [
 export const OPPONENTS_POOL: Opponent[] = [
   {
     id: 'opp_marcolino',
-    name: 'Marcolino "O Chaveiro"',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
+    name: 'Rafael Almeida',
+    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Rafael%20Almeida&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
     elo: 1150,
     belt: 'Azul',
     stripes: 2,
@@ -422,8 +424,8 @@ export const OPPONENTS_POOL: Opponent[] = [
   },
   {
     id: 'opp_renato',
-    name: 'Renatinho "Passador Liso"',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
+    name: 'João Pedro',
+    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Jo%C3%A3o%20Pedro&backgroundColor=7e49ff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
     elo: 1300,
     belt: 'Roxa',
     stripes: 1,
@@ -433,8 +435,8 @@ export const OPPONENTS_POOL: Opponent[] = [
   },
   {
     id: 'opp_carla',
-    name: 'Carla "Guarda de Borracha"',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
+    name: 'Ana Beatriz',
+    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Ana%20Beatriz&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant02,variant03,variant04,variant05',
     elo: 1450,
     belt: 'Roxa',
     stripes: 4,
@@ -444,8 +446,8 @@ export const OPPONENTS_POOL: Opponent[] = [
   },
   {
     id: 'opp_braulio',
-    name: 'Braulio "Pé de Chumbo"',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150',
+    name: 'Matheus Lima',
+    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Matheus%20Lima&backgroundColor=ffffff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
     elo: 1680,
     belt: 'Marrom',
     stripes: 3,
@@ -455,8 +457,8 @@ export const OPPONENTS_POOL: Opponent[] = [
   },
   {
     id: 'opp_helio',
-    name: 'Mestre Hélio "Virtual Vision"',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
+    name: 'Maria Clara',
+    avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Maria%20Clara&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant02,variant03,variant04,variant05',
     elo: 2200,
     belt: 'Preto',
     stripes: 4,
@@ -590,8 +592,8 @@ export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
   {
     id: 'post_1',
     authorId: 'prof_gracie',
-    authorName: 'Sensei Roger Gracie',
-    authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
+    authorName: 'Lucas Monteiro',
+    authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Lucas%20Monteiro&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
     authorBelt: 'Preto',
     category: 'Treino',
     content: 'Hoje às 19h teremos uma masterclass online aqui na JiuSpeak focada na transição da Guarda Fechada para a Raspagem de Tesoura. Não faltem aos treinos mentais, oss!',
@@ -601,16 +603,16 @@ export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
     comments: [
       {
         id: 'c1',
-        authorName: 'Thiago "Filho do Vento"',
-        authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
+        authorName: 'Gabriel Santos',
+        authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Gabriel%20Santos&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
         authorBelt: 'Azul',
         content: 'Estarei lá com certeza Mestre! Minha raspagem está travando na altura do joelho dele, preciso de ajuda com a alavanca.',
         timestamp: '1 hora atrás'
       },
       {
         id: 'c2',
-        authorName: 'Mestre_Cascão90',
-        authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
+        authorName: 'Felipe Costa',
+        authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felipe%20Costa&backgroundColor=2a2a2a&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
         authorBelt: 'Preto',
         content: 'Maravilha Roger! Essa aula vale ouro. Os detalhes desse quadril salvam qualquer jogo.',
         timestamp: '45 min atrás'
@@ -620,8 +622,8 @@ export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
   {
     id: 'post_2',
     authorId: 'user_4593',
-    authorName: 'Guilherme Faixa Azul',
-    authorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150',
+    authorName: 'Bruno Ferreira',
+    authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Bruno%20Ferreira&backgroundColor=ffffff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
     authorBelt: 'Azul',
     category: 'Meme',
     content: 'Aquele momento em que o faixa preta diz "vamos dar um rolinho leve", você aceita e seu corpo vira origami em 3 minutos de massacre 😂',
@@ -633,8 +635,8 @@ export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
   {
     id: 'post_3',
     authorId: 'user_1199',
-    authorName: 'Fabrícia Guardeira',
-    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150',
+    authorName: 'Juliana Mendes',
+    authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Juliana%20Mendes&backgroundColor=7e49ff&radius=50&mouth=smile&eyebrows=variant02,variant03,variant04,variant05',
     authorBelt: 'Roxa',
     category: 'Dúvida',
     content: 'Alguém mais sente muita fadiga no antebraço ao fazer pegadas na manga na Guarda De la Riva? Algum ajuste postural evita essa força excessiva dos dedos?',
@@ -644,8 +646,8 @@ export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
     comments: [
       {
         id: 'c3',
-        authorName: 'Claudio Chave de Pé',
-        authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
+        authorName: 'Vinicius Rocha',
+        authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Vinicius%20Rocha&backgroundColor=a65c2e&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
         authorBelt: 'Marrom',
         content: 'Tente fazer pegada de concha (gancho com 4 dedos para dentro sem torcer) em vez de estrangular o pano do quimono. Use o osso do antebraço como gancho anatômico.',
         timestamp: '18 horas atrás'

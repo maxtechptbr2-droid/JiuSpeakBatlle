@@ -1321,6 +1321,37 @@ export const seedStoreProducts = async () => {
 };
 
 // Exclusively relational data store actions
+import { avatarMappingList } from "../src/avatarMapping";
+
+export function getDeterministicIndexHex(id: string, max: number = 40): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % max;
+}
+
+export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; name?: string; avatar?: string | null; role?: string }>(user: T): T {
+  if (!user || !user.id) return user;
+  
+  const idx = getDeterministicIndexHex(user.id, avatarMappingList.length);
+  const mapped = avatarMappingList[idx];
+  
+  if (mapped) {
+    let suffix = "";
+    if (user.role === "ADMIN") {
+      suffix = " (ADMIN)";
+    } else if (user.role === "INSTRUCTOR") {
+      suffix = " (INSTRUCTOR)";
+    }
+    user.name = mapped.name + suffix;
+    user.avatar = mapped.image;
+    (user as any).gender = mapped.gender;
+  }
+  return user;
+}
+
 export const authStore = {
   async findByEmail(email: string): Promise<Partial<AuthUser> | null> {
     const prisma = getPrisma();
@@ -1333,7 +1364,7 @@ export const authStore = {
 
     if (!u) return null;
 
-    return {
+    return patchUserObjectWithDeterministicAvatar({
       id: u.id,
       email: u.email,
       name: u.name,
@@ -1356,7 +1387,7 @@ export const authStore = {
       resetToken: u.resetToken,
       resetTokenExpires: u.resetTokenExpires,
       refreshToken: u.refreshToken,
-    };
+    });
   },
 
   async findById(id: string): Promise<Partial<AuthUser> | null> {
@@ -1368,7 +1399,7 @@ export const authStore = {
 
     if (!u) return null;
 
-    return {
+    return patchUserObjectWithDeterministicAvatar({
       id: u.id,
       email: u.email,
       name: u.name,
@@ -1391,7 +1422,7 @@ export const authStore = {
       resetToken: u.resetToken,
       resetTokenExpires: u.resetTokenExpires,
       refreshToken: u.refreshToken,
-    };
+    });
   },
 
   async createUser(data: {

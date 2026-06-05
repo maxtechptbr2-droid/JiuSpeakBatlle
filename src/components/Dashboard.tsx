@@ -222,11 +222,11 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
   }, []);
 
   const STATIC_LEADERBOARD = [
-    { id: '1', name: 'Jean-Jacques Machado', elo: 2450, belt: 'Preto', level: 32, avatar: '🤼' },
-    { id: '2', name: 'Kyra Gracie', elo: 2320, belt: 'Marrom', level: 28, avatar: '🥋' },
-    { id: '3', name: 'Braulio Estima', elo: 2210, belt: 'Marrom', level: 25, avatar: '🧬' },
-    { id: '4', name: 'Marcelo Garcia', elo: 2190, belt: 'Preto', level: 35, avatar: '🦁' },
-    { id: '5', name: 'Renzo Gracie', elo: 2120, belt: 'Preto', level: 30, avatar: '🦅' }
+    { id: '1', name: 'Rafael Almeida', elo: 2450, belt: 'Preto', level: 32, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Rafael%20Almeida&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant01' },
+    { id: '2', name: 'Ana Beatriz', elo: 2320, belt: 'Marrom', level: 28, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Ana%20Beatriz&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant02' },
+    { id: '3', name: 'Matheus Lima', elo: 2210, belt: 'Marrom', level: 25, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Matheus%20Lima&backgroundColor=ffffff&radius=50&mouth=smile&eyebrows=variant06' },
+    { id: '4', name: 'Maria Clara', elo: 2190, belt: 'Preto', level: 35, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Maria%20Clara&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant03' },
+    { id: '5', name: 'Lucas Monteiro', elo: 2120, belt: 'Preto', level: 30, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Lucas%20Monteiro&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant08' }
   ];
 
   // Active sessions audit configurations

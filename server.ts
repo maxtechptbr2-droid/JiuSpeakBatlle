@@ -11,7 +11,7 @@ import bcrypt from "bcrypt";
 import http from "http";
 import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
-import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts } from "./server/authStore";
+import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar } from "./server/authStore";
 import { AuthService, generateAccessToken, generateRefreshToken, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
@@ -1087,7 +1087,7 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           }
         });
         list.forEach((u: any) => {
-          usersList.push({
+          usersList.push(patchUserObjectWithDeterministicAvatar({
             id: u.id,
             email: u.email,
             name: u.name,
@@ -1098,7 +1098,8 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
             elo: u.elo,
             isEmailVerified: u.isEmailVerified,
             createdAt: u.createdAt,
-          });
+            avatar: null
+          }));
         });
       } catch (err) {
         console.error("Failed to query prisma list, will use in memory", err);
@@ -5084,12 +5085,17 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
     const mappedPosts = result.dbPosts.map((post: any) => {
       const hasLiked = post.likes.some((lk: any) => lk.userId === userId);
       const authorFrame = frameLookup[post.authorId] || null;
+      const patchedAuthor = patchUserObjectWithDeterministicAvatar({
+        id: post.authorId,
+        name: post.author?.name,
+        avatar: post.author?.avatar
+      });
 
       return {
         id: post.id,
         authorId: post.authorId,
-        authorName: post.author?.name || "Atleta Anônimo",
-        authorAvatar: post.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+        authorName: patchedAuthor.name,
+        authorAvatar: patchedAuthor.avatar,
         authorBelt: post.author?.belt || "WHITE",
         authorFrame,
         category: post.category,
@@ -5099,10 +5105,15 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
         timestamp: getRelativeTime(post.createdAt),
         comments: post.comments.map((comm: any) => {
           const commenterFrame = frameLookup[comm.authorId] || null;
+          const patchedCommenter = patchUserObjectWithDeterministicAvatar({
+            id: comm.authorId,
+            name: comm.author?.name,
+            avatar: comm.author?.avatar
+          });
           return {
             id: comm.id,
-            authorName: comm.author?.name || "Comentador",
-            authorAvatar: comm.author?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+            authorName: patchedCommenter.name,
+            authorAvatar: patchedCommenter.avatar,
             authorBelt: comm.author?.belt || "WHITE",
             authorFrame: commenterFrame,
             content: comm.content,
@@ -5483,11 +5494,17 @@ app.get("/api/social/network", authenticateToken, async (req: any, res: any) => 
         });
 
         usersNetwork = dbUsers.map((u: any) => {
+          const patched = patchUserObjectWithDeterministicAvatar({
+            id: u.id,
+            name: u.name,
+            avatar: u.avatar,
+            role: u.role
+          });
           const isFollowedByMe = u.followers.some((f: any) => f.followerId === currentUserId);
           return {
             id: u.id,
-            name: u.name,
-            avatar: u.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+            name: patched.name,
+            avatar: patched.avatar,
             belt: u.belt,
             role: u.role,
             level: u.level || 1,
@@ -5512,14 +5529,20 @@ app.get("/api/social/network", authenticateToken, async (req: any, res: any) => 
       }
 
       usersNetwork = itemsList.map((u: any) => {
+        const patched = patchUserObjectWithDeterministicAvatar({
+          id: u.id,
+          name: u.name,
+          avatar: u.avatar,
+          role: u.role
+        });
         const isFollowedByMe = inMemoryFollowers.some(f => f.followerId === currentUserId && f.followingId === u.id);
         const followersCount = inMemoryFollowers.filter(f => f.followingId === u.id).length;
         const followingCount = inMemoryFollowers.filter(f => f.followerId === u.id).length;
 
         return {
           id: u.id,
-          name: u.name,
-          avatar: u.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150",
+          name: patched.name,
+          avatar: patched.avatar,
           belt: u.belt || "WHITE",
           role: u.role || "ATHLETE",
           level: u.level || 1,
