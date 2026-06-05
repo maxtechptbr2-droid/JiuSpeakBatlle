@@ -11,7 +11,7 @@ import bcrypt from "bcrypt";
 import http from "http";
 import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
-import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar } from "./server/authStore";
+import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar, patchProductObjectWithBjjAvatar } from "./server/authStore";
 import { AuthService, generateAccessToken, generateRefreshToken, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
@@ -4498,7 +4498,7 @@ app.get("/api/store", async (req: any, res: any) => {
     // Format output and dynamically inject the premium "MYTHIC" rarity tier
     const formattedItems = items.map((item: any) => {
       const isMythic = item.rarity === "LEGENDARY" && item.priceKC >= 4000;
-      return {
+      return patchProductObjectWithBjjAvatar({
         id: item.id,
         name: item.name,
         description: item.description,
@@ -4509,7 +4509,7 @@ app.get("/api/store", async (req: any, res: any) => {
         imageUrl: item.imageUrl,
         stock: item.stock,
         active: item.active
-      };
+      });
     });
 
     res.json({
@@ -4654,14 +4654,15 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
       success: true,
       message: `Desbloqueio concluído! O item "${product.name}" agora está ativo em seu tatame.`,
       updatedCoins,
-      item: {
+      item: patchProductObjectWithBjjAvatar({
         id: itemId,
         productId: product.id,
         name: product.name,
         description: product.description,
+        category: product.category,
         rarity: product.rarity === "LEGENDARY" && product.priceKC >= 4000 ? "MYTHIC" : product.rarity,
         imageUrl: product.imageUrl
-      }
+      })
     });
 
   } catch (error: any) {
@@ -4691,9 +4692,26 @@ app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
       }
     });
 
+    const rawItems = inventory?.items || [];
+    const mappedItems = rawItems.map((item: any) => {
+      if (item.product) {
+        item.product = patchProductObjectWithBjjAvatar({
+          id: item.product.id,
+          name: item.product.name,
+          description: item.product.description,
+          category: item.product.category,
+          rarity: item.product.rarity,
+          imageUrl: item.product.imageUrl,
+          priceKC: item.product.priceKC,
+          priceBRL: item.product.priceBRL ? Number(item.product.priceBRL) : undefined
+        });
+      }
+      return item;
+    });
+
     res.json({
       success: true,
-      items: inventory?.items || []
+      items: mappedItems
     });
   } catch (error: any) {
     console.error("Erro ao carregar inventário de usuário:", error);

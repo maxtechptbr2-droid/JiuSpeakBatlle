@@ -1288,26 +1288,27 @@ export const seedStoreProducts = async () => {
     ];
 
     for (const prod of seedProducts) {
-      const dbRarity = prod.rarity === "MYTHIC" ? "LEGENDARY" : prod.rarity;
+      const patchedProd = patchProductObjectWithBjjAvatar(prod);
+      const dbRarity = patchedProd.rarity === "MYTHIC" ? "LEGENDARY" : patchedProd.rarity;
       await prisma.storeProduct.upsert({
-        where: { id: prod.id },
+        where: { id: patchedProd.id },
         update: {
-          name: prod.name,
-          description: prod.description,
-          priceKC: prod.priceKC,
-          category: prod.category,
+          name: patchedProd.name,
+          description: patchedProd.description,
+          priceKC: patchedProd.priceKC,
+          category: patchedProd.category,
           rarity: dbRarity as any,
-          imageUrl: prod.imageUrl,
+          imageUrl: patchedProd.imageUrl,
           active: true
         },
         create: {
-          id: prod.id,
-          name: prod.name,
-          description: prod.description,
-          priceKC: prod.priceKC,
-          category: prod.category,
+          id: patchedProd.id,
+          name: patchedProd.name,
+          description: patchedProd.description,
+          priceKC: patchedProd.priceKC,
+          category: patchedProd.category,
           rarity: dbRarity as any,
-          imageUrl: prod.imageUrl,
+          imageUrl: patchedProd.imageUrl,
           active: true
         }
       });
@@ -1350,6 +1351,54 @@ export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; 
     (user as any).gender = mapped.gender;
   }
   return user;
+}
+
+export function patchProductObjectWithBjjAvatar<T extends { id?: string; name?: string; category?: string; imageUrl?: string }>(product: T): T {
+  if (!product) return product;
+  const isAvatar = product.category?.toUpperCase() === "AVATAR" || product.id?.startsWith("prod_avatar_");
+  if (isAvatar) {
+    const bjjAvatarMap: Record<string, string> = {
+      "prod_avatar_pitbull": "https://api.dicebear.com/7.x/bottts/svg?seed=pitbulllendario&backgroundColor=ff4a5a&radius=50",
+      "prod_avatar_cyber_samurai": "https://api.dicebear.com/7.x/bottts/svg?seed=samuraicyber&backgroundColor=2a2a2a&radius=50",
+      "prod_avatar_panda_bjj": "https://api.dicebear.com/7.x/identicon/svg?seed=panda_bjj&backgroundColor=7e49ff&radius=50",
+      "prod_avatar_chapa": "https://api.dicebear.com/7.x/adventurer/svg?seed=chapa_quente&backgroundColor=e65c2e&radius=50&mouth=smile",
+      "prod_avatar_shogun": "https://api.dicebear.com/7.x/adventurer/svg?seed=shogun_supremo&backgroundColor=ff4a5a&radius=50",
+      "prod_avatar_ninja_shadow": "https://api.dicebear.com/7.x/pixel-art/svg?seed=shinobishadow&backgroundColor=111111&radius=50",
+      "prod_avatar_mestre_antigo": "https://api.dicebear.com/7.x/adventurer/svg?seed=graomestre&backgroundColor=7e49ff&radius=50",
+      "prod_avatar_lioness_matte": "https://api.dicebear.com/7.x/lorelei/svg?seed=leoadotatame&backgroundColor=ff4a5a&radius=50",
+      "prod_avatar_ronin_bjj": "https://api.dicebear.com/7.x/adventurer/svg?seed=roninerrante&backgroundColor=a65c2e&radius=50",
+      "prod_avatar_guard_passer": "https://api.dicebear.com/7.x/adventurer/svg?seed=passadorimplacavel&backgroundColor=4a60ff&radius=50&mouth=smile",
+      "prod_avatar_berimbolo_king": "https://api.dicebear.com/7.x/adventurer/svg?seed=reidoberimbolo&backgroundColor=ffffff&radius=50",
+      "prod_avatar_championship_gold": "https://api.dicebear.com/7.x/adventurer/svg?seed=campeao&backgroundColor=ffbf00&radius=50",
+      "prod_avatar_oss_avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=bonecodojodo&backgroundColor=a65c2e&radius=50",
+      "prod_avatar_faixa_preta_pro": "https://api.dicebear.com/7.x/adventurer/svg?seed=samuraifaixapreta&backgroundColor=2a2a2a&radius=50",
+      "prod_avatar_samurai_cat": "https://api.dicebear.com/7.x/bottts/svg?seed=catdojo&backgroundColor=ffffff&radius=50",
+      "prod_avatar_gorilla_press": "https://api.dicebear.com/7.x/identicon/svg?seed=goriladapressao&backgroundColor=ff4a5a&radius=50",
+      "prod_avatar_leglock_monster": "https://api.dicebear.com/7.x/bottts/svg?seed=monstroleglock&backgroundColor=7e49ff&radius=50",
+      "prod_avatar_kimono_azul": "https://api.dicebear.com/7.x/adventurer/svg?seed=competidordeazul&backgroundColor=4a60ff&radius=50&mouth=smile",
+      "prod_avatar_kimono_branco": "https://api.dicebear.com/7.x/adventurer/svg?seed=iniciante_bjj&backgroundColor=ffffff&radius=50&mouth=smile&eyebrows=variant05",
+      "prod_avatar_speedy_ninja": "https://api.dicebear.com/7.x/adventurer/svg?seed=ninjaveloz&backgroundColor=2e2e2e&radius=50",
+      "prod_avatar_as_do_absoluto": "https://api.dicebear.com/7.x/adventurer/svg?seed=asdoabsoluto&backgroundColor=7e49ff&radius=50",
+      "prod_avatar_tatame_kid": "https://api.dicebear.com/7.x/adventurer/svg?seed=garotodotatame&backgroundColor=a65c2e&radius=50&mouth=smile",
+      "prod_avatar_velha_guarda": "https://api.dicebear.com/7.x/adventurer/svg?seed=veterano&backgroundColor=ff4a5a&radius=50",
+      "prod_avatar_guardeiro_sinistro": "https://api.dicebear.com/7.x/adventurer/svg?seed=guardeiromacabro&backgroundColor=7e49ff&radius=50&mouth=smile&eyebrows=variant01",
+      "prod_avatar_dragao_tatame": "https://api.dicebear.com/7.x/identicon/svg?seed=dragaoreluzente&backgroundColor=ffbf00&radius=50",
+      "prod_avatar_tigre_bjj": "https://api.dicebear.com/7.x/identicon/svg?seed=tigrebjj&backgroundColor=e65c2e&radius=50",
+      "prod_avatar_faixa_coral": "https://api.dicebear.com/7.x/adventurer/svg?seed=mestrefaixacoral&backgroundColor=ff4a5a&radius=50",
+      "prod_avatar_capuz_ninja": "https://api.dicebear.com/7.x/bottts/svg?seed=ninjainvisivel&backgroundColor=2a2a2a&radius=50",
+      "prod_avatar_kamikaze_bjj": "https://api.dicebear.com/7.x/adventurer/svg?seed=kamikaze_bjj&backgroundColor=ff4a5a&radius=50&mouth=smile",
+      "prod_avatar_guerreiro_espartano": "https://api.dicebear.com/7.x/adventurer/svg?seed=gladiadordelona&backgroundColor=4a60ff&radius=50&mouth=smile"
+    };
+
+    const key = product.id || "";
+    if (bjjAvatarMap[key]) {
+      product.imageUrl = bjjAvatarMap[key];
+    } else {
+      const seed = encodeURIComponent(product.name || "bjj_avatar");
+      product.imageUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}&radius=50&backgroundColor=b6e3f4`;
+    }
+  }
+  return product;
 }
 
 export const authStore = {
