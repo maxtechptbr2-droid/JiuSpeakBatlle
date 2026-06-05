@@ -46,6 +46,8 @@ interface SimulatedEmail {
   timestamp: string;
 }
 
+let cachedCsrfToken: string | null = null;
+
 export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProps) {
   const [view, setView] = useState<'login' | 'register' | 'forgot' | 'reset' | 'verify'>('login');
   
@@ -97,17 +99,59 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   };
 
   // Submit register account
-  const getCsrfHeader = async (): Promise<Record<string, string>> => {
+  const getCsrfToken = async (forceRefresh = false): Promise<string> => {
+    if (cachedCsrfToken && !forceRefresh) {
+      return cachedCsrfToken;
+    }
     try {
-      const res = await fetch('/api/security/csrf');
+      const res = await fetch('/api/csrf-token', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        return { 'X-CSRF-Token': data.csrfToken };
+        cachedCsrfToken = data.csrfToken;
+        return data.csrfToken || '';
       }
     } catch (err) {
-      console.warn('Failed to pre-fetch CSRF Token:', err);
+      console.warn('Failed to fetch CSRF Token:', err);
     }
-    return {};
+    return '';
+  };
+
+  const fetchWithCsrf = async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const fetchOptions = {
+      ...options,
+      credentials: 'include' as const,
+    };
+
+    const currentToken = await getCsrfToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+      'X-CSRF-Token': currentToken
+    };
+    fetchOptions.headers = headers;
+
+    let res = await fetch(url, fetchOptions);
+
+    if (res.status === 403) {
+      console.warn(`Anti-CSRF error on ${url}. Refreshing token and retrying request...`);
+      const newToken = await getCsrfToken(true);
+      if (newToken) {
+        const retryOptions = {
+          ...fetchOptions,
+          headers: {
+            ...headers,
+            'X-CSRF-Token': newToken
+          }
+        };
+        res = await fetch(url, retryOptions);
+        
+        if (res.ok) {
+          showToast('Sua sessão de segurança foi atualizada. Tente novamente.', 'info');
+        }
+      }
+    }
+
+    return res;
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -122,13 +166,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
-      const csrfHeaders = await getCsrfHeader();
-      const res = await fetch('/api/auth/register', {
+      const res = await fetchWithCsrf('/api/auth/register', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...csrfHeaders
-        },
         body: JSON.stringify({ email, name, password, role }),
       });
 
@@ -166,13 +205,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
-      const csrfHeaders = await getCsrfHeader();
-      const res = await fetch('/api/auth/login', {
+      const res = await fetchWithCsrf('/api/auth/login', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...csrfHeaders
-        },
         body: JSON.stringify({ email, password }),
       });
 
@@ -208,13 +242,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
-      const csrfHeaders = await getCsrfHeader();
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await fetchWithCsrf('/api/auth/forgot-password', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...csrfHeaders
-        },
         body: JSON.stringify({ email }),
       });
 
@@ -253,13 +282,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
-      const csrfHeaders = await getCsrfHeader();
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetchWithCsrf('/api/auth/reset-password', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...csrfHeaders
-        },
         body: JSON.stringify({ token, newPassword }),
       });
 
@@ -296,13 +320,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
-      const csrfHeaders = await getCsrfHeader();
-      const res = await fetch('/api/auth/verify', {
+      const res = await fetchWithCsrf('/api/auth/verify', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...csrfHeaders
-        },
         body: JSON.stringify({ token }),
       });
 

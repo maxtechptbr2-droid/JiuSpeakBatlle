@@ -3,6 +3,12 @@ import { PrismaClient } from '@prisma/client';
 
 let prisma: PrismaClient | null = null;
 
+let dbConnected = false;
+
+export function isDatabaseConnected(): boolean {
+  return dbConnected;
+}
+
 // Enforce strict initialization. No silent fallback to null or bypass if PostgreSQL is mandatory.
 export function getPrisma(): PrismaClient {
   if (!prisma) {
@@ -61,6 +67,7 @@ export async function assertDatabaseConnection(): Promise<void> {
       // Attempt a basic check query to active postgres
       await client.$queryRaw`SELECT 1`;
       console.log("✓ PostgreSQL conectado");
+      dbConnected = true;
       return;
     } catch (e: any) {
       retries--;
@@ -70,15 +77,12 @@ export async function assertDatabaseConnection(): Promise<void> {
         timestamp: new Date().toISOString()
       });
       if (retries === 0) {
-        console.error("\n" + "=".repeat(80));
-        console.error(JSON.stringify({
-          error: "DATABASE_CONNECTION_FAILED",
-          message: "Aviso: Não foi possível conectar ao banco de dados PostgreSQL na inicialização da aplicação.",
-          details: e.message || e,
-          advice: "Garanta que o serviço do Postgres esteja online e acessível no endereço fornecido em DATABASE_URL no .env de produção.",
-          timestamp: new Date().toISOString()
-        }, null, 2));
-        console.error("=".repeat(80) + "\n");
+        dbConnected = false;
+        console.warn("\n" + "=".repeat(80));
+        console.warn("[AVISO DE BANCO DE DADOS]: Não foi possível estabelecer conexão com o PostgreSQL.");
+        console.warn("A aplicação estará funcionando em modo híbrido com fallback para banco de dados em memória.");
+        console.warn("Detalhes do erro do driver:", e.message || e);
+        console.warn("=".repeat(80) + "\n");
         // In the preview sandbox environment, we do not call process.exit(1) on connection failure
         // so that the dev server can start and let the user interact with the non-persistent UI.
         return;

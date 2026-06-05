@@ -3,6 +3,7 @@ import path from "path";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import { rateLimit } from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import jwt from "jsonwebtoken";
@@ -16,7 +17,7 @@ import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { RankingService } from "./server/pvp/ranking";
-import { getPrisma, assertDatabaseConnection } from "./server/db";
+import { getPrisma, assertDatabaseConnection, isDatabaseConnected } from "./server/db";
 import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
 import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
@@ -31,6 +32,7 @@ app.use(compression());
 
 // Parse JSON request bodies early so subsequent middlewares (like input sanitization) can preview request data
 app.use(express.json({ limit: "5mb" }));
+app.use(cookieParser());
 
 // Security & Sandbox Hardening Middlewares with strict production constraints
 const allowedOrigins = [
@@ -100,22 +102,11 @@ app.use((req: any, res: any, next: any) => {
   next();
 });
 
-// Advanced Cryptographic Anti-CSRF Protection Engine
+// Advanced Cryptographic Double-Submit Cookie Anti-CSRF Protection Engine
 const CSRF_SECRET = crypto.randomBytes(32).toString("hex");
 
 function generateCsrfToken(): string {
-  const salt = crypto.randomBytes(8).toString("hex");
-  const hash = crypto.createHmac("sha256", CSRF_SECRET).update(salt).digest("hex");
-  return `${salt}.${hash}`;
-}
-
-function verifyCsrfToken(token: any): boolean {
-  if (!token || typeof token !== "string") return false;
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  const [salt, hash] = parts;
-  const expectedHash = crypto.createHmac("sha256", CSRF_SECRET).update(salt).digest("hex");
-  return hash === expectedHash;
+  return crypto.randomBytes(32).toString("hex");
 }
 
 function csrfProtection(req: any, res: any, next: any) {
@@ -129,8 +120,10 @@ function csrfProtection(req: any, res: any, next: any) {
     return next();
   }
 
-  const csrfHeader = req.headers["x-csrf-token"];
-  if (csrfHeader && verifyCsrfToken(csrfHeader)) {
+  const cookieToken = req.cookies?.["_csrf"];
+  const csrfHeader = req.headers["x-csrf-token"] || req.body?._csrf;
+
+  if (cookieToken && csrfHeader && cookieToken === csrfHeader) {
     return next();
   }
 
@@ -140,9 +133,29 @@ function csrfProtection(req: any, res: any, next: any) {
 // Global CSRF protection middleware registered before other routes
 app.use(csrfProtection);
 
+// Helper to set cookie and return JSON token
+function sendCsrfTokenResponse(req: any, res: any) {
+  const token = generateCsrfToken();
+  const isProd = process.env.NODE_ENV === "production";
+  
+  res.cookie("_csrf", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isProd,
+    path: "/"
+  });
+  
+  return res.json({ csrfToken: token });
+}
+
 // Expose secure endpoint to pull updated CSRF token on boot/refresh
 app.get("/api/security/csrf", (req: any, res: any) => {
-  res.json({ csrfToken: generateCsrfToken() });
+  sendCsrfTokenResponse(req, res);
+});
+
+// Primary CSRF endpoint as requested
+app.get("/api/csrf-token", (req: any, res: any) => {
+  sendCsrfTokenResponse(req, res);
 });
 
 const apiRateLimiter = rateLimit({
@@ -150,10 +163,7 @@ const apiRateLimiter = rateLimit({
   max: 300, 
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Muitas requisições. Rate limit ativado para segurança!" },
-  keyGenerator: (req: any) => {
-    return req.ip || req.headers["x-forwarded-for"]?.toString() || req.socket.remoteAddress || "anonymous";
-  }
+  message: { error: "Muitas requisições. Rate limit ativado para segurança!" }
 });
 app.use("/api/", apiRateLimiter);
 
@@ -163,10 +173,7 @@ const authRateLimiter = rateLimit({
   max: 30, // Max 30 attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Tentativas de autenticação excessivas detectadas. Favor aguardar 15 minutos!" },
-  keyGenerator: (req: any) => {
-    return req.ip || req.headers["x-forwarded-for"]?.toString() || req.socket.remoteAddress || "anonymous";
-  }
+  message: { error: "Tentativas de autenticação excessivas detectadas. Favor aguardar 15 minutos!" }
 });
 app.use("/api/auth/register", authRateLimiter);
 app.use("/api/auth/login", authRateLimiter);
@@ -5751,19 +5758,31 @@ async function startServer() {
   ArenaService.init(io);
   MatchmakingService.init();
 
-  // Try database seeding
-  try {
-    await seedInitialUsers();
-  } catch (err) {
-    console.error("Failed to seed initial users:", err);
+  // Try database seeding if PostgreSQL is available
+  if (isDatabaseConnected()) {
+    try {
+      await seedInitialUsers();
+    } catch (err) {
+      console.error("Failed to seed initial users:", err);
+    }
+    try {
+      await seedStoreProducts();
+    } catch (err) {
+      console.error("Failed to seed store products:", err);
+    }
+    try {
+      await seedQuestionsInDb();
+    } catch (err) {
+      console.error("Erro ao semear perguntas no banco:", err);
+    }
+    try {
+      await seedPlansInDb();
+    } catch (err) {
+      console.error("Error seeding plans:", err);
+    }
+  } else {
+    console.log("⚠️ Base de dados PostgreSQL não está conectada. Ignorando semeadura de tabelas e utilizando o banco de dados em memória.");
   }
-  try {
-    await seedStoreProducts();
-  } catch (err) {
-    console.error("Failed to seed store products:", err);
-  }
-  await seedQuestionsInDb();
-  await seedPlansInDb();
 
   // Socket.IO Events Orchestrator
   io.on("connection", (socket) => {
