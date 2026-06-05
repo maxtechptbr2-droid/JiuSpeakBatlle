@@ -948,8 +948,17 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                         </div>
                         
                         {/* Avatar bubble */}
-                        <div className="w-7 h-7 bg-slate-800/80 rounded-full flex items-center justify-center text-sm border border-slate-700/50 shadow-sm relative shrink-0">
-                          {player.avatar || '🥋'}
+                        <div className="w-7 h-7 bg-slate-800/80 rounded-full flex items-center justify-center text-sm border border-slate-700/50 shadow-sm relative shrink-0 overflow-hidden">
+                          {player.avatar && (player.avatar.startsWith('http') || player.avatar.startsWith('/') || player.avatar.includes('.') || player.avatar.includes('api.dicebear.com')) ? (
+                            <img 
+                              src={player.avatar} 
+                              alt={player.name} 
+                              className="w-full h-full object-cover rounded-full" 
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            player.avatar || '🥋'
+                          )}
                           {/* Mini-belt color dot */}
                           <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-950 ${
                             (player.belt === 'Branca' || String(player.belt).toUpperCase() === 'WHITE') ? 'bg-slate-205 border-slate-300' :
