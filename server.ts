@@ -4995,6 +4995,43 @@ export let inMemorySocialPosts: any[] = [
 export let inMemoryFollowers: any[] = [];
 export let inMemorySocialNotifications: any[] = [];
 
+// Advanced Social Architecture in-memory datastores
+export let inMemoryStories: any[] = [
+  {
+    id: "story_1",
+    userId: "prof_gracie",
+    userName: "Sensei Roger Gracie",
+    userAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    userBelt: "Preto",
+    mediaUrl: "https://images.unsplash.com/photo-1517438476312-10d79c07750d?auto=format&fit=crop&q=80&w=600",
+    mediaType: "photo",
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: "story_2",
+    userId: "user_1199",
+    userName: "Fabrícia Guardeira",
+    userAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
+    userBelt: "Roxa",
+    mediaUrl: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=600",
+    mediaType: "photo",
+    createdAt: new Date().toISOString()
+  }
+];
+
+export let inMemoryReactions: Record<string, Record<string, string[]>> = {
+  "post_initial_1": {
+    "OSS": ["user_1199"],
+    "BRABO": ["user_4593"]
+  },
+  "post_initial_2": {
+    "BRABO": ["prof_gracie"],
+    "RESPEITO": ["user_1199"]
+  }
+};
+
+export let inMemorySavedPosts: Record<string, string[]> = {};
+
 // Helper to format dynamic relative time
 function getRelativeTime(timestampStr: string | Date): string {
   try {
@@ -5100,42 +5137,72 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
 
     const frameLookup = result.frameMap || {};
 
-    const mappedPosts = result.dbPosts.map((post: any) => {
-      const hasLiked = post.likes.some((lk: any) => lk.userId === userId);
-      const authorFrame = frameLookup[post.authorId] || null;
+    const mergedPostsList = [...result.dbPosts];
+    inMemorySocialPosts.forEach((memPost: any) => {
+      if (!mergedPostsList.some((p: any) => p.id === memPost.id)) {
+        mergedPostsList.push(memPost);
+      }
+    });
+
+    // Sort descending
+    mergedPostsList.sort((a: any, b: any) => {
+      const tA = new Date(a.createdAt || 0).getTime();
+      const tB = new Date(b.createdAt || 0).getTime();
+      return tB - tA;
+    });
+
+    const mappedPosts = mergedPostsList.map((post: any) => {
+      const hasLiked = post.likes ? post.likes.some((lk: any) => lk.userId === userId) : (post.likedByUsers?.includes(userId) || false);
+      const authorFrame = frameLookup[post.authorId] || post.authorFrame || null;
       const patchedAuthor = patchUserObjectWithDeterministicAvatar({
         id: post.authorId,
-        name: post.author?.name,
-        avatar: post.author?.avatar
+        name: post.author?.name || post.authorName,
+        avatar: post.author?.avatar || post.authorAvatar
       });
+
+      // Map advanced reactions counts and user selection status
+      const postReactions = inMemoryReactions[post.id] || {};
+      const reactionsFormatted: Record<string, number> = {};
+      const userReactedTypes: string[] = [];
+      Object.entries(postReactions).forEach(([type, userIds]) => {
+        reactionsFormatted[type] = userIds.length;
+        if (userIds.includes(userId)) {
+          userReactedTypes.push(type);
+        }
+      });
+
+      const hasSaved = (inMemorySavedPosts[userId] || []).includes(post.id);
 
       return {
         id: post.id,
         authorId: post.authorId,
         authorName: patchedAuthor.name,
         authorAvatar: patchedAuthor.avatar,
-        authorBelt: post.author?.belt || "WHITE",
+        authorBelt: post.author?.belt || post.authorBelt || "WHITE",
         authorFrame,
         category: post.category,
         content: post.content,
-        upvotes: post.likes.length,
+        upvotes: post.likes ? post.likes.length : (post.upvotes || 0),
         hasUpvoted: hasLiked,
-        timestamp: getRelativeTime(post.createdAt),
-        comments: post.comments.map((comm: any) => {
-          const commenterFrame = frameLookup[comm.authorId] || null;
+        timestamp: getRelativeTime(post.createdAt || new Date()),
+        reactions: reactionsFormatted,
+        userReactions: userReactedTypes,
+        hasSaved,
+        comments: (post.comments || []).map((comm: any) => {
+          const commenterFrame = frameLookup[comm.authorId] || comm.authorFrame || null;
           const patchedCommenter = patchUserObjectWithDeterministicAvatar({
             id: comm.authorId,
-            name: comm.author?.name,
-            avatar: comm.author?.avatar
+            name: comm.author?.name || comm.authorName,
+            avatar: comm.author?.avatar || comm.authorAvatar
           });
           return {
             id: comm.id,
             authorName: patchedCommenter.name,
             authorAvatar: patchedCommenter.avatar,
-            authorBelt: comm.author?.belt || "WHITE",
+            authorBelt: comm.author?.belt || comm.authorBelt || "WHITE",
             authorFrame: commenterFrame,
             content: comm.content,
-            timestamp: getRelativeTime(comm.createdAt)
+            timestamp: getRelativeTime(comm.createdAt || new Date())
           };
         })
       };
@@ -5144,10 +5211,10 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
     res.json({ 
       posts: mappedPosts,
       pagination: {
-        total: result.totalCount,
+        total: mappedPosts.length,
         page,
         limit,
-        totalPages: Math.ceil(result.totalCount / limit)
+        totalPages: Math.ceil(mappedPosts.length / limit)
       }
     });
   } catch (error) {
@@ -5724,6 +5791,404 @@ app.post("/api/social/notifications/read", authenticateToken, async (req: any, r
     res.json({ message: "Todas as notificações lidas." });
   } catch (error) {
     res.status(500).json({ error: "Erro ao atualizar status de notificações." });
+  }
+});
+
+// =========================================================================
+// ADVANCED SOCIAL NETWORK SEGMENTS (REACTIONS, STORIES, BOOKMARKS, RANKINGS)
+// =========================================================================
+
+// 9. TOGGLE REACTION ON A POST (OSS, BRABO, FAIXAPRETA, GUERREIRO, CAMPEAO, RESPEITO)
+app.post("/api/social/posts/:postId/react", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { postId } = req.params;
+    const { reactionType } = req.body; // e.g. "OSS", "BRABO", "FAIXAPRETA", "GUERREIRO", "CAMPEAO", "RESPEITO"
+    const userId = req.user.id;
+
+    if (!reactionType) {
+      return res.status(400).json({ error: "O tipo de reação é obrigatório." });
+    }
+
+    const typeUpper = reactionType.toUpperCase();
+    const VALID_REACTIONS = ["OSS", "BRABO", "FAIXAPRETA", "GUERREIRO", "CAMPEAO", "RESPEITO"];
+    if (!VALID_REACTIONS.includes(typeUpper)) {
+      return res.status(400).json({ error: "Tipo de reação inválida." });
+    }
+
+    if (!inMemoryReactions[postId]) {
+      inMemoryReactions[postId] = {};
+    }
+
+    // Initialize list of reacting users for this type
+    if (!inMemoryReactions[postId][typeUpper]) {
+      inMemoryReactions[postId][typeUpper] = [];
+    }
+
+    // Toggle reaction logic
+    const usersList = inMemoryReactions[postId][typeUpper];
+    const idx = usersList.indexOf(userId);
+    let reactedNow = false;
+
+    if (idx > -1) {
+      usersList.splice(idx, 1);
+      reactedNow = false;
+    } else {
+      usersList.push(userId);
+      reactedNow = true;
+
+      // Trigger socket real-time notifications to the author of the post
+      try {
+        const prisma = getPrisma();
+        let authorId: string | null = null;
+        let postCategory = "treino";
+
+        if (prisma) {
+          const postDb = await prisma.socialPost.findUnique({ where: { id: postId } });
+          if (postDb) {
+            authorId = postDb.authorId;
+            postCategory = postDb.category;
+          }
+        }
+
+        if (!authorId) {
+          const postMem = inMemorySocialPosts.find(p => p.id === postId);
+          if (postMem) {
+            authorId = postMem.authorId;
+            postCategory = postMem.category;
+          }
+        }
+
+        if (authorId && authorId !== userId) {
+          const title = "Nova reação no tatame!";
+          const emojiMap: Record<string, string> = {
+            OSS: "❤️ Oss",
+            BRABO: "🔥 Brabo",
+            FAIXAPRETA: "🥋 Faixa Preta",
+            GUERREIRO: "⚔️ Guerreiro",
+            CAMPEAO: "🏆 Campeão",
+            RESPEITO: "👏 Respeito"
+          };
+          const emojiLabel = emojiMap[typeUpper] || typeUpper;
+          const content = `${req.user.name} reagiu com "${emojiLabel}" no seu post (#${postCategory.toLowerCase()}).`;
+          
+          // Save notification
+          if (prisma) {
+            await prisma.notification.create({
+              data: {
+                userId: authorId,
+                title,
+                content,
+                type: "SOCIAL_INTERACTION",
+                linkTo: "social"
+              }
+            });
+          } else {
+            inMemorySocialNotifications.unshift({
+              id: `notif_${Date.now()}_${Math.random()}`,
+              userId: authorId,
+              title,
+              content,
+              type: "SOCIAL_INTERACTION",
+              isRead: false,
+              linkTo: "social",
+              createdAt: new Date().toISOString()
+            });
+          }
+
+          // Emit over WebSocket to live socket
+          if (globalIo) {
+            const sockets = await globalIo.fetchSockets();
+            const liveSocket = sockets.find((s: any) => s.data.userId === authorId);
+            if (liveSocket) {
+              liveSocket.emit("social:notification", {
+                title,
+                content,
+                type: "SOCIAL_INTERACTION",
+                createdAt: new Date().toISOString()
+              });
+            }
+          }
+        }
+      } catch (notifErr) {
+        console.warn("Failed to notify user for reaction toggle:", notifErr);
+      }
+    }
+
+    // Format new counts
+    const reactionsCounts: Record<string, number> = {};
+    const currentUserReacted: string[] = [];
+    Object.entries(inMemoryReactions[postId]).forEach(([k, val]) => {
+      reactionsCounts[k] = val.length;
+      if (val.includes(userId)) {
+        currentUserReacted.push(k);
+      }
+    });
+
+    res.json({
+      success: true,
+      reacted: reactedNow,
+      reactions: reactionsCounts,
+      userReactions: currentUserReacted
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao processar reação social." });
+  }
+});
+
+// 10. BOOKMARK / SAVE POST
+app.post("/api/social/posts/:postId/save", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    if (!inMemorySavedPosts[userId]) {
+      inMemorySavedPosts[userId] = [];
+    }
+
+    const idx = inMemorySavedPosts[userId].indexOf(postId);
+    let savedNow = false;
+
+    if (idx > -1) {
+      inMemorySavedPosts[userId].splice(idx, 1);
+      savedNow = false;
+    } else {
+      inMemorySavedPosts[userId].push(postId);
+      savedNow = true;
+    }
+
+    res.json({
+      success: true,
+      saved: savedNow,
+      message: savedNow ? "Postagem salva no seu diário de tatame!" : "Postagem removida dos salvos."
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao gerenciar postagem salva." });
+  }
+});
+
+// 11. REPORT / DENUNCIAR POST
+app.post("/api/social/posts/:postId/report", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { postId } = req.params;
+    const { reason } = req.body;
+    const userId = req.user.id;
+
+    const reportId = `rep_post_${Date.now()}`;
+    inMemoryDenuncias.push({
+      id: reportId,
+      tipo: "SOCIAL_POST",
+      origemId: postId,
+      denuncianteId: userId,
+      denunciante: req.user.name,
+      motivo: reason || "Conteúdo impróprio / Spam / Flood no feed da academia",
+      status: "PENDING",
+      createdAt: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: "Denúncia registrada! Nossos faixas pretas moderadores auditarão esta publicação em breve."
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao encaminhar denúncia de tatame." });
+  }
+});
+
+// 12. GET ACTIVE STORIES (< 24 HOURS OLD)
+app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => {
+  try {
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+
+    // Filter expired stories
+    inMemoryStories = inMemoryStories.filter(story => {
+      const storyMs = new Date(story.createdAt).getTime();
+      return nowMs - storyMs < ONE_DAY_MS;
+    });
+
+    // Format output
+    res.json({
+      success: true,
+      stories: inMemoryStories
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao obter stories ativos." });
+  }
+});
+
+// 13. CREATE A NEW STORY (PHOTO, VIDEO, OR SYSTEM GENERATED ACHIEVEMENT CARD)
+app.post("/api/social/stories", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { mediaUrl, mediaType, cardData } = req.body;
+    const userId = req.user.id;
+
+    if (!mediaType) {
+      return res.status(400).json({ error: "O tipo de conteúdo do story é obrigatório." });
+    }
+
+    const defaultUrl = mediaType === "photo" 
+      ? "https://images.unsplash.com/photo-1517438476312-10d79c07750d?auto=format&fit=crop&q=80&w=600" 
+      : "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=600";
+
+    const newStory = {
+      id: `story_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      userId,
+      userName: req.user.name,
+      userAvatar: req.user.avatar,
+      userBelt: req.user.belt,
+      mediaUrl: mediaUrl || defaultUrl,
+      mediaType, // "photo" | "video" | "achievement_card"
+      cardData: cardData || null,
+      createdAt: new Date().toISOString()
+    };
+
+    inMemoryStories.unshift(newStory);
+
+    // Notify followers
+    try {
+      const prisma = getPrisma();
+      let followersList: string[] = [];
+      if (prisma) {
+        const list = await prisma.follower.findMany({
+          where: { followingId: userId },
+          select: { followerId: true }
+        });
+        followersList = list.map(f => f.followerId);
+      } else {
+        followersList = inMemoryFollowers.filter(f => f.followingId === userId).map(f => f.followerId);
+      }
+
+      if (globalIo) {
+        const sockets = await globalIo.fetchSockets();
+        for (const followerId of followersList) {
+          const s = sockets.find((so: any) => so.data.userId === followerId);
+          if (s) {
+            s.emit("social:notification", {
+              title: "Novo story!",
+              content: `${req.user.name} postou um novo story de treino. Confira agora!`,
+              type: "STORY_ADDED",
+              createdAt: new Date().toISOString()
+            });
+          }
+        }
+      }
+    } catch (followErr) {
+      console.warn("Could not dispatch stories alerts:", followErr);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Story publicado com sucesso!",
+      story: newStory
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao publicar story." });
+  }
+});
+
+// 14. GET ADVANCED SOCIAL AND PERFORMANCE RANKINGS (Global, Belt, State/Category, Academy)
+app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    let allUsers: any[] = [];
+
+    if (prisma) {
+      try {
+        allUsers = await prisma.user.findMany({
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            belt: true,
+            level: true,
+            xp: true
+          }
+        });
+      } catch (dbErr) {
+        console.warn("Could not retrieve users for rankings, using inMemoryUsers:", dbErr);
+      }
+    }
+
+    // Fallback if db returned nothing or is disconnected
+    if (allUsers.length === 0) {
+      allUsers = Array.from(inMemoryUsers.values()).map(u => ({
+        id: u.id,
+        name: u.name,
+        avatar: u.avatar,
+        belt: u.belt,
+        level: u.level,
+        xp: u.xp
+      }));
+    }
+
+    // Guarantee avatars are patched and in-memory gamification traits are resolved
+    const patchedUsers = allUsers.map(user => {
+      const patched = patchUserObjectWithDeterministicAvatar({
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar
+      });
+
+      // Calculate Followers dynamically
+      const followerCount = inMemoryFollowers.filter(f => f.followingId === user.id).length;
+
+      // In-memory deterministic traits without schema altering
+      const derivedWins = (user.level || 1) * 3 + (user.xp % 7);
+      const derivedAcademy = (user.level || 1) % 2 === 0 ? "Alliance Jiu-Jitsu" : "Gracie Barra";
+      const derivedCategory = (user.xp % 3 === 0) ? "Leve" : (user.xp % 3 === 1) ? "Médio" : "Pesado";
+
+      // Calculate simple social gamified score:
+      // level x 1000 + xp + winCount x 200 + followerCount x 100
+      const score = (user.level || 1) * 1000 + (user.xp || 0) + derivedWins * 200 + followerCount * 100;
+
+      return {
+        id: user.id,
+        name: patched.name,
+        avatar: patched.avatar,
+        belt: user.belt || "WHITE",
+        level: user.level || 1,
+        xp: user.xp || 0,
+        winCount: derivedWins,
+        academy: derivedAcademy,
+        category: derivedCategory, // derived weight class / tournament bracket
+        socialScore: score
+      };
+    });
+
+    // Sort descending by score
+    patchedUsers.sort((a, b) => b.socialScore - a.socialScore);
+
+    // Filter sublists
+    const currentUser = patchedUsers.find(u => u.id === req.user.id) || patchedUsers[0];
+    const userBelt = currentUser?.belt || "WHITE";
+    const userAcademy = currentUser?.academy || "JiuSpeak QG";
+    const userCategory = currentUser?.category || "Médio";
+
+    const rankingGlobal = patchedUsers.map((u, idx) => ({ ...u, rank: idx + 1 }));
+    
+    const rankingBelt = patchedUsers
+      .filter(u => u.belt === userBelt)
+      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+
+    const rankingAcademy = patchedUsers
+      .filter(u => u.academy === userAcademy)
+      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+
+    const rankingState = patchedUsers
+      .filter(u => u.category === userCategory)
+      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+
+    res.json({
+      success: true,
+      rankingGlobal: rankingGlobal.slice(0, 50),
+      rankingBelt: rankingBelt.slice(0, 30),
+      rankingAcademy: rankingAcademy.slice(0, 30),
+      rankingState: rankingState.slice(0, 30)
+    });
+
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao computar ratings e rankings de tatame." });
   }
 });
 

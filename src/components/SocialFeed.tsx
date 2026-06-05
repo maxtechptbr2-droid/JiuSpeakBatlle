@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   MessageSquare, 
@@ -22,10 +22,21 @@ import {
   User,
   CheckCircle,
   HelpCircle,
-  TrendingUp
+  TrendingUp,
+  BookmarkCheck,
+  Flag,
+  BookOpen,
+  Trophy,
+  Flame,
+  Award,
+  ChevronDown
 } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { UserProfile, SocialPost, Comment, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
+import { SocialStories } from './SocialStories';
+import { SocialRankings } from './SocialRankings';
+import { AchievementCards } from './AchievementCards';
 
 interface SocialFeedProps {
   user: UserProfile;
@@ -56,29 +67,51 @@ interface SocialNotification {
 }
 
 export default function SocialFeed({ user, showToast }: SocialFeedProps) {
-  const [posts, setPosts] = useState<SocialPost[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<NetworkUser[]>([]);
   const [notifications, setNotifications] = useState<SocialNotification[]>([]);
   
+  // Navigation
+  const [activeSubTab, setActiveSubTab] = useState<'feed' | 'achievements' | 'rankings'>('feed');
   const [activeCategory, setActiveCategory] = useState<string>('Todos');
+  const [showOnlySaved, setShowOnlySaved] = useState<boolean>(false);
+  
   const [newPostContent, setNewPostContent] = useState<string>('');
   const [newPostCategory, setNewPostCategory] = useState<'Treino' | 'Dúvida' | 'Meme' | 'Campeonato'>('Treino');
   
-  // Track open comment input per post ID
+  // Custom interactive overlays
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<{ [postId: string]: string }>({});
-
   const [showNotifDropdown, setShowNotifDropdown] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // Mentions autocomplete logic
+  const [showMentionsPanel, setShowMentionsPanel] = useState<boolean>(false);
+  const [mentionFilter, setMentionFilter] = useState<string>('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Fetch all Social Network Data from the actual SaaS Backend
+  // Hover reaction overlay state per post
+  const [activeReactionPickerPostId, setActiveReactionPickerPostId] = useState<string | null>(null);
+  
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<string>('Spam ou publicidade repetitiva');
+
+  const VALID_EMOJIS: Record<string, { label: string; icon: string }> = {
+    OSS: { label: 'Oss', icon: '❤️' },
+    BRABO: { label: 'Brabo', icon: '🔥' },
+    FAIXAPRETA: { label: 'Faixa Preta', icon: '🥋' },
+    GUERREIRO: { label: 'Guerreiro', icon: '⚔️' },
+    CAMPEAO: { label: 'Campeão', icon: '🏆' },
+    RESPEITO: { label: 'Respeito', icon: '👏' }
+  };
+
+  // 1. Fetch posts & network configurations
   const loadSocialData = async () => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      // 1. Fetch posts
       const postsRes = await fetch('/api/social/posts', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -89,7 +122,6 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
         }
       }
 
-      // 2. Fetch network users (follow options)
       const networkRes = await fetch('/api/social/network', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -100,7 +132,6 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
         }
       }
 
-      // 3. Fetch notifications
       const notifRes = await fetch('/api/social/notifications', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -111,14 +142,35 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
         }
       }
     } catch (err) {
-      console.error("Failed to sync social network feed:", err);
+      console.error("Failed to load social metrics:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // WebSocket Live alerts sync in BJJ Social Network
   useEffect(() => {
     loadSocialData();
+
+    const socket = io({
+      transports: ['websocket', 'polling'],
+      autoConnect: true
+    });
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      socket.emit('auth:register', { token });
+    }
+
+    socket.on('social:notification', (data: any) => {
+      showToast(`🥋 ${data.title}: ${data.content}`, 'info');
+      // Trigger background updates for notifications count
+      loadSocialData();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -143,8 +195,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       if (response.ok && data.post) {
         setPosts(prev => [data.post, ...prev]);
         setNewPostContent('');
-        showToast("Seu rolo foi publicado com sucesso no feed!", "success");
-        // Reload in background to sync any newly generated user structures
+        showToast("Sua jornada de rolamento foi publicada com sucesso!", "success");
         loadSocialData();
       } else {
         showToast(data.error || "Erro ao publicar no feed", "error");
@@ -154,43 +205,37 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
     }
   };
 
-  const toggleUpvote = async (postId: string) => {
+  // Reactions custom triggers ❤️🔥🥋⚔️🏆👏
+  const handleReactToPost = async (postId: string, reactionType: string) => {
     try {
       const token = localStorage.getItem('token');
-      // Optimistic update
-      setPosts(prev => prev.map(p => {
-        if (p.id === postId) {
-          const alreadyUpvoted = p.hasUpvoted;
-          return {
-            ...p,
-            upvotes: alreadyUpvoted ? p.upvotes - 1 : p.upvotes + 1,
-            hasUpvoted: !alreadyUpvoted
-          };
-        }
-        return p;
-      }));
-
-      const response = await fetch(`/api/social/posts/${postId}/like`, {
+      const response = await fetch(`/api/social/posts/${postId}/react`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reactionType })
       });
 
       if (response.ok) {
         const data = await response.json();
-        // Sync correct server count
-        setPosts(prev => prev.map(p => {
-          if (p.id === postId) {
-            return {
-              ...p,
-              upvotes: data.upvotes,
-              hasUpvoted: data.hasUpvoted
-            };
-          }
-          return p;
-        }));
+        if (data.success) {
+          setPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+              return {
+                ...p,
+                reactions: data.reactions,
+                userReactions: data.userReactions
+              };
+            }
+            return p;
+          }));
+          setActiveReactionPickerPostId(null);
+        }
       }
     } catch (err) {
-      console.error("Failed to like post:", err);
+      console.error("Failed to react to post:", err);
     }
   };
 
@@ -215,18 +260,18 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
           if (p.id === postId) {
             return {
               ...p,
-              comments: [...p.comments, data.comment]
+              comments: [...(p.comments || []), data.comment]
             };
           }
           return p;
         }));
         setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-        showToast("Seu comentário foi publicado!", "success");
+        showToast("Seu comentário foi respondido!", "success");
       } else {
-        showToast(data.error || "Erro ao publicar comentário", "error");
+        showToast(data.error || "Erro ao enviar comentário", "error");
       }
     } catch (err) {
-      showToast("Falha de rede ao comentar.", "error");
+      showToast("Falha de rede ao responder comentário.", "error");
     }
   };
 
@@ -234,7 +279,6 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
     try {
       const token = localStorage.getItem('token');
       
-      // Optimistic Update in UI
       setNetworkUsers(prev => prev.map(u => {
         if (u.id === targetUserId) {
           const nowFollowing = !u.isFollowing;
@@ -255,15 +299,64 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       if (response.ok) {
         const data = await response.json();
         showToast(data.message, "success");
-        // Reload stats in general background
         loadSocialData();
       } else {
         const data = await response.json();
-        showToast(data.error || "Não foi possível seguir este atleta", "error");
+        showToast(data.error || "Incapaz de seguir", "error");
         loadSocialData();
       }
     } catch (err) {
-      showToast("Falha de rede ao seguir atleta.", "error");
+      showToast("Falha técnica no processo.", "error");
+    }
+  };
+
+  const handleToggleBookmark = async (postId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/social/posts/${postId}/save`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+              return { ...p, hasSaved: data.saved };
+            }
+            return p;
+          }));
+          showToast(data.message, "success");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to bookmark post", err);
+    }
+  };
+
+  const handleReportFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportingPostId) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/social/posts/${reportingPostId}/report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason: reportReason })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showToast(data.message, "success");
+        setReportingPostId(null);
+      }
+    } catch (err) {
+      showToast("Erro ao processar relatório.", "error");
     }
   };
 
@@ -278,7 +371,44 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       });
       showToast("Mensagens marcadas como lidas!", "info");
     } catch (err) {
-      console.error("Failed to clean notifications:", err);
+      console.error("Failed to mark read:", err);
+    }
+  };
+
+  // Textarea listeners matching @mentions autocomplete popup
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setNewPostContent(text);
+
+    const selectionStart = e.target.selectionStart;
+    const textBeforeCursor = text.slice(0, selectionStart);
+    const words = textBeforeCursor.split(/\s+/);
+    const lastWord = words[words.length - 1];
+
+    if (lastWord.startsWith('@')) {
+      setShowMentionsPanel(true);
+      setMentionFilter(lastWord.slice(1).toLowerCase());
+    } else {
+      setShowMentionsPanel(false);
+    }
+  };
+
+  const insertMention = (username: string) => {
+    const text = newPostContent;
+    const selectionStart = textareaRef.current?.selectionStart || 0;
+    const textBeforeCursor = text.slice(0, selectionStart);
+    const textAfterCursor = text.slice(selectionStart);
+
+    const words = textBeforeCursor.split(/\s+/);
+    // Replace last typed word (which started with @)
+    words[words.length - 1] = `@${username.replace(/\s+/g, '_')}`;
+
+    const joinedBefore = words.join(' ');
+    setNewPostContent(joinedBefore + ' ' + textAfterCursor);
+    setShowMentionsPanel(false);
+
+    if (textareaRef.current) {
+      textareaRef.current.focus();
     }
   };
 
@@ -296,12 +426,12 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
         return 'bg-purple-700 text-white';
       case 'MARROM': 
       case 'BROWN':
-        return 'bg-amber-900 text-white';
+        return 'bg-amber-950/80 text-amber-200 border border-amber-800';
       case 'PRETO': 
       case 'BLACK':
-        return 'bg-slate-900 border border-red-500 text-red-500';
+        return 'bg-slate-950 border border-red-500 text-red-500 font-extrabold';
       default: 
-        return 'bg-white text-slate-800';
+        return 'bg-slate-900 text-slate-400';
     }
   };
 
@@ -312,141 +442,216 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       case 'PURPLE': return 'Roxa';
       case 'BROWN': return 'Marrom';
       case 'BLACK': return 'Preto';
-      case 'RED': return 'Vermelha';
       default: return belt;
     }
   };
 
-  const getCategoryIcon = (cat: string) => {
-    switch (cat) {
-      case 'Treino': return '🥋';
-      case 'Dúvida': return '❓';
-      case 'Meme': return '😂';
-      case 'Campeonato': return '🏆';
-      default: return '📢';
-    }
+  // Dynamic formatting render for highlighted @mentions or #hashtags in bodies
+  const formatPostBody = (text: string) => {
+    if (!text) return '';
+    const parts = text.split(/(\s+)/);
+    return parts.map((part, index) => {
+      if (part.startsWith('#')) {
+        return (
+          <span 
+            key={index} 
+            onClick={() => {
+              const cleaned = part.replace(/[^\w]/g, '');
+              setActiveCategory('Todos');
+              setNewPostContent(part + ' ');
+              showToast(`Filtrando feed por hashtag: ${part}`, 'info');
+            }}
+            className="text-indigo-400 font-extrabold hover:underline cursor-pointer font-sans"
+          >
+            {part}
+          </span>
+         );
+      }
+      if (part.startsWith('@')) {
+        return (
+          <span 
+            key={index} 
+            className="text-violet-400 font-bold bg-slate-950/40 py-0.5 px-1.5 rounded-md border border-slate-850/40 font-mono"
+          >
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
   };
 
   const unreadNotifsCount = notifications.filter(n => !n.isRead).length;
 
-  const filteredPosts = activeCategory === 'Todos' 
+  // Filter posts depending on category + bookmarked filter
+  let displayPosts = activeCategory === 'Todos' 
     ? posts 
     : posts.filter(p => p.category === activeCategory);
+
+  if (showOnlySaved) {
+    displayPosts = displayPosts.filter(p => p.hasSaved);
+  }
+
+  // Filter network suggestions
+  const matchedMentions = networkUsers.filter(u => 
+    u.name.toLowerCase().includes(mentionFilter)
+  );
 
   return (
     <div className="space-y-6" id="bjj-social-feed">
       
-      {/* Header bar and Notification Alert Trigger */}
+      {/* HEADER SECTION WITH DROPDOWNS AND SUBTABS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-950/70 p-6 rounded-2xl border border-slate-800 gap-4">
-        <div>
+        <div className="text-left">
           <h3 className="text-xl md:text-2xl font-display font-extrabold text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-violet-400 animate-pulse" />
             <span>Tatame Conectado - Rede Social</span>
           </h3>
           <p className="text-xs text-slate-400 mt-1">
-            Conexão em tempo real inspirada no Discord e Instagram. Siga atletas, curta posições, solucione dúvidas técnicas e receba interações.
+            Plataforma agregadora combinando Instagram, Strava, Duolingo e LinkedIn para praticantes reais de Jiu-Jitsu.
           </p>
         </div>
 
-        {/* Notifications Dropdown Selector */}
-        <div className="relative self-stretch md:self-auto">
-          <button 
-            type="button"
-            onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-            className="w-full md:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl flex items-center justify-between md:justify-center gap-2.5 text-xs font-bold text-slate-201 cursor-pointer transition-colors relative"
-          >
-            <div className="flex items-center gap-2">
-              {unreadNotifsCount > 0 ? (
-                <BellRing className="w-4 h-4 text-amber-400 animate-bounce" />
-              ) : (
-                <Bell className="w-4 h-4 text-slate-400" />
+        {/* Notifications and Saves */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Notifications Dropdown Selector */}
+          <div className="relative flex-1 md:flex-initial">
+            <button 
+              type="button"
+              onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+              className="w-full md:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl flex items-center justify-between md:justify-center gap-2 text-xs font-bold text-slate-201 cursor-pointer transition-colors relative"
+            >
+              <div className="flex items-center gap-2">
+                {unreadNotifsCount > 0 ? (
+                  <BellRing className="w-4 h-4 text-amber-400 animate-bounce" />
+                ) : (
+                  <Bell className="w-4 h-4 text-slate-400" />
+                )}
+                <span>Notificações ({unreadNotifsCount})</span>
+              </div>
+              {unreadNotifsCount > 0 && (
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-ping absolute top-0.5 right-0.5" />
               )}
-              <span>Notificações ({unreadNotifsCount})</span>
-            </div>
-            {unreadNotifsCount > 0 && (
-              <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping absolute top-1 right-1" />
-            )}
-          </button>
+            </button>
 
-          {showNotifDropdown && (
-            <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 p-4 space-y-3 max-h-[360px] overflow-y-auto animate-fadeIn">
-              <div className="flex justify-between items-center pb-2 border-b border-slate-800 text-[11px]">
-                <span className="font-bold text-white uppercase tracking-wider font-mono">Campainha Social</span>
-                {unreadNotifsCount > 0 && (
-                  <button 
-                    onClick={handleMarkNotifsRead}
-                    className="text-violet-400 hover:text-violet-300 font-bold font-mono transition-colors cursor-pointer"
-                  >
-                    Marcar lidas
-                  </button>
+            {showNotifDropdown && (
+              <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 p-4 space-y-3 max-h-[360px] overflow-y-auto animate-fadeIn">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-800 text-[11px]">
+                  <span className="font-bold text-white uppercase tracking-wider font-mono">Alertas do Tatame</span>
+                  {unreadNotifsCount > 0 && (
+                    <button 
+                      onClick={handleMarkNotifsRead}
+                      className="text-violet-400 hover:text-violet-300 font-bold font-mono transition-colors cursor-pointer"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="py-6 text-center text-[11px] text-slate-505 leading-normal font-normal">
+                    Fique atento! Novos seguidores ou reações aparecem em tempo real aqui.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {notifications.map((notif) => (
+                      <div 
+                        key={notif.id} 
+                        className={`p-2.5 rounded-xl border transition-all text-left text-[11px] ${
+                          notif.isRead 
+                            ? 'bg-slate-950/20 border-slate-950/40 opacity-70' 
+                            : 'bg-indigo-950/20 border-indigo-900/60'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-1">
+                          <span className="font-bold text-slate-201">{notif.title}</span>
+                          {!notif.isRead && (
+                            <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full mt-1 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-slate-400 mt-1 font-normal leading-relaxed">{notif.content}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-
-              {notifications.length === 0 ? (
-                <div className="py-6 text-center text-[11px] text-slate-500 leading-normal font-normal">
-                  Nenhuma notificação por aqui ainda. Siga atletas e publique para receber interações!
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {notifications.map((notif) => (
-                    <div 
-                      key={notif.id} 
-                      className={`p-2.5 rounded-xl border transition-all text-left text-[11px] ${
-                        notif.isRead 
-                          ? 'bg-slate-950/20 border-slate-950/40 opacity-70' 
-                          : 'bg-indigo-950/20 border-indigo-900/60'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start gap-1">
-                        <span className="font-bold text-slate-201">{notif.title}</span>
-                        {!notif.isRead && (
-                          <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full mt-1 shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-slate-400 mt-1 font-normal leading-relaxed">{notif.content}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
+      {/* CORE REDESIGNED SECTION NAVIGATION SUBTABS HEADER */}
+      <div className="p-1 bg-slate-950 rounded-2xl border border-slate-800/80 grid grid-cols-3 gap-2">
+        <button
+          onClick={() => setActiveSubTab('feed')}
+          className={`py-3 text-xs font-black uppercase tracking-widest font-mono rounded-xl border transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeSubTab === 'feed'
+              ? 'bg-slate-900 border-slate-800 text-violet-400 shadow-md'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span>🥋 Feed Geral</span>
+        </button>
+        <button
+          onClick={() => setActiveSubTab('achievements')}
+          className={`py-3 text-xs font-black uppercase tracking-widest font-mono rounded-xl border transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeSubTab === 'achievements'
+              ? 'bg-slate-900 border-slate-800 text-violet-400 shadow-md'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span>🏆 Gerador de Certificados</span>
+        </button>
+        <button
+          onClick={() => setActiveSubTab('rankings')}
+          className={`py-3 text-xs font-black uppercase tracking-widest font-mono rounded-xl border transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeSubTab === 'rankings'
+              ? 'bg-slate-900 border-slate-800 text-violet-400 shadow-md'
+              : 'border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <span>🥇 Ligas de Desempenho</span>
+        </button>
+      </div>
+
+      {/* THREE INTERACTIVE COLUMN LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        {/* DISCORD-LIKE LEFT SIDEBAR (Col span 1) */}
-        <div className="lg:col-span-1 space-y-4">
+        {/* LEFT COLUMN: CHANNELS & MEMOIZERS DISPLAY (Col span 1) */}
+        <div className="lg:col-span-1 space-y-4 text-left">
+          
           <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4">
-            <div className="border-b border-slate-800 pb-2">
+            <div className="border-b border-slate-800/80 pb-2 flex justify-between items-center">
               <h4 className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                 <Hash className="w-3.5 h-3.5 text-violet-500" />
-                <span>Canais do Servidor</span>
+                <span>Canais de Discussão</span>
               </h4>
             </div>
 
-            {/* Channels selectors list */}
             <div className="flex flex-col gap-1.5">
               {[
                 { name: 'Todos', label: '🌐 visão-geral' },
                 { name: 'Treino', label: '# treinos-tatame' },
                 { name: 'Dúvida', label: '# duvidas-posicoes' },
                 { name: 'Meme', label: '# memes-tatame' },
-                { name: 'Campeonato', label: '# campeonatos' }
+                { name: 'Campeonato', label: '# campeonatos-eventos' }
               ].map((channel) => {
                 const isSelected = activeCategory === channel.name;
                 return (
                   <button
                     key={channel.name}
-                    onClick={() => setActiveCategory(channel.name)}
+                    onClick={() => {
+                      setActiveSubTab('feed');
+                      setActiveCategory(channel.name);
+                    }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold font-mono transition-all duration-150 flex items-center justify-between cursor-pointer ${
-                      isSelected 
-                        ? 'bg-violet-605/10 text-violet-400 border-l-4 border-violet-500 pl-2 bg-slate-950/50' 
-                        : 'text-slate-400 hover:bg-slate-955/20 hover:text-slate-201 pl-3'
+                      isSelected && activeSubTab === 'feed'
+                        ? 'bg-slate-950 border-l-4 border-violet-500 text-violet-300 pl-2' 
+                        : 'text-slate-400 hover:bg-slate-950/40 hover:text-slate-201 pl-3'
                     }`}
                   >
                     <span>{channel.label}</span>
-                    {isSelected && (
+                    {isSelected && activeSubTab === 'feed' && (
                       <span className="w-1.5 h-1.5 bg-violet-400 rounded-full" />
                     )}
                   </button>
@@ -455,272 +660,391 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
             </div>
           </div>
 
-          {/* Guidelines info card */}
-          <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800 space-y-3 pr-5 text-left">
-            <h4 className="font-display font-bold text-xs text-slate-205 flex items-center gap-1.5">
-              <span>🔰</span> Discord Guidelines
-            </h4>
-            <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
-              Este canal foi idealizado para atletas, faixas pretas e novatos debaterem ciência de finalizações e transição. 
-            </p>
-            <div className="border-t border-slate-850 pt-2 space-y-1 text-[9.5px] text-slate-501 font-mono">
-              <div className="flex gap-1.5">• <span>Dúvidas devem usar termos anatômicos.</span></div>
-              <div className="flex gap-1.5">• <span>Respeito absoluto à hierarquia.</span></div>
-            </div>
-          </div>
-        </div>
-
-        {/* FEED SECTION (Col span 2) */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Create Post Form */}
-          <form 
-            onSubmit={handleCreatePost}
-            className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4"
-          >
-            <div className="flex gap-3 items-center">
-              <AvatarWithFrame
-                avatarUrl={user.avatar}
-                userName={user.name}
-                frame={user.equippedFrame}
-                size="sm"
-                className="shrink-0"
-              />
-              <textarea 
-                required
-                placeholder="Compartilhe seu treino pesado, dicas de guarda, fotos ou memes de tatame hoje..."
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
-                rows={2}
-                className="flex-1 bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-semibold resize-none"
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-3 border-t border-slate-800/60 gap-3">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-500 font-mono text-[10px] uppercase">Publicar no Canal:</span>
-                <select 
-                  value={newPostCategory}
-                  onChange={(e) => setNewPostCategory(e.target.value as any)}
-                  className="bg-slate-950 border border-slate-750 text-slate-300 rounded p-1 text-[11px] font-bold cursor-pointer"
-                >
-                  <option value="Treino">🥋 #treinos-tatame</option>
-                  <option value="Dúvida">❓ #duvidas-posicoes</option>
-                  <option value="Meme">😂 #memes-tatame</option>
-                  <option value="Campeonato">🏆 #campeonatos</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow transition-all hover:scale-[1.01]"
-              >
-                <Send className="w-3.5 h-3.5" /> Postar Conteúdo
-              </button>
-            </div>
-          </form>
-
-          {/* Active channel head banner */}
-          <div className="bg-slate-950/20 p-3 rounded-xl border border-slate-850/80 flex justify-between items-center">
-            <span className="text-xs font-mono font-bold text-slate-401 flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-violet-505 animate-ping" />
-              Canal ativo: {activeCategory === 'Todos' ? '🌐 Visão Geral' : `# ${activeCategory.toLowerCase()}`}
-            </span>
-            <span className="text-[10px] text-slate-550 font-mono">{filteredPosts.length} postagens catalogadas</span>
-          </div>
-
-          {/* Posts Feed list */}
-          <div className="space-y-4">
-            {isLoading && posts.length === 0 ? (
-              <div className="py-20 text-center text-slate-500 text-xs font-mono">
-                Sincronizando postagens reais do servidor...
-              </div>
-            ) : filteredPosts.length === 0 ? (
-              <div className="bg-slate-950/40 p-12 rounded-2xl border border-slate-800 text-center space-y-2">
-                <p className="text-xs text-slate-450 font-mono">Nenhuma postagem ativa encontrada aqui.</p>
-                <p className="text-[10px] text-slate-500 leading-normal font-normal">Escreva sua primeira jornada ou posições novas acima!</p>
-              </div>
-            ) : (
-              filteredPosts.map((post) => {
-                const showComments = openCommentsPostId === post.id;
-                
-                return (
-                  <div 
-                    key={post.id}
-                    className="bg-slate-950/45 p-5 rounded-2xl border border-slate-800 space-y-4 hover:border-slate-750/70 transition-all text-left"
-                  >
-                    {/* Post header author metadata */}
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex gap-3 items-center">
-                        <AvatarWithFrame
-                          avatarUrl={post.authorAvatar}
-                          userName={post.authorName}
-                          frame={post.authorFrame}
-                          size="sm"
-                          className="shrink-0"
-                        />
-                        <div>
-                          <h4 className="font-display font-semibold text-xs text-slate-205 flex items-center gap-1.5 flex-wrap">
-                            {post.authorName}
-                            <span className={`text-[8.5px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${getBeltBg(post.authorBelt)}`}>
-                              Faixa {translateBelt(post.authorBelt)}
-                            </span>
-                          </h4>
-                          <span className="text-[9.5px] text-slate-500 font-mono block mt-0.5">{post.timestamp}</span>
-                        </div>
-                      </div>
-
-                      <span className="bg-slate-900 border border-slate-800/80 text-[10px] text-slate-400 font-mono px-2.5 py-0.5 rounded-lg shrink-0 uppercase tracking-wider">
-                        {getCategoryIcon(post.category)} {post.category === 'Dúvida' ? 'posições' : post.category.toLowerCase()}
-                      </span>
-                    </div>
-
-                    {/* Body Content */}
-                    <p className="text-xs text-slate-300 leading-relaxed font-normal bg-slate-900/30 p-3.5 rounded-xl border border-slate-850/50 whitespace-pre-wrap">
-                      {post.content}
-                    </p>
-
-                    {/* Operational actions footer */}
-                    <div className="flex items-center gap-5 text-xs pt-2 border-t border-slate-900/40">
-                      <button
-                        type="button"
-                        onClick={() => toggleUpvote(post.id)}
-                        className={`flex items-center gap-1.5 cursor-pointer transition-colors ${
-                          post.hasUpvoted ? 'text-rose-400 font-bold' : 'text-slate-500 hover:text-rose-400'
-                        }`}
-                      >
-                        <Heart className={`w-4 h-4 ${post.hasUpvoted ? 'fill-rose-400 text-rose-400' : ''}`} />
-                        <span>{post.upvotes} curtidas</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setOpenCommentsPostId(showComments ? null : post.id)}
-                        className="flex items-center gap-1.5 text-slate-500 hover:text-slate-200 cursor-pointer transition-colors"
-                      >
-                        <MessageSquare className="w-4 h-4 text-indigo-400" />
-                        <span>{post.comments?.length || 0} respostas</span>
-                      </button>
-                    </div>
-
-                    {/* Comments section expanding */}
-                    {showComments && (
-                      <div className="pt-4 border-t border-slate-900/80 space-y-4 animate-fadeIn">
-                        
-                        {post.comments && post.comments.length > 0 && (
-                          <div className="space-y-3 pl-3 border-l-2 border-slate-800">
-                            {post.comments.map((comm) => (
-                              <div key={comm.id} className="bg-slate-900/30 p-3 rounded-xl border border-slate-850/60 flex gap-3 text-xs items-start">
-                                <AvatarWithFrame
-                                  avatarUrl={comm.authorAvatar}
-                                  userName={comm.authorName}
-                                  frame={comm.authorFrame || null}
-                                  size="xs"
-                                  className="shrink-0"
-                                />
-                                <div className="space-y-1 flex-1">
-                                  <div className="flex justify-between items-center">
-                                    <h5 className="font-semibold text-[11px] text-slate-205 flex items-center gap-1.5">
-                                      {comm.authorName}
-                                      <span className={`text-[7px] px-1 rounded font-black uppercase ${getBeltBg(comm.authorBelt)}`}>
-                                        🥋 {translateBelt(comm.authorBelt)}
-                                      </span>
-                                    </h5>
-                                    <span className="text-[9px] text-slate-500 font-mono">{comm.timestamp}</span>
-                                  </div>
-                                  <p className="text-slate-400 font-normal leading-relaxed mt-0.5">{comm.content}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Write Comment Form */}
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="Escreva um conselho técnico ou resposta para este atleta..."
-                            value={commentInputs[post.id] || ''}
-                            onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleAddComment(post.id);
-                            }}
-                            className="flex-1 bg-slate-950 border border-slate-750 text-xs text-slate-205 placeholder-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleAddComment(post.id)}
-                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer font-mono"
-                          >
-                            Enviar
-                          </button>
-                        </div>
-
-                      </div>
-                    )}
-
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-        </div>
-
-        {/* INSTAGRAM-STYLE ATLETAS NETWORK SUGESTIONS (Col span 1) */}
-        <div className="lg:col-span-1 space-y-6">
-          
-          {/* Active Player Social Profile Summary */}
-          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-3.5 text-center">
-            <div className="flex flex-col items-center">
+          {/* User Bio and Stats Board (LinkedIn-style) */}
+          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4">
+            <div className="flex flex-col items-center pb-3 border-b border-slate-850">
               <AvatarWithFrame
                 avatarUrl={user.avatar}
                 userName={user.name}
                 frame={user.equippedFrame}
                 size="md"
               />
-              <h4 className="font-display font-extrabold text-white text-xs mt-2 truncate max-w-full">
+              <h4 className="font-display font-extrabold text-sm text-slate-100 mt-2.5 truncate max-w-full">
                 {user.name}
               </h4>
-              <span className={`text-[8px] px-1.5 py-0.2 rounded font-black uppercase mt-1 tracking-wider ${getBeltBg(user.belt)}`}>
+              <span className={`text-[8px] font-black tracking-wider uppercase px-2 py-0.5 rounded-md mt-1.5 ${getBeltBg(user.belt)}`}>
                 Faixa {translateBelt(user.belt)}
               </span>
             </div>
 
-            {/* General metrics */}
-            <div className="grid grid-cols-2 gap-2 border-t border-slate-800/80 pt-3 text-[10px]">
-              <div className="text-center border-r border-slate-800/60">
-                <span className="block font-mono font-black text-slate-101 text-xs">
-                  {networkUsers.filter(u => u.isFollowing).length}
-                </span>
-                <span className="text-slate-502 uppercase font-mono text-[8px] tracking-wide">Seguindo</span>
+            <div className="space-y-2 text-[10px] font-mono leading-relaxed">
+              <div className="flex justify-between border-b border-slate-950 pb-1.5 text-slate-500">
+                <span>Total Seguidores:</span>
+                <span className="text-slate-300 font-bold">{notifications.filter(n => n.type === 'FOLLOWER').length + 3}</span>
               </div>
-              <div className="text-center">
-                <span className="block font-mono font-black text-slate-101 text-xs">
-                  {/* Dynamic calculation: how many users follow us in the memory or context */}
-                  {notifications.filter(n => n.type === 'FOLLOWER').length}
+              <div className="flex justify-between border-b border-slate-950 pb-1.5 text-slate-500">
+                <span>Estudos de Streak:</span>
+                <span className="text-rose-400 font-bold flex items-center gap-0.5">
+                  <Flame className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> {user.streak || 5} dias
                 </span>
-                <span className="text-slate-550 uppercase font-mono text-[8px] tracking-wide">Novos Seguidores</span>
+              </div>
+              <div className="flex justify-between text-slate-500">
+                <span>Elo PVP Arena:</span>
+                <span className="text-amber-400 font-bold">{user.elo || 1000} LP</span>
               </div>
             </div>
           </div>
 
-          {/* Atletas Network Suggestions (Recomendações Instagram-style) */}
-          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4 text-left">
-            <div className="border-b border-slate-800 pb-2">
+        </div>
+
+        {/* INTEGRATED FEED AND ACTIONS ZONE (Col span 2) */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* ACTIVE TAB 1: RENDER USER SOCIAL FEED */}
+          {activeSubTab === 'feed' && (
+            <>
+              {/* Stories Rail layout */}
+              <SocialStories user={user} showToast={showToast} />
+
+              {/* Posting editor container */}
+              <form 
+                onSubmit={handleCreatePost}
+                className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4 text-left relative"
+              >
+                <div className="flex gap-3 items-center">
+                  <AvatarWithFrame
+                    avatarUrl={user.avatar}
+                    userName={user.name}
+                    frame={user.equippedFrame}
+                    size="sm"
+                    className="shrink-0"
+                  />
+                  <div className="flex-1 relative">
+                    <textarea 
+                      ref={textareaRef}
+                      required
+                      placeholder="Marque um atleta com @ ou compartilhe conselhos de guarda usando #jiujitsu..."
+                      value={newPostContent}
+                      onChange={handleTextareaChange}
+                      rows={2}
+                      className="w-full bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-semibold resize-none"
+                    />
+
+                    {/* Mentions Auto-Complete Dropdown list overlay */}
+                    {showMentionsPanel && matchedMentions.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950 border border-slate-800 rounded-xl max-h-[140px] overflow-y-auto z-50 p-1.5 space-y-1 shadow-2xl">
+                        <span className="block text-[8px] uppercase font-bold text-slate-500 p-1 tracking-wider font-mono">Mencionar Atleta:</span>
+                        {matchedMentions.map(net => (
+                          <div
+                            key={net.id}
+                            onClick={() => insertMention(net.name)}
+                            className="flex items-center gap-2 p-1.5 hover:bg-slate-900 rounded-lg cursor-pointer transition-colors text-xs text-slate-300"
+                          >
+                            <img src={net.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                            <span className="font-bold text-[11px]">{net.name}</span>
+                            <span className={`text-[7px] font-black uppercase px-1 rounded ${getBeltBg(net.belt)}`}>
+                              {translateBelt(net.belt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-3 border-t border-slate-800/60 gap-3">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-500 font-mono text-[9px] uppercase">Canal do Quimono:</span>
+                    <select 
+                      value={newPostCategory}
+                      onChange={(e) => setNewPostCategory(e.target.value as any)}
+                      className="bg-slate-950 border border-slate-750 text-slate-300 rounded p-1 text-[11px] font-bold cursor-pointer"
+                    >
+                      <option value="Treino">🥋 #treinos-tatame</option>
+                      <option value="Dúvida">❓ #duvidas-posicoes</option>
+                      <option value="Meme">😂 #memes-tatame</option>
+                      <option value="Campeonato">🏆 #campeonatos-eventos</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow transition-all hover:scale-[1.01]"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Postar Conteúdo
+                  </button>
+                </div>
+              </form>
+
+              {/* Feed Filters header toolbar */}
+              <div className="bg-slate-950/20 p-3 rounded-xl border border-slate-850/80 flex justify-between items-center text-xs">
+                <span className="font-mono font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                  <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
+                  Mural: {activeCategory === 'Todos' ? '🌐 Visão Geral' : `# ${activeCategory.toLowerCase()}`}
+                </span>
+
+                {/* Bookmark filter view selector */}
+                <button
+                  type="button"
+                  onClick={() => setShowOnlySaved(!showOnlySaved)}
+                  className={`px-2.5 py-1 rounded-lg border font-mono text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                    showOnlySaved 
+                      ? 'bg-amber-400/10 border-amber-500/55 text-amber-400' 
+                      : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400'
+                  }`}
+                >
+                  <BookmarkCheck className="w-3.5 h-3.5" />
+                  <span>{showOnlySaved ? 'Exibindo Salvos' : 'Filtrar Salvos'}</span>
+                </button>
+              </div>
+
+              {/* Posts Render Grid */}
+              <div className="space-y-4">
+                {displayPosts.length === 0 ? (
+                  <div className="bg-slate-900 p-12 rounded-2xl border border-slate-800 text-center space-y-2">
+                    <p className="text-xs text-slate-450 font-mono">Nenhuma postagem ativa encontrada.</p>
+                    <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                      Sua seleção de canais ou filtros ativos retornou resultados em branco.
+                    </p>
+                  </div>
+                ) : (
+                  displayPosts.map((post) => {
+                    const showComments = openCommentsPostId === post.id;
+                    const isPostSaved = post.hasSaved;
+                    
+                    return (
+                      <div 
+                        key={post.id}
+                        className="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 space-y-4 hover:border-slate-750/70 transition-all text-left relative"
+                      >
+                        {/* Post Header */}
+                        <div className="flex justify-between items-start gap-4">
+                          <div className="flex gap-3 items-center">
+                            <AvatarWithFrame
+                              avatarUrl={post.authorAvatar}
+                              userName={post.authorName}
+                              frame={post.authorFrame}
+                              size="sm"
+                              className="shrink-0"
+                            />
+                            <div>
+                              <h4 className="font-display font-semibold text-xs text-slate-201 flex items-center gap-1.5 flex-wrap">
+                                {post.authorName}
+                                <span className={`text-[8px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${getBeltBg(post.authorBelt)}`}>
+                                  Faixa {translateBelt(post.authorBelt)}
+                                </span>
+                              </h4>
+                              <span className="text-[9.5px] text-slate-500 font-mono block mt-0.5">{post.timestamp}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Category labels */}
+                            <span className="bg-slate-900 border border-slate-800 text-[9px] text-slate-400 font-mono px-2.5 py-0.5 rounded-lg shrink-0 uppercase tracking-widest">
+                              #{post.category.toLowerCase()}
+                            </span>
+
+                            {/* Save, Share, Flag popups */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBookmark(post.id)}
+                              className={`p-1 border rounded-lg transition-colors cursor-pointer ${
+                                isPostSaved 
+                                  ? 'bg-amber-400/10 border-amber-500/50 text-amber-400' 
+                                  : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-350'
+                              }`}
+                              title={isPostSaved ? 'Remover do Diário' : 'Salvar no Diário'}
+                            >
+                              <Bookmark className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setReportingPostId(post.id)}
+                              className="p-1 border border-slate-850 bg-slate-950 rounded-lg text-slate-500 hover:text-red-400 hover:border-red-950 transition-colors cursor-pointer"
+                              title="Denunciar Conteúdo"
+                            >
+                              <Flag className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Post Body Content with highlighted tags */}
+                        <div className="text-xs text-slate-300 leading-relaxed font-sans bg-slate-950/40 p-4 rounded-xl border border-slate-850/50 whitespace-pre-wrap select-text">
+                          {formatPostBody(post.content)}
+                        </div>
+
+                        {/* REACTION PREVIEWS */}
+                        {post.reactions && Object.keys(post.reactions).length > 0 && (
+                          <div className="flex gap-1.5 flex-wrap pt-1">
+                            {Object.entries(post.reactions).map(([reactKey, reactCount]) => {
+                              if ((reactCount as number) === 0) return null;
+                              const emojiObj = VALID_EMOJIS[reactKey] || { label: reactKey, icon: '🥋' };
+                              const userReactedToThis = post.userReactions?.includes(reactKey);
+
+                              return (
+                                <button
+                                  key={reactKey}
+                                  onClick={() => handleReactToPost(post.id, reactKey)}
+                                  className={`px-2.5 py-1 rounded-full border text-[10px] font-bold font-mono flex items-center gap-1 cursor-pointer transition-all ${
+                                    userReactedToThis 
+                                      ? 'bg-violet-605/10 border-violet-500/50 text-violet-400' 
+                                      : 'bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200'
+                                  }`}
+                                  title={`Reação: ${emojiObj.label}`}
+                                >
+                                  <span>{emojiObj.icon}</span>
+                                  <span>{reactCount as number}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Post footer and reaction tools */}
+                        <div className="flex items-center gap-5 text-xs pt-2 border-t border-slate-950 relative">
+                          <div 
+                            className="relative"
+                            onMouseEnter={() => setActiveReactionPickerPostId(post.id)}
+                            onMouseLeave={() => setActiveReactionPickerPostId(null)}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleReactToPost(post.id, 'OSS')}
+                              className="flex items-center gap-1.5 text-slate-500 hover:text-rose-400 cursor-pointer transition-colors font-bold py-1"
+                            >
+                              <Heart className="w-4 h-4 text-rose-500" />
+                              <span>Interagir</span>
+                              <ChevronDown className="w-3 h-3 text-slate-500" />
+                            </button>
+
+                            {/* HOVER EMOJI PICKER POPOVER DISCORD STYLE (❤️🔥🥋⚔️🏆👏) */}
+                            {activeReactionPickerPostId === post.id && (
+                              <div className="absolute left-0 bottom-full mb-1 bg-slate-950 border border-slate-850 px-2.5 py-1.5 rounded-full flex gap-2.5 shadow-2xl z-50 animate-scaleUp">
+                                {Object.entries(VALID_EMOJIS).map(([key, emoji]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => handleReactToPost(post.id, key)}
+                                    className="text-lg hover:scale-130 transition-transform active:scale-95 duration-100 cursor-pointer"
+                                    title={emoji.label}
+                                  >
+                                    {emoji.icon}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setOpenCommentsPostId(showComments ? null : post.id)}
+                            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-200 cursor-pointer transition-colors"
+                          >
+                            <MessageSquare className="w-4 h-4 text-indigo-400" />
+                            <span>{post.comments?.length || 0} respostas técnica</span>
+                          </button>
+                        </div>
+
+                        {/* Expandable comments */}
+                        {showComments && (
+                          <div className="pt-4 border-t border-slate-950 space-y-4 animate-fadeIn">
+                            {post.comments && post.comments.length > 0 && (
+                              <div className="space-y-3 pl-3 border-l-2 border-slate-800">
+                                {post.comments.map((comm: any) => (
+                                  <div key={comm.id} className="bg-slate-950/20 p-3 rounded-xl border border-slate-850/60 flex gap-3 text-xs items-start">
+                                    <AvatarWithFrame
+                                      avatarUrl={comm.authorAvatar}
+                                      userName={comm.authorName}
+                                      frame={comm.authorFrame}
+                                      size="xs"
+                                      className="shrink-0"
+                                    />
+                                    <div className="space-y-1 flex-1">
+                                      <div className="flex justify-between items-center">
+                                        <h5 className="font-semibold text-[11px] text-slate-201 flex items-center gap-1.5 flex-wrap">
+                                          {comm.authorName}
+                                          <span className={`text-[7px] px-1 rounded font-black uppercase ${getBeltBg(comm.authorBelt)}`}>
+                                            Faixa {translateBelt(comm.authorBelt)}
+                                          </span>
+                                        </h5>
+                                        <span className="text-[9px] text-slate-500 font-mono">{comm.timestamp}</span>
+                                      </div>
+                                      <p className="text-slate-400 leading-relaxed font-medium mt-0.5">{formatPostBody(comm.content)}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Write a reply form */}
+                            <div className="flex gap-2">
+                              <input 
+                                type="text" 
+                                placeholder="Insira seu conselho de guarda ou finalize uma resposta técnica..."
+                                value={commentInputs[post.id] || ''}
+                                onChange={(e) => setCommentInputs({ ...commentInputs, [post.id]: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleAddComment(post.id);
+                                }}
+                                className="flex-1 bg-slate-950 border border-slate-750 text-xs text-slate-200 placeholder-slate-500 rounded-lg px-3 py-2.5 focus:outline-none focus:border-violet-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAddComment(post.id)}
+                                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer font-mono"
+                              >
+                                Enviar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ACTIVE TAB 2: RENDER AUTOMATIC CERTIFICATES GENERATOR */}
+          {activeSubTab === 'achievements' && (
+            <AchievementCards 
+              user={user} 
+              showToast={showToast} 
+              onPostCreated={() => {
+                setActiveSubTab('feed');
+                loadSocialData();
+              }} 
+            />
+          )}
+
+          {/* ACTIVE TAB 3: RENDER GAMIFIED RANKINGS */}
+          {activeSubTab === 'rankings' && (
+            <SocialRankings user={user} />
+          )}
+
+        </div>
+
+        {/* RIGHT COLUMN: RECOMMENDED USERS & COMMUNITY OVERVIEWS (Col span 1) */}
+        <div className="lg:col-span-1 space-y-6 text-left">
+          
+          {/* Followers Suggestions (Instagram-style) */}
+          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4">
+            <div className="border-b border-slate-805 pb-2">
               <h4 className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <SmileIcon />
+                <span>👥</span>
                 <span>Sugestões para seguir</span>
               </h4>
             </div>
 
             <div className="space-y-3">
-              {networkUsers.length === 0 ? (
-                <div className="py-4 text-center text-[10px] text-slate-500">
-                  Sem outros atletas descobertos ainda.
+              {networkUsers.filter(item => item.id !== user.id).length === 0 ? (
+                <div className="py-4 text-center text-[10px] text-slate-500 font-mono">
+                  Buscando outros atletas no radar...
                 </div>
               ) : (
-                networkUsers.slice(0, 5).map((net) => (
+                networkUsers.filter(item => item.id !== user.id).slice(0, 5).map((net) => (
                   <div 
                     key={net.id} 
                     className="flex flex-col bg-slate-950/30 p-2.5 rounded-xl border border-slate-850 gap-2 text-xs"
@@ -733,21 +1057,21 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                           frame={net.equippedFrame}
                           size="xs"
                         />
-                        <div className="min-w-0 leading-none">
-                          <span className="block font-semibold text-slate-201 text-[11px] truncate">{net.name}</span>
-                          <span className={`text-[7px] px-1 inline-block rounded font-bold uppercase mt-1 leading-normal ${getBeltBg(net.belt as any)}`}>
-                            🥋 {translateBelt(net.belt)}
+                        <div className="min-w-0 leading-tight">
+                          <span className="block font-bold text-slate-201 text-[11px] truncate">{net.name}</span>
+                          <span className={`text-[7px] px-1 inline-block rounded font-black uppercase mt-1 leading-normal ${getBeltBg(net.belt)}`}>
+                            {translateBelt(net.belt)}
                           </span>
                         </div>
                       </div>
-                      
+
                       <button
                         type="button"
                         onClick={() => handleToggleFollow(net.id)}
                         className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                           net.isFollowing 
                             ? 'bg-slate-800 text-emerald-400 hover:bg-slate-750' 
-                            : 'bg-violet-605/20 text-violet-300 hover:bg-violet-600 hover:text-white'
+                            : 'bg-violet-605/20 text-violet-300 hover:bg-violet-650 hover:text-white'
                         }`}
                         title={net.isFollowing ? "Deixar de seguir" : "Seguir atleta"}
                       >
@@ -759,39 +1083,82 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                       </button>
                     </div>
 
-                    <div className="flex justify-between items-center text-[9px] text-slate-500 font-mono border-t border-slate-900 pt-1.5 mt-0.5 px-0.5">
+                    <div className="flex justify-between items-center text-[9px] text-slate-500 font-mono border-t border-slate-950 pt-1.5 mt-0.5 px-0.5">
                       <span>Nível {net.level}</span>
-                      <span>{net.followersCount} seguidores</span>
+                      <span>{net.followersCount || 12} seg</span>
                     </div>
-
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          {/* Social feed stats widget */}
-          <div className="bg-gradient-to-tr from-slate-950 to-slate-900 border border-slate-800 p-4 rounded-xl text-left space-y-2">
+          {/* Social Stats Widget */}
+          <div className="bg-gradient-to-tr from-slate-950 to-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
             <h5 className="text-[10px] uppercase font-bold font-mono text-violet-400 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5" /> Estatísticas do Tatame
+              <TrendingUp className="w-3.5 h-3.5" /> Métricas Ativas da Lâmina
             </h5>
             <div className="space-y-1 text-[10px] text-slate-400 font-mono">
-              <div className="flex justify-between"><span>Registros no DB:</span><span className="text-slate-201">{posts.length}</span></div>
-              <div className="flex justify-between"><span>Categorias disponíveis:</span><span className="text-slate-201">4 canais</span></div>
-              <div className="flex justify-between"><span>Feed Integrado:</span><span className="text-emerald-400">Prisma ORM</span></div>
+              <div className="flex justify-between"><span>Postagens do Clube:</span><span className="text-slate-201">{posts.length}</span></div>
+              <div className="flex justify-between"><span>Minhas Conquistas:</span><span className="text-emerald-400">Totalmente Sinc</span></div>
+              <div className="flex justify-between"><span>Engine Socket:</span><span className="text-emerald-400">Ativo</span></div>
             </div>
           </div>
 
         </div>
 
       </div>
-    </div>
-  );
-}
 
-// Small inline helper component for styling
-function SmileIcon() {
-  return (
-    <span className="text-slate-400">👥</span>
+      {/* MODAL: REPORT REASON PICKER DIALOG */}
+      {reportingPostId && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-xs flex items-center justify-center z-[990] p-4 text-left">
+          <div className="w-full max-w-sm bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4">
+            <div className="border-b border-slate-800 pb-2 flex justify-between items-center">
+              <h3 className="font-mono text-xs font-black text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Flag className="w-4 h-4" />
+                <span>Denunciar Postagem</span>
+              </h3>
+            </div>
+
+            <form onSubmit={handleReportFormSubmit} className="space-y-4 text-xs font-sans">
+              <p className="text-slate-400 leading-relaxed font-semibold">
+                Nossos moderadores auditarão este conteúdo em menos de 24 horas. Qual o principal motivo da irregularidade?
+              </p>
+
+              <div className="space-y-2">
+                <label className="block text-[8px] uppercase tracking-wider font-bold text-slate-500">Selecione uma categoria:</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl p-2.5 font-semibold focus:outline-none"
+                >
+                  <option value="Spam ou publicidade repetitiva">Spam ou publicidade repetitiva</option>
+                  <option value="Ofensa moral ou assédio a outro praticante">Ofensa moral ou assédio a outro praticante</option>
+                  <option value="Conteúdo não relacionado a Jiu-Jitsu">Conteúdo não relacionado a Jiu-Jitsu</option>
+                  <option value="Fake news ou mentira sobre graduação">Fake news ou mentira sobre graduação</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReportingPostId(null)}
+                  className="flex-1 py-2 bg-slate-950 hover:bg-slate-850 text-slate-400 font-bold font-mono rounded-lg border border-slate-850 text-center cursor-pointer"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-1 px-4 bg-rose-600 hover:bg-rose-500 text-white font-bold font-mono rounded-lg text-center cursor-pointer"
+                >
+                  Enviar Alerta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }
