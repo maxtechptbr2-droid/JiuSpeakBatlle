@@ -20,7 +20,9 @@ import {
   Award,
   LogOut,
   Wallet,
-  CreditCard
+  CreditCard,
+  Share2,
+  Shield
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
@@ -55,6 +57,8 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' },
     { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
     { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
+    { id: 'academies', label: 'Academias BJJ', icon: Shield, badge: 'Equipes' },
+    { id: 'viral', label: 'Compartilhar Viral', icon: Share2, badge: 'Canvas' },
     ...(user.role === 'admin' || user.role === 'professor' ? [
       { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Docente' }
     ] : []),

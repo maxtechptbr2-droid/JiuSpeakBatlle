@@ -19,11 +19,13 @@ import {
   Store,
   Users,
   ShieldAlert,
-  Bell
+  Bell,
+  ChevronRight
 } from 'lucide-react';
 import { UserProfile, Course, Achievement, AuditLog, BeltRank } from './types';
 import { COURSES, ACHIEVEMENTS, INITIAL_AUDIT_LOGS } from './data';
 import Sidebar from './components/Sidebar';
+import { ViralShare } from './components/ViralShare';
 
 // Lazy loading views for optimized chunk loading and quick response times under high-load
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -37,6 +39,7 @@ const AdminPanel = React.lazy(() => import('./admin'));
 const AuthPortal = React.lazy(() => import('./components/AuthPortal'));
 const FinancePanel = React.lazy(() => import('./components/FinancePanel'));
 const SubscriptionPanel = React.lazy(() => import('./components/SubscriptionPanel'));
+const AcademiesCommunities = React.lazy(() => import('./components/AcademiesCommunities'));
 
 // Spinner skeleton screen for lazy-loaded route transitions 
 const LoadingFallback = () => (
@@ -136,6 +139,19 @@ export default function App() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [cheatModalOpen, setCheatModalOpen] = useState<boolean>(false);
+  const [activeViralConquest, setActiveViralConquest] = useState<any | null>(null);
+
+  // 1.5 Global Event Interceptor for Viral Sharing Popups (No prop-drilling)
+  useEffect(() => {
+    const handleTrigger = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setActiveViralConquest(customEvent.detail);
+      }
+    };
+    window.addEventListener('trigger-viral-share', handleTrigger);
+    return () => window.removeEventListener('trigger-viral-share', handleTrigger);
+  }, []);
 
   // Synchronize tabs with browser address bar (Vanilla SPA Routing)
   useEffect(() => {
@@ -353,6 +369,19 @@ export default function App() {
       
       // Add achievement stripe check progress
       updateAchievementProgress('stripe_unlocked', finalLvl);
+
+      // Trigger automatic viral share congratulations overlay
+      const hasBeltPromoted = finalBelt !== user.belt;
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+          detail: {
+            type: hasBeltPromoted ? 'nova_faixa' : 'novo_nivel',
+            customTitle: hasBeltPromoted 
+              ? `PROMOVIDO A FAIXA ${finalBelt.toUpperCase()}!` 
+              : `NOVO NÍVEL ${finalLvl} CONQUISTADO!`
+          }
+        }));
+      }, 1200);
     }
 
     setUser(prev => ({
@@ -461,6 +490,108 @@ export default function App() {
       default: return 'bg-white text-slate-800';
     }
   };
+
+  // Intercept shared public landing URLs before demanding standard authentication gate
+  const isUrlShared = typeof window !== 'undefined' && window.location.search.includes('share=true');
+  if (isUrlShared) {
+    const params = new URLSearchParams(window.location.search);
+    const shareName = params.get('name') || 'Atleta JiuSpeak';
+    const shareBelt = (params.get('belt') as BeltRank) || 'Branca';
+    const shareLevel = parseInt(params.get('level') || '1', 10);
+    const shareElo = parseInt(params.get('elo') || '1000', 10);
+    const shareXp = parseInt(params.get('xp') || '0', 10);
+    const shareAchievement = params.get('achievement') || 'NOVA VITÓRIA REVELADA!';
+    const shareType = params.get('type') || 'vitoria_pvp';
+    const shareAvatar = params.get('avatar') || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
+    const shareFrame = params.get('frame') || 'none';
+
+    const mockShareUser = {
+      id: 'shared_profile',
+      name: shareName,
+      email: '',
+      avatar: shareAvatar,
+      level: shareLevel,
+      xp: shareXp,
+      xpNextLevel: 1000,
+      belt: shareBelt,
+      stripes: Math.min(4, Math.floor(shareLevel / 6)),
+      coins: 0,
+      elo: shareElo,
+      winCount: 0,
+      lossCount: 0,
+      streak: 0,
+      academy: 'Atama Virtual Team',
+      category: 'Absoluto',
+      guardsPreference: '',
+      submitsPreference: '',
+      inventory: [],
+      enrolledCourses: [],
+      unlockedAchievements: [],
+      subscription: { type: 'FREE', priceBRL: 0 },
+      role: 'athlete',
+      balanceBRL: 0,
+      balanceAvailableBRL: 0,
+      balancePendingBRL: 0,
+      totalEarnedBRL: 0,
+      totalWithdrawnBRL: 0,
+      equippedFrame: shareFrame !== 'none' ? { id: 'frame', name: shareFrame, rarity: 'Lendário' } : null
+    } as any;
+
+    return (
+      <div className="min-h-screen text-slate-200 bg-[#070a13] flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto" id="public-share-gate">
+        <div className="text-center mb-6 space-y-2">
+          <div className="inline-flex items-center gap-2 bg-slate-900/80 px-4 py-2 rounded-2xl border border-slate-800">
+            <span className="text-2xl">🥋</span>
+            <span className="font-display font-extrabold text-lg text-white tracking-widest uppercase">JiuSpeak</span>
+          </div>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            A plataforma gamificada brasileira nº 1 para treinar Sparring de Inglês para Jiu-Jitsu!
+          </p>
+        </div>
+
+        <div className="w-full max-w-4xl bg-slate-950 border border-slate-900 rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl">
+          <div className="text-center">
+            <span className="text-xs font-mono text-emerald-400 bg-emerald-950/30 px-3 py-1 rounded-full border border-emerald-500/15">
+              Conquista de Atleta Auditada e Verificada
+            </span>
+          </div>
+
+          <ViralShare 
+            user={mockShareUser} 
+            isModalStyle={false} 
+            preselectedConquest={{
+              type: shareType as any,
+              customTitle: shareAchievement
+            }}
+          />
+
+          <div className="text-center pt-4 border-t border-slate-900 space-y-4">
+            <div className="space-y-1">
+              <h4 className="font-display font-black text-white text-md">Quer aprender de verdade a falar Inglês nos Tatames?</h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Desbloqueie diálogos reais de seminários, arbitragem, sparrings e viagens internacionais com o JiuSpeak.
+              </p>
+            </div>
+            
+            <button 
+              onClick={() => {
+                window.history.pushState(null, '', '/');
+                window.location.reload();
+              }}
+              className="px-8 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 mx-auto cursor-pointer shadow-lg shadow-violet-500/20"
+            >
+              🥋 Conhecer Desafio JiuSpeak Grátis
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-slate-600 font-mono mt-6">
+          © 2026 JiuSpeak • Hash de Integridade: {Math.random().toString(16).substring(2, 10).toUpperCase()}
+        </p>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -625,6 +756,12 @@ export default function App() {
 
         {/* Mounted Views Router */}
         <React.Suspense fallback={<LoadingFallback />}>
+          {currentTab === 'viral' && (
+            <ViralShare 
+              user={user} 
+            />
+          )}
+
           {currentTab === 'dashboard' && (
             <Dashboard 
               user={user} 
@@ -681,6 +818,14 @@ export default function App() {
           {currentTab === 'social' && (
             <SocialFeed 
               user={user} 
+              showToast={showToast}
+            />
+          )}
+
+          {currentTab === 'academies' && (
+            <AcademiesCommunities 
+              user={user} 
+              updateUser={handleUpdateUserProfile} 
               showToast={showToast}
             />
           )}
@@ -789,6 +934,17 @@ export default function App() {
               Fechar Debugger
             </button>
           </div>
+        </div>
+      )}
+
+      {activeViralConquest && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <ViralShare 
+            user={user} 
+            isModalStyle={true} 
+            onClose={() => setActiveViralConquest(null)}
+            preselectedConquest={activeViralConquest}
+          />
         </div>
       )}
 

@@ -120,6 +120,27 @@ export default function InventoryPanel({
         0
       );
 
+      // Trigger automatic viral share modal if rare avatar or legendary/rare frame
+      if (item.product?.category === 'FRAME' && (item.product?.rarity === 'Mitica' || item.product?.rarity === 'Lendária' || item.product?.rarity === 'Mestre' || item.product?.rarity === 'Diamante' || item.product?.rarity === 'Ouro')) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+            detail: {
+              type: 'moldura_lendaria',
+              customTitle: `${item.name.toUpperCase()} EQUIPADA!`
+            }
+          }));
+        }, 1000);
+      } else if (item.product?.category === 'AVATAR') {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+            detail: {
+              type: 'avatar_raro',
+              customTitle: `${item.name.toUpperCase()} ATIVADO!`
+            }
+          }));
+        }, 1000);
+      }
+
       // Instantly optimize local image / avatar if setting custom equipped profile items
       if (item.product?.category === 'AVATAR' && item.product?.imageUrl) {
         updateUser({

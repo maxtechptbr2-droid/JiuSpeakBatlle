@@ -29,7 +29,13 @@ import {
   Trophy,
   Flame,
   Award,
-  ChevronDown
+  ChevronDown,
+  Globe,
+  Crown,
+  Shield,
+  Calendar,
+  Clock,
+  Compass
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { UserProfile, SocialPost, Comment, BeltRank } from '../types';
@@ -66,18 +72,161 @@ interface SocialNotification {
   createdAt: string;
 }
 
+// PREMIUM HIGH-FIDELITY PRE-SEEDED POSTS for absolute richness under high-profile Premium filters
+const PREMIUM_SEEDED_POSTS = [
+  {
+    id: "premium_seed_1",
+    authorId: "prof_gracie",
+    authorName: "Sensei Roger Gracie",
+    authorAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    authorBelt: "Preto",
+    authorAcademy: "Atama Virtual Team",
+    isChampion: true,
+    category: "Promoções",
+    content: "Grande honra promover hoje o atleta Guilherme ao seu segundo grau na faixa azul! Disciplina exemplar e consistência nos sparrings de inglês técnico do JiuSpeak estão dando frutos excelentes. Oss! 🥋🔥 #promocao #family",
+    upvotes: 142,
+    hasUpvoted: false,
+    timestamp: "2 horas atrás",
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    comments: [
+      {
+        id: "c_seed_1",
+        authorName: 'Thiago "Filho do Vento"',
+        authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
+        authorBelt: "Azul",
+        content: "Parabéns Guilherme! Ele é um guerreiro de verdade nos tatames ingleses.",
+        timestamp: "1 hora atrás"
+      }
+    ],
+    reactions: { OSS: 18, BRABO: 24, FAIXAPRETA: 15, CAMPEAO: 12 },
+    userReactions: []
+  },
+  {
+    id: "premium_seed_2",
+    authorId: "user_fabricia",
+    authorName: "Fabrícia Guardeira",
+    authorAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
+    authorBelt: "Roxa",
+    authorAcademy: "Atama Virtual Team",
+    isFriend: true,
+    category: "Estudos",
+    content: "Concluí o plano de estudos avançado 'Arbitragem Internacional: Termos de Vantagem e Punições' na JiuSpeak! Agora me sinto extremamente confiante para discutir as regras com os gringos nos tatames mundiais. Próxima parada: Sparring de Voice AI! 📚✈️ #estudo #arbitragem",
+    upvotes: 56,
+    hasUpvoted: false,
+    timestamp: "5 horas atrás",
+    createdAt: new Date(Date.now() - 18000000).toISOString(),
+    comments: [],
+    reactions: { OSS: 12, GUERREIRO: 8 },
+    userReactions: []
+  },
+  {
+    id: "premium_seed_3",
+    authorId: "user_thiago",
+    authorName: 'Thiago "Filho do Vento"',
+    authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
+    authorBelt: "Azul",
+    authorAcademy: "Atama Virtual Team",
+    isFriend: true,
+    category: "PVP",
+    content: "Que luta sensacional na Arena PVP contra o gringo 'John_BJJ_Nyc'! Consegui aplicar com sucesso a finalização no estrangulamento de gola rodada ('loop choke') falando em inglês no momento exato! Subi para 1250 LP na liga! ⚔️🔥 #pvparena #win",
+    upvotes: 98,
+    hasUpvoted: false,
+    timestamp: "1 dia atrás",
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    comments: [
+      {
+        id: "c_seed_2",
+        authorName: "Mestre Cascão",
+        authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150",
+        authorBelt: "Preto",
+        content: "Brabo demais! Aquele ajuste no loop choke foi cirúrgico.",
+        timestamp: "18 horas atrás"
+      }
+    ],
+    reactions: { OSS: 15, BRABO: 22, CAMPEAO: 10 },
+    userReactions: []
+  },
+  {
+    id: "premium_seed_4",
+    authorId: "user_claudio",
+    authorName: "Claudio Chave de Pé",
+    authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150",
+    authorBelt: "Marrom",
+    authorAcademy: "Gracie Barra",
+    isChampion: true,
+    category: "Conquistas",
+    content: "DESBLOQUEADO! Obtive a insígnia lendária 'Embaixador de Abu Dhabi' no JiuSpeak após completar 10 simulações de conversas difíceis de seminário sem errar nenhuma pronúncia! Rumo à fluência de tatame! 🏆💎 #conquista #bjjfluency",
+    upvotes: 112,
+    hasUpvoted: false,
+    timestamp: "2 dias atrás",
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    comments: [],
+    reactions: { CAMPEAO: 18, RESPEITO: 15, BRABO: 10 },
+    userReactions: []
+  },
+  {
+    id: "premium_seed_5",
+    authorId: "prof_leticia",
+    authorName: "Letícia Sparring",
+    authorAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
+    authorBelt: "Preto",
+    authorAcademy: "Atama Virtual Team",
+    isChampion: true,
+    category: "Campeonatos",
+    content: "Inscrições abertas para o Campeonato Europeu IBJJF 2026 em Lisboa! Quem da Atama Virtual Team vai embarcar comigo? Importante focar no glossário inglês de pesagem e check do quimono aqui na plataforma para evitar surpresas! 🥇🌍 #campeonato #euro2026",
+    upvotes: 215,
+    hasUpvoted: false,
+    timestamp: "3 dias atrás",
+    createdAt: new Date(Date.now() - 259200000).toISOString(),
+    comments: [
+      {
+        id: "c_seed_3",
+        authorName: "Guilherme Faixa Azul",
+        authorAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150",
+        authorBelt: "Azul",
+        content: "Estou me preparando duro aqui no aplicativo pra falar sem travar em Portugal!",
+        timestamp: "2 dias atrás"
+      }
+    ],
+    reactions: { OSS: 35, CAMPEAO: 25, RESPEITO: 19 },
+    userReactions: []
+  },
+  {
+    id: "premium_seed_6",
+    authorId: "prof_jacare",
+    authorName: "Professor Jacaré",
+    authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150",
+    authorBelt: "Preto",
+    authorAcademy: "Alliance",
+    isChampion: true,
+    category: "Eventos",
+    content: "Atenção galera! Neste sábado teremos o nosso seminário presencial avançado focalizando em 'Leg Drag & Guard Passing Mechanics'. O briefing de regras e termos de arbitragem internacional já está sendo praticado aqui no módulo de Estudos. Oss! 🗺️🥋 #eventobjj #seminar",
+    upvotes: 85,
+    hasUpvoted: false,
+    timestamp: "4 dias atrás",
+    createdAt: new Date(Date.now() - 345600000).toISOString(),
+    comments: [],
+    reactions: { OSS: 20, RESPEITO: 12 },
+    userReactions: []
+  }
+];
+
 export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   const [posts, setPosts] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<NetworkUser[]>([]);
   const [notifications, setNotifications] = useState<SocialNotification[]>([]);
   
-  // Navigation
+  // Navigation & Sorter & Filter Active States
   const [activeSubTab, setActiveSubTab] = useState<'feed' | 'achievements' | 'rankings'>('feed');
-  const [activeCategory, setActiveCategory] = useState<string>('Todos');
+  const [activeCategory, setActiveCategory] = useState<string>('Todos'); // This handles the requested Filters: Conquistas, Estudos, PVP, Eventos, Campeonatos, Promoções
   const [showOnlySaved, setShowOnlySaved] = useState<boolean>(false);
   
+  // Timeline Premium Feed & Sorters States
+  const [activeFeedTab, setActiveFeedTab] = useState<'global' | 'amigos' | 'academia' | 'campeoes' | 'pretas'>('global');
+  const [activeSort, setActiveSort] = useState<'recente' | 'curtido' | 'comentado' | 'emalta'>('recente');
+  
   const [newPostContent, setNewPostContent] = useState<string>('');
-  const [newPostCategory, setNewPostCategory] = useState<'Treino' | 'Dúvida' | 'Meme' | 'Campeonato'>('Treino');
+  const [newPostCategory, setNewPostCategory] = useState<string>('Estudos');
   
   // Custom interactive overlays
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
@@ -483,14 +632,105 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
 
   const unreadNotifsCount = notifications.filter(n => !n.isRead).length;
 
-  // Filter posts depending on category + bookmarked filter
-  let displayPosts = activeCategory === 'Todos' 
-    ? posts 
-    : posts.filter(p => p.category === activeCategory);
+  // 1. Combine server posts with Premium Seeded Posts for a high-end timeline experience
+  const getExtendedAndEnrichedPosts = () => {
+    const combined = [...posts];
+    PREMIUM_SEEDED_POSTS.forEach((seed) => {
+      if (!combined.some(p => String(p.id).toLowerCase() === String(seed.id).toLowerCase())) {
+        combined.push(seed);
+      }
+    });
+
+    // Dynamically assign friend, champion and academy markers for premium feed filtering
+    return combined.map(p => {
+      const matchingUser = networkUsers.find(nu => nu.id === p.authorId);
+      const isFollowing = matchingUser?.isFollowing || false;
+      
+      const authorBeltNormalized = String(p.authorBelt).toUpperCase();
+      const isBlackOrMarrom = authorBeltNormalized === 'PRETO' || authorBeltNormalized === 'BLACK' || authorBeltNormalized === 'MARROM' || authorBeltNormalized === 'BROWN';
+      
+      // Calculate total reactions count for sorting
+      const reactionsCount = p.reactions 
+        ? Object.values(p.reactions).reduce((acc: number, val: any) => acc + (val || 0), 0)
+        : 0;
+
+      return {
+        ...p,
+        isFriend: p.isFriend || isFollowing || p.authorId === user.id,
+        authorAcademy: p.authorAcademy || (matchingUser?.role === 'admin' ? 'Atama Virtual Team' : p.authorId === user.id ? (user.academy || 'Atama Virtual Team') : 'Atama Virtual Team'),
+        isChampion: p.isChampion || isBlackOrMarrom || p.upvotes >= 70,
+        totalReactionsCount: reactionsCount + (p.upvotes || 0)
+      };
+    });
+  };
+
+  const isPostMatchingFilter = (postCategory: string, filterVal: string) => {
+    if (filterVal === 'Todos') return true;
+    
+    const catLower = String(postCategory).toLowerCase().trim();
+    const filterLower = String(filterVal).toLowerCase().trim();
+
+    if (catLower === filterLower) return true;
+
+    // Backward compatibility adapters
+    if (filterLower === 'estudos') {
+      return catLower === 'treino' || catLower === 'dúvida' || catLower === 'duvida' || catLower === 'meme';
+    }
+    if (filterLower === 'campeonatos') {
+      return catLower === 'campeonato';
+    }
+    return false;
+  };
+
+  const allTimelinePosts = getExtendedAndEnrichedPosts();
+
+  // Multi-tier timeline filtering:
+  // TIER A: Filter by Feed tab
+  let feedFilteredPosts = allTimelinePosts;
+  if (activeFeedTab === 'amigos') {
+    feedFilteredPosts = allTimelinePosts.filter(p => p.isFriend);
+  } else if (activeFeedTab === 'academia') {
+    feedFilteredPosts = allTimelinePosts.filter(p => p.authorAcademy === (user.academy || 'Atama Virtual Team'));
+  } else if (activeFeedTab === 'campeoes') {
+    feedFilteredPosts = allTimelinePosts.filter(p => p.isChampion);
+  } else if (activeFeedTab === 'pretas') {
+    feedFilteredPosts = allTimelinePosts.filter(p => String(p.authorBelt).toUpperCase() === 'PRETO' || String(p.authorBelt).toUpperCase() === 'BLACK');
+  }
+
+  // TIER B: Filter by Category/Filter
+  let displayPosts = activeCategory === 'Todos'
+    ? feedFilteredPosts
+    : feedFilteredPosts.filter(p => isPostMatchingFilter(p.category, activeCategory));
 
   if (showOnlySaved) {
     displayPosts = displayPosts.filter(p => p.hasSaved);
   }
+
+  // TIER C: High-performance sorting
+  displayPosts = [...displayPosts].sort((a: any, b: any) => {
+    if (activeSort === 'recente') {
+      const tA = new Date(a.createdAt || 0).getTime();
+      const tB = new Date(b.createdAt || 0).getTime();
+      return tB - tA;
+    }
+    if (activeSort === 'curtido') {
+      const likesA = a.totalReactionsCount || a.upvotes || 0;
+      const likesB = b.totalReactionsCount || b.upvotes || 0;
+      return likesB - likesA;
+    }
+    if (activeSort === 'comentado') {
+      const commA = (a.comments || []).length;
+      const commB = (b.comments || []).length;
+      return commB - commA;
+    }
+    if (activeSort === 'emalta') {
+      // Premium interactive trending hot index: weighted scores
+      const scoreA = (a.upvotes || 0) * 3 + (a.comments || []).length * 8 + (a.isChampion ? 20 : 0);
+      const scoreB = (b.upvotes || 0) * 3 + (b.comments || []).length * 8 + (b.isChampion ? 20 : 0);
+      return scoreB - scoreA;
+    }
+    return 0;
+  });
 
   // Filter network suggestions
   const matchedMentions = networkUsers.filter(u => 
@@ -620,21 +860,23 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
         {/* LEFT COLUMN: CHANNELS & MEMOIZERS DISPLAY (Col span 1) */}
         <div className="lg:col-span-1 space-y-4 text-left">
           
-          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4">
+          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4 shadow-xl">
             <div className="border-b border-slate-800/80 pb-2 flex justify-between items-center">
-              <h4 className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-violet-500" />
-                <span>Canais de Discussão</span>
+              <h4 className="font-mono text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Compass className="w-4 h-4 text-violet-500 animate-spin-slow" />
+                <span>Filtros Premium</span>
               </h4>
             </div>
 
             <div className="flex flex-col gap-1.5">
               {[
-                { name: 'Todos', label: '🌐 visão-geral' },
-                { name: 'Treino', label: '# treinos-tatame' },
-                { name: 'Dúvida', label: '# duvidas-posicoes' },
-                { name: 'Meme', label: '# memes-tatame' },
-                { name: 'Campeonato', label: '# campeonatos-eventos' }
+                { name: 'Todos', label: '🌐 Todos os Feeds' },
+                { name: 'Conquistas', label: '🏆 Conquistas' },
+                { name: 'Estudos', label: '📚 Estudos' },
+                { name: 'PVP', label: '⚔️ Lutas PVP' },
+                { name: 'Eventos', label: '📅 Eventos' },
+                { name: 'Campeonatos', label: '🎖️ Campeonatos' },
+                { name: 'Promoções', label: '✨ Promoções' }
               ].map((channel) => {
                 const isSelected = activeCategory === channel.name;
                 return (
@@ -644,15 +886,17 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                       setActiveSubTab('feed');
                       setActiveCategory(channel.name);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold font-mono transition-all duration-150 flex items-center justify-between cursor-pointer ${
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black font-mono transition-all duration-150 flex items-center justify-between cursor-pointer ${
                       isSelected && activeSubTab === 'feed'
-                        ? 'bg-slate-950 border-l-4 border-violet-500 text-violet-300 pl-2' 
-                        : 'text-slate-400 hover:bg-slate-950/40 hover:text-slate-201 pl-3'
+                        ? 'bg-slate-950 border-l-4 border-violet-500 text-violet-400 pl-2' 
+                        : 'text-slate-400 hover:bg-slate-950/40 hover:text-slate-200 pl-3'
                     }`}
                   >
                     <span>{channel.label}</span>
-                    {isSelected && activeSubTab === 'feed' && (
-                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full" />
+                    {isSelected && activeSubTab === 'feed' ? (
+                      <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-ping" />
+                    ) : (
+                      <span className="text-[10px] font-normal text-slate-600">bjj</span>
                     )}
                   </button>
                 );
@@ -703,13 +947,47 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
           {/* ACTIVE TAB 1: RENDER USER SOCIAL FEED */}
           {activeSubTab === 'feed' && (
             <>
+              {/* Premium Feeds Switcher Tab Bar */}
+              <div className="p-1 bg-slate-900 rounded-2xl border border-slate-800 grid grid-cols-5 gap-1 shadow-lg">
+                {[
+                  { id: 'global', label: 'Global', icon: Globe, desc: 'Feed Global' },
+                  { id: 'amigos', label: 'Amigos', icon: Heart, desc: 'Atletas Seguidos' },
+                  { id: 'academia', label: 'Academia', icon: Shield, desc: 'Seu Tatame' },
+                  { id: 'campeoes', label: 'Campeões', icon: Crown, desc: 'Atletas Elite' },
+                  { id: 'pretas', label: 'Faixas Pretas', icon: Award, desc: 'Mestres' },
+                ].map((fd) => {
+                  const isActive = activeFeedTab === fd.id;
+                  const IconComp = fd.icon;
+                  return (
+                    <button
+                      key={fd.id}
+                      onClick={() => setActiveFeedTab(fd.id as any)}
+                      className={`py-2 px-1 rounded-xl transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer relative overflow-hidden group ${
+                        isActive
+                          ? 'bg-slate-950 border border-slate-800 text-violet-400 shadow-md animate-pulse-once'
+                          : 'border-transparent text-slate-500 hover:text-slate-300'
+                      }`}
+                      title={fd.desc}
+                    >
+                      <IconComp className={`w-4 h-4 ${isActive ? 'scale-110 text-violet-400' : 'text-slate-500 group-hover:text-slate-400'} transition-transform`} />
+                      <span className="text-[10px] font-black tracking-tight font-sans block truncate max-w-full">
+                        {fd.label}
+                      </span>
+                      {isActive && (
+                        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-indigo-500 animate-pulse" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* Stories Rail layout */}
               <SocialStories user={user} showToast={showToast} />
 
               {/* Posting editor container */}
               <form 
                 onSubmit={handleCreatePost}
-                className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4 text-left relative"
+                className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4 text-left relative shadow-lg"
               >
                 <div className="flex gap-3 items-center">
                   <AvatarWithFrame
@@ -727,7 +1005,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                       value={newPostContent}
                       onChange={handleTextareaChange}
                       rows={2}
-                      className="w-full bg-slate-950 border border-slate-750 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-semibold resize-none"
+                      className="w-full bg-slate-950 border border-slate-755 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-semibold resize-none"
                     />
 
                     {/* Mentions Auto-Complete Dropdown list overlay */}
@@ -754,16 +1032,18 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
 
                 <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-3 border-t border-slate-800/60 gap-3">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-500 font-mono text-[9px] uppercase">Canal do Quimono:</span>
+                    <span className="text-slate-500 font-mono text-[9px] uppercase">Tema de Discussão:</span>
                     <select 
                       value={newPostCategory}
                       onChange={(e) => setNewPostCategory(e.target.value as any)}
                       className="bg-slate-950 border border-slate-750 text-slate-300 rounded p-1 text-[11px] font-bold cursor-pointer"
                     >
-                      <option value="Treino">🥋 #treinos-tatame</option>
-                      <option value="Dúvida">❓ #duvidas-posicoes</option>
-                      <option value="Meme">😂 #memes-tatame</option>
-                      <option value="Campeonato">🏆 #campeonatos-eventos</option>
+                      <option value="Estudos">📚 Estudos & Posicionamento</option>
+                      <option value="Conquistas">🏆 Conquista de Insígnia</option>
+                      <option value="PVP">⚔️ Luta PVP Arena</option>
+                      <option value="Eventos">📅 Seminário / Evento Especial</option>
+                      <option value="Campeonatos">🎖️ Campeonato de Jiu-Jitsu</option>
+                      <option value="Promoções">✨ Nova Faixa / Graduação</option>
                     </select>
                   </div>
 
@@ -776,26 +1056,94 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                 </div>
               </form>
 
-              {/* Feed Filters header toolbar */}
-              <div className="bg-slate-950/20 p-3 rounded-xl border border-slate-850/80 flex justify-between items-center text-xs">
-                <span className="font-mono font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-                  <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
-                  Mural: {activeCategory === 'Todos' ? '🌐 Visão Geral' : `# ${activeCategory.toLowerCase()}`}
-                </span>
+              {/* Premium Interactive Sort and Filter Toolbar */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3.5 shadow-xl text-left">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-850 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-pulse" />
+                    <span className="font-mono font-black text-xs text-slate-300 uppercase tracking-widest">
+                      MURAL PREMIUM {activeFeedTab.toUpperCase()}: {activeCategory === 'Todos' ? '🌐 Visão Geral' : `# ${activeCategory.toUpperCase()}`}
+                    </span>
+                  </div>
+                  
+                  {/* Bookmark Toggle & Post count badge info */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-slate-950 px-2 py-0.5 rounded border border-slate-850 text-slate-400 font-mono">
+                      {displayPosts.length} posts
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowOnlySaved(!showOnlySaved)}
+                      className={`px-3 py-1 rounded-xl border font-mono text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                        showOnlySaved 
+                          ? 'bg-amber-400/10 border-amber-500/55 text-amber-400 shadow-sm' 
+                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-355'
+                      }`}
+                    >
+                      <BookmarkCheck className="w-3.5 h-3.5" />
+                      <span>{showOnlySaved ? 'Exibindo Salvos' : 'Filtrar Salvos'}</span>
+                    </button>
+                  </div>
+                </div>
 
-                {/* Bookmark filter view selector */}
-                <button
-                  type="button"
-                  onClick={() => setShowOnlySaved(!showOnlySaved)}
-                  className={`px-2.5 py-1 rounded-lg border font-mono text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                    showOnlySaved 
-                      ? 'bg-amber-400/10 border-amber-500/55 text-amber-400' 
-                      : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-400'
-                  }`}
-                >
-                  <BookmarkCheck className="w-3.5 h-3.5" />
-                  <span>{showOnlySaved ? 'Exibindo Salvos' : 'Filtrar Salvos'}</span>
-                </button>
+                {/* Inline Premium Filter Badges (Excellent for Mobile Fallback) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1.5">
+                  <span className="text-slate-500 font-mono text-[9px] uppercase tracking-wider shrink-0 mr-1.5">Filtros:</span>
+                  {[
+                    { id: 'Todos', label: 'Tudo' },
+                    { id: 'Conquistas', label: '🏆 Conquistas' },
+                    { id: 'Estudos', label: '📚 Estudos' },
+                    { id: 'PVP', label: '⚔️ PVP' },
+                    { id: 'Eventos', label: '📅 Eventos' },
+                    { id: 'Campeonatos', label: '🎖️ Campeonatos' },
+                    { id: 'Promoções', label: '✨ Promoções' }
+                  ].map((flt) => {
+                    const isSelected = activeCategory === flt.id;
+                    return (
+                      <button
+                        key={flt.id}
+                        type="button"
+                        onClick={() => setActiveCategory(flt.id)}
+                        className={`text-[10px] px-3 py-1.5 rounded-full font-black tracking-wide shrink-0 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-violet-600 border border-violet-500 text-white shadow-sm shadow-violet-600/10'
+                            : 'bg-slate-950 border border-slate-850 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {flt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* ORDENAÇÃO (Sorting options) Segmented selectors */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-1 border-t border-slate-850/50 gap-2">
+                  <span className="text-slate-500 font-mono text-[9px] uppercase tracking-wider">Ordenação:</span>
+                  <div className="flex flex-wrap gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    {[
+                      { id: 'recente', label: '🕒 Mais recente' },
+                      { id: 'curtido', label: '🔥 Mais curtido' },
+                      { id: 'comentado', label: '💬 Mais comentado' },
+                      { id: 'emalta', label: '📈 Em alta' }
+                    ].map((srt) => {
+                      const isSelected = activeSort === srt.id;
+                      return (
+                        <button
+                          key={srt.id}
+                          type="button"
+                          onClick={() => setActiveSort(srt.id as any)}
+                          className={`text-[10px] px-2.5 py-1 rounded bg-slate-950 border transition-all cursor-pointer font-bold shrink-0 ${
+                            isSelected
+                              ? 'border-violet-500 text-violet-400 font-black shadow-md'
+                              : 'border-slate-800 text-slate-500 hover:text-slate-350'
+                          }`}
+                        >
+                          {srt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Posts Render Grid */}

@@ -337,6 +337,8 @@ export default function PvPArena({
       setArenaState('gameover');
       setGameOverResult(data);
 
+      const won = data.winnerId === user.id;
+
       // Force updating local React state values dynamically
       if (data.ratingResults) {
         const isChallengerSelf = opponent?.id !== data.ratingResults.playerA?.id;
@@ -344,11 +346,23 @@ export default function PvPArena({
         if (myRatingResults) {
           updateUser({
             elo: myRatingResults.elo,
-            winCount: user.winCount + (data.winnerId === user.id ? 1 : 0),
-            lossCount: user.lossCount + (data.winnerId !== user.id && data.winnerId !== null ? 1 : 0),
+            winCount: user.winCount + (won ? 1 : 0),
+            lossCount: user.lossCount + (!won && data.winnerId !== null ? 1 : 0),
           });
         }
       }
+
+      if (won) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+            detail: {
+              type: 'vitoria_pvp',
+              customTitle: 'VITÓRIA NA ARENA PVP SPARRING!'
+            }
+          }));
+        }, 1500);
+      }
+
       fetchLeaderboard();
     });
 
@@ -356,6 +370,8 @@ export default function PvPArena({
       setArenaState('gameover');
       showToast("O oponente desconectou ou bateu por desistência!", "info");
       
+      const won = data.winnerId === user.id;
+
       setGameOverResult({
         winnerId: data.winnerId,
         challengerFinalScore: 100,
@@ -370,6 +386,18 @@ export default function PvPArena({
           winCount: user.winCount + 1
         });
       }
+
+      if (won) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+            detail: {
+              type: 'vitoria_pvp',
+              customTitle: 'VITÓRIA POR DESISTÊNCIA NA ARENA!'
+            }
+          }));
+        }, 1500);
+      }
+
       fetchLeaderboard();
     });
 
