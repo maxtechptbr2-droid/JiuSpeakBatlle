@@ -61,6 +61,11 @@ export interface AdminContextType {
   fetchReports: () => Promise<void>;
   handleReportDecision: (reportId: string, decision: 'DISMISS' | 'DELETE_CONTENT') => Promise<void>;
 
+  handleCreateUser: (payload: any) => Promise<boolean>;
+  handleDeleteUser: (userId: string) => Promise<void>;
+  handleResetPassword: (userId: string, newPass: string) => Promise<void>;
+  fetchAdvancedInfo: (userId: string) => Promise<any>;
+
   handleQuickInfieldCoins: () => void;
   handleQuickInfieldXp: () => void;
 }
@@ -580,6 +585,91 @@ export function AdminProvider({
     }
   };
 
+  const handleCreateUser = async (payload: any): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const res = await fetch('/api/admin/users/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "Lutador matriculado com sucesso!", "success");
+        fetchUsers();
+        fetchDashboardStats();
+        return true;
+      } else {
+        showToast(data.error || "Erro ao criar usuário.", "error");
+        return false;
+      }
+    } catch {
+      showToast("Erro de rede ao cadastrar usuário.", "error");
+      return false;
+    }
+  };
+
+  const handleDeleteUser = async (userId: string): Promise<void> => {
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const res = await fetch(`/api/admin/users/${userId}/delete`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "Lutador excluído do sistema.", "success");
+        fetchUsers();
+        fetchDashboardStats();
+      } else {
+        showToast(data.error || "Não foi possível excluir usuário.", "error");
+      }
+    } catch {
+      showToast("Erro técnico de rede.", "error");
+    }
+  };
+
+  const handleResetPassword = async (userId: string, newPass: string): Promise<void> => {
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword: newPass })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "Senha redefinida com sucesso!", "success");
+      } else {
+        showToast(data.error || "Fracasso redefinindo credenciais.", "error");
+      }
+    } catch {
+      showToast("Erro de rede.", "error");
+    }
+  };
+
+  const fetchAdvancedInfo = async (userId: string): Promise<any> => {
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const res = await fetch(`/api/admin/users/${userId}/advanced-info`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    return null;
+  };
+
   const handleQuickInfieldCoins = () => {
     const updated = user.coins + 2000;
     updateUser({ coins: updated });
@@ -671,6 +761,10 @@ export function AdminProvider({
       handleUpdateUserScores,
       fetchReports,
       handleReportDecision,
+      handleCreateUser,
+      handleDeleteUser,
+      handleResetPassword,
+      fetchAdvancedInfo,
 
       handleQuickInfieldCoins,
       handleQuickInfieldXp

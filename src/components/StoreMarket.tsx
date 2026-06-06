@@ -143,8 +143,181 @@ export default function StoreMarket({
   setCurrentTab
 }: StoreMarketProps) {
   
-  // Tabs within economics: 'loja' | 'market' | 'inventorio' | 'vip'
-  const [activeSubTab, setActiveSubTab] = useState<'loja' | 'market' | 'inventorio' | 'vip'>('loja');
+  // Tabs within economics: 'loja' | 'market' | 'inventorio' | 'vip' | 'admin_store'
+  const [activeSubTab, setActiveSubTab] = useState<'loja' | 'market' | 'inventorio' | 'vip' | 'admin_store'>('loja');
+
+  // Admin Store control states
+  const [adminProducts, setAdminProducts] = useState<any[]>([]);
+  const [isAdminListLoading, setIsAdminListLoading] = useState(false);
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminCategory, setAdminCategory] = useState('Todos');
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminModalMode, setAdminModalMode] = useState<'create' | 'edit'>('create');
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [adminForm, setAdminForm] = useState({
+    name: '',
+    description: '',
+    priceKC: 500,
+    priceBRL: '',
+    category: 'AVATAR',
+    rarity: 'COMMON',
+    imageUrl: '',
+    stock: '',
+    active: true,
+    isPromo: false,
+    promoPriceKC: '',
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  });
+
+  const fetchAdminProducts = async () => {
+    setIsAdminListLoading(true);
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const url = `/api/admin/store/items?category=${adminCategory}&search=${encodeURIComponent(adminSearch)}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token || ''}` }
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setAdminProducts(data.items);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar itens admin:", e);
+    } finally {
+      setIsAdminListLoading(false);
+    }
+  };
+
+  const handleCreateOrUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('jiuspeak_access_token');
+    if (!token) {
+      showToast("Você não está autenticado.", "error");
+      return;
+    }
+
+    const payload = {
+      ...adminForm,
+      priceKC: Number(adminForm.priceKC),
+      priceBRL: adminForm.priceBRL !== "" ? Number(adminForm.priceBRL) : null,
+      stock: adminForm.stock !== "" ? Number(adminForm.stock) : null,
+      promoPriceKC: adminForm.promoPriceKC !== "" ? Number(adminForm.promoPriceKC) : null
+    };
+
+    try {
+      const url = adminModalMode === 'create' 
+        ? "/api/admin/store/create" 
+        : `/api/admin/store/${editingItem.id}/update`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message, "success");
+        setShowAdminModal(false);
+        fetchAdminProducts();
+        fetchStoreProducts();
+      } else {
+        showToast(data.error || "Erro ao salvar item.", "error");
+      }
+    } catch (err) {
+      showToast("Falha de comunicação com o servidor.", "error");
+    }
+  };
+
+  const handleDuplicateItem = async (id: string) => {
+    const token = localStorage.getItem('jiuspeak_access_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/store/${id}/duplicate`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message, "success");
+        fetchAdminProducts();
+        fetchStoreProducts();
+      } else {
+        showToast(data.error || "Erro ao duplicar item.", "error");
+      }
+    } catch (err) {
+      showToast("Falha de comunicação.", "error");
+    }
+  };
+
+  const handleDeleteItem = async (id: string, name: string) => {
+    if (!window.confirm(`Tem certeza de que deseja excluir permanentemente o item "${name}"?`)) return;
+    const token = localStorage.getItem('jiuspeak_access_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/store/${id}/delete`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message, "success");
+        fetchAdminProducts();
+        fetchStoreProducts();
+      } else {
+        showToast(data.error || "Erro ao excluir o item. Ele pode estar referenciado em vendas prévias ou inventários de alunos.", "error");
+      }
+    } catch (err) {
+      showToast("Falha de comunicação ao excluir produto.", "error");
+    }
+  };
+
+  const openCreateItemModal = () => {
+    setAdminForm({
+      name: '',
+      description: '',
+      priceKC: 500,
+      priceBRL: '',
+      category: 'AVATAR',
+      rarity: 'COMMON',
+      imageUrl: '',
+      stock: '',
+      active: true,
+      isPromo: false,
+      promoPriceKC: '',
+      isBundle: false,
+      isSeasonal: false,
+      isExclusive: false
+    });
+    setEditingItem(null);
+    setAdminModalMode('create');
+    setShowAdminModal(true);
+  };
+
+  const openEditItemModal = (item: any) => {
+    setEditingItem(item);
+    setAdminModalMode('edit');
+    setAdminForm({
+      name: item.name || '',
+      description: item.description || '',
+      priceKC: item.priceKC || 0,
+      priceBRL: item.priceBRL !== null && item.priceBRL !== undefined ? String(item.priceBRL) : '',
+      category: item.category || 'AVATAR',
+      rarity: item.rarity || 'COMMON',
+      imageUrl: item.imageUrl || '',
+      stock: item.stock !== null && item.stock !== undefined ? String(item.stock) : '',
+      active: item.active !== undefined ? Boolean(item.active) : true,
+      isPromo: item.isPromo !== undefined ? Boolean(item.isPromo) : false,
+      promoPriceKC: item.promoPriceKC !== null && item.promoPriceKC !== undefined ? String(item.promoPriceKC) : '',
+      isBundle: item.isBundle !== undefined ? Boolean(item.isBundle) : false,
+      isSeasonal: item.isSeasonal !== undefined ? Boolean(item.isSeasonal) : false,
+      isExclusive: item.isExclusive !== undefined ? Boolean(item.isExclusive) : false
+    });
+    setShowAdminModal(true);
+  };
 
   // Virtual Store dynamic state variables
   const [storeProducts, setStoreProducts] = useState<any[]>([]);
@@ -434,6 +607,12 @@ export default function StoreMarket({
       fetchUnlockedInventory();
     }
   }, [activeSubTab]);
+
+  useEffect(() => {
+    if (activeSubTab === 'admin_store' && user.role === 'admin') {
+      fetchAdminProducts();
+    }
+  }, [adminCategory, adminSearch, activeSubTab]);
   
   // Marketplace active items
   const [marketItems, setMarketItems] = useState<any[]>([]);
@@ -856,19 +1035,20 @@ export default function StoreMarket({
       </div>
 
       {/* Economics selector micro tabs */}
-      <div className="flex border-b border-slate-800 gap-1">
+      <div className="flex border-b border-slate-800 gap-1 overflow-x-auto scroller-hidden">
         {[
           { id: 'loja', label: '📖 Materiais Oficiais', desc: 'Desbloquear com KC' },
           { id: 'market', label: '🤝 Swap de Conteúdo', desc: 'Trocas entre alunos' },
           { id: 'inventorio', label: '🎒 Biblioteca Pessoal', desc: `${user.inventory.length} itens` },
-          { id: 'vip', label: '👑 Planos Premium VIP', desc: 'BRL / Pix' }
+          { id: 'vip', label: '👑 Planos Premium VIP', desc: 'BRL / Pix' },
+          ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ Painel de Operações', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
           const isActive = activeSubTab === sub.id;
           return (
             <button
               key={sub.id}
               onClick={() => setActiveSubTab(sub.id as any)}
-              className={`px-4 py-2.5 text-xs text-left font-bold transition-all border-b-2 cursor-pointer ${
+              className={`px-4 py-2.5 text-xs text-left font-bold transition-all border-b-2 cursor-pointer shrink-0 ${
                 isActive 
                   ? 'border-violet-500 text-violet-300 bg-slate-900/40 rounded-t-xl' 
                   : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -1749,6 +1929,507 @@ export default function StoreMarket({
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* 4. ADMINISTRATIVE CATALOUGE OPERATIONS PANEL */}
+      {activeSubTab === 'admin_store' && user.role === 'admin' && (
+        <div className="space-y-6" id="admin-store-operations-panel">
+          
+          {/* Header Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <div>
+              <h4 className="font-display font-black text-sm text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-450" />
+                <span>Painel Operacional da Loja Virtual</span>
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Crie, duplique, edite ou exclua itens do catálogo oficial. Suporta promoções e tags temporárias.
+              </p>
+            </div>
+            <button
+              onClick={openCreateItemModal}
+              className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow shadow-emerald-500/10 cursor-pointer self-start sm:self-auto"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>CRIAR NOVO ITEM</span>
+            </button>
+          </div>
+
+          {/* Filters shelf */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Search Box */}
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-slate-550">
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                placeholder="Buscar por nome..."
+                value={adminSearch}
+                onChange={(e) => setAdminSearch(e.target.value)}
+                className="w-full bg-slate-950/80 border border-slate-800 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-sans"
+              />
+            </div>
+
+            {/* Category selection */}
+            <div className="sm:col-span-2 flex overflow-x-auto gap-1.5 pb-1 sm:pb-0 scroller-hidden">
+              {[
+                { id: 'Todos', label: 'Todos' },
+                { id: 'AVATAR', label: '👤 Avatares' },
+                { id: 'FRAME', label: '🖼️ Molduras' },
+                { id: 'TITLE', label: '🏷️ Títulos' },
+                { id: 'EMOTE', label: '💬 Emotes' },
+                { id: 'EFFECT', label: '✨ Efeitos' },
+                { id: 'THEME', label: '🥋 Temas/Kimono' },
+                { id: 'BELT', label: '🎗️ Faixas' },
+                { id: 'Itens Especiais', label: '📦 Outros' }
+              ].map((cat) => {
+                const isActive = adminCategory === cat.id;
+                return (
+                  <button
+                    key={`admin-cat-${cat.id}`}
+                    onClick={() => {
+                      setAdminCategory(cat.id);
+                    }}
+                    className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all shrink-0 cursor-pointer border ${
+                      isActive 
+                        ? 'bg-violet-650 text-violet-100 border-violet-500' 
+                        : 'bg-slate-950/50 text-slate-400 border-slate-850 hover:text-slate-200'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Grid Layout */}
+          {isAdminListLoading ? (
+            <div className="text-center py-12 space-y-2">
+              <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-[10px] text-slate-500 font-mono">Sincronizando banco de dados...</p>
+            </div>
+          ) : adminProducts.length === 0 ? (
+            <div className="text-center py-12 bg-slate-950/30 rounded-xl border border-dashed border-slate-800 space-y-2">
+              <p className="text-sm font-bold text-slate-400">Nenhum item localizado</p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">Tente alterar os filtros de busca ou crie o seu primeiro material de estudos clicando no botão acima.</p>
+            </div>
+          ) : (
+            <div className="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[11px] font-semibold text-slate-300 min-w-[800px]">
+                  <thead>
+                    <tr className="border-b border-slate-850 bg-slate-900/30 text-slate-500 font-mono text-[9px] uppercase">
+                      <th className="p-4">Item</th>
+                      <th className="p-4">Categoria</th>
+                      <th className="p-4">Raridade</th>
+                      <th className="p-4">Preço (KC)</th>
+                      <th className="p-4">Preço (BRL)</th>
+                      <th className="p-4">Estoque / Limite</th>
+                      <th className="p-4 flex items-center gap-1">Indicadores</th>
+                      <th className="p-4 text-right">Ações Operacionais</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900">
+                    {adminProducts.map((item) => {
+                      const getCatLabel = (cat: string) => {
+                        const c = cat?.toUpperCase();
+                        if (c === "AVATAR") return "Avatar";
+                        if (c === "FRAME") return "Moldura";
+                        if (c === "TITLE") return "Título";
+                        if (c === "EMOTE") return "Emote";
+                        if (c === "EFFECT") return "Efeito Especial";
+                        if (c === "THEME") return "Tema";
+                        if (c === "BELT") return "Faixa Especial";
+                        return cat || "Especial";
+                      };
+
+                      return (
+                        <tr key={`admin-row-${item.id}`} className="hover:bg-slate-900/40 transition-all">
+                          {/* Image & Title */}
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
+                                  className="w-9 h-9 object-cover rounded-lg border border-slate-800 shrink-0"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 bg-slate-900 rounded-lg border border-slate-800 flex items-center justify-center text-lg shrink-0">
+                                  {item.category?.toUpperCase() === 'AVATAR' ? '👤' : 
+                                   item.category?.toUpperCase() === 'FRAME' ? '🖼️' :
+                                   item.category?.toUpperCase() === 'TITLE' ? '🏷️' : '🥋'}
+                                </div>
+                              )}
+                              <div className="max-w-[200px]">
+                                <h5 className="font-bold text-white leading-tight font-sans truncate" title={item.name}>{item.name}</h5>
+                                <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5" title={item.description}>{item.description || "Sem descrição técnica definida."}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Category */}
+                          <td className="p-4 font-mono text-[10px] text-slate-400">
+                            {getCatLabel(item.category)}
+                          </td>
+
+                          {/* Rarity */}
+                          <td className="p-4">
+                            <span className={`inline-block px-1.5 py-0.5 rounded border text-[9px] font-bold ${getRarityBadgeColor(item.rarity)} uppercase`}>
+                              {getRarityLabel(item.rarity)}
+                            </span>
+                          </td>
+
+                          {/* Price KC */}
+                          <td className="p-4">
+                            <div className="flex items-center gap-1 font-mono">
+                              <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                              {item.isPromo && item.promoPriceKC ? (
+                                <div>
+                                  <span className="text-white font-bold">{item.promoPriceKC} KC</span>
+                                  <span className="text-red-400 line-through text-[9px] ml-1.5 block">{item.priceKC} KC</span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-100 font-bold">{item.priceKC} KC</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Price BRL */}
+                          <td className="p-4 font-mono font-bold text-slate-350">
+                            {item.priceBRL !== null && item.priceBRL !== undefined ? (
+                              <span className="text-emerald-450">R$ {Number(item.priceBRL).toFixed(2)}</span>
+                            ) : (
+                              <span className="text-slate-600 font-normal">-</span>
+                            )}
+                          </td>
+
+                          {/* Stock/Limit */}
+                          <td className="p-4 font-mono text-slate-400">
+                            {item.stock !== null && item.stock !== undefined ? (
+                              <span className={Number(item.stock) === 0 ? "text-rose-400 font-bold" : "font-bold text-slate-100"}>
+                                {item.stock} un.
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">Ilimitado</span>
+                            )}
+                          </td>
+
+                          {/* Indicators row */}
+                          <td className="p-4">
+                            <div className="flex flex-wrap gap-1 max-w-[150px]">
+                              {item.active ? (
+                                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[8px] font-bold px-1 py-0.5 rounded">ATIVO</span>
+                              ) : (
+                                <span className="bg-slate-900 text-slate-500 border border-slate-800 text-[8px] font-bold px-1 py-0.5 rounded">INATIVO</span>
+                              )}
+                              {item.isPromo && (
+                                <span className="bg-red-500/15 text-red-400 border border-red-500/20 text-[8px] font-bold px-1 py-0.5 rounded">OFERTA</span>
+                              )}
+                              {item.isBundle && (
+                                <span className="bg-blue-500/15 text-blue-400 border border-blue-500/20 text-[8px] font-bold px-1 py-0.5 rounded">COLEÇÃO</span>
+                              )}
+                              {item.isSeasonal && (
+                                <span className="bg-yellow-500/15 text-yellow-500 border border-yellow-500/20 text-[8px] font-bold px-1 py-0.5 rounded">SAZONAL</span>
+                              )}
+                              {item.isExclusive && (
+                                <span className="bg-purple-500/15 text-purple-400 border border-purple-500/20 text-[8px] font-bold px-1 py-0.5 rounded">VIP</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Operations/Acoes */}
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {/* Edit */}
+                              <button
+                                onClick={() => openEditItemModal(item)}
+                                className="p-1.5 bg-slate-900 border border-slate-800 hover:border-violet-500 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                title="Editar configurações"
+                              >
+                                ✏️
+                              </button>
+
+                              {/* Duplicate */}
+                              <button
+                                onClick={() => handleDuplicateItem(item.id)}
+                                className="p-1.5 bg-slate-900 border border-slate-800 hover:border-indigo-500 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                title="Duplicar item de lote"
+                              >
+                                📋
+                              </button>
+
+                              {/* Delete */}
+                              <button
+                                onClick={() => handleDeleteItem(item.id, item.name)}
+                                className="p-1.5 bg-slate-900 border border-slate-850 hover:bg-rose-950/20 hover:border-rose-700 hover:text-rose-455 text-slate-500 rounded-lg transition-all cursor-pointer"
+                                title="Excluir produto"
+                              >
+                                ❌
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* 5. CREATE / EDIT DIALOG FORM MODAL BOX (Overlay) */}
+      {showAdminModal && (
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <form
+            onSubmit={handleCreateOrUpdateItem}
+            className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 animate-scaleUp shadow-2xl relative max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+              <div>
+                <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest block font-bold">Gerenciador Geral de Produto</span>
+                <h5 className="font-display font-extrabold text-sm text-white">
+                  {adminModalMode === 'create' ? "🚀 Cadastrar Novo Equipamento" : "✏️ Configurar Item Existente"}
+                </h5>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdminModal(false)}
+                className="p-1.5 text-slate-500 hover:text-slate-100 rounded-lg hover:bg-slate-950/50 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Core Fields */}
+            <div className="space-y-3.5 text-xs text-left">
+              {/* Name */}
+              <div className="space-y-1">
+                <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Nome do Cosmético/Material</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Faixa Branca com 4 Graus"
+                  value={adminForm.name}
+                  onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 font-semibold focus:outline-none focus:border-violet-500 block"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Descrição Comercial & Técnica</label>
+                <textarea
+                  placeholder="Explique o que o aluno ganha com isso e os detalhes técnicos deste item..."
+                  value={adminForm.description}
+                  onChange={(e) => setAdminForm({ ...adminForm, description: e.target.value })}
+                  rows={3}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-250 font-sans focus:outline-none focus:border-violet-500 block leading-relaxed"
+                />
+              </div>
+
+              {/* Category, Rarity, ImageUrl Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Categoria do Produto</label>
+                  <select
+                    value={adminForm.category}
+                    onChange={(e) => setAdminForm({ ...adminForm, category: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 cursor-pointer focus:outline-none"
+                  >
+                    <option value="AVATAR">👤 Avatar Masculino / Feminino</option>
+                    <option value="FRAME">🖼️ Moldura de Avatar</option>
+                    <option value="TITLE">🏷️ Título Honorífico</option>
+                    <option value="EMOTE">💬 Emote de Chat</option>
+                    <option value="EFFECT">✨ Efeito Visual Especial</option>
+                    <option value="THEME">🥋 Temas Visuais / Quimonos</option>
+                    <option value="BELT">🎗️ Faixa Especial</option>
+                    <option value="Itens Especiais">📦 Outros Equipamentos / Pacotes VIP</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Raridade de Loot</label>
+                  <select
+                    value={adminForm.rarity}
+                    onChange={(e) => setAdminForm({ ...adminForm, rarity: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 cursor-pointer focus:outline-none"
+                  >
+                    <option value="COMMON">Comum</option>
+                    <option value="RARE">Raro</option>
+                    <option value="EPIC">Épico</option>
+                    <option value="LEGENDARY">Lendário</option>
+                    <option value="MYTHIC">Mítico</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Photo Image Url */}
+              <div className="space-y-1">
+                <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">URL da Imagem Ilustrativa</label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="Cole um link https://images.unsplash.com/..."
+                    value={adminForm.imageUrl}
+                    onChange={(e) => setAdminForm({ ...adminForm, imageUrl: e.target.value })}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-250 font-mono text-[10.5px] focus:outline-none focus:border-violet-500"
+                  />
+                  {adminForm.imageUrl && (
+                    <img 
+                      src={adminForm.imageUrl} 
+                      alt="Preview" 
+                      className="w-10 h-10 rounded-lg object-cover border border-slate-800 shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200'; }}
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Prices Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Preço Original KC</label>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    value={adminForm.priceKC}
+                    onChange={(e) => setAdminForm({ ...adminForm, priceKC: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 font-mono text-center font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Preço BRL (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Sem valor SaaS"
+                    value={adminForm.priceBRL}
+                    onChange={(e) => setAdminForm({ ...adminForm, priceBRL: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 font-mono text-center font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Unidades em Estoque</label>
+                  <input
+                    type="number"
+                    placeholder="Ilimitado"
+                    value={adminForm.stock}
+                    onChange={(e) => setAdminForm({ ...adminForm, stock: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-250 font-mono text-center"
+                  />
+                </div>
+              </div>
+
+              {/* Switches Block container */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-3">
+                {/* Active Indicator toggle switch */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="font-bold text-white text-[11px] block">Item Disponível/Ativo</label>
+                    <span className="text-[9.5px] text-slate-500 font-normal">Exibir este item nas listagens da loja virtual pública.</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={adminForm.active}
+                    onChange={(e) => setAdminForm({ ...adminForm, active: e.target.checked })}
+                    className="w-4.5 h-4.5 text-violet-650 rounded border-slate-700 bg-slate-950 focus:ring-0 cursor-pointer"
+                  />
+                </div>
+
+                {/* Promo check */}
+                <div className="pt-2.5 border-t border-slate-900 flex justify-between gap-4">
+                  <div className="flex-1">
+                    <label className="font-bold text-white text-[11px] block flex items-center gap-1">
+                      <Percent className="w-3.5 h-3.5 text-red-400" />
+                      <span>Item promocional ativa</span>
+                    </label>
+                    <span className="text-[9.5px] text-slate-500 font-normal">Aplicar redução temporária em Kimono Coins.</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {adminForm.isPromo && (
+                      <input
+                        type="number"
+                        placeholder="KC Promo"
+                        required
+                        value={adminForm.promoPriceKC}
+                        onChange={(e) => setAdminForm({ ...adminForm, promoPriceKC: e.target.value })}
+                        className="w-24 bg-slate-900 border border-slate-750 text-slate-100 p-1.5 rounded text-center text-[10.5px] font-mono font-bold focus:outline-none"
+                      />
+                    )}
+                    <input
+                      type="checkbox"
+                      checked={adminForm.isPromo}
+                      onChange={(e) => setAdminForm({ ...adminForm, isPromo: e.target.checked, promoPriceKC: e.target.checked ? String(Math.floor(adminForm.priceKC * 0.8)) : '' })}
+                      className="w-4.5 h-4.5 text-violet-650 rounded border-slate-700 bg-slate-950 focus:ring-0 cursor-pointer shrink-0"
+                    />
+                  </div>
+                </div>
+
+                {/* Bundle tags checkboxes */}
+                <div className="pt-2.5 border-t border-slate-900 grid grid-cols-3 gap-2 text-[10px] text-slate-400">
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-all font-semibold select-none">
+                    <input
+                      type="checkbox"
+                      checked={adminForm.isBundle}
+                      onChange={(e) => setAdminForm({ ...adminForm, isBundle: e.target.checked })}
+                      className="rounded border-slate-800 text-violet-500 focus:ring-0"
+                    />
+                    <span>Pacote/Combo</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-all font-semibold select-none">
+                    <input
+                      type="checkbox"
+                      checked={adminForm.isSeasonal}
+                      onChange={(e) => setAdminForm({ ...adminForm, isSeasonal: e.target.checked })}
+                      className="rounded border-slate-800 text-violet-500 focus:ring-0"
+                    />
+                    <span>Sazonal</span>
+                  </label>
+
+                  <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-all font-semibold select-none">
+                    <input
+                      type="checkbox"
+                      checked={adminForm.isExclusive}
+                      onChange={(e) => setAdminForm({ ...adminForm, isExclusive: e.target.checked })}
+                      className="rounded border-slate-800 text-violet-500 focus:ring-0"
+                    />
+                    <span>VIP Exclusivo</span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="pt-3 border-t border-slate-850 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAdminModal(false)}
+                className="flex-1 py-2.5 bg-slate-950 border border-slate-800 hover:text-white text-slate-400 font-bold text-xs rounded-xl uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-550 hover:to-indigo-550 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition-all shadow shadow-violet-550/15 cursor-pointer"
+              >
+                {adminModalMode === 'create' ? "🚀 ADICIONAR AO TATAME" : "✔ GRAVAR ALTERAÇÕES"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

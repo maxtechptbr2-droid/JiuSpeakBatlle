@@ -21,6 +21,8 @@ export interface AuthUser {
   totalEarnedBRL?: number;
   totalWithdrawnBRL?: number;
   isEmailVerified: boolean;
+  isSuspended?: boolean;
+  isBanned?: boolean;
   verificationToken: string | null;
   resetToken: string | null;
   resetTokenExpires: Date | null;
@@ -1537,6 +1539,8 @@ export const authStore = {
     if (fields.elo !== undefined) prismaData.elo = fields.elo;
     if (fields.avatar !== undefined) prismaData.avatar = fields.avatar;
     if (fields.isEmailVerified !== undefined) prismaData.isEmailVerified = fields.isEmailVerified;
+    if (fields.isSuspended !== undefined) prismaData.isSuspended = fields.isSuspended;
+    if (fields.isBanned !== undefined) prismaData.isBanned = fields.isBanned;
     if (fields.verificationToken !== undefined) prismaData.verificationToken = fields.verificationToken;
     if (fields.resetToken !== undefined) prismaData.resetToken = fields.resetToken;
     if (fields.resetTokenExpires !== undefined) prismaData.resetTokenExpires = fields.resetTokenExpires;

@@ -123,6 +123,8 @@ model User {
   avatar            String?
   role              UserRole     @default(ATHLETE)
   isAdminApproved   Boolean      @default(true)
+  isSuspended       Boolean      @default(false)
+  isBanned          Boolean      @default(false)
   belt              BeltRank     @default(WHITE)
   stripes           Int          @default(0)
   xp                Int          @default(0)
@@ -409,6 +411,11 @@ model StoreProduct {
   imageUrl    String?
   stock       Int?     // Null means infinite stock
   active      Boolean  @default(true)
+  isPromo     Boolean  @default(false)
+  promoPriceKC Int?
+  isBundle    Boolean  @default(false)
+  isSeasonal  Boolean  @default(false)
+  isExclusive Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

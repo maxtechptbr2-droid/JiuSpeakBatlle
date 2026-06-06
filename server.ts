@@ -452,6 +452,145 @@ export const inMemoryUserInventories = new Map<string, string[]>();
 inMemoryUserInventories.set("user_athlete_test_1", ["item_purple_belt", "item_armor_badge"]);
 inMemoryUserInventories.set("user_admin_test_1", ["item_gold_gi", "p2p_title_leao"]);
 
+export let inMemoryStoreProducts: any[] = [
+  {
+    id: "prod_avatar_guerreiro_bjj1",
+    name: "Avatar: Samurai do Asfalto",
+    description: "Um samurai moderno trajado de kimono reforçado para rolar nas calçadas virtuais.",
+    priceKC: 1500,
+    priceBRL: null,
+    category: "Avatares Masculinos",
+    rarity: "LEGENDARY",
+    imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_avatar_rainha_bjj1",
+    name: "Avatar: Leoa do Absoluto",
+    description: "Espírito implacável que domina o circuito feminino de competições peso aberto.",
+    priceKC: 2500,
+    priceBRL: null,
+    category: "Avatares Femininos",
+    rarity: "EPIC",
+    imageUrl: "https://images.unsplash.com/photo-1602491453977-63adc9f4a56f?auto=format&fit=crop&q=80&w=200",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_frame_master_gold1",
+    name: "Moldura: Campeão Mundial IBJJF",
+    description: "Destaque dourado cintilante e suntuoso para a borda do seu avatar.",
+    priceKC: 1000,
+    priceBRL: null,
+    category: "Molduras",
+    rarity: "LEGENDARY",
+    imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+    stock: 200,
+    active: true,
+    isPromo: true,
+    promoPriceKC: 800,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: true
+  },
+  {
+    id: "prod_title_rubber1",
+    name: "Título: 'Caçador de Kimonos'",
+    description: "Exiba no seu cabeçalho a reputação de quem não recusa nenhum desafio técnico.",
+    priceKC: 500,
+    priceBRL: null,
+    category: "Títulos",
+    rarity: "RARE",
+    imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_bundle_black_belt1",
+    name: "Pacote VIP: Legado Faixa Preta",
+    description: "Uma caixa colecionadora contendo 1 avatar exclusivo, o título 'Imortal' e 1000 Kimono Coins.",
+    priceKC: 6000,
+    priceBRL: 49.90,
+    category: "Pacotes VIP",
+    rarity: "LEGENDARY",
+    imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+    stock: 150,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: true,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_xp_double_pass1",
+    name: "XP Boost: Cinturão Veloz 2X",
+    description: "Dobre todo o seu progresso de aprendizagem em lições e quizzes pelas próximas 48 horas.",
+    priceKC: 1200,
+    priceBRL: null,
+    category: "XP Boost",
+    rarity: "COMMON",
+    imageUrl: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=200",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_pack_1000_coins1",
+    name: "Kimono Coins: Maleta de KC (+200 Bônus)",
+    description: "Adicione instantaneamente 1.200 Kimono Coins ao seu saldo para resgates velozes.",
+    priceKC: 0,
+    priceBRL: 19.90,
+    category: "Kimono Coins",
+    rarity: "RARE",
+    imageUrl: "https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=200",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_special_gold_belt1",
+    name: "Faixa Preta com Fios de Ouro 24K",
+    description: "Edição comemorativa especial. Brilha e emite partículas nas salas de conferência.",
+    priceKC: 8000,
+    priceBRL: null,
+    category: "Itens Especiais",
+    rarity: "LEGENDARY",
+    imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+    stock: 5,
+    active: true,
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: true,
+    isExclusive: true
+  }
+];
+
 export let inMemoryMarketplaceItems: any[] = [
   {
     id: "p2p_gi_koral_listing",
@@ -519,6 +658,12 @@ export const authenticateToken = (req: any, res: any, next: any) => {
     const user = await authStore.findById(decoded.userId);
     if (!user) {
       return res.status(403).json({ error: "User no longer exists." });
+    }
+    if (user.isBanned) {
+      return res.status(403).json({ error: "Sua conta foi banida permanentemente pelos administradores." });
+    }
+    if (user.isSuspended) {
+      return res.status(403).json({ error: "Sua conta está suspensa temporariamente por infração das diretrizes." });
     }
     try {
       const userSubscription = await getActiveSubscriptionForUser(decoded.userId);
@@ -681,6 +826,16 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       return res.status(403).json({ 
         error: "Acesso pendente: O seu cadastro de Professor Administrador ainda não foi aprovado pelo Administrador Geral da plataforma. Por favor, aguarde o e-mail de liberação." 
       });
+    }
+
+    if (user.isBanned) {
+      logAuth("LOGIN", email, false, { ipAddress, reason: "Banned user attempted login" });
+      return res.status(403).json({ error: "Acesso bloqueado: Sua conta foi banida permanentemente da plataforma JiuSpeak." });
+    }
+
+    if (user.isSuspended) {
+      logAuth("LOGIN", email, false, { ipAddress, reason: "Suspended user attempted login" });
+      return res.status(403).json({ error: "Acesso bloqueado: Sua conta encontra-se suspensa temporariamente por infração das regras." });
     }
 
     // Success login registered
@@ -1306,7 +1461,7 @@ app.get("/api/admin/dashboard-stats", authenticateToken, requireRole(["ADMIN"]),
 app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, email, level, belt, stripes, coins, balanceBRL, elo, role } = req.body;
+    const { name, email, level, xp, belt, stripes, coins, balanceBRL, elo, role, isSuspended, isBanned } = req.body;
 
     const userObj = await authStore.findById(id);
     if (!userObj) {
@@ -1318,10 +1473,13 @@ app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]
     if (name !== undefined) updatePayload.name = name;
     if (email !== undefined) updatePayload.email = email;
     if (level !== undefined) updatePayload.level = Number(level);
+    if (xp !== undefined) updatePayload.xp = Number(xp);
     if (belt !== undefined) updatePayload.belt = belt;
     if (stripes !== undefined) updatePayload.stripes = Number(stripes);
     if (elo !== undefined) updatePayload.elo = Number(elo);
     if (role !== undefined) updatePayload.role = role;
+    if (isSuspended !== undefined) updatePayload.isSuspended = Boolean(isSuspended);
+    if (isBanned !== undefined) updatePayload.isBanned = Boolean(isBanned);
 
     // Coins & Balance are stored in wallet or local user structure
     if (coins !== undefined) {
@@ -1360,6 +1518,215 @@ app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]
     });
   } catch (error) {
     res.status(500).json({ error: "Não foi possível regravar parâmetros do usuário." });
+  }
+});
+
+// 13.1 CREATE USER BY ADMIN
+app.post("/api/admin/users/create", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { name, email, password, role, belt } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Nome, e-mail e senha são obrigatórios." });
+    }
+    const prisma = getPrisma();
+    const hash = await bcrypt.hash(password, 10);
+    const lowercaseEmail = email.toLowerCase().trim();
+    
+    // Check duplication
+    const userExists = await prisma.user.findFirst({ where: { email: lowercaseEmail } });
+    if (userExists) {
+      return res.status(400).json({ error: "E-mail já cadastrado na plataforma." });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        email: lowercaseEmail,
+        name,
+        password: hash,
+        role: role || "ATHLETE",
+        belt: belt || "WHITE",
+        isAdminApproved: true,
+        wallet: {
+          create: {
+            balanceKC: 500,
+            balanceAvailable: 0.00,
+            balanceBRL: 0.00,
+            balancePending: 0.00,
+            totalEarned: 0.00,
+            totalWithdrawn: 0.00,
+          }
+        },
+        inventory: {
+          create: {}
+        }
+      }
+    });
+
+    // Write audit log
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "USER_REGISTER",
+        description: `ADMINISTRADOR criou novo lutador ${name} (${lowercaseEmail}).`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Lutador ${name} foi matriculado com sucesso no sistema!`, user: newUser });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao criar lutador no banco: " + (error.message || error) });
+  }
+});
+
+// 13.2 DELETE USER BY ADMIN
+app.post("/api/admin/users/:id/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    if (id === req.user.id) {
+      return res.status(400).json({ error: "Não é permitido excluir sua própria conta de administrador." });
+    }
+    const prisma = getPrisma();
+    const userToDelete = await prisma.user.findUnique({ where: { id } });
+    if (!userToDelete) {
+      return res.status(404).json({ error: "Lutador não localizado no banco." });
+    }
+
+    await prisma.user.delete({ where: { id } });
+
+    // Write audit log
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR excluiu permanentemente o cadastro do lutador ${userToDelete.name} (${userToDelete.email}).`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `O lutador ${userToDelete.name} foi removido integralmente do banco de dados.` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao remover lutador do banco: " + (error.message || error) });
+  }
+});
+
+// 13.3 RESET PASSWORD BY ADMIN
+app.post("/api/admin/users/:id/reset-password", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: "A nova senha deve ter no mínimo 4 caracteres." });
+    }
+    const prisma = getPrisma();
+    const userObj = await prisma.user.findUnique({ where: { id } });
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não localizado." });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id },
+      data: { password: hash }
+    });
+
+    // Write audit log
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR resetou manualmente a senha de acesso do atleta ${userObj.name} (${userObj.email}).`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Senha do atleta ${userObj.name} redefinida com êxito!` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao redefinir credenciais: " + (error.message || error) });
+  }
+});
+
+// 13.4 ADVANCED INFO (Audit + Login history + active refresh tokens + device types / IP list)
+app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    
+    const userObj = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        wallet: true,
+        bankAccounts: true,
+        refreshTokens: {
+          take: 10,
+          orderBy: { issuedAt: "desc" }
+        },
+        auditLogs: {
+          take: 50,
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    });
+
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não cadastrado." });
+    }
+
+    // Capture matching login attempts (using email matches)
+    const logins = await prisma.loginAttempt.findMany({
+      where: { email: userObj.email },
+      take: 15,
+      orderBy: { timestamp: "desc" }
+    });
+
+    // Capture matches details
+    const pvpHistory = await prisma.pvpMatch.findMany({
+      where: {
+        OR: [
+          { challengerId: id },
+          { defenderId: id }
+        ]
+      },
+      include: {
+        challenger: { select: { name: true, belt: true } },
+        defender: { select: { name: true, belt: true } },
+        winner: { select: { name: true } }
+      },
+      take: 15,
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Transactions log
+    const transactions = userObj.wallet ? await prisma.transaction.findMany({
+      where: { walletId: userObj.wallet.id },
+      take: 20,
+      orderBy: { createdAt: "desc" }
+    }) : [];
+
+    res.json({
+      success: true,
+      user: {
+        id: userObj.id,
+        name: userObj.name,
+        email: userObj.email,
+        role: userObj.role,
+        belt: userObj.belt,
+        level: userObj.level,
+        xp: userObj.xp,
+        elo: userObj.elo,
+        isSuspended: userObj.isSuspended,
+        isBanned: userObj.isBanned
+      },
+      logins,
+      tokens: userObj.refreshTokens,
+      auditLogs: userObj.auditLogs,
+      pvpHistory,
+      transactions
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao carregar raio-x administrativo: " + (error.message || error) });
   }
 });
 
@@ -4418,84 +4785,113 @@ app.get("/api/marketplace/audit", async (req: any, res: any) => {
 // 1. LIST PARTICIPANT STORE PRODUCTS (WITH FILTERS, SEARCH AND OPTIMIZED SKIP PAGINATION)
 app.get("/api/store", async (req: any, res: any) => {
   try {
-    const prisma = getPrisma();
-    if (!prisma) {
-      return res.status(500).json({ error: "Banco de dados indisponível." });
-    }
-
     const { category, rarity, search, page = '1', limit = '8' } = req.query;
 
     const pageNum = parseInt(page as string, 10) || 1;
     const limitNum = parseInt(limit as string, 10) || 8;
     const skip = (pageNum - 1) * limitNum;
 
-    // Building filtration criteria mapping standard BJJ classifications 
-    const whereClause: any = { active: true };
+    let items: any[] = [];
+    let total = 0;
 
-    if (category && category !== "all" && category !== "Todos") {
-      // Map Portuguese categories to Database stored tags
-      const categoryMap: Record<string, string> = {
-        "Avatares": "AVATAR",
-        "Molduras": "FRAME",
-        "Títulos": "TITLE",
-        "Emotes": "EMOTE",
-        "Emojis": "EMOTE",
-        "Temas": "THEME",
-        "Efeitos Especiais": "EFFECT",
-        "Efeitos visuais": "EFFECT",
-        "Faixas especiais": "BELT",
-        "Itens lendários": "LEGENDARY",
-        "AVATAR": "AVATAR",
-        "FRAME": "FRAME",
-        "TITLE": "TITLE",
-        "EMOTE": "EMOTE",
-        "EFFECT": "EFFECT",
-        "THEME": "THEME",
-        "BELT": "BELT",
-        "LEGENDARY": "LEGENDARY"
-      };
-      whereClause.category = categoryMap[category as string] || (category as string).toUpperCase();
-    }
+    const dbConnected = isDatabaseConnected();
+    if (dbConnected) {
+      const prisma = getPrisma();
+      const whereClause: any = { active: true };
 
-    if (rarity && rarity !== "all" && rarity !== "Todos") {
-      if (rarity === "MYTHIC" || rarity === "Mítico") {
-        whereClause.rarity = "LEGENDARY";
-        whereClause.priceKC = { gte: 4000 };
-      } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
-        whereClause.rarity = "LEGENDARY";
-        whereClause.priceKC = { lt: 4000 };
-      } else {
-        // Map other Portuguese rarities to Prisma Enums
-        const rarityMap: Record<string, string> = {
-          "Comum": "COMMON",
-          "COMMON": "COMMON",
-          "Raro": "RARE",
-          "RARE": "RARE",
-          "Épico": "EPIC",
-          "EPIC": "EPIC"
+      if (category && category !== "all" && category !== "Todos") {
+        const categoryMap: Record<string, string> = {
+          "Avatares": "AVATAR",
+          "Avatares Masculinos": "Avatares Masculinos",
+          "Avatares Femininos": "Avatares Femininos",
+          "Molduras": "Molduras",
+          "Títulos": "Títulos",
+          "Pacotes VIP": "Pacotes VIP",
+          "XP Boost": "XP Boost",
+          "Kimono Coins": "Kimono Coins",
+          "Itens Especiais": "Itens Especiais"
         };
-        whereClause.rarity = rarityMap[rarity as string] || (rarity as string).toUpperCase();
+        const targetCategory = categoryMap[category as string] || (category as string);
+        whereClause.category = targetCategory;
       }
+
+      if (rarity && rarity !== "all" && rarity !== "Todos") {
+        if (rarity === "MYTHIC" || rarity === "Mítico") {
+          whereClause.rarity = "LEGENDARY";
+          whereClause.priceKC = { gte: 4000 };
+        } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
+          whereClause.rarity = "LEGENDARY";
+          whereClause.priceKC = { lt: 4000 };
+        } else {
+          const rarityMap: Record<string, string> = {
+            "Comum": "COMMON",
+            "COMMON": "COMMON",
+            "Raro": "RARE",
+            "RARE": "RARE",
+            "Épico": "EPIC",
+            "EPIC": "EPIC"
+          };
+          whereClause.rarity = rarityMap[rarity as string] || (rarity as string).toUpperCase();
+        }
+      }
+
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search as string, mode: "insensitive" } },
+          { description: { contains: search as string, mode: "insensitive" } }
+        ];
+      }
+
+      items = await prisma.storeProduct.findMany({
+        where: whereClause,
+        orderBy: { priceKC: "asc" },
+        skip,
+        take: limitNum
+      });
+      total = await prisma.storeProduct.count({ where: whereClause });
+    } else {
+      // In-Memory Fallback Operation
+      let list = [...inMemoryStoreProducts];
+      list = list.filter(it => it.active);
+
+      if (category && category !== "all" && category !== "Todos") {
+        const catLower = String(category).toLowerCase();
+        list = list.filter(it => 
+          it.category.toLowerCase().includes(catLower) || 
+          (catLower === "avatares" && (it.category.includes("Avatares") || it.category === "AVATAR"))
+        );
+      }
+
+      if (rarity && rarity !== "all" && rarity !== "Todos") {
+        const rarLower = String(rarity).toLowerCase();
+        if (rarLower === "mythic" || rarLower === "mítico") {
+          list = list.filter(it => it.rarity === "LEGENDARY" && it.priceKC >= 4000);
+        } else if (rarLower === "legendary" || rarLower === "lendário") {
+          list = list.filter(it => it.rarity === "LEGENDARY" && it.priceKC < 4000);
+        } else {
+          const rarityMap: Record<string, string> = {
+            "comum": "COMMON",
+            "raro": "RARE",
+            "épico": "EPIC",
+            "epico": "EPIC"
+          };
+          const mappedRar = rarityMap[rarLower] || rarLower.toUpperCase();
+          list = list.filter(it => it.rarity === mappedRar);
+        }
+      }
+
+      if (search) {
+        const s = String(search).toLowerCase();
+        list = list.filter(it => 
+          it.name.toLowerCase().includes(s) || 
+          it.description.toLowerCase().includes(s)
+        );
+      }
+
+      total = list.length;
+      items = list.slice(skip, skip + limitNum);
     }
 
-    if (search) {
-      whereClause.OR = [
-        { name: { contains: search as string, mode: "insensitive" } },
-        { description: { contains: search as string, mode: "insensitive" } }
-      ];
-    }
-
-    // Direct database retrieval with optimized indices
-    const items = await prisma.storeProduct.findMany({
-      where: whereClause,
-      orderBy: { priceKC: "asc" },
-      skip,
-      take: limitNum
-    });
-
-    const total = await prisma.storeProduct.count({ where: whereClause });
-
-    // Format output and dynamically inject the premium "MYTHIC" rarity tier
     const formattedItems = items.map((item: any) => {
       const isMythic = item.rarity === "LEGENDARY" && item.priceKC >= 4000;
       return patchProductObjectWithBjjAvatar({
@@ -4504,11 +4900,16 @@ app.get("/api/store", async (req: any, res: any) => {
         description: item.description,
         priceKC: item.priceKC,
         priceBRL: item.priceBRL ? Number(item.priceBRL) : undefined,
-        category: item.category, // e.g. AVATAR, FRAME
+        category: item.category,
         rarity: isMythic ? "MYTHIC" : item.rarity,
         imageUrl: item.imageUrl,
         stock: item.stock,
-        active: item.active
+        active: item.active,
+        isPromo: item.isPromo,
+        promoPriceKC: item.promoPriceKC,
+        isBundle: item.isBundle,
+        isSeasonal: item.isSeasonal,
+        isExclusive: item.isExclusive
       });
     });
 
@@ -4540,21 +4941,23 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
       return res.status(400).json({ error: "Selecione o produto que deseja obter." });
     }
 
-    const prisma = getPrisma();
-    if (!prisma) {
-      return res.status(550).json({ error: "Banco de dados indisponível." });
-    }
+    const dbConnected = isDatabaseConnected();
+    let product: any = null;
 
-    // A. FETCH PRODUCT DETAILS
-    const product = await prisma.storeProduct.findUnique({
-      where: { id: productId, active: true }
-    });
+    if (dbConnected) {
+      const prisma = getPrisma();
+      product = await prisma.storeProduct.findUnique({
+        where: { id: productId, active: true }
+      });
+    } else {
+      product = inMemoryStoreProducts.find(p => p.id === productId && p.active);
+    }
 
     if (!product) {
       return res.status(404).json({ error: "O cosmético selecionado não foi encontrado ou está esgotado." });
     }
 
-    // B. VALIDATE USER PURSE & IN-MEMORY CLUSTER LIMITS
+    // B. VALIDATE USER PURSE
     const buyerObj = await authStore.findById(buyerId);
     if (!buyerObj) {
       return res.status(444).json({ error: "Perfil de lutador não localizado." });
@@ -4567,88 +4970,97 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
       });
     }
 
-    // C. ENSURE OWNERSHIP IS UNIQUE FOR PREMIUM CAROUSELS (No double spending or double buy of same exact cosmetics)
-    const userInventory = await prisma.inventory.findUnique({
-      where: { userId: buyerId },
-      include: { items: true }
-    });
+    // C. ENSURE OWNERSHIP IS UNIQUE
+    let isAlreadyOwned = false;
+    let inventoryId = "inv_fallback";
 
-    let inventoryId = userInventory?.id;
-    if (!userInventory) {
-      const createdInv = await prisma.inventory.create({
-        data: { userId: buyerId }
+    if (dbConnected) {
+      const prisma = getPrisma();
+      const userInventory = await prisma.inventory.findUnique({
+        where: { userId: buyerId },
+        include: { items: true }
       });
-      inventoryId = createdInv.id;
+
+      if (!userInventory) {
+        const createdInv = await prisma.inventory.create({
+          data: { userId: buyerId }
+        });
+        inventoryId = createdInv.id;
+      } else {
+        inventoryId = userInventory.id;
+        isAlreadyOwned = userInventory.items.some((it: any) => it.productId === productId);
+      }
+    } else {
+      const buyerInv = inMemoryUserInventories.get(buyerId) || [];
+      isAlreadyOwned = buyerInv.includes(productId);
     }
 
-    const isAlreadyOwned = userInventory?.items.some((it: any) => it.productId === productId);
     if (isAlreadyOwned) {
       return res.status(400).json({ 
         error: "Item já adquirido! Este material cosmético ou guia de recursos já faz parte de seu tatame." 
       });
     }
 
-    // D. FINANCIAL DEDUCTION VIA DB TRANSIT CORE
-    // 1. Deduct from wallet
+    // D. FINANCIAL DEDUCTION
     const updatedCoins = currentCoins - product.priceKC;
     await authStore.updateUser(buyerId, { coins: updatedCoins });
 
-    // 2. Add to user's local memory tracker (anti-fraud double check fallback)
+    // Sync in memory tracker
     const buyerInv = inMemoryUserInventories.get(buyerId) || [];
     inMemoryUserInventories.set(buyerId, [...buyerInv, productId]);
 
-    // 3. Create inventory item representing asset unlock
     const itemId = `inv_item_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    await prisma.inventoryItem.create({
-      data: {
-        id: itemId,
-        inventoryId: inventoryId!,
-        productId: product.id,
-        name: product.name,
-        description: product.description,
-        rarity: product.rarity,
-        imageUrl: product.imageUrl || "",
-        isEquipped: false
-      }
-    });
 
-    // 4. Register audit logs for sales ledger and admin trace
-    const saleId = `store_sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    await prisma.storeSale.create({
-      data: {
-        id: saleId,
-        productId: product.id,
-        buyerId,
-        pricePaidKC: product.priceKC
-      }
-    });
-
-    // 5. Append transaction block under wallet ledger
-    const userWallet = await prisma.wallet.findUnique({
-      where: { userId: buyerId }
-    });
-    if (userWallet) {
-      await prisma.transaction.create({
+    if (dbConnected) {
+      const prisma = getPrisma();
+      await prisma.inventoryItem.create({
         data: {
-          walletId: userWallet.id,
-          amountKC: -product.priceKC,
-          type: "STORE_PURCHASE",
-          status: "COMPLETED",
-          description: `Desbloqueio de cosmético: ${product.name}`,
-          referenceId: saleId
+          id: itemId,
+          inventoryId: inventoryId,
+          productId: product.id,
+          name: product.name,
+          description: product.description,
+          rarity: product.rarity,
+          imageUrl: product.imageUrl || "",
+          isEquipped: false
+        }
+      });
+
+      const saleId = `store_sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      await prisma.storeSale.create({
+        data: {
+          id: saleId,
+          productId: product.id,
+          buyerId,
+          pricePaidKC: product.priceKC
+        }
+      });
+
+      const userWallet = await prisma.wallet.findUnique({
+        where: { userId: buyerId }
+      });
+      if (userWallet) {
+        await prisma.transaction.create({
+          data: {
+            walletId: userWallet.id,
+            amountKC: -product.priceKC,
+            type: "STORE_PURCHASE",
+            status: "COMPLETED",
+            description: `Desbloqueio de cosmético: ${product.name}`,
+            referenceId: saleId
+          }
+        });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: buyerId,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceKC} KC. Saldo deduzido para ${updatedCoins} KC.`,
+          amountKC: product.priceKC
         }
       });
     }
-
-    // F. SECURITY AUDIT DISPATCH
-    await prisma.auditLog.create({
-      data: {
-        actorId: buyerId,
-        action: "SYSTEM_SETTING_CHANGE",
-        description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceKC} KC. Saldo deduzido para ${updatedCoins} KC.`,
-        amountKC: product.priceKC
-      }
-    });
 
     res.json({
       success: true,
@@ -4910,6 +5322,389 @@ app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any)
   } catch (error: any) {
     console.error("Erro ao desequipar item:", error);
     res.status(500).json({ error: "Erro interno ao desequipar cosmético." });
+  }
+});
+
+// =========================================================================
+// ADMINISTRATIVE STORE MANAGEMENT ENDPOINTS (FULL CRUD OPERATIONS)
+// =========================================================================
+
+const mapRarity = (rarity: string): "COMMON" | "RARE" | "EPIC" | "LEGENDARY" => {
+  const r = String(rarity).toUpperCase();
+  if (r === "COMMON" || r === "COMUM") return "COMMON";
+  if (r === "RARE" || r === "RARO") return "RARE";
+  if (r === "EPIC" || r === "ÉPICO" || r === "EPICO") return "EPIC";
+  if (r === "LEGENDARY" || r === "LENDÁRIO" || r === "LENDARIO") return "LEGENDARY";
+  return "COMMON";
+};
+
+// 1. GET ALL ITEMS FOR ADMIN CATALOG PANEL (ACTIVE & INACTIVE)
+app.get("/api/admin/store/items", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { search, category } = req.query;
+    const dbConnected = isDatabaseConnected();
+    let items = [];
+
+    if (dbConnected) {
+      const prisma = getPrisma();
+      const whereClause: any = {};
+      if (category && category !== "Todos") {
+        whereClause.category = category;
+      }
+      if (search) {
+        whereClause.OR = [
+          { name: { contains: search as string, mode: "insensitive" } },
+          { description: { contains: search as string, mode: "insensitive" } }
+        ];
+      }
+      items = await prisma.storeProduct.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" }
+      });
+    } else {
+      items = [...inMemoryStoreProducts];
+      if (category && category !== "Todos") {
+        items = items.filter(it => it.category === category);
+      }
+      if (search) {
+        const s = (search as string).toLowerCase();
+        items = items.filter(it => 
+          it.name.toLowerCase().includes(s) || 
+          it.description.toLowerCase().includes(s)
+        );
+      }
+    }
+
+    res.json({ success: true, items });
+  } catch (err: any) {
+    console.error("Erro admin list store:", err);
+    res.status(500).json({ error: "Erro ao obter itens do painel admin." });
+  }
+});
+
+// 2. CREATE LOGICAL ITEM IN THE STORE
+app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { 
+      name, 
+      description, 
+      priceKC, 
+      priceBRL, 
+      category, 
+      rarity, 
+      imageUrl, 
+      stock, 
+      active, 
+      isPromo, 
+      promoPriceKC, 
+      isBundle, 
+      isSeasonal, 
+      isExclusive 
+    } = req.body;
+
+    if (!name || isNaN(Number(priceKC))) {
+      return res.status(400).json({ error: "Parâmetros inválidos. Nome e preço em KC são obrigatórios." });
+    }
+
+    const newItem = {
+      id: "prod_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      name,
+      description: description || "",
+      priceKC: Number(priceKC),
+      priceBRL: priceBRL ? Number(priceBRL) : null,
+      category: category || "Itens Especiais",
+      rarity: mapRarity(rarity),
+      imageUrl: imageUrl || "",
+      stock: stock === null || stock === undefined || stock === "" ? null : Number(stock),
+      active: active !== undefined ? Boolean(active) : true,
+      isPromo: Boolean(isPromo),
+      promoPriceKC: promoPriceKC ? Number(promoPriceKC) : null,
+      isBundle: Boolean(isBundle),
+      isSeasonal: Boolean(isSeasonal),
+      isExclusive: Boolean(isExclusive)
+    };
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      const dbProduct = await prisma.storeProduct.create({
+        data: {
+          id: newItem.id,
+          name: newItem.name,
+          description: newItem.description,
+          priceKC: newItem.priceKC,
+          priceBRL: newItem.priceBRL,
+          category: newItem.category,
+          rarity: newItem.rarity,
+          imageUrl: newItem.imageUrl,
+          stock: newItem.stock,
+          active: newItem.active,
+          isPromo: newItem.isPromo,
+          promoPriceKC: newItem.promoPriceKC,
+          isBundle: newItem.isBundle,
+          isSeasonal: newItem.isSeasonal,
+          isExclusive: newItem.isExclusive
+        }
+      });
+      newItem.id = dbProduct.id;
+    }
+
+    inMemoryStoreProducts.unshift(newItem);
+
+    // Write simple audit log
+    const admin = req.user;
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      await prisma.auditLog.create({
+        data: {
+          actorId: admin.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `ADMINISTRADOR criou o item da loja "${name}" na categoria "${category}".`
+        }
+      });
+    }
+
+    res.json({ success: true, message: "Item criado com sucesso!", item: newItem });
+  } catch (err: any) {
+    console.error("Erro ao criar produto:", err);
+    res.status(500).json({ error: err.message || "Erro ao criar produto." });
+  }
+});
+
+// 3. EDIT EXISTING ITEM BY ID
+app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, 
+      description, 
+      priceKC, 
+      priceBRL, 
+      category, 
+      rarity, 
+      imageUrl, 
+      stock, 
+      active, 
+      isPromo, 
+      promoPriceKC, 
+      isBundle, 
+      isSeasonal, 
+      isExclusive 
+    } = req.body;
+
+    const stockVal = stock === null || stock === "" || stock === undefined ? null : Number(stock);
+    const promoPriceVal = promoPriceKC === null || promoPriceKC === "" || promoPriceKC === undefined ? null : Number(promoPriceKC);
+    const mappedRarity = mapRarity(rarity);
+
+    let updatedItem: any = null;
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      updatedItem = await prisma.storeProduct.update({
+        where: { id },
+        data: {
+          name,
+          description: description !== undefined ? description : undefined,
+          priceKC: priceKC !== undefined ? Number(priceKC) : undefined,
+          priceBRL: priceBRL !== undefined && priceBRL !== null ? Number(priceBRL) : null,
+          category: category !== undefined ? category : undefined,
+          rarity: rarity !== undefined ? mappedRarity : undefined,
+          imageUrl: imageUrl !== undefined ? imageUrl : undefined,
+          stock: stockVal,
+          active: active !== undefined ? Boolean(active) : undefined,
+          isPromo: isPromo !== undefined ? Boolean(isPromo) : undefined,
+          promoPriceKC: promoPriceVal,
+          isBundle: isBundle !== undefined ? Boolean(isBundle) : undefined,
+          isSeasonal: isSeasonal !== undefined ? Boolean(isSeasonal) : undefined,
+          isExclusive: isExclusive !== undefined ? Boolean(isExclusive) : undefined
+        }
+      });
+    }
+
+    // Sync in memory too
+    const inMemIdx = inMemoryStoreProducts.findIndex(p => p.id === id);
+    if (inMemIdx !== -1) {
+      inMemoryStoreProducts[inMemIdx] = {
+        ...inMemoryStoreProducts[inMemIdx],
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(priceKC !== undefined && { priceKC: Number(priceKC) }),
+        ...(priceBRL !== undefined && { priceBRL: priceBRL !== null ? Number(priceBRL) : null }),
+        ...(category !== undefined && { category }),
+        ...(rarity !== undefined && { rarity: mappedRarity }),
+        ...(imageUrl !== undefined && { imageUrl }),
+        stock: stockVal,
+        ...(active !== undefined && { active: Boolean(active) }),
+        ...(isPromo !== undefined && { isPromo: Boolean(isPromo) }),
+        promoPriceKC: promoPriceVal,
+        ...(isBundle !== undefined && { isBundle: Boolean(isBundle) }),
+        ...(isSeasonal !== undefined && { isSeasonal: Boolean(isSeasonal) }),
+        ...(isExclusive !== undefined && { isExclusive: Boolean(isExclusive) })
+      };
+      if (!updatedItem) {
+        updatedItem = inMemoryStoreProducts[inMemIdx];
+      }
+    }
+
+    if (!updatedItem) {
+      const fallbackItem = {
+        id,
+        name,
+        description: description || "",
+        priceKC: Number(priceKC),
+        priceBRL: priceBRL ? Number(priceBRL) : null,
+        category: category || "Itens Especiais",
+        rarity: mappedRarity,
+        imageUrl: imageUrl || "",
+        stock: stockVal,
+        active: active !== undefined ? Boolean(active) : true,
+        isPromo: Boolean(isPromo),
+        promoPriceKC: promoPriceVal,
+        isBundle: Boolean(isBundle),
+        isSeasonal: Boolean(isSeasonal),
+        isExclusive: Boolean(isExclusive)
+      };
+      inMemoryStoreProducts.push(fallbackItem);
+      updatedItem = fallbackItem;
+    }
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `ADMINISTRADOR editou o item da loja "${name || updatedItem.name}" (ID: ${id}).`
+        }
+      });
+    }
+
+    res.json({ success: true, message: "Item atualizado com sucesso!", item: updatedItem });
+  } catch (err: any) {
+    console.error("Erro ao atualizar produto:", err);
+    res.status(500).json({ error: err.message || "Erro ao atualizar produto." });
+  }
+});
+
+// 4. DUPLICATE EXISTING PRODUCT CATALOG
+app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    let original: any = null;
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      original = await prisma.storeProduct.findUnique({ where: { id } });
+    }
+
+    if (!original) {
+      original = inMemoryStoreProducts.find(p => p.id === id);
+    }
+
+    if (!original) {
+      return res.status(404).json({ error: "Item original não encontrado." });
+    }
+
+    const uniqueId = "prod_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+    const duplicatedName = `${original.name} (Cópia)`;
+
+    const duplicatedItem = {
+      id: uniqueId,
+      name: duplicatedName,
+      description: original.description,
+      priceKC: original.priceKC,
+      priceBRL: original.priceBRL ? Number(original.priceBRL) : null,
+      category: original.category,
+      rarity: original.rarity,
+      imageUrl: original.imageUrl,
+      stock: original.stock,
+      active: original.active,
+      isPromo: original.isPromo,
+      promoPriceKC: original.promoPriceKC,
+      isBundle: original.isBundle,
+      isSeasonal: original.isSeasonal,
+      isExclusive: original.isExclusive
+    };
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      await prisma.storeProduct.create({
+        data: {
+          id: duplicatedItem.id,
+          name: duplicatedItem.name,
+          description: duplicatedItem.description,
+          priceKC: duplicatedItem.priceKC,
+          priceBRL: duplicatedItem.priceBRL,
+          category: duplicatedItem.category,
+          rarity: mapRarity(duplicatedItem.rarity),
+          imageUrl: duplicatedItem.imageUrl,
+          stock: duplicatedItem.stock,
+          active: duplicatedItem.active,
+          isPromo: duplicatedItem.isPromo,
+          promoPriceKC: duplicatedItem.promoPriceKC,
+          isBundle: duplicatedItem.isBundle,
+          isSeasonal: duplicatedItem.isSeasonal,
+          isExclusive: duplicatedItem.isExclusive
+        }
+      });
+    }
+
+    inMemoryStoreProducts.unshift(duplicatedItem);
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `ADMINISTRADOR duplicou o item "${original.name}" criando a cópia "${duplicatedName}".`
+        }
+      });
+    }
+
+    res.json({ success: true, message: "Item duplicado com sucesso!", item: duplicatedItem });
+  } catch (err: any) {
+    console.error("Erro ao duplicar produto:", err);
+    res.status(500).json({ error: err.message || "Erro ao duplicar produto." });
+  }
+});
+
+// 5. EXCLUDE/DELETE PRODUCT CATALOG
+app.post("/api/admin/store/:id/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    let nameLog = id;
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      const p = await prisma.storeProduct.findUnique({ where: { id } });
+      if (p) nameLog = p.name;
+
+      await prisma.storeProduct.delete({
+        where: { id }
+      });
+    }
+
+    const inMemIdx = inMemoryStoreProducts.findIndex(p => p.id === id);
+    if (inMemIdx !== -1) {
+      nameLog = inMemoryStoreProducts[inMemIdx].name;
+      inMemoryStoreProducts.splice(inMemIdx, 1);
+    }
+
+    if (isDatabaseConnected()) {
+      const prisma = getPrisma();
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `ADMINISTRADOR excluiu permanentemente o item "${nameLog}".`
+        }
+      });
+    }
+
+    res.json({ success: true, message: "Item excluído com sucesso!" });
+  } catch (err: any) {
+    console.error("Erro ao deletar produto:", err);
+    res.status(500).json({ error: "Não foi possível excluir o produto. É provável que este item tenha histórico de transações ou compras de alunos anexado no banco." });
   }
 });
 
