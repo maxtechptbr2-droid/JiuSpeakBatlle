@@ -70,6 +70,81 @@ export default function Users() {
   const [advancedInfo, setAdvancedInfo] = useState<any | null>(null);
   const [loadingAdvanced, setLoadingAdvanced] = useState(false);
 
+  // Advanced Operations State
+  const [advancedTab, setAdvancedTab] = useState<'sessions' | 'combat' | 'finance' | 'purchases' | 'study' | 'actions'>('sessions');
+  const [doubleConfirmAction, setDoubleConfirmAction] = useState<{ actionType: string; title: string; message: string; onConfirm: () => void } | null>(null);
+  const [confirmText, setConfirmText] = useState('');
+  const [transferPayload, setTransferPayload] = useState({
+    targetUserId: '',
+    assetType: 'COINS' as 'BELT' | 'XP' | 'ELO' | 'COINS',
+    value: ''
+  });
+
+  const callAdminAction = async (endpoint: string, method = 'POST', body?: any) => {
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      const targetUrl = endpoint.startsWith('/') ? endpoint : `/api/admin/users/${endpoint}`;
+      const res = await fetch(targetUrl, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "Ação executada com sucesso!", "success");
+        if (activeAuditUser) {
+          const updatedInfo = await fetchAdvancedInfo(activeAuditUser.id);
+          if (updatedInfo) setAdvancedInfo(updatedInfo);
+        }
+        fetchUsers();
+        return true;
+      } else {
+        showToast(data.error || "Erro ao processar ação administrativa.", "error");
+        return false;
+      }
+    } catch {
+      showToast("Erro técnico de rede ao processar requisição.", "error");
+      return false;
+    }
+  };
+
+  const onTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferPayload.targetUserId) {
+      showToast("Selecione o atleta destinatário.", "error");
+      return;
+    }
+    
+    const targetName = registeredUsers.find(u => u.id === transferPayload.targetUserId)?.name || "Lutador Destino";
+    const sourceName = activeAuditUser.name;
+    const { assetType, value } = transferPayload;
+    
+    let valueDisplay = value;
+    if (assetType === 'BELT') {
+      valueDisplay = `Faixa atual (${activeAuditUser.belt || 'Branca'})`;
+    }
+    
+    setDoubleConfirmAction({
+      actionType: 'TRANSFER',
+      title: 'Confirmar Transferência de Ativos',
+      message: `Você está prestes a transferir irreversivelmente ${valueDisplay} do tipo [${assetType}] de "${sourceName}" para "${targetName}".`,
+      onConfirm: async () => {
+        const success = await callAdminAction('/api/admin/users/transfer', 'POST', {
+          sourceUserId: activeAuditUser.id,
+          targetUserId: transferPayload.targetUserId,
+          type: assetType,
+          value
+        });
+        if (success) {
+          setTransferPayload({ targetUserId: '', assetType: 'COINS', value: '' });
+        }
+      }
+    });
+  };
+
   // Filters mapping
   const filteredUsers = registeredUsers.filter(u => {
     const sTerm = userSearchText.toLowerCase();
@@ -455,7 +530,20 @@ export default function Users() {
 
                       <button 
                         type="button"
-                        onClick={() => onDeleteUserClick(regUser.id, regUser.name)}
+                        onClick={() => {
+                          if (regUser.id === user.id) {
+                            showToast("Não é possível auto-excluir seu login atual.", "error");
+                            return;
+                          }
+                          setDoubleConfirmAction({
+                            actionType: 'DELETE',
+                            title: 'Excluir Atleta Permanentemente',
+                            message: `Deseja realmente EXCLUIR permanentemente o lutador "${regUser.name}" (${regUser.email})? Esta ação removerá históricos, compras e carteiras.`,
+                            onConfirm: async () => {
+                              await handleDeleteUser(regUser.id);
+                            }
+                          });
+                        }}
                         disabled={regUser.id === user.id}
                         className="p-1 px-2 bg-rose-950/20 hover:bg-rose-900 border border-rose-950/30 disabled:opacity-30 disabled:hover:bg-transparent text-[10px] text-rose-450 hover:text-white rounded cursor-pointer transition-all"
                         title="Excluir Atleta Permanentemente"
@@ -859,10 +947,10 @@ export default function Users() {
                 <span>Escaneando logs, IPs, refresh tokens e histórico de combate no Postgres...</span>
               </div>
             ) : advancedInfo ? (
-              <div className="space-y-5 text-xs font-mono text-slate-300">
+              <div className="space-y-4 text-xs font-mono text-slate-350">
                 
                 {/* Atletas general attributes panel widget */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-850">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-slate-950 p-3 rounded-xl border border-slate-850">
                   <div className="space-y-0.5">
                     <p className="text-[9px] text-slate-500 uppercase">Graduação</p>
                     <p className="font-bold text-slate-200 text-xs">{advancedInfo.user.belt || 'Branca'}</p>
@@ -877,150 +965,548 @@ export default function Users() {
                   </div>
                   <div className="space-y-0.5">
                     <p className="text-[9px] text-slate-500 uppercase">Estatuto Geral</p>
-                    <p className="font-bold text-emerald-400 text-xs">
-                      {advancedInfo.user.isBanned ? 'BANIDO' : advancedInfo.user.isSuspended ? 'SUSPENSO' : 'ATIVO'}
+                    <p className="font-bold text-xs">
+                      {advancedInfo.user.isBanned ? (
+                        <span className="text-rose-500">🚫 BANIDO</span>
+                      ) : advancedInfo.user.isSuspended ? (
+                        <span className="text-amber-500">⏳ SUSPENSO</span>
+                      ) : (
+                        <span className="text-emerald-400">● ATIVO</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[9px] text-slate-500 uppercase">Condição Financeira</p>
+                    <p className="font-bold text-xs">
+                      {advancedInfo.user.isFrozen ? (
+                        <span className="text-cyan-400 animate-pulse">❄️ CONGELADA</span>
+                      ) : (
+                        <span className="text-slate-400">✓ NORMAL</span>
+                      )}
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Left subcolumn: Active Sessions, Devices & IPs */}
-                  <div className="space-y-3">
-                    <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
-                      <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
-                        <Terminal className="w-4 h-4 text-emerald-400" />
-                        <span>Dispositivos & IPs de Entrada (Sessões Ativas)</span>
-                      </h5>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {advancedInfo.tokens && advancedInfo.tokens.length > 0 ? (
-                          advancedInfo.tokens.map((token: any) => (
-                            <div key={token.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[10px] space-y-1">
-                              <div className="flex justify-between text-[9.5px]">
-                                <span className="font-bold text-indigo-400">{token.ipAddress || '127.0.0.1'}</span>
-                                <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(token.issuedAt).toLocaleString()}</span>
+                {/* Elegant administrative premium tab controller */}
+                <div className="flex gap-1.5 border-b border-slate-850 pb-2 overflow-x-auto">
+                  {[
+                    { id: 'sessions', label: 'Sessões & Logins', icon: Terminal },
+                    { id: 'combat', label: 'Combates (PVP)', icon: Swords },
+                    { id: 'finance', label: 'Histórico de Pagamentos', icon: Wallet },
+                    { id: 'purchases', label: 'Histórico de Compras', icon: UserIcon },
+                    { id: 'study', label: 'Histórico de Aulas', icon: Award },
+                    { id: 'actions', label: 'Controle Executivo', icon: Sliders }
+                  ].map(tabItem => {
+                    const IconComponent = tabItem.icon;
+                    return (
+                      <button
+                        key={tabItem.id}
+                        type="button"
+                        onClick={() => setAdvancedTab(tabItem.id as any)}
+                        className={`flex items-center gap-1.5 p-1.5 px-3 rounded text-[10px] font-bold tracking-wide font-mono cursor-pointer transition-all border shrink-0 ${
+                          advancedTab === tabItem.id 
+                            ? 'bg-indigo-650 border-indigo-505 text-white shadow-lg' 
+                            : 'bg-slate-950 border-slate-850 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <IconComponent className="w-3.5 h-3.5" />
+                        <span>{tabItem.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Tab contents router */}
+                <div className="min-h-[250px] max-h-[50vh] overflow-y-auto pr-1 space-y-4">
+                  
+                  {/* Tab 1: SESSIONS & LOGINS */}
+                  {advancedTab === 'sessions' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
+                        <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                          <Terminal className="w-4 h-4 text-emerald-400" />
+                          <span>Dispositivos & IPs de Entrada (Sessões Ativas)</span>
+                        </h5>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {advancedInfo.tokens && advancedInfo.tokens.length > 0 ? (
+                            advancedInfo.tokens.map((token: any) => (
+                              <div key={token.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[10px] space-y-1">
+                                <div className="flex justify-between text-[9.5px]">
+                                  <span className="font-bold text-indigo-400">{token.ipAddress || '127.0.0.1'}</span>
+                                  <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(token.issuedAt).toLocaleString()}</span>
+                                </div>
+                                <p className="text-slate-400 font-sans text-[9px] truncate" title={token.userAgent}>Browser Agent: {token.userAgent || 'Desconhecido'}</p>
                               </div>
-                              <p className="text-slate-400 font-sans text-[9px] truncate" title={token.userAgent}>Browser Agent: {token.userAgent || 'Desconhecido'}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-[10px] text-slate-500 text-center py-6">Nenhuma sessão síncrona aberta no banco.</p>
-                        )}
+                            ))
+                          ) : (
+                            <p className="text-[10px] text-slate-500 text-center py-8">Nenhuma sessão síncrona aberta no banco.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
+                        <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-amber-500" />
+                          <span>Histórico de Tentativas de Login (IP Logins)</span>
+                        </h5>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {advancedInfo.logins && advancedInfo.logins.length > 0 ? (
+                            advancedInfo.logins.map((lg: any, idx: number) => (
+                              <div key={idx} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] flex justify-between items-center">
+                                <div>
+                                  <p className="font-bold text-slate-350">IP: {lg.ipAddress || 'Sem IP'}</p>
+                                  <p className="text-[8.5px] text-slate-500">{new Date(lg.timestamp).toLocaleString()}</p>
+                                </div>
+                                <span className={`p-0.5 px-2 rounded text-[8px] font-bold ${
+                                  lg.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                }`}>
+                                  {lg.success ? "SUCESSO" : "REJEITADO"}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-[10px] text-slate-500 text-center py-8">Nenhum log cadastral de login.</p>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    {/* Historical logins tracking */}
-                    <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
-                      <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-amber-500" />
-                        <span>Histórico de Tentativas de Login (IP Logins)</span>
-                      </h5>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {advancedInfo.logins && advancedInfo.logins.length > 0 ? (
-                          advancedInfo.logins.map((lg: any, idx: number) => (
-                            <div key={idx} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] flex justify-between items-center">
-                              <div>
-                                <p className="font-bold text-slate-350">IP: {lg.ipAddress || 'Sem IP'}</p>
-                                <p className="text-[8.5px] text-slate-500">{new Date(lg.timestamp).toLocaleString()}</p>
-                              </div>
-                              <span className={`p-0.5 px-2 rounded text-[8px] font-bold ${
-                                lg.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                              }`}>
-                                {lg.success ? "SUCESSO" : "REJEITADO"}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-[10px] text-slate-500 text-center py-6">Nenhum log cadastral de login.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right subcolumn: Combat/PVP history and Financial ledger */}
-                  <div className="space-y-3">
-                    {/* Combat Arena activity logs */}
+                  {/* Tab 2: COMBAT PVP */}
+                  {advancedTab === 'combat' && (
                     <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
                       <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
                         <Swords className="w-4 h-4 text-rose-500" />
                         <span>Histórico de PVP na Arena de Combates</span>
                       </h5>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      <div className="space-y-2">
                         {advancedInfo.pvpHistory && advancedInfo.pvpHistory.length > 0 ? (
                           advancedInfo.pvpHistory.map((pvp: any) => {
                             const isChallenger = pvp.challengerId === activeAuditUser.id;
                             const opponent = isChallenger ? pvp.defender?.name : pvp.challenger?.name;
+                            const opponentBelt = isChallenger ? pvp.defender?.belt : pvp.challenger?.belt;
                             const didWin = pvp.winnerId === activeAuditUser.id;
                             return (
-                              <div key={pvp.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] space-y-1">
-                                <div className="flex justify-between items-center">
-                                  <span className="font-bold text-slate-200">vs {opponent || 'Oponente'}</span>
-                                  <span className={`px-1 rounded text-[8px] font-extrabold ${didWin ? 'bg-emerald-505/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                                    {didWin ? "VITORIA" : "DERROTA"}
-                                  </span>
+                              <div key={pvp.id} className="p-3 rounded-lg bg-slate-900 border border-slate-850 text-[10px] space-y-1.5 flex justify-between items-center">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-bold text-slate-200">vs {opponent || 'Oponente'}</span>
+                                    <span className="text-[8.5px] px-1 bg-slate-950 text-slate-500 font-sans border border-slate-800 rounded">{opponentBelt || 'Branca'}</span>
+                                  </div>
+                                  <div className="text-[9px] text-slate-450 display flex gap-3">
+                                    <span>Placar: {pvp.challengerScore || 0} x {pvp.defenderScore || 0}</span>
+                                    <span>•</span>
+                                    <span>{new Date(pvp.createdAt).toLocaleString()}</span>
+                                  </div>
                                 </div>
-                                <div className="text-[8.5px] text-slate-500 flex justify-between">
-                                  <span>Placagem: {pvp.challengerScore || 0} x {pvp.defenderScore || 0}</span>
-                                  <span>{new Date(pvp.createdAt).toLocaleDateString()}</span>
+
+                                <div className="text-right">
+                                  <span className={`p-1 px-3 rounded text-[8.5px] font-black border uppercase ${
+                                    didWin ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                  }`}>
+                                    {didWin ? "VITÓRIA" : "DERROTA"}
+                                  </span>
                                 </div>
                               </div>
                             );
                           })
                         ) : (
-                          <p className="text-[10px] text-slate-500 text-center py-6">Inexistência de lutas e duelos registrados.</p>
+                          <p className="text-[11px] text-slate-500 text-center py-12">Inexistência de lutas e duelos registrados.</p>
                         )}
                       </div>
                     </div>
+                  )}
 
-                    {/* Financial Ledger transactions */}
+                  {/* Tab 3: FINANCE & PAYMENTS */}
+                  {advancedTab === 'finance' && (
+                    <div className="space-y-4">
+                      {/* Financial ledger transactions list */}
+                      <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
+                        <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                          <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+                          <span>Razão Geral de Conta - Transações Analítico</span>
+                        </h5>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {advancedInfo.transactions && advancedInfo.transactions.length > 0 ? (
+                            advancedInfo.transactions.map((tx: any) => (
+                              <div key={tx.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] space-y-0.5">
+                                <div className="flex justify-between">
+                                  <span className="font-bold text-slate-250 truncate block max-w-[250px]">{tx.notes || tx.type}</span>
+                                  <span className={`font-bold ${tx.amountBRL > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>R$ {tx.amountBRL.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-[8px] text-slate-500">
+                                  <span>Saldo virtual: {tx.amountKC || 0} KC</span>
+                                  <span>{new Date(tx.createdAt).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-[10px] text-slate-500 text-center py-6">Sem registros de transações financeiras arquivadas.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Subscriptions historical logs */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
+                          <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                            <Award className="w-4 h-4 text-indigo-400" />
+                            <span>Contratos de Assinatura (Pagamentos VIP)</span>
+                          </h5>
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {advancedInfo.subPayments && advancedInfo.subPayments.length > 0 ? (
+                              advancedInfo.subPayments.map((p: any) => (
+                                <div key={p.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] space-y-1">
+                                  <div className="flex justify-between font-bold">
+                                    <span className="text-indigo-300">{p.subscription?.plan?.title || 'Plano VIP'}</span>
+                                    <span className="text-slate-300">R$ {parseFloat(p.amountBRL).toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-[8px] text-slate-500">
+                                    <span className="uppercase">{p.status}</span>
+                                    <span>{new Date(p.createdAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[10px] text-slate-500 text-center py-6">Nenhum pagamento correspondido.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Withdrawals lists */}
+                        <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
+                          <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                            <Download className="w-4 h-4 text-cyan-400" />
+                            <span>Solicitações de Saque Efetuadas (Transações PIX)</span>
+                          </h5>
+                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            {advancedInfo.withdrawals && advancedInfo.withdrawals.length > 0 ? (
+                              advancedInfo.withdrawals.map((w: any) => (
+                                <div key={w.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] space-y-1">
+                                  <div className="flex justify-between font-bold">
+                                    <span className="text-slate-200">R$ {parseFloat(w.amountBRL).toFixed(2)}</span>
+                                    <span className={`text-[8px] rounded px-1 ${
+                                      w.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                      w.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                      'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                    }`}>
+                                      {w.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-[8.5px] text-slate-500 truncate">PIX ({w.keyType}): {w.pixKey}</p>
+                                  <p className="text-[7.5px] text-slate-600 text-right">{new Date(w.createdAt).toLocaleString()}</p>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[10px] text-slate-500 text-center py-6">Nenhum levantamento ou saque pendente/efetuado.</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 4: PURCHASES */}
+                  {advancedTab === 'purchases' && (
                     <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
                       <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
-                        <Wallet className="w-4 h-4 text-emerald-400 animate-bounce" />
-                        <span>Razão Analítico de Contas & Transações</span>
+                        <UserIcon className="w-4 h-4 text-indigo-400" />
+                        <span>Histórico de Compras de Cosméticos & Loja Especial</span>
                       </h5>
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {advancedInfo.transactions && advancedInfo.transactions.length > 0 ? (
-                          advancedInfo.transactions.map((tx: any) => (
-                            <div key={tx.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] space-y-0.5">
-                              <div className="flex justify-between">
-                                <span className="font-bold text-slate-250 truncate block max-w-[200px]">{tx.notes || tx.type}</span>
-                                <span className={`font-bold ${tx.amountBRL > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>R$ {tx.amountBRL.toFixed(2)}</span>
+                      <div className="space-y-2">
+                        {advancedInfo.purchases && advancedInfo.purchases.length > 0 ? (
+                          advancedInfo.purchases.map((pc: any) => (
+                            <div key={pc.id} className="p-3 rounded-lg bg-slate-900 border border-slate-850 text-[10px] flex justify-between items-center">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-200">{pc.product?.name || 'Item de Especialidade'}</p>
+                                <p className="text-[8.5px] text-slate-500">ID Cupom: <span className="text-slate-400 font-mono">{pc.id}</span></p>
                               </div>
-                              <div className="flex justify-between text-[8px] text-slate-500">
-                                <span>Saldo KC: {tx.amountKC || 0} KC</span>
-                                <span>{new Date(tx.createdAt).toLocaleString()}</span>
+                              <div className="text-right">
+                                <p className="font-bold text-yellow-500">{pc.pricePaidKC || pc.product?.priceKC || 0} KC</p>
+                                <p className="text-[8px] text-slate-500">{new Date(pc.createdAt).toLocaleString()}</p>
                               </div>
                             </div>
                           ))
                         ) : (
-                          <p className="text-[10px] text-slate-500 text-center py-6">Sem transações financeiras arquivadas.</p>
+                          <p className="text-[11px] text-slate-500 text-center py-12">Sem compras registradas na loja de cosméticos.</p>
                         )}
                       </div>
                     </div>
-                  </div>
-                </div>
+                  )}
 
-                {/* Audit log for full traceability */}
-                <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
-                  <h5 className="text-[10px] uppercase font-bold text-slate-300 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
-                    <Terminal className="w-4 h-4 text-slate-400" />
-                    <span>Rastro Síncrono de Atividades & Auditoria Básica</span>
-                  </h5>
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {advancedInfo.auditLogs && advancedInfo.auditLogs.length > 0 ? (
-                      advancedInfo.auditLogs.map((log: any) => (
-                        <div key={log.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] space-y-1 text-slate-350">
-                          <div className="flex justify-between font-bold text-indigo-400">
-                            <span>Ação: {log.action}</span>
-                            <span className="text-slate-500 font-normal">{new Date(log.createdAt).toLocaleString()}</span>
+                  {/* Tab 5: LESSONS & AUDIT */}
+                  {advancedTab === 'study' && (
+                    <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
+                      <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-emerald-400 animate-pulse" />
+                        <span>Histórico de Aulas & Conclusões de Estudo</span>
+                      </h5>
+                      <div className="space-y-2">
+                        {advancedInfo.auditLogs && advancedInfo.auditLogs.filter((l: any) => l.action === 'LESSON_COMPLETE' || l.description.toLowerCase().includes('aula') || l.description.toLowerCase().includes('concluiu')).length > 0 ? (
+                          advancedInfo.auditLogs.filter((l: any) => l.action === 'LESSON_COMPLETE' || l.description.toLowerCase().includes('aula') || l.description.toLowerCase().includes('concluiu')).map((log: any) => (
+                            <div key={log.id} className="p-3 rounded-lg bg-slate-900 border border-slate-850 text-[10px] space-y-1">
+                              <div className="flex justify-between items-center text-slate-400">
+                                <span className="font-bold text-indigo-400 flex items-center gap-1">
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>{log.action}</span>
+                                </span>
+                                <span className="text-slate-500 text-[8.5px]">{new Date(log.createdAt).toLocaleString()}</span>
+                              </div>
+                              <p className="text-slate-350 text-[9.5px] leading-relaxed font-sans">{log.description}</p>
+                              {log.amountKC && <p className="text-[8.5px] text-yellow-500 font-sans">XP/Moedas recebidas: +{log.amountKC} KC</p>}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-12 space-y-2">
+                            <Clock className="w-8 h-8 text-slate-650 mx-auto" />
+                            <p className="text-[11px] text-slate-550">Nenhuma conclusão expressa de módulo ou aula reportada no banco.</p>
                           </div>
-                          <p className="text-slate-400 font-sans tracking-wide leading-relaxed">{log.description}</p>
-                          <p className="text-[8.5px] text-slate-500">IP: {log.ipAddress || 'Unknown'}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 6: EXPERT EXECUTIVE CONTROLS */}
+                  {advancedTab === 'actions' && (
+                    <div className="space-y-4">
+                      
+                      {/* Sub-section A: Asset Transfers (P2P Belt/XP/ELO/Coins) */}
+                      <div className="bg-slate-950 p-4 border border-indigo-900/20 rounded-xl space-y-3">
+                        <h5 className="text-[10px] uppercase font-bold text-indigo-300 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                          <Sliders className="w-4 h-4 text-indigo-400" />
+                          <span>Migrar / Transferir de Ativos Organizacionais</span>
+                        </h5>
+
+                        <form onSubmit={onTransferSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                          <div className="space-y-1 md:col-span-1.5">
+                            <label className="text-[9px] text-slate-500 uppercase">Atleta de Destino:</label>
+                            <select
+                              value={transferPayload.targetUserId}
+                              onChange={(e) => setTransferPayload({ ...transferPayload, targetUserId: e.target.value })}
+                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none"
+                              required
+                            >
+                              <option value="">-- Selecione o Destinatário --</option>
+                              {registeredUsers.filter(u => u.id !== activeAuditUser.id).map(u => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name} ({u.belt} • Lvl {u.level})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1 md:col-span-1">
+                            <label className="text-[9px] text-slate-500 uppercase">Tipo de Recurso:</label>
+                            <select
+                              value={transferPayload.assetType}
+                              onChange={(e) => setTransferPayload({ ...transferPayload, assetType: e.target.value as any })}
+                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none"
+                            >
+                              <option value="COINS">Kimono Coins (KC)</option>
+                              <option value="XP">Estudos XP (Pontos)</option>
+                              <option value="ELO">ELO Rating (Pontos)</option>
+                              <option value="BELT">Graduação (Faixa Atual)</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1 md:col-span-1">
+                            <label className="text-[9px] text-slate-500 uppercase">Quantidade:</label>
+                            <input
+                              type="text"
+                              disabled={transferPayload.assetType === 'BELT'}
+                              value={transferPayload.assetType === 'BELT' ? 'F_B_001' : transferPayload.value}
+                              onChange={(e) => setTransferPayload({ ...transferPayload, value: e.target.value })}
+                              placeholder={transferPayload.assetType === 'BELT' ? 'Migra a Faixa Inteira' : 'Ex: 500'}
+                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none disabled:opacity-40"
+                              required={transferPayload.assetType !== 'BELT'}
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] p-2.5 rounded cursor-pointer transition-all uppercase font-sans md:col-span-0.5"
+                          >
+                            Transferir
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Sub-section B: Moderative blocks (Freeze and suspensions) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-3">
+                          <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                            <Ban className="w-4 h-4 text-cyan-400" />
+                            <span>Segurança & Estatuto de Operabilidade</span>
+                          </h5>
+                          
+                          <div className="space-y-2.5">
+                            {/* Freeze / Unfreeze block */}
+                            <div className="flex justify-between items-center p-2 rounded bg-slate-925 border border-slate-850">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-200 text-[10.5px]">Congelar Carteira e Conta</p>
+                                <p className="text-[8.5px] text-slate-500">Impede compras, saques PIX e transferências de saldo em definitivo</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const isFrozen = advancedInfo.user.isFrozen;
+                                  setDoubleConfirmAction({
+                                    actionType: 'FREEZE_TOGGLE',
+                                    title: isFrozen ? 'Descongelar Conta' : 'Congelar Conta',
+                                    message: `Deseja realmente ${isFrozen ? 'DESCONGELAR' : 'CONGELAR'} os fundos e transações de ${activeAuditUser.name}?`,
+                                    onConfirm: async () => {
+                                      await callAdminAction(isFrozen ? `${activeAuditUser.id}/unfreeze` : `${activeAuditUser.id}/freeze`, 'POST');
+                                    }
+                                  });
+                                }}
+                                className={`text-[9.5px] font-bold p-1 px-3.5 rounded border transition-all cursor-pointer ${
+                                  advancedInfo.user.isFrozen
+                                    ? 'bg-emerald-600/15 text-emerald-400 border-emerald-500/25 hover:bg-emerald-600/30'
+                                    : 'bg-cyan-600/15 text-cyan-400 border-cyan-500/25 hover:bg-cyan-600/30'
+                                }`}
+                              >
+                                {advancedInfo.user.isFrozen ? "❄️ RETIRAR GEL" : "❄️ CONGELAR"}
+                              </button>
+                            </div>
+
+                            {/* Suspend Account block */}
+                            <div className="flex justify-between items-center p-2 rounded bg-slate-925 border border-slate-850">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-200 text-[10.5px]">Bloqueio de Suspensão de Acesso</p>
+                                <p className="text-[8.5px] text-slate-500">Interrompe a autenticação do lutador impedindo login</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newVal = !advancedInfo.user.isSuspended;
+                                  setDoubleConfirmAction({
+                                    actionType: 'SUSPEND_TOGGLE',
+                                    title: newVal ? 'Suspender Usuário' : 'Reativar Usuário',
+                                    message: `Escreva "SIM" para comissionar a ${newVal ? 'SUSPENSÃO' : 'REATIVAÇÃO'} de acesso de ${activeAuditUser.name}.`,
+                                    onConfirm: async () => {
+                                      await callAdminAction(`${activeAuditUser.id}/update`, 'POST', { isSuspended: newVal });
+                                    }
+                                  });
+                                }}
+                                className={`text-[9.5px] font-bold p-1 px-3.5 rounded border transition-all cursor-pointer ${
+                                  advancedInfo.user.isSuspended
+                                    ? 'bg-emerald-650/15 text-emerald-450 border-emerald-500/30'
+                                    : 'bg-amber-600/15 text-amber-400 border-amber-500/30'
+                                }`}
+                              >
+                                {advancedInfo.user.isSuspended ? "✓ REATIVAR CONTA" : "⏳ SUSPENDER"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-[11px] text-slate-500 text-center py-8">Vazio. Sem rastro de auditoria específico deste atleta.</p>
-                    )}
-                  </div>
+
+                        {/* Reset items of the combatant */}
+                        <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-3">
+                          <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                            <Activity className="w-4 h-4 text-amber-500 animate-pulse" />
+                            <span>Redefinições de Atleta (Regeneradores)</span>
+                          </h5>
+
+                          <div className="grid grid-cols-1 gap-2">
+                            {/* Reset Progress */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDoubleConfirmAction({
+                                  actionType: 'RESET_PROGRESS',
+                                  title: 'Resetar Progresso de Estudos',
+                                  message: `Esta ação executa um wipe completo nos levels obtidos e XP de "${activeAuditUser.name}". O progresso será resetado para o Nível 1, 0 XP.`,
+                                  onConfirm: async () => {
+                                    await callAdminAction(`${activeAuditUser.id}/reset-progress`, 'POST');
+                                  }
+                                });
+                              }}
+                              className="text-left p-2 rounded bg-slate-920 border border-slate-850 hover:bg-slate-900 transition-all flex justify-between items-center text-[10px] font-bold text-slate-300"
+                            >
+                              <span>📘 Limpar Progresso (Resetar Nível & XP)</span>
+                              <span className="text-slate-500 text-[9px]">EXECUTE ❯</span>
+                            </button>
+
+                            {/* Reset Inventory */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDoubleConfirmAction({
+                                  actionType: 'RESET_INVENTORY',
+                                  title: 'Resetar Inventário Cosmético',
+                                  message: `Esta ação limpa permanentemente o armário de medalhas, avatares masculinos/femininos e molduras obtidas na loja de "${activeAuditUser.name}".`,
+                                  onConfirm: async () => {
+                                    await callAdminAction(`${activeAuditUser.id}/reset-inventory`, 'POST');
+                                  }
+                                });
+                              }}
+                              className="text-left p-2 rounded bg-slate-920 border border-slate-850 hover:bg-slate-900 transition-all flex justify-between items-center text-[10px] font-bold text-slate-300"
+                            >
+                              <span>🥋 Limpar Inventário (Esvaziar Itens da Loja)</span>
+                              <span className="text-slate-500 text-[9px]">EXECUTE ❯</span>
+                            </button>
+
+                            {/* Reset Ranking */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDoubleConfirmAction({
+                                  actionType: 'RESET_RANKING',
+                                  title: 'Resetar Ranking PVP (ELO)',
+                                  message: `A ação recalibra a pontuação competitiva da Arena PVP do atleta "${activeAuditUser.name}" de volta para o padrão de 1000 ELO pontos.`,
+                                  onConfirm: async () => {
+                                    await callAdminAction(`${activeAuditUser.id}/reset-ranking`, 'POST');
+                                  }
+                                });
+                              }}
+                              className="text-left p-2 rounded bg-slate-920 border border-slate-850 hover:bg-slate-900 transition-all flex justify-between items-center text-[10px] font-bold text-slate-300"
+                            >
+                              <span>🏆 Limpar Ranking PVP (Resetar ELO para 1000)</span>
+                              <span className="text-slate-500 text-[9px]">EXECUTE ❯</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sub-section C: Permanent wipe delete button */}
+                      <div className="bg-rose-950/20 p-4 border border-rose-500/30 rounded-xl space-y-2">
+                        <h6 className="text-[10px] font-bold text-rose-500 uppercase flex items-center gap-1">
+                          <ShieldAlert className="w-4 h-4 animate-bounce" />
+                          <span>Área de Destruição Peremptória (Ação Executiva Máxima)</span>
+                        </h6>
+                        <p className="text-[9px] text-slate-400">
+                          A exclusão removerá todas as chaves estrangeiras, estatísticas, carteiras e logins associados a este usuário na base central.
+                        </p>
+                        <div className="flex justify-between items-center pt-1.5">
+                          <span className="text-[9px] text-rose-400/80 font-bold uppercase">Esta operação é definitiva e irreversível</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (activeAuditUser.id === user.id) {
+                                showToast("Não é possível auto-excluir o login atual.", "error");
+                                return;
+                              }
+                              setDoubleConfirmAction({
+                                actionType: 'DELETE',
+                                title: 'Wipe de Usuário Total',
+                                message: `Excluir permanentemente o lutador "${activeAuditUser.name}" (${activeAuditUser.email})?`,
+                                onConfirm: async () => {
+                                  await handleDeleteUser(activeAuditUser.id);
+                                  setActiveAuditUser(null);
+                                  setAdvancedInfo(null);
+                                }
+                              });
+                            }}
+                            className="bg-rose-600 hover:bg-rose-500 text-white font-sans font-bold text-[9px] p-2 px-4 rounded cursor-pointer transition-all uppercase"
+                          >
+                            Excluir Usuário do Sistema
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
                 </div>
 
               </div>
@@ -1035,12 +1521,67 @@ export default function Users() {
                   setActiveAuditUser(null);
                   setAdvancedInfo(null);
                 }}
-                className="p-1.5 px-4 bg-slate-950 hover:bg-slate-850 text-slate-450 hover:text-white rounded border border-slate-800 text-[11px]"
+                className="p-1.5 px-4 bg-slate-950 hover:bg-slate-850 text-slate-450 hover:text-white rounded border border-slate-800 text-[11px] cursor-pointer"
               >
                 Fechar Painel Raio-X
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* DOUBLE CONFIRMATION LAYER ELEMENT FOR ALL EXECUTIVES MODAL ACTIONS */}
+      {doubleConfirmAction && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-rose-500/30 rounded-2xl max-w-sm w-full p-6 space-y-4 animate-scaleUp shadow-2xl relative">
+            <div className="text-center space-y-2">
+              <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto animate-bounce" />
+              <h5 className="font-display font-black text-sm text-slate-200 uppercase tracking-wider">
+                Ação Executiva Crítica
+              </h5>
+              <p className="text-[11px] text-rose-400 font-sans leading-relaxed">
+                {doubleConfirmAction.message}
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <p className="text-[10px] text-slate-500 text-center uppercase tracking-wider font-bold">
+                Escreva "SIM" para homologar a instrução
+              </p>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="ESCREVA SIM E CLIQUE EM CONFIRMAR"
+                className="w-full bg-slate-950 border border-slate-800 p-2 text-center text-slate-200 outline-none focus:border-rose-500 font-bold uppercase text-xs rounded-lg"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDoubleConfirmAction(null);
+                  setConfirmText('');
+                }}
+                className="flex-1 py-2 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg cursor-pointer text-center font-bold text-xs"
+              >
+                Abortar
+              </button>
+              <button
+                type="button"
+                disabled={confirmText.trim().toUpperCase() !== 'SIM'}
+                onClick={() => {
+                  doubleConfirmAction.onConfirm();
+                  setDoubleConfirmAction(null);
+                  setConfirmText('');
+                }}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-35 disabled:hover:bg-rose-600 text-white font-bold rounded-lg cursor-pointer text-center text-xs"
+              >
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}

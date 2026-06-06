@@ -16,7 +16,8 @@ import {
   ShieldAlert as AlertIcon, 
   Terminal, 
   Sliders, 
-  ChevronRight 
+  ChevronRight,
+  Briefcase
 } from 'lucide-react';
 import { UserProfile, AuditLog } from '../types';
 import { AdminProvider, useAdmin } from './AdminContext';
@@ -30,6 +31,7 @@ const SubscriptionsModule = lazy(() => import('./Subscriptions'));
 const ReportsModule = lazy(() => import('./Reports'));
 const AuditLogsModule = lazy(() => import('./AuditLogs'));
 const SettingsModule = lazy(() => import('./Settings'));
+const EnterpriseFinanceModule = lazy(() => import('./EnterpriseFinance'));
 
 interface AdminEntryProps {
   user: UserProfile;
@@ -83,6 +85,8 @@ function AdminPanelShell() {
         return <AuditLogsModule />;
       case 'settings':
         return <SettingsModule />;
+      case 'enterprise-finance':
+        return <EnterpriseFinanceModule />;
       default:
         return <DashboardModule />;
     }
@@ -245,6 +249,22 @@ function AdminPanelShell() {
             <span className="flex items-center gap-2.5 font-sans font-semibold">
               <Terminal className="w-4 h-4 shrink-0 text-indigo-400" />
               <span>Registros CCTV</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('enterprise-finance')}
+            className={`w-full text-left p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+              activeTab === 'enterprise-finance' 
+                ? 'bg-indigo-650 text-white shadow-lg' 
+                : 'text-slate-400 hover:text-slate-205 hover:bg-slate-900'
+            }`}
+          >
+            <span className="flex items-center gap-2.5 font-sans font-semibold">
+              <Briefcase className="w-4 h-4 shrink-0 text-amber-450" />
+              <span>Finanças Corporativas</span>
             </span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>

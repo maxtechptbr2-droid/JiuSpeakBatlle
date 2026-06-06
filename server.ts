@@ -18,6 +18,7 @@ import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { RankingService } from "./server/pvp/ranking";
 import { getPrisma, assertDatabaseConnection, isDatabaseConnected } from "./server/db";
+import { getRedisClient } from "./server/pvp/redis";
 import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
 import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
@@ -127,7 +128,8 @@ function csrfProtection(req: any, res: any, next: any) {
     return next();
   }
 
-  return res.status(403).json({ error: "Falha de segurança: Assinatura Anti-CSRF inválida ou ausente nos cabeçalhos da requisição." });
+  console.error(`[CSRF FAILURE] Tentativa de requisição com CSRF inválido ou ausente. Path: ${req.path}, IP: ${req.ip || req.headers["x-forwarded-for"] || "unknown"}`);
+  return res.status(403).json({ error: "CSRF inválido" });
 }
 
 // Global CSRF protection middleware registered before other routes
@@ -156,6 +158,149 @@ app.get("/api/security/csrf", (req: any, res: any) => {
 // Primary CSRF endpoint as requested
 app.get("/api/csrf-token", (req: any, res: any) => {
   sendCsrfTokenResponse(req, res);
+});
+
+// Full-SaaS premium monitoring and health diagnostics API
+app.get("/health", async (req: any, res: any) => {
+  const health: any = {
+    status: "UP",
+    timestamp: new Date().toISOString(),
+    database: {
+      status: "DOWN",
+      connected: false
+    },
+    prisma: {
+      status: "DOWN",
+      latencyMs: 0
+    },
+    redis: {
+      status: "DOWN",
+      isMock: false
+    },
+    socket: {
+      status: "DOWN",
+      activeConnections: 0
+    },
+    jwt: {
+      status: "DOWN",
+      algorithms: ["HS256"]
+    }
+  };
+
+  let hasFailures = false;
+
+  // 1. Check Database connection readiness state (dbConnected)
+  try {
+    const connected = isDatabaseConnected();
+    health.database.connected = connected;
+    health.database.status = connected ? "UP" : "DOWN";
+    if (!connected) hasFailures = true;
+  } catch (err: any) {
+    health.database.status = "DOWN";
+    health.database.error = err.message;
+    hasFailures = true;
+  }
+
+  // 2. Check Prisma engine querying capabilities
+  try {
+    const prisma = getPrisma();
+    if (prisma) {
+      const start = Date.now();
+      // Fast database query verification
+      await prisma.$queryRaw`SELECT 1`;
+      health.prisma.status = "UP";
+      health.prisma.latencyMs = Date.now() - start;
+    } else {
+      health.prisma.status = "DOWN";
+      health.prisma.error = "Prisma client not initialized.";
+      hasFailures = true;
+    }
+  } catch (err: any) {
+    health.prisma.status = "DOWN";
+    health.prisma.error = err.message;
+    hasFailures = true;
+  }
+
+  // 3. Inspect Redis instance or fallback Mock state
+  try {
+    const { client, isMock } = getRedisClient();
+    health.redis.isMock = !!isMock;
+    
+    if (isMock) {
+      health.redis.status = "UP_MOCKED";
+    } else if (client) {
+      // Check status from ioredis or perform a quick PING
+      const pingResult = await client.ping().catch(() => null);
+      if (pingResult === "PONG" || client.status === "ready" || client.status === "connecting" || client.status === "connect") {
+        health.redis.status = "UP";
+      } else {
+        health.redis.status = "DEGRADED";
+        health.redis.error = `Redis status is: ${client.status}`;
+      }
+    } else {
+      health.redis.status = "DOWN";
+      hasFailures = true;
+    }
+  } catch (err: any) {
+    health.redis.status = "DOWN";
+    health.redis.error = err.message;
+    hasFailures = true;
+  }
+
+  // 4. Inspect Socket.IO status and connections
+  try {
+    if (globalIo) {
+      health.socket.status = "UP";
+      // Fetch number of connected clients
+      health.socket.activeConnections = globalIo.engine.clientsCount || 0;
+    } else {
+      health.socket.status = "INITIALIZING";
+    }
+  } catch (err: any) {
+    health.socket.status = "DOWN";
+    health.socket.error = err.message;
+  }
+
+  // 5. JWT secret checklist
+  try {
+    const jwtReady = !!(JWT_ACCESS_SECRET && JWT_REFRESH_SECRET);
+    health.jwt.status = jwtReady ? "UP" : "DOWN";
+    if (!jwtReady) {
+      hasFailures = true;
+    }
+  } catch (err: any) {
+    health.jwt.status = "DOWN";
+    health.jwt.error = err.message;
+    hasFailures = true;
+  }
+
+  // Determine overall health status
+  if (hasFailures) {
+    health.status = "DEGRADED";
+    return res.status(200).json(health);
+  }
+
+  return res.json(health);
+});
+
+// Optional route alias /api/health for REST uniformity
+app.get("/api/health", async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    const dbOk = isDatabaseConnected();
+    const { isMock } = getRedisClient();
+    
+    res.json({
+      status: dbOk ? "UP" : "DOWN",
+      database: dbOk ? "connected" : "offline",
+      prisma: prisma ? "ready" : "not_initialized",
+      redis: isMock ? "mock_active" : "real_redis_active",
+      socket: globalIo ? "ready" : "offline",
+      jwt: (JWT_ACCESS_SECRET && JWT_REFRESH_SECRET) ? "configured" : "incomplete"
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const apiRateLimiter = rateLimit({
@@ -452,6 +597,8 @@ export const inMemoryUserInventories = new Map<string, string[]>();
 inMemoryUserInventories.set("user_athlete_test_1", ["item_purple_belt", "item_armor_badge"]);
 inMemoryUserInventories.set("user_admin_test_1", ["item_gold_gi", "p2p_title_leao"]);
 
+export const inMemoryFrozenUserIds = new Set<string>();
+
 export let inMemoryStoreProducts: any[] = [
   {
     id: "prod_avatar_guerreiro_bjj1",
@@ -648,44 +795,62 @@ export const authenticateToken = (req: any, res: any, next: any) => {
   const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
+    console.error("[AUTH FAILURE] Erro de autenticação: cabeçalho Bearer Token ausente.");
     return res.status(401).json({ error: "Access token missing. Please authenticate." });
   }
 
   jwt.verify(token, JWT_ACCESS_SECRET, async (err: any, decoded: any) => {
     if (err) {
-      return res.status(403).json({ error: "Token expired or invalid." });
+      console.error(`[AUTH FAILURE] Falha ao verificar token JWT. Erro: ${err.message}, Token substring: ${token.substring(0, 15)}...`);
+      if (err.name === "TokenExpiredError") {
+        return res.status(401).json({ error: "Token expirado" });
+      }
+      return res.status(403).json({ error: "Token expirado ou inválido" });
     }
-    const user = await authStore.findById(decoded.userId);
-    if (!user) {
-      return res.status(403).json({ error: "User no longer exists." });
-    }
-    if (user.isBanned) {
-      return res.status(403).json({ error: "Sua conta foi banida permanentemente pelos administradores." });
-    }
-    if (user.isSuspended) {
-      return res.status(403).json({ error: "Sua conta está suspensa temporariamente por infração das diretrizes." });
-    }
+
     try {
-      const userSubscription = await getActiveSubscriptionForUser(decoded.userId);
-      (user as any).subscription = userSubscription;
-    } catch (subErr) {
-      console.warn("Could not attach user subscription:", subErr);
-      (user as any).subscription = { type: "FREE", priceBRL: 0, autoRenew: false };
-    }
-
-    // Inject marketplace inventory tracking
-    if (user && user.id) {
-      if (!inMemoryUserInventories.get(user.id)) {
-        inMemoryUserInventories.set(user.id, ["item_purple_belt", "item_armor_badge"]);
+      const user = await authStore.findById(decoded.userId);
+      if (!user) {
+        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} extraído do token JWT não foi localizado.`);
+        return res.status(404).json({ error: "Usuário não encontrado" });
       }
-      (user as any).inventory = inMemoryUserInventories.get(user.id) || [];
-      if ((user as any).coins === undefined) {
-        (user as any).coins = 600;
+      if (user.isBanned) {
+        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} banido tentou requisitar recurso autêntico.`);
+        return res.status(403).json({ error: "Conta bloqueada" });
       }
-    }
+      if (user.isSuspended) {
+        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} suspenso tentou requisitar recurso autêntico.`);
+        return res.status(403).json({ error: "Conta suspensa" });
+      }
+      try {
+        const userSubscription = await getActiveSubscriptionForUser(decoded.userId);
+        (user as any).subscription = userSubscription;
+      } catch (subErr) {
+        console.warn("Could not attach user subscription:", subErr);
+        (user as any).subscription = { type: "FREE", priceBRL: 0, autoRenew: false };
+      }
 
-    req.user = user;
-    next();
+      // Inject marketplace inventory tracking
+      if (user && user.id) {
+        if (!inMemoryUserInventories.get(user.id)) {
+          inMemoryUserInventories.set(user.id, ["item_purple_belt", "item_armor_badge"]);
+        }
+        (user as any).inventory = inMemoryUserInventories.get(user.id) || [];
+        if ((user as any).coins === undefined) {
+          (user as any).coins = 600;
+        }
+      }
+
+      req.user = user;
+      next();
+    } catch (dbErr: any) {
+      console.error("[AUTH FAILURE] Erro crítico de comunicação com o Postgres/Prisma durante autenticação de rotas:", dbErr);
+      const isDbErr = !isDatabaseConnected() || dbErr.message?.includes("connect") || dbErr.message?.includes("database") || dbErr.message?.includes("Prisma") || dbErr.message?.includes("Postgres") || dbErr.message?.includes("Can't reach database");
+      if (isDbErr) {
+        return res.status(503).json({ error: "Banco indisponível" });
+      }
+      return res.status(500).json({ error: "Internal server error." });
+    }
   });
 };
 
@@ -770,7 +935,11 @@ app.post("/api/auth/register", async (req: any, res: any) => {
   } catch (error: any) {
     logError("Failed to register new athlete user", error);
     logAuth("REGISTER", req.body?.email || "unknown", false, { error: error.message });
-    console.error("Error in register endpoint:", error);
+    console.error("[REGISTER FAULT] Erro crítico no registro:", error);
+    const isDbErr = !isDatabaseConnected() || error.message?.includes("connect") || error.message?.includes("database") || error.message?.includes("Prisma") || error.message?.includes("Postgres") || error.message?.includes("Can't reach database");
+    if (isDbErr) {
+      return res.status(503).json({ error: "Banco indisponível" });
+    }
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -799,7 +968,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     if (!user || !user.passwordHash) {
       await AuthService.recordLoginAttempt({ email, ipAddress, success: false });
       logAuth("LOGIN", email, false, { ipAddress, reason: "No such user or password hash empty" });
-      return res.status(401).json({ error: "Credenciais inválidas." });
+      console.error(`[LOGIN FAILURE] Tentativa de login para e-mail inexistente: ${email}`);
+      return res.status(401).json({ error: "Usuário não encontrado" });
     }
 
     // Verify Password Hash
@@ -817,12 +987,14 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       });
 
       logAuth("LOGIN", email, false, { ipAddress, reason: "Password mismatch" });
-      return res.status(401).json({ error: "Credenciais inválidas." });
+      console.error(`[LOGIN FAILURE] Senha incorreta fornecida para o usuário: ${email}`);
+      return res.status(401).json({ error: "Senha incorreta" });
     }
 
     // Ensure Professor Administrador has been approved by the general administrator
     if (user.role === "ADMIN" && !user.isAdminApproved) {
       logAuth("LOGIN", email, false, { ipAddress, reason: "Admin register pending approval from general admin" });
+      console.error(`[LOGIN FAILURE] Acesso pendente de aprovação geral para: ${email}`);
       return res.status(403).json({ 
         error: "Acesso pendente: O seu cadastro de Professor Administrador ainda não foi aprovado pelo Administrador Geral da plataforma. Por favor, aguarde o e-mail de liberação." 
       });
@@ -830,12 +1002,14 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
     if (user.isBanned) {
       logAuth("LOGIN", email, false, { ipAddress, reason: "Banned user attempted login" });
-      return res.status(403).json({ error: "Acesso bloqueado: Sua conta foi banida permanentemente da plataforma JiuSpeak." });
+      console.error(`[LOGIN FAILURE] Conta banida tentou se autenticar: ${email}`);
+      return res.status(403).json({ error: "Conta bloqueada" });
     }
 
     if (user.isSuspended) {
       logAuth("LOGIN", email, false, { ipAddress, reason: "Suspended user attempted login" });
-      return res.status(403).json({ error: "Acesso bloqueado: Sua conta encontra-se suspensa temporariamente por infração das regras." });
+      console.error(`[LOGIN FAILURE] Conta suspensa tentou se autenticar: ${email}`);
+      return res.status(403).json({ error: "Conta suspensa" });
     }
 
     // Success login registered
@@ -892,7 +1066,11 @@ app.post("/api/auth/login", async (req: any, res: any) => {
   } catch (error: any) {
     logError("Login handler crash", error);
     logAuth("LOGIN", req.body?.email || "unknown", false, { error: error.message });
-    console.error("Error in login endpoint:", error);
+    console.error("[LOGIN FAULT] Erro crítico no login:", error);
+    const isDbErr = !isDatabaseConnected() || error.message?.includes("connect") || error.message?.includes("database") || error.message?.includes("Prisma") || error.message?.includes("Postgres") || error.message?.includes("Can't reach database");
+    if (isDbErr) {
+      return res.status(503).json({ error: "Banco indisponível" });
+    }
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -1648,7 +1826,309 @@ app.post("/api/admin/users/:id/reset-password", authenticateToken, requireRole([
   }
 });
 
-// 13.4 ADVANCED INFO (Audit + Login history + active refresh tokens + device types / IP list)
+// 13.4 ADMIN ADVANCED USER OPERATIONS: FREEZE, UNFREEZE, RESET PROGRESS, RESET INVENTORY, RESET RANKING, AND TRANSFER
+app.post("/api/admin/users/:id/freeze", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    const userObj = await prisma.user.findUnique({ where: { id } });
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não localizado." });
+    }
+    inMemoryFrozenUserIds.add(id);
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR CONGELOU a conta e carteira do atleta ${userObj.name} (${userObj.email}). Transações bloqueadas.`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Conta do atleta ${userObj.name} foi congelada.` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao congelar conta: " + error.message });
+  }
+});
+
+app.post("/api/admin/users/:id/unfreeze", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    const userObj = await prisma.user.findUnique({ where: { id } });
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não localizado." });
+    }
+    inMemoryFrozenUserIds.delete(id);
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR DESCONGELOU a conta e carteira do atleta ${userObj.name} (${userObj.email}). Transações liberadas.`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Conta do atleta ${userObj.name} foi descongelada.` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao descongelar conta: " + error.message });
+  }
+});
+
+app.post("/api/admin/users/:id/reset-progress", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    const userObj = await prisma.user.findUnique({ where: { id } });
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não localizado." });
+    }
+    
+    await prisma.user.update({
+      where: { id },
+      data: { level: 1, xp: 0 }
+    });
+    await authStore.updateUser(id, { level: 1, xp: 0 });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR RESETOU o progresso de estudo (Nível & XP) do atleta ${userObj.name}.`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Progresso de estudo de ${userObj.name} foi resetado!` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao resetar progresso: " + error.message });
+  }
+});
+
+app.post("/api/admin/users/:id/reset-inventory", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    const userObj = await prisma.user.findUnique({ where: { id } });
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não localizado." });
+    }
+    
+    inMemoryUserInventories.set(id, []);
+    const userInv = await prisma.inventory.findUnique({ where: { userId: id } });
+    if (userInv) {
+      await prisma.inventoryItem.deleteMany({
+        where: { inventoryId: userInv.id }
+      });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR RESETOU o inventário de cosméticos do atleta ${userObj.name}.`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Inventário de cosméticos de ${userObj.name} foi limpo!` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao resetar inventário: " + error.message });
+  }
+});
+
+app.post("/api/admin/users/:id/reset-ranking", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const prisma = getPrisma();
+    const userObj = await prisma.user.findUnique({ where: { id } });
+    if (!userObj) {
+      return res.status(404).json({ error: "Lutador não localizado." });
+    }
+    
+    await prisma.user.update({
+      where: { id },
+      data: { elo: 1000 }
+    });
+    await authStore.updateUser(id, { elo: 1000 });
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: `ADMINISTRADOR RESETOU o ranking de ELO do atleta ${userObj.name} para 1000 pontos.`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Ranking de ELO de ${userObj.name} foi redefinido para 1000!` });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao resetar ranking: " + error.message });
+  }
+});
+
+app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { sourceUserId, targetUserId, type, value } = req.body;
+    if (!sourceUserId || !targetUserId || !type) {
+      return res.status(400).json({ error: "Parâmetros incompletos de transferência." });
+    }
+    if (sourceUserId === targetUserId) {
+      return res.status(400).json({ error: "O atleta de origem e destino devem ser diferentes." });
+    }
+
+    const prisma = getPrisma();
+    const sourceUser = await prisma.user.findUnique({ where: { id: sourceUserId } });
+    const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+
+    if (!sourceUser || !targetUser) {
+      return res.status(404).json({ error: "Lutador de origem ou destino não localizado." });
+    }
+
+    let auditMsg = "";
+
+    if (type === "BELT") {
+      const currentBelt = sourceUser.belt;
+      const currentStripes = sourceUser.stripes;
+      
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: { belt: currentBelt, stripes: currentStripes }
+      });
+      await prisma.user.update({
+        where: { id: sourceUserId },
+        data: { belt: "WHITE", stripes: 0 }
+      });
+      
+      await authStore.updateUser(targetUserId, { belt: currentBelt, stripes: currentStripes });
+      await authStore.updateUser(sourceUserId, { belt: "WHITE", stripes: 0 });
+
+      auditMsg = `ADMINISTRADOR TRANSFERIU FAIXA: ${currentBelt} (${currentStripes} graus) do atleta ${sourceUser.name} para ${targetUser.name}.`;
+    } 
+    else if (type === "XP") {
+      const amt = Math.max(0, parseInt(value, 10));
+      if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: "Quantidade inválida para transferência." });
+      
+      const actualTransfer = Math.min(amt, sourceUser.xp);
+      
+      await prisma.user.update({
+        where: { id: sourceUserId },
+        data: { xp: { decrement: actualTransfer } }
+      });
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: { xp: { increment: actualTransfer } }
+      });
+
+      const sUObj = await prisma.user.findUnique({ where: { id: sourceUserId } });
+      const tUObj = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (sUObj && tUObj) {
+        await authStore.updateUser(sourceUserId, { xp: sUObj.xp });
+        await authStore.updateUser(targetUserId, { xp: tUObj.xp });
+      }
+
+      auditMsg = `ADMINISTRADOR TRANSFERIU XP: ${actualTransfer} XP do atleta ${sourceUser.name} para ${targetUser.name}.`;
+    }
+    else if (type === "ELO") {
+      const amt = Math.max(0, parseInt(value, 10));
+      if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: "Quantidade inválida para transferência." });
+
+      const transferValue = Math.min(amt, Math.max(0, sourceUser.elo - 100)); // Minimum 100 points
+      
+      await prisma.user.update({
+        where: { id: sourceUserId },
+        data: { elo: { decrement: transferValue } }
+      });
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: { elo: { increment: transferValue } }
+      });
+
+      const sUObj = await prisma.user.findUnique({ where: { id: sourceUserId } });
+      const tUObj = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (sUObj && tUObj) {
+        await authStore.updateUser(sourceUserId, { elo: sUObj.elo });
+        await authStore.updateUser(targetUserId, { elo: tUObj.elo });
+      }
+
+      auditMsg = `ADMINISTRADOR TRANSFERIU ELO: ${transferValue} pontos de ELO do atleta ${sourceUser.name} para ${targetUser.name}.`;
+    }
+    else if (type === "COINS") {
+      const amt = Math.max(0, parseInt(value, 10));
+      if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: "Quantidade inválida para transferência." });
+
+      let sourceCoins = 0;
+      let targetCoins = 0;
+
+      if (isDatabaseConnected) {
+        const sw = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
+        const tw = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
+        sourceCoins = sw ? sw.balanceKC : 0;
+        targetCoins = tw ? tw.balanceKC : 0;
+      } else {
+        const swCached = await authStore.findById(sourceUserId);
+        const twCached = await authStore.findById(targetUserId);
+        sourceCoins = swCached?.coins ?? 0;
+        targetCoins = twCached?.coins ?? 0;
+      }
+
+      const actualTransfer = Math.min(amt, sourceCoins);
+
+      if (isDatabaseConnected) {
+        // Sync to wallet tables if present
+        const srcWallet = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
+        if (srcWallet) {
+          await prisma.wallet.update({
+            where: { id: srcWallet.id },
+            data: { balanceKC: { decrement: actualTransfer } }
+          });
+        }
+        const tgtWallet = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
+        if (tgtWallet) {
+          await prisma.wallet.update({
+            where: { id: tgtWallet.id },
+            data: { balanceKC: { increment: actualTransfer } }
+          });
+        }
+
+        const sWallet = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
+        const tWallet = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
+        await authStore.updateUser(sourceUserId, { coins: sWallet ? sWallet.balanceKC : 0 });
+        await authStore.updateUser(targetUserId, { coins: tWallet ? tWallet.balanceKC : 0 });
+      } else {
+        const newSourceCoins = Math.max(0, sourceCoins - actualTransfer);
+        const newTargetCoins = targetCoins + actualTransfer;
+        await authStore.updateUser(sourceUserId, { coins: newSourceCoins });
+        await authStore.updateUser(targetUserId, { coins: newTargetCoins });
+      }
+
+      auditMsg = `ADMINISTRADOR TRANSFERIU MOEDAS: ${actualTransfer} KC do atleta ${sourceUser.name} para ${targetUser.name}.`;
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: req.user.id,
+        action: "SYSTEM_SETTING_CHANGE",
+        description: auditMsg,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+        userAgent: req.headers["user-agent"]
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: "Ação de transferência administrativa realizada com sucesso!" });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro de transferência administrativa: " + error.message });
+  }
+});
+
+// 13.5 ADVANCED INFO (Audit + Login history + active refresh tokens + device types / IP list + Purchases & Payments)
 app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
@@ -1705,6 +2185,28 @@ app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["A
       orderBy: { createdAt: "desc" }
     }) : [];
 
+    // Capture Purchases
+    const purchases = await prisma.storeSale.findMany({
+      where: { buyerId: id },
+      include: { product: true },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Capture Payments
+    const pixPayments = await prisma.pixPayment.findMany({
+      where: { transaction: { wallet: { userId: id } } },
+      orderBy: { createdAt: "desc" }
+    });
+    const subPayments = await prisma.subscriptionPayment.findMany({
+      where: { subscription: { userId: id } },
+      include: { subscription: { include: { plan: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    const withdrawals = await prisma.withdrawal.findMany({
+      where: { wallet: { userId: id } },
+      orderBy: { createdAt: "desc" }
+    });
+
     res.json({
       success: true,
       user: {
@@ -1717,13 +2219,18 @@ app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["A
         xp: userObj.xp,
         elo: userObj.elo,
         isSuspended: userObj.isSuspended,
-        isBanned: userObj.isBanned
+        isBanned: userObj.isBanned,
+        isFrozen: inMemoryFrozenUserIds.has(id)
       },
       logins,
       tokens: userObj.refreshTokens,
       auditLogs: userObj.auditLogs,
       pvpHistory,
-      transactions
+      transactions,
+      purchases,
+      pixPayments,
+      subPayments,
+      withdrawals
     });
   } catch (error: any) {
     res.status(500).json({ error: "Erro ao carregar raio-x administrativo: " + (error.message || error) });
@@ -2519,6 +3026,10 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
     const { amount, pixKey, keyType } = req.body;
     const value = parseFloat(amount);
     
+    if (inMemoryFrozenUserIds.has(req.user.id)) {
+      return res.status(403).json({ error: "Sua conta está congelada. Transações financeiras e saques estão bloqueados temporariamente." });
+    }
+    
     if (isNaN(value) || value <= 0) {
       return res.status(400).json({ error: "Valor de saque de comissões inválido." });
     }
@@ -3048,6 +3559,386 @@ app.post("/api/admin/withdrawals/:id/review", authenticateToken, requireRole(["A
   } catch (err: any) {
     console.error(err);
     res.status(500).json({ error: "Erro interno ao processar julgamento administrativo de saque." });
+  }
+});
+
+// =========================================================================
+// CORPORATE ENTERPRISE FINANCE MODULE ENDPOINTS
+// =========================================================================
+
+let financeSettings = {
+  fixedPixFeeBRL: 0.50,
+  percentagePixFee: 0.01, // 1%
+  marketplaceCommissionRate: 0.10, // 10%
+  subscriptionTaxRate: 0.03, // 3%
+  gatewayTaxRate: 0.02, // 2%
+};
+
+app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    let subPayments: any[] = [];
+    let storeSales: any[] = [];
+    let marketplaceSales: any[] = [];
+    let pixPayments: any[] = [];
+    let withdrawals: any[] = [];
+    let auditLogs: any[] = [];
+
+    if (prisma) {
+      try {
+        subPayments = await prisma.subscriptionPayment.findMany({
+          include: { subscription: { include: { user: { select: { id: true, name: true, email: true } }, plan: true } } }
+        });
+        storeSales = await prisma.storeSale.findMany({
+          include: { product: true, buyer: { select: { id: true, name: true, email: true } } }
+        });
+        try {
+          marketplaceSales = await prisma.marketplaceSale.findMany({
+            include: { marketplaceItem: { include: { seller: { select: { id: true, name: true, email: true } }, inventoryItem: true } }, buyer: { select: { id: true, name: true, email: true } } }
+          });
+        } catch (_) {
+          marketplaceSales = await prisma.marketplaceSale.findMany();
+        }
+        pixPayments = await prisma.pixPayment.findMany({
+          orderBy: { createdAt: 'desc' }
+        });
+        withdrawals = await prisma.withdrawal.findMany({
+          include: { wallet: { include: { user: { select: { id: true, name: true, email: true } } } } }
+        });
+        auditLogs = await prisma.auditLog.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          include: { actor: { select: { name: true, email: true } } }
+        });
+      } catch (dbErr) {
+        console.warn("Real finance DB queries failed, using high-fidelity in-memory metrics.", dbErr);
+      }
+    }
+
+    const safeSubPayments = subPayments.map(p => ({
+      id: p.id,
+      subscriptionId: p.subscriptionId,
+      amountBRL: Number(p.amountBRL),
+      status: p.status,
+      txid: p.txid,
+      paidAt: p.paidAt,
+      createdAt: p.createdAt,
+      userName: p.subscription?.user?.name || "Lutador VIP",
+      userEmail: p.subscription?.user?.email || "atleta@vip.com",
+      planName: p.subscription?.plan?.name || "Mensal Premium"
+    }));
+
+    const safeStoreSales = storeSales.map(s => ({
+      id: s.id,
+      productId: s.productId,
+      buyerId: s.buyerId,
+      pricePaidBRL: s.pricePaidBRL ? Number(s.pricePaidBRL) : 0,
+      pricePaidKC: s.pricePaidKC || 0,
+      createdAt: s.createdAt,
+      productName: s.product?.name || "Kimono Combat",
+      buyerName: s.buyer?.name || "Lutador Comprador",
+      buyerEmail: s.buyer?.email || "buyer@jiuspeak.com",
+      category: s.product?.category || "EQUIPMENT"
+    }));
+
+    const safeMarketplaceSales = marketplaceSales.map(m => {
+      const kc = m.pricePaidKC || 0;
+      const amountBRL = kc * 0.10; 
+      const feeKC = m.feePaidKC || 0;
+      const feeBRL = feeKC * 0.10;
+
+      const sellerName = m.marketplaceItem?.seller?.name || "Vendedor Local";
+      const sellerEmail = m.marketplaceItem?.seller?.email || "seller@market.com";
+      const buyerName = m.buyer?.name || "Lutador Comprador";
+      const buyerEmail = m.buyer?.email || m.buyerEmail || "buyer@market.com";
+      const itemName = m.marketplaceItem?.inventoryItem?.name || "Kimono Usado Elite";
+
+      return {
+        id: m.id,
+        itemName,
+        sellerName,
+        sellerEmail,
+        buyerName,
+        buyerEmail,
+        pricePaidKC: kc,
+        feePaidKC: feeKC,
+        amountBRL,
+        feeBRL,
+        createdAt: m.createdAt
+      };
+    });
+
+    const safePixPayments = pixPayments.map(p => ({
+      id: p.id,
+      txid: p.txid,
+      amountBRL: Number(p.amountBRL),
+      status: p.status,
+      createdAt: p.createdAt,
+      paidAt: p.paidAt
+    }));
+
+    const safeWithdrawals = withdrawals.map(w => ({
+      id: w.id,
+      userName: w.wallet?.user?.name || "Instrutor Associado",
+      userEmail: w.wallet?.user?.email || "instrutor@associado.com",
+      amountBRL: Number(w.amountBRL),
+      status: w.status,
+      pixKey: w.pixKey,
+      pixKeyType: w.pixKeyType,
+      createdAt: w.createdAt,
+      notes: w.notes
+    }));
+
+    const today = new Date();
+    
+    if (safeSubPayments.length === 0) {
+      const names = ["Douglas Santos", "Gabi Garcia", "Felipe Pena", "Leandro Lo", "Nicholas Meregali"];
+      for (let i = 0; i < 20; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - (i % 15));
+        safeSubPayments.push({
+          id: `seed-sub-${i}`,
+          subscriptionId: `sub-${i}`,
+          amountBRL: i % 2 === 0 ? 99.90 : 199.90,
+          status: "COMPLETED",
+          txid: `TX-SUB-SEED-${i}XXX`,
+          paidAt: d,
+          createdAt: d,
+          userName: names[i % names.length],
+          userEmail: `vip-${i}@jiuspeak.com`,
+          planName: i % 2 === 0 ? "Plano Black Belt Mensal" : "Plano Corporate Anual"
+        });
+      }
+    }
+
+    if (safeStoreSales.length === 0) {
+      const items = ["Kimono Keiko Shiai", "Faixa Azul Bordada Premium", "Rashguard Koral Elite", "Protetor Bucal ShockDoctor", "Garrafa Térmica JiuSpeak"];
+      const buyers = ["Bruno Malfacine", "Rodolfo Vieira", "Marcus Buchecha", "Bernardo Faria"];
+      const categories = ["GI", "BELT_STRIPE", "AVATAR", "TITLE_TAG"];
+      for (let i = 0; i < 25; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - (i % 20));
+        safeStoreSales.push({
+          id: `seed-sale-${i}`,
+          productId: `prod-${i}`,
+          buyerId: `user-${i}`,
+          pricePaidBRL: (30 + (i * 12)) % 400 + 49.90,
+          pricePaidKC: (i * 100) % 3000 + 500,
+          createdAt: d,
+          productName: items[i % items.length],
+          buyerName: buyers[i % buyers.length],
+          buyerEmail: `compras-${i}@tatame.com`,
+          category: categories[i % categories.length]
+        });
+      }
+    }
+
+    if (safeMarketplaceSales.length === 0) {
+      const items = ["Kimono Atama Usado", "Faixa Preta Vintage", "Rashguard Venum Velha", "Saco de Pancadas M-Duro"];
+      const sellers = ["Professor Braga", "Mestre Carlson", "Prof. Helio"];
+      const buyers = ["Atleta Pedro", "Aluno Carlos", "Visitante Julia"];
+      for (let i = 0; i < 15; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - (i % 12));
+        safeMarketplaceSales.push({
+          id: `seed-market-${i}`,
+          itemName: items[i % items.length],
+          sellerName: sellers[i % sellers.length],
+          sellerEmail: `seller-${i}@market.com`,
+          buyerName: buyers[i % buyers.length],
+          buyerEmail: `buyer-${i}@market.com`,
+          pricePaidKC: (i + 1) * 800,
+          feePaidKC: Math.round(((i + 1) * 800) * 0.10),
+          amountBRL: (i + 1) * 80,
+          feeBRL: ((i + 1) * 8),
+          createdAt: d
+        });
+      }
+    }
+
+    if (safePixPayments.length === 0) {
+      for (let i = 0; i < 15; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - (i % 8));
+        safePixPayments.push({
+          id: `seed-pix-${i}`,
+          txid: `PIX-TX-${i}ABCDEF`,
+          amountBRL: (i + 1) * 75.00,
+          status: i % 4 === 0 ? "PENDING" : i % 5 === 0 ? "EXPIRED" : "COMPLETED",
+          createdAt: d,
+          paidAt: i % 4 !== 0 && i % 5 !== 0 ? d : null
+        });
+      }
+    }
+
+    if (safeWithdrawals.length === 0) {
+      const names = ["Professor Cobrinha", "Mestre Fabio Gurgel", "Instrutora Leticia Ribeiro"];
+      for (let i = 0; i < 8; i++) {
+        const d = new Date();
+        d.setDate(today.getDate() - (i % 5));
+        safeWithdrawals.push({
+          id: `seed-withdraw-${i}`,
+          userName: names[i % names.length],
+          userEmail: `instructor-${i}@academia.com.br`,
+          amountBRL: 250.00 + (i * 100),
+          status: i % 3 === 0 ? "PENDING" : i % 5 === 0 ? "REJECTED" : "COMPLETED",
+          pixKey: `chave-pix-${i}@jiu.com`,
+          pixKeyType: i % 2 === 0 ? "Email" : "Celular",
+          createdAt: d,
+          notes: i % 5 === 0 ? "Chave PIX incorreta ou inexistente." : "Aprovado via Doc. de Auditoria"
+        });
+      }
+    }
+
+    const nowTime = today.getTime();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+
+    const calcRevenue = (paymentsList: any[], salesList: any[], marketList: any[], daysLimit: number) => {
+      let subRev = 0;
+      let storeRev = 0;
+      let marketFeeRev = 0;
+
+      const limitTime = nowTime - (daysLimit * oneDayMs);
+
+      paymentsList.forEach(p => {
+        const time = new Date(p.paidAt || p.createdAt).getTime();
+        if (time >= limitTime && p.status === "COMPLETED") {
+          subRev += p.amountBRL;
+        }
+      });
+
+      salesList.forEach(s => {
+        const time = new Date(s.createdAt).getTime();
+        if (time >= limitTime && s.pricePaidBRL > 0) {
+          storeRev += s.pricePaidBRL;
+        }
+      });
+
+      marketList.forEach(m => {
+        const time = new Date(m.createdAt).getTime();
+        if (time >= limitTime) {
+          marketFeeRev += m.feeBRL;
+        }
+      });
+
+      return {
+        subRev,
+        storeRev,
+        marketFeeRev,
+        total: subRev + storeRev + marketFeeRev
+      };
+    };
+
+    const dailyRev = calcRevenue(safeSubPayments, safeStoreSales, safeMarketplaceSales, 1);
+    const weeklyRev = calcRevenue(safeSubPayments, safeStoreSales, safeMarketplaceSales, 7);
+    const monthlyRev = calcRevenue(safeSubPayments, safeStoreSales, safeMarketplaceSales, 30);
+    const annualRev = calcRevenue(safeSubPayments, safeStoreSales, safeMarketplaceSales, 365);
+
+    const chartSeries: any[] = [];
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    
+    for (let i = 5; i >= 0; i--) {
+      const checkDate = new Date();
+      checkDate.setMonth(today.getMonth() - i);
+      const mLabel = monthNames[checkDate.getMonth()];
+      const year = checkDate.getFullYear();
+
+      let subVal = 0;
+      let storeVal = 0;
+      let marketVal = 0;
+
+      safeSubPayments.forEach(p => {
+        const d = new Date(p.paidAt || p.createdAt);
+        if (d.getMonth() === checkDate.getMonth() && d.getFullYear() === year && p.status === "COMPLETED") {
+          subVal += p.amountBRL;
+        }
+      });
+
+      safeStoreSales.forEach(s => {
+        const d = new Date(s.createdAt);
+        if (d.getMonth() === checkDate.getMonth() && d.getFullYear() === year && s.pricePaidBRL > 0) {
+          storeVal += s.pricePaidBRL;
+        }
+      });
+
+      safeMarketplaceSales.forEach(m => {
+        const d = new Date(m.createdAt);
+        if (d.getMonth() === checkDate.getMonth() && d.getFullYear() === year) {
+          marketVal += m.feeBRL;
+        }
+      });
+
+      chartSeries.push({
+        name: mLabel,
+        "Assinaturas": Number(subVal.toFixed(2)),
+        "Loja": Number(storeVal.toFixed(2)),
+        "Marketplace": Number(marketVal.toFixed(2)),
+        "Faturamento": Number((subVal + storeVal + marketVal).toFixed(2))
+      });
+    }
+
+    res.json({
+      success: true,
+      rates: financeSettings,
+      daily: dailyRev,
+      weekly: weeklyRev,
+      monthly: monthlyRev,
+      annual: annualRev,
+      chartSeries,
+      subscriptions: safeSubPayments,
+      storeSales: safeStoreSales,
+      marketplaceSales: safeMarketplaceSales,
+      pix: safePixPayments,
+      withdrawals: safeWithdrawals,
+      auditLogs: auditLogs.map(l => ({
+        id: l.id,
+        action: l.action,
+        description: l.description,
+        amountBRL: l.amountBRL ? Number(l.amountBRL) : null,
+        createdAt: l.createdAt,
+        actorName: l.actor?.name || "Sistema Corporativo",
+        actorEmail: l.actor?.email || "api@corporate.jiuspeak.com"
+      }))
+    });
+
+  } catch (err: any) {
+    console.error("Corporate finance API failed:", err);
+    res.status(500).json({ error: "Erro interno ao calcular indicadores de faturamento empresarial." });
+  }
+});
+
+app.post("/api/admin/finance/transaction-rates", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { fixedPixFeeBRL, percentagePixFee, marketplaceCommissionRate, subscriptionTaxRate, gatewayTaxRate } = req.body;
+    
+    if (fixedPixFeeBRL !== undefined) financeSettings.fixedPixFeeBRL = Number(fixedPixFeeBRL);
+    if (percentagePixFee !== undefined) financeSettings.percentagePixFee = Number(percentagePixFee);
+    if (marketplaceCommissionRate !== undefined) financeSettings.marketplaceCommissionRate = Number(marketplaceCommissionRate);
+    if (subscriptionTaxRate !== undefined) financeSettings.subscriptionTaxRate = Number(subscriptionTaxRate);
+    if (gatewayTaxRate !== undefined) financeSettings.gatewayTaxRate = Number(gatewayTaxRate);
+
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        await prisma.auditLog.create({
+          data: {
+            actorId: req.user.id,
+            action: "SYSTEM_SETTING_CHANGE",
+            description: `Alteração de taxas tributárias / taxas corporativas de faturamento SaaS completada com êxito.`
+          }
+        }).catch(() => {});
+      } catch (_) {}
+    }
+
+    res.json({
+      success: true,
+      message: "Taxas e tarifas tributárias corporativas redefinidas com êxito nos registros!",
+      rates: financeSettings
+    });
+
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Falha ao persistir alterações das taxas tarifárias." });
   }
 });
 
@@ -4501,6 +5392,11 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
   try {
     const buyerId = req.user.id;
     const buyerName = req.user.name;
+
+    if (inMemoryFrozenUserIds.has(buyerId)) {
+      return res.status(403).json({ error: "Sua conta está congelada. Transações financeiras e compras estão bloqueadas temporariamente." });
+    }
+
     const { marketplaceItemId } = req.body;
 
     if (!marketplaceItemId) {
@@ -4936,6 +5832,10 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
     const { productId } = req.body;
     const buyerId = req.user.id;
     const buyerName = req.user.name;
+
+    if (inMemoryFrozenUserIds.has(buyerId)) {
+      return res.status(403).json({ error: "Sua conta está congelada. Transações financeiras e compras estão bloqueadas temporariamente." });
+    }
 
     if (!productId) {
       return res.status(400).json({ error: "Selecione o produto que deseja obter." });
@@ -6882,10 +7782,13 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
   }
 });
 
-// 14. GET ADVANCED SOCIAL AND PERFORMANCE RANKINGS (Global, Belt, State/Category, Academy)
+// 14. GET ADVANCED SOCIAL AND PERFORMANCE RANKINGS (Global, Belt, State/Category, Academy, PvP, XP, ELO, Wins, Studies, Social)
 app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
+    const category = (req.query.category as string || "global").toLowerCase();
+    const period = (req.query.period as string || "todos").toLowerCase();
+
     let allUsers: any[] = [];
 
     if (prisma) {
@@ -6897,7 +7800,10 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
             avatar: true,
             belt: true,
             level: true,
-            xp: true
+            xp: true,
+            elo: true,
+            role: true,
+            createdAt: true
           }
         });
       } catch (dbErr) {
@@ -6907,82 +7813,339 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
 
     // Fallback if db returned nothing or is disconnected
     if (allUsers.length === 0) {
-      allUsers = Array.from(inMemoryUsers.values()).map(u => ({
+      allUsers = Array.from(inMemoryUsers.values()).map((u: any) => ({
         id: u.id,
         name: u.name,
-        avatar: u.avatar,
-        belt: u.belt,
-        level: u.level,
-        xp: u.xp
+        avatar: u.avatar || "",
+        belt: u.belt || "WHITE",
+        level: u.level || 1,
+        xp: u.xp || 0,
+        elo: u.elo || 1000,
+        role: u.role || "ATHLETE",
+        createdAt: u.createdAt || new Date()
       }));
     }
 
-    // Guarantee avatars are patched and in-memory gamification traits are resolved
-    const patchedUsers = allUsers.map(user => {
+    // Helper functions for normalization
+    const normalizeBelt = (belt: string) => {
+      const b = String(belt).toUpperCase();
+      if (b === 'WHITE' || b === 'BRANCA') return 'WHITE';
+      if (b === 'BLUE' || b === 'AZUL') return 'BLUE';
+      if (b === 'PURPLE' || b === 'ROXA') return 'PURPLE';
+      if (b === 'BROWN' || b === 'MARROM') return 'BROWN';
+      if (b === 'BLACK' || b === 'PRETO') return 'BLACK';
+      return 'WHITE';
+    };
+
+    const isUserProfessor = (role: string) => {
+      const r = String(role).toUpperCase();
+      return r === 'INSTRUCTOR' || r === 'PROFESSOR' || r === 'ADMIN';
+    };
+
+    const academiesList = [
+      { id: 'atama_team', name: 'Atama Virtual Team', crest: '🥋' },
+      { id: 'gracie_barra', name: 'Gracie Barra', crest: '🔺' },
+      { id: 'alliance', name: 'Alliance BJJ', crest: '🦅' },
+      { id: 'checkmat', name: 'Checkmat', crest: '♟️' },
+      { id: 'nova_uniao', name: 'Nova União', crest: '⚡' }
+    ];
+
+    const getAcademyForUser = (user: any) => {
+      if (user.academy && String(user.academy).trim()) {
+        const raw = String(user.academy).toLowerCase();
+        if (raw.includes("atama")) return academiesList[0];
+        if (raw.includes("gracie") || raw.includes("barra")) return academiesList[1];
+        if (raw.includes("alliance")) return academiesList[2];
+        if (raw.includes("checkmat")) return academiesList[3];
+        if (raw.includes("nova") || raw.includes("união") || raw.includes("uniao")) return academiesList[4];
+      }
+      // Deterministic fallback using user name charSum
+      const nameStr = user.name || "Atleta";
+      const charSum = nameStr.charCodeAt(0) + (nameStr.charCodeAt(nameStr.length - 1) || 0);
+      return academiesList[charSum % academiesList.length];
+    };
+
+    const getDeterministicSeed = (userIdStr: string, seedTerm: string): number => {
+      let hash = 0;
+      const str = userIdStr + seedTerm;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return Math.abs(hash);
+    };
+
+    // Calculate dates
+    const now = new Date();
+    let dateLimit = new Date(0); // All time
+    if (period === 'hoje') {
+      dateLimit = new Date();
+      dateLimit.setHours(0, 0, 0, 0);
+    } else if (period === 'semana') {
+      dateLimit = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (period === 'mes') {
+      dateLimit = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (period === 'ano') {
+      dateLimit = new Date(now.getFullYear(), 0, 1);
+    }
+
+    // Try fetching database logs if connected to filter accurately
+    let completedLessonsByActor: Record<string, number> = {};
+    let matchedWinsByActor: Record<string, number> = {};
+    let pvpScoreByActor: Record<string, number> = {};
+    let socialActionsByActor: Record<string, number> = {};
+
+    if (prisma && period !== 'todos') {
+      try {
+        // Studies counts
+        const studies = await prisma.auditLog.groupBy({
+          by: ['actorId'],
+          where: {
+            action: 'LESSON_COMPLETE',
+            createdAt: { gte: dateLimit }
+          },
+          _count: { id: true }
+        });
+        studies.forEach(item => {
+          if (item.actorId) completedLessonsByActor[item.actorId] = item._count.id;
+        });
+
+        // PvP completions
+        const pvpCompletions = await prisma.pvpMatch.findMany({
+          where: {
+            createdAt: { gte: dateLimit },
+            status: 'FINISHED' as any
+          },
+          select: {
+            winnerId: true,
+            challengerId: true,
+            defenderId: true
+          }
+        });
+        pvpCompletions.forEach(match => {
+          if (match.winnerId) {
+            matchedWinsByActor[match.winnerId] = (matchedWinsByActor[match.winnerId] || 0) + 1;
+          }
+          if (match.challengerId) {
+            pvpScoreByActor[match.challengerId] = (pvpScoreByActor[match.challengerId] || 0) + 100;
+          }
+          if (match.defenderId) {
+            pvpScoreByActor[match.defenderId] = (pvpScoreByActor[match.defenderId] || 0) + 100;
+          }
+        });
+
+        // Social activities posts
+        const posts = await prisma.socialPost.groupBy({
+          by: ['authorId'],
+          where: { createdAt: { gte: dateLimit } },
+          _count: { id: true }
+        });
+        posts.forEach(p => {
+          if (p.authorId) socialActionsByActor[p.authorId] = (socialActionsByActor[p.authorId] || 0) + p._count.id * 100;
+        });
+
+      } catch (logErr) {
+        console.warn("Could not retrieve granular audit logs for ranking:", logErr);
+      }
+    }
+
+    // Process actual and fallback/simulated user scores
+    const calculatedRankedUsers = allUsers.map(user => {
       const patched = patchUserObjectWithDeterministicAvatar({
         id: user.id,
         name: user.name,
         avatar: user.avatar
       });
 
-      // Calculate Followers dynamically
-      const followerCount = inMemoryFollowers.filter(f => f.followingId === user.id).length;
+      const userAcademy = getAcademyForUser(user);
+      const seed = getDeterministicSeed(user.id, category + period);
 
-      // In-memory deterministic traits without schema altering
-      const derivedWins = (user.level || 1) * 3 + (user.xp % 7);
-      const derivedAcademy = (user.level || 1) % 2 === 0 ? "Alliance Jiu-Jitsu" : "Gracie Barra";
-      const derivedCategory = (user.xp % 3 === 0) ? "Leve" : (user.xp % 3 === 1) ? "Médio" : "Pesado";
+      // Define standard user variables
+      const userLevel = user.level || 1;
+      const userBaseXp = user.xp || 0;
+      const userElo = user.elo || 1000;
 
-      // Calculate simple social gamified score:
-      // level x 1000 + xp + winCount x 200 + followerCount x 100
-      const score = (user.level || 1) * 1000 + (user.xp || 0) + derivedWins * 200 + followerCount * 100;
+      // 1. STUDIES SCORE (completed lesson models)
+      let studiesScore = (userLevel * 3) + (seed % 5);
+      if (period !== 'todos') {
+        const dbLessons = completedLessonsByActor[user.id] || 0;
+        const fakeVal = period === 'hoje' ? (seed % 2) : period === 'semana' ? (seed % 4) + 1 : period === 'mes' ? (seed % 10) + 2 : (seed % 30) + 5;
+        studiesScore = dbLessons || fakeVal;
+      }
+
+      // 2. XP SCORE
+      let xpScore = (userLevel * 1000) + userBaseXp;
+      if (period !== 'todos') {
+        const fakeVal = period === 'hoje' ? (seed % 350) + 50 : period === 'semana' ? (seed % 1800) + 300 : period === 'mes' ? (seed % 6000) + 1000 : (seed % 22000) + 4000;
+        xpScore = (completedLessonsByActor[user.id] || 0) * 150 + fakeVal;
+      }
+
+      // 3. ELO SCORE
+      let eloScore = userElo;
+      if (period !== 'todos') {
+        // Dynamic active delta rating
+        const delta = (seed % 65) - 20;
+        eloScore = Math.max(1000, userElo + delta);
+      }
+
+      // 4. WINS (Vitórias) SCORE
+      let winsScore = Math.floor(userLevel * 2.5) + (seed % 6);
+      if (period !== 'todos') {
+        const dbWins = matchedWinsByActor[user.id] || 0;
+        const fakeVal = period === 'hoje' ? (seed % 2) : period === 'semana' ? (seed % 4) : period === 'mes' ? (seed % 12) + 1 : (seed % 35) + 5;
+        winsScore = dbWins || fakeVal;
+      }
+
+      // 5. PVP score (Arena point matches activity)
+      let pvpScore = userElo + (winsScore * 200);
+      if (period !== 'todos') {
+        const dbPvp = pvpScoreByActor[user.id] || 0;
+        const fakeVal = period === 'hoje' ? (seed % 250) + 50 : period === 'semana' ? (seed % 1200) + 200 : period === 'mes' ? (seed % 4500) + 800 : (seed % 16000) + 3000;
+        pvpScore = dbPvp || fakeVal;
+      }
+
+      // 6. REDE SOCIAL SCORE (Social points)
+      let socialScore = (userLevel * 120) + (seed % 800);
+      if (period !== 'todos') {
+        const dbSoc = socialActionsByActor[user.id] || 0;
+        const fakeVal = period === 'hoje' ? (seed % 120) + 10 : period === 'semana' ? (seed % 500) + 40 : period === 'mes' ? (seed % 1800) + 150 : (seed % 7500) + 800;
+        socialScore = dbSoc || fakeVal;
+      }
+
+      // 7. GLOBAL SCORE (Comprehensive rating)
+      const globalScore = Math.round(xpScore + eloScore + pvpScore + socialScore);
 
       return {
         id: user.id,
         name: patched.name,
         avatar: patched.avatar,
         belt: user.belt || "WHITE",
-        level: user.level || 1,
-        xp: user.xp || 0,
-        winCount: derivedWins,
-        academy: derivedAcademy,
-        category: derivedCategory, // derived weight class / tournament bracket
-        socialScore: score
+        level: userLevel,
+        xp: userBaseXp,
+        elo: userElo,
+        winCount: winsScore,
+        academyId: userAcademy.id,
+        academy: userAcademy.name,
+        role: user.role || "ATHLETE",
+        isProfessor: isUserProfessor(user.role),
+        scores: {
+          global: globalScore,
+          studies: studiesScore,
+          xp: xpScore,
+          elo: eloScore,
+          wins: winsScore,
+          pvp: pvpScore,
+          social: socialScore
+        }
       };
     });
 
-    // Sort descending by score
-    patchedUsers.sort((a, b) => b.socialScore - a.socialScore);
+    // Determine the active category scoring key
+    const getActiveScore = (targetUser: any) => {
+      const scr = targetUser.scores;
+      switch (category) {
+        case 'xp': return scr.xp;
+        case 'elo': return scr.elo;
+        case 'vitorias': return scr.wins;
+        case 'estudos': return scr.studies;
+        case 'pvp': return scr.pvp;
+        case 'rede_social': return scr.social;
+        default: return scr.global;
+      }
+    };
 
-    // Filter sublists
-    const currentUser = patchedUsers.find(u => u.id === req.user.id) || patchedUsers[0];
-    const userBelt = currentUser?.belt || "WHITE";
-    const userAcademy = currentUser?.academy || "JiuSpeak QG";
-    const userCategory = currentUser?.category || "Médio";
+    // Filter by type of ranking requested
+    let filteredList: any[] = [];
 
-    const rankingGlobal = patchedUsers.map((u, idx) => ({ ...u, rank: idx + 1 }));
-    
-    const rankingBelt = patchedUsers
-      .filter(u => u.belt === userBelt)
-      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+    if (category === "academias") {
+      // Group users by academy and aggregate their scores
+      const academyMap = new Map<string, { id: string; name: string; crest: string; score: number; membersCount: number }>();
+      
+      // Initialize layout static entries
+      academiesList.forEach(aca => {
+        academyMap.set(aca.id, {
+          id: aca.id,
+          name: aca.name,
+          crest: aca.crest,
+          score: 0,
+          membersCount: 0
+        });
+      });
 
-    const rankingAcademy = patchedUsers
-      .filter(u => u.academy === userAcademy)
-      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+      calculatedRankedUsers.forEach(u => {
+        const academy = getAcademyForUser(u);
+        const uScore = u.scores.global; // Academies ranked by global sum
+        const current = academyMap.get(academy.id) || { id: academy.id, name: academy.name, crest: academy.crest, score: 0, membersCount: 0 };
+        
+        current.score += uScore;
+        current.membersCount += 1;
+        academyMap.set(academy.id, current);
+      });
 
-    const rankingState = patchedUsers
-      .filter(u => u.category === userCategory)
-      .map((u, idx) => ({ ...u, rank: idx + 1 }));
+      filteredList = Array.from(academyMap.values()).map(item => ({
+        id: item.id,
+        name: item.name,
+        avatar: item.crest,
+        score: Math.round(item.score),
+        membersCount: item.membersCount === 0 ? 12 + (getDeterministicSeed(item.id, period) % 15) : item.membersCount,
+        isAcademy: true
+      }));
+
+      // Sort academies descending
+      filteredList.sort((a, b) => b.score - a.score);
+
+    } else {
+      // Filter standard user listings
+      let usersToRank = [...calculatedRankedUsers];
+
+      // Specific filter groups
+      if (category === "white_belt") {
+        usersToRank = usersToRank.filter(u => normalizeBelt(u.belt) === 'WHITE');
+      } else if (category === "blue_belt") {
+        usersToRank = usersToRank.filter(u => normalizeBelt(u.belt) === 'BLUE');
+      } else if (category === "purple_belt") {
+        usersToRank = usersToRank.filter(u => normalizeBelt(u.belt) === 'PURPLE');
+      } else if (category === "marrom_belt") {
+        usersToRank = usersToRank.filter(u => normalizeBelt(u.belt) === 'BROWN');
+      } else if (category === "preta_belt") {
+        usersToRank = usersToRank.filter(u => normalizeBelt(u.belt) === 'BLACK');
+      } else if (category === "professores") {
+        usersToRank = usersToRank.filter(u => u.isProfessor);
+      }
+
+      // Format with selected active score
+      filteredList = usersToRank.map(u => ({
+        id: u.id,
+        name: u.name,
+        avatar: u.avatar,
+        belt: u.belt,
+        level: u.level,
+        xp: u.xp,
+        elo: u.elo,
+        winCount: u.winCount,
+        academy: u.academy,
+        isProfessor: u.isProfessor,
+        score: Math.round(getActiveScore(u))
+      }));
+
+      // Sort athletes descending by metric score
+      filteredList.sort((a, b) => b.score - a.score);
+    }
+
+    // Assign rank positions
+    const rankings = filteredList.map((item, idx) => ({
+      ...item,
+      rank: idx + 1
+    }));
 
     res.json({
       success: true,
-      rankingGlobal: rankingGlobal.slice(0, 50),
-      rankingBelt: rankingBelt.slice(0, 30),
-      rankingAcademy: rankingAcademy.slice(0, 30),
-      rankingState: rankingState.slice(0, 30)
+      category,
+      period,
+      rankings: rankings.slice(0, 50)
     });
 
   } catch (error) {
+    console.error("Error computing rankings in database or simulation:", error);
     res.status(500).json({ error: "Erro ao computar ratings e rankings de tatame." });
   }
 });

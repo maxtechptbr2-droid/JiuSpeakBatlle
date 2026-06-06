@@ -3,100 +3,153 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Trophy, 
-  MapPin, 
-  Target, 
-  ShieldAlert, 
-  Sparkles,
+  Sparkles, 
   Users,
-  Activity,
-  Flame
+  Flame,
+  Sword,
+  BookOpen,
+  Award,
+  UserCheck,
+  RefreshCw,
+  MessageSquare,
+  Zap,
+  Calendar,
+  Lock
 } from 'lucide-react';
+import { io } from 'socket.io-client';
+import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
-import { AvatarWithFrame } from './AvatarWithFrame';
 
 interface SocialRankingsProps {
   user: UserProfile;
 }
 
-interface RankedUser {
+interface RankedItem {
   id: string;
   name: string;
   avatar: string;
-  belt: string;
-  level: number;
-  xp: number;
-  winCount: number;
-  academy: string;
-  category: string;
-  socialScore: number;
+  belt?: string;
+  level?: number;
+  xp?: number;
+  elo?: number;
+  winCount?: number;
+  academy?: string;
+  score: number;
   rank: number;
+  isAcademy?: boolean;
+  isProfessor?: boolean;
+  membersCount?: number;
 }
 
-export function SocialRankings({ user }: SocialRankingsProps) {
-  const [activeTab, setActiveTab] = useState<'global' | 'belt' | 'state' | 'academy'>('global');
-  const [rankingLists, setRankingLists] = useState<{
-    rankingGlobal: RankedUser[];
-    rankingBelt: RankedUser[];
-    rankingAcademy: RankedUser[];
-    rankingState: RankedUser[];
-  }>({
-    rankingGlobal: [],
-    rankingBelt: [],
-    rankingAcademy: [],
-    rankingState: []
-  });
-  const [loading, setLoading] = useState<boolean>(true);
+// 14 Categories categorized into 3 clean visual groups
+const GROUPS = [
+  { id: 'graduations', label: 'Graduações / Faixas 🥋' },
+  { id: 'performance', label: 'Rendimento & Estudos 📚' },
+  { id: 'social_competitive', label: 'Competição & Social ⚔️' }
+];
 
-  const fetchRankings = async () => {
+const CATEGORIES = [
+  // Group 1: Graduations
+  { id: 'global', label: 'Global 🌎', group: 'graduations', icon: Trophy, desc: 'Classificação unificada de toda recompensa', rewardLabel: 'Pontos' },
+  { id: 'white_belt', label: 'Faixa Branca ⚪', group: 'graduations', icon: Award, desc: 'Novos prodígios no tatame (White Belts)', rewardLabel: 'Pontos' },
+  { id: 'blue_belt', label: 'Faixa Azul 🔵', group: 'graduations', icon: Award, desc: 'Frequência consistente (Blue Belts)', rewardLabel: 'Pontos' },
+  { id: 'purple_belt', label: 'Faixa Roxa 🟣', group: 'graduations', icon: Award, desc: 'Nível avançado de Jiu-Jitsu (Purple Belts)', rewardLabel: 'Pontos' },
+  { id: 'marrom_belt', label: 'Faixa Marrom 🟤', group: 'graduations', icon: Award, desc: 'Lutadores de elite refinados (Brown Belts)', rewardLabel: 'Pontos' },
+  { id: 'preta_belt', label: 'Faixa Preta ⚫', group: 'graduations', icon: Award, desc: 'Mestres supremos das alavancas (Black Belts)', rewardLabel: 'Pontos' },
+
+  // Group 2: Performance
+  { id: 'xp', label: 'XP 🔥', group: 'performance', icon: Flame, desc: 'Experiência de estudo conquistada', rewardLabel: 'XP' },
+  { id: 'estudos', label: 'Estudos 📖', group: 'performance', icon: BookOpen, desc: 'Aulas concluídas e revisões de curso', rewardLabel: 'Aulas' },
+  { id: 'professores', label: 'Professores 🎓', group: 'performance', icon: UserCheck, desc: 'Docentes que lideram o conhecimento', rewardLabel: 'Pontos' },
+  { id: 'academias', label: 'Academias 🛡️', group: 'performance', icon: Users, desc: 'Força das alianças coletivas de Jiu-Jitsu', rewardLabel: 'Pontos' },
+
+  // Group 3: Competition & Social
+  { id: 'elo', label: 'ELO 🏆', group: 'social_competitive', icon: Zap, desc: 'Pontuação de matchmaking competitivo', rewardLabel: 'ELO' },
+  { id: 'vitorias', label: 'Vitórias ⭐', group: 'social_competitive', icon: Sparkles, desc: 'Duelos individuais vencidos na arena', rewardLabel: 'Vitórias' },
+  { id: 'pvp', label: 'PVP ⚔️', group: 'social_competitive', icon: Sword, desc: 'Atividade Geral e participação na Arena PvP', rewardLabel: 'PDD' },
+  { id: 'rede_social', label: 'Rede Social 💬', group: 'social_competitive', icon: MessageSquare, desc: 'Engajamento, fórum e rede social', rewardLabel: 'Likes / Posts' }
+];
+
+const PERIODS = [
+  { id: 'hoje', label: 'Hoje ⏰' },
+  { id: 'semana', label: 'Semana 📆' },
+  { id: 'mes', label: 'Mês 🌙' },
+  { id: 'ano', label: 'Ano ☀️' },
+  { id: 'todos', label: 'Todos ♾️' }
+];
+
+export function SocialRankings({ user }: SocialRankingsProps) {
+  const [activeCategory, setActiveCategory] = useState<string>('global');
+  const [activePeriod, setActivePeriod] = useState<string>('todos');
+  const [activeGroup, setActiveGroup] = useState<string>('graduations');
+  const [rankings, setRankings] = useState<RankedItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [livePulse, setLivePulse] = useState<boolean>(false);
+  const [socketStatus, setSocketStatus] = useState<'conctado' | 'desconectado'>('desconectado');
+
+  const fetchRankings = async (showLoadingOverlay = true) => {
+    if (showLoadingOverlay) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch('/api/social/rankings', {
+      const res = await fetch(`/api/social/rankings?category=${activeCategory}&period=${activePeriod}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.success) {
-          setRankingLists({
-            rankingGlobal: data.rankingGlobal,
-            rankingBelt: data.rankingBelt,
-            rankingAcademy: data.rankingAcademy,
-            rankingState: data.rankingState
-          });
+        if (data.success && data.rankings) {
+          setRankings(data.rankings);
+          // Highlight live pulse on real-time update
+          setLivePulse(true);
+          setTimeout(() => setLivePulse(false), 1200);
         }
       }
     } catch (err) {
       console.error("Failed to load rankings stats:", err);
     } finally {
-      setLoading(false);
+      if (showLoadingOverlay) setLoading(false);
     }
   };
 
+  // Socket action subscription
   useEffect(() => {
-    fetchRankings();
-  }, [user]);
+    const socket = io({
+      transports: ['websocket', 'polling'],
+      autoConnect: true
+    });
 
-  const getActiveList = () => {
-    switch (activeTab) {
-      case 'belt': return rankingLists.rankingBelt;
-      case 'state': return rankingLists.rankingState;
-      case 'academy': return rankingLists.rankingAcademy;
-      default: return rankingLists.rankingGlobal;
-    }
-  };
+    socket.on('connect', () => {
+      setSocketStatus('conctado');
+      const token = localStorage.getItem('token');
+      if (token) {
+        socket.emit('auth:register', { token });
+      }
+    });
 
-  const getRankBadge = (rank: number) => {
-    if (rank === 1) return <span className="text-xl">🥇</span>;
-    if (rank === 2) return <span className="text-xl">🥈</span>;
-    if (rank === 3) return <span className="text-xl">🥉</span>;
-    return <span className="font-mono text-slate-500 font-extrabold text-[11px] leading-none">#{rank}</span>;
-  };
+    socket.on('disconnect', () => {
+      setSocketStatus('desconectado');
+    });
 
-  const translateBelt = (b: string) => {
+    socket.on('rankings:update', () => {
+      fetchRankings(false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [activeCategory, activePeriod]);
+
+  // Trigger loading on change
+  useEffect(() => {
+    fetchRankings(true);
+  }, [activeCategory, activePeriod]);
+
+  const translateBelt = (b?: string) => {
+    if (!b) return '';
     switch (String(b).toUpperCase()) {
       case 'WHITE': return 'Branca';
       case 'BLUE': return 'Azul';
@@ -107,133 +160,248 @@ export function SocialRankings({ user }: SocialRankingsProps) {
     }
   };
 
-  const getBeltBg = (belt: string) => {
+  const getBeltBg = (belt?: string) => {
+    if (!belt) return 'bg-slate-800 text-slate-300';
     switch (String(belt).toUpperCase()) {
       case 'WHITE':
       case 'BRANCA':
-        return 'bg-white text-slate-850 border border-slate-300';
+        return 'bg-white text-slate-900 border border-slate-300 font-extrabold';
       case 'BLUE':
       case 'AZUL':
-        return 'bg-blue-600 text-white';
+        return 'bg-blue-600 text-white font-extrabold';
       case 'PURPLE':
       case 'ROXA':
-        return 'bg-purple-750 text-white';
+        return 'bg-purple-700 text-white font-extrabold';
       case 'BROWN':
       case 'MARROM':
-        return 'bg-amber-900 text-white';
+        return 'bg-amber-900 text-white font-extrabold';
       case 'BLACK':
       case 'PRETO':
-        return 'bg-slate-900 border border-red-500 text-red-500';
+        return 'bg-slate-905 border border-red-500 text-red-500 font-extrabold';
       default:
         return 'bg-slate-950 text-slate-400';
     }
   };
 
-  const activeList = getActiveList();
+  const currentCategoryObj = CATEGORIES.find(c => c.id === activeCategory) || CATEGORIES[0];
+  const groupFilteredCategories = CATEGORIES.filter(c => c.group === activeGroup);
 
   return (
-    <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4" id="bjj-social-rankings">
-      <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-        <h3 className="font-display font-extrabold text-sm text-white flex items-center gap-1.5 uppercase">
-          <Trophy className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
-          <span>Liga de Rendimento de Tatame</span>
-        </h3>
-        <span className="text-[10px] font-mono font-bold text-slate-500">Gamificação Ativa</span>
+    <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-5" id="bjj-ultimate-leaderboards">
+      
+      {/* Header and Live Connection Status */}
+      <div className="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-slate-800">
+        <div className="space-y-0.5">
+          <h3 className="font-display font-extrabold text-sm text-white flex items-center gap-1.5 uppercase tracking-wider">
+            <Trophy className="w-4.5 h-4.5 text-amber-500" />
+            <span>Liga JiuSpeak Suprema de Rendimento</span>
+          </h3>
+          <p className="text-[10px] text-slate-400 font-mono">
+            Ranks e simulação de conciliação integrados em tempo real
+          </p>
+        </div>
+
+        {/* Live Socket Status Badge */}
+        <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-0.5 rounded-full border border-slate-850">
+          <div className={`w-1.5 h-1.5 rounded-full ${socketStatus === 'conctado' ? 'bg-emerald-500' : 'bg-rose-500'} ${livePulse || socketStatus === 'conctado' ? 'animate-pulse' : ''}`} />
+          <span className="text-[9px] font-mono text-slate-400 lowercase tracking-tight">
+            WebSocket: {socketStatus}
+          </span>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950 rounded-xl">
-        {[
-          { id: 'global', label: 'Global', icon: <Trophy className="w-3 h-3" /> },
-          { id: 'belt', label: 'Faixa', icon: <Sparkles className="w-3 h-3" /> },
-          { id: 'state', label: 'Categoria', icon: <MapPin className="w-3 h-3" /> },
-          { id: 'academy', label: 'Equipe', icon: <Users className="w-3 h-3" /> }
-        ].map(tab => (
+      {/* Primary Category Groups Selector */}
+      <div className="flex bg-slate-950 p-1 rounded-xl gap-1">
+        {GROUPS.map(grp => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`py-1.5 px-0.5 rounded-lg text-[10px] font-bold font-mono flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
-              activeTab === tab.id 
-                ? 'bg-slate-900 text-amber-400 border border-slate-800 shadow' 
-                : 'text-slate-400 hover:text-slate-200'
+            key={grp.id}
+            onClick={() => {
+              setActiveGroup(grp.id);
+              // Set the default category for this group
+              const firstCat = CATEGORIES.find(c => c.group === grp.id);
+              if (firstCat) setActiveCategory(firstCat.id);
+            }}
+            className={`flex-1 py-1 px-1.5 rounded-lg text-[9.5px] font-bold font-display uppercase tracking-tight text-center cursor-pointer transition-all duration-200 ${
+              activeGroup === grp.id 
+                ? 'bg-amber-500 text-slate-950 font-black shadow-md' 
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
             }`}
           >
-            {tab.icon}
-            <span>{tab.label}</span>
+            {grp.label}
           </button>
         ))}
       </div>
 
-      {/* Active Ranking List */}
-      <div className="space-y-2.5 max-h-[295px] overflow-y-auto pr-1">
-        {loading ? (
-          <div className="py-12 text-center text-xs text-slate-500 font-mono">
-            Sincronizando as chaves do torneio...
-          </div>
-        ) : activeList.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-500 font-mono bg-slate-950 rounded-xl">
-            Nenhum atleta registrado nesta categoria.
-          </div>
-        ) : (
-          activeList.map((ranked, idx) => {
-            const isMe = ranked.id === user.id;
-            return (
-              <div 
-                key={ranked.id}
-                className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
-                  isMe 
-                    ? 'bg-violet-950/20 border-violet-500/50 shadow-sm' 
-                    : 'bg-slate-950/40 border-slate-950 hover:bg-slate-950/60'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  {/* Position Medal / Slot */}
-                  <div className="w-8 shrink-0 flex justify-center">
-                    {getRankBadge(ranked.rank)}
-                  </div>
-
-                  {/* Profile photo */}
-                  <img 
-                    src={ranked.avatar} 
-                    alt={ranked.name}
-                    referrerPolicy="no-referrer"
-                    className="w-8 h-8 rounded-full border border-slate-800 shrink-0 bg-slate-950 object-cover"
-                  />
-
-                  {/* Name and label details */}
-                  <div className="min-w-0 leading-tight">
-                    <span className={`block text-[11px] font-bold truncate ${isMe ? 'text-violet-400' : 'text-slate-201'}`}>
-                      {ranked.name} {isMe && '(Você)'}
-                    </span>
-                    <div className="flex gap-1 items-center flex-wrap mt-1">
-                      <span className={`text-[7px] px-1 rounded font-black uppercase ${getBeltBg(ranked.belt)}`}>
-                        {translateBelt(ranked.belt)}
-                      </span>
-                      <span className="text-[8px] text-slate-500 font-mono">
-                        Nível {ranked.level} • {ranked.academy.split(' ')[0]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Score badge details (LinkedIn / Strava type stats) */}
-                <div className="text-right shrink-0">
-                  <span className="block font-mono text-[11px] font-black text-amber-400 leading-none">
-                    {ranked.socialScore}
-                  </span>
-                  <span className="text-[7.5px] uppercase font-mono font-bold text-slate-500 tracking-wider">
-                    Pontos
-                  </span>
-                </div>
-
-              </div>
-            );
-          })
-        )}
+      {/* Secondary Subcategories Selector Bar */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1">
+        {groupFilteredCategories.map(cat => {
+          const isSelected = activeCategory === cat.id;
+          const IconComponent = cat.icon;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`p-1.5 rounded-lg text-[10px] font-mono transition-all border flex flex-col items-center justify-center gap-1 text-center cursor-pointer ${
+                isSelected 
+                  ? 'bg-slate-950 text-amber-400 border-amber-500 shadow-inner' 
+                  : 'bg-slate-900/40 text-slate-400 hover:bg-slate-950 border-transparent hover:text-slate-200'
+              }`}
+              title={cat.desc}
+            >
+              <IconComponent className={`w-3.5 h-3.5 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
+              <span className="truncate w-full font-bold">{cat.label.split(' ')[0]}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <div className="bg-slate-950/50 p-2.5 border border-slate-850 rounded-xl text-[9px] text-slate-400 leading-relaxed font-sans text-center">
-         As dinâmicas de pontos acumulam XP de módulos cursados, vitórias em tempo real na Arena PvP, novos seguidores no Tatame Conectado e curtidas recebidas.
+      {/* Date Filter Capsules Row */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5 bg-slate-950/40 p-1.5 rounded-xl border border-slate-850">
+        <span className="text-[9px] font-mono font-bold text-slate-500 mr-1.5 uppercase flex items-center gap-1">
+          <Calendar className="w-3 h-3 text-slate-400" />
+          Filtro Temporal:
+        </span>
+        {PERIODS.map(p => {
+          const isSelected = activePeriod === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => setActivePeriod(p.id)}
+              className={`px-3 py-1 rounded-full text-[10.5px] font-semibold tracking-tight transition-all cursor-pointer ${
+                isSelected 
+                  ? 'bg-violet-600 text-white shadow-sm font-bold scale-105' 
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selection Metric Description Banner */}
+      <div className="bg-slate-950/70 py-2 px-3 border border-slate-850 rounded-xl flex items-center justify-between gap-3">
+        <p className="text-[10px] text-slate-350 leading-relaxed font-sans first-letter:uppercase">
+          💡 <strong className="text-white">{currentCategoryObj.label}</strong>: {currentCategoryObj.desc}
+        </p>
+        <button 
+          onClick={() => fetchRankings(true)} 
+          className="p-1 text-slate-400 hover:text-slate-200 cursor-pointer self-center"
+          title="Recarregar"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* Main Ranking Scroller Container */}
+      <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+        <AnimatePresence mode="popLayout">
+          {loading ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="py-12 text-center text-xs text-slate-500 font-mono"
+            >
+              Recalculando matriz de pontuação competitiva...
+            </motion.div>
+          ) : rankings.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="py-12 text-center text-xs text-slate-500 font-mono bg-slate-950 rounded-xl border border-slate-850"
+            >
+              Nenhum registro encontrado nesta categoria para o período selecionado.
+            </motion.div>
+          ) : (
+            rankings.map((ranked, idx) => {
+              const isAcademy = !!ranked.isAcademy;
+              const isMe = ranked.id === user.id;
+
+              return (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, y: 7 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15, delay: Math.min(idx * 0.02, 0.2) }}
+                  key={ranked.id}
+                  className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-colors ${
+                    isMe 
+                      ? 'bg-violet-950/20 border-violet-500/50 shadow-sm' 
+                      : 'bg-slate-950/40 border-slate-950 hover:bg-slate-950/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {/* Position Badge */}
+                    <div className="w-8 shrink-0 flex justify-center items-center">
+                      {ranked.rank === 1 && <span className="text-xl">🥇</span>}
+                      {ranked.rank === 2 && <span className="text-xl">🥈</span>}
+                      {ranked.rank === 3 && <span className="text-xl">🥉</span>}
+                      {ranked.rank > 3 && (
+                        <span className="font-mono text-slate-500 font-extrabold text-[11px]">
+                          #{ranked.rank}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Image Avatar */}
+                    {isAcademy ? (
+                      <span className="w-9 h-9 rounded-xl border border-slate-800 bg-slate-950 flex items-center justify-center text-xl shrink-0">
+                        {ranked.avatar}
+                      </span>
+                    ) : (
+                      <img 
+                        src={ranked.avatar} 
+                        alt={ranked.name}
+                        referrerPolicy="no-referrer"
+                        className="w-8.5 h-8.5 rounded-full border border-slate-800 shrink-0 bg-slate-950 object-cover"
+                      />
+                    )}
+
+                    {/* Meta info details */}
+                    <div className="min-w-0 leading-tight">
+                      <span className={`block text-[11.5px] font-bold truncate ${isMe ? 'text-violet-400' : 'text-slate-200'}`}>
+                        {ranked.name} {isMe && '(Você)'}
+                      </span>
+
+                      <div className="flex gap-1.5 items-center flex-wrap mt-1">
+                        {!isAcademy && (
+                          <span className={`text-[7.5px] px-1 rounded font-black uppercase tracking-wider ${getBeltBg(ranked.belt)}`}>
+                            {translateBelt(ranked.belt)}
+                          </span>
+                        )}
+                        <span className="text-[8.5px] text-slate-500 font-mono">
+                          {isAcademy 
+                            ? `Ativação por equipes • ${ranked.membersCount} integrantes` 
+                            : `Nível ${ranked.level || 1} • ${ranked.academy ? ranked.academy.split(' ')[0] : 'JiuSpeak'}`
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reward units show / Points */}
+                  <div className="text-right shrink-0">
+                    <span className="block font-mono text-xs font-black text-amber-400 leading-none">
+                      {ranked.score.toLocaleString()}
+                    </span>
+                    <span className="text-[7.5px] uppercase font-mono font-bold text-slate-500 tracking-wider">
+                      {currentCategoryObj.rewardLabel}
+                    </span>
+                  </div>
+
+                </motion.div>
+              );
+            })
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Adaptive informational note based on categories */}
+      <div className="bg-slate-950/50 p-3 border border-slate-850 rounded-xl text-[9px] text-slate-400 leading-relaxed font-sans text-center">
+        O sistema de rankings compõe pontuações a partir de aulas concluídas, lutas e vitórias no Arena PvP e interações de Tatame Conectado. As alterações em tempo real sincronizam com outros lutadores via canais websockets de forma autônoma.
       </div>
 
     </div>

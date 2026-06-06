@@ -561,10 +561,87 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
               </div>
 
               {/* User notifications block */}
+              {/* User notifications block */}
               {errorMsg && (
-                <div className="p-3.5 mb-5 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex items-start gap-2.5">
-                  <AlertCircle className="w-4.5 h-4.5 text-red-400 shrink-0 mt-0.5" />
-                  <p className="font-medium leading-snug">{errorMsg}</p>
+                <div className="p-4 mb-5 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs flex flex-col gap-2">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-red-200 text-sm leading-snug">
+                        {errorMsg}
+                      </p>
+                      <p className="text-[11px] text-red-300/80 mt-1 leading-snug">
+                        {errorMsg.toLowerCase() === 'usuário não encontrado' && (
+                          <span>O e-mail digitado não está registrado. Deseja criar uma conta rápida clicando na aba <strong>Criar Conta</strong>?</span>
+                        )}
+                        {errorMsg.toLowerCase() === 'senha incorreta' && (
+                          <span>A senha fornecida está incorreta para este usuário. Se você esqueceu, clique em <strong>Esqueci minha senha</strong> abaixo.</span>
+                        )}
+                        {errorMsg.toLowerCase() === 'conta bloqueada' && (
+                          <span>Esta conta está suspensa ou bloqueada permanentemente pelos administradores da plataforma por violações de termos ou segurança.</span>
+                        )}
+                        {errorMsg.toLowerCase() === 'conta suspensa' && (
+                          <span>Esta conta está suspensa temporariamente por infração das diretrizes da comunidade. Favor entrar em contato.</span>
+                        )}
+                        {errorMsg.toLowerCase() === 'banco indisponível' && (
+                          <span>Incapaz de estabelecer conexão com nosso banco de dados PostgreSQL. Por favor, tente novamente em alguns segundos ou contate o suporte.</span>
+                        )}
+                        {errorMsg.toLowerCase() === 'csrf inválido' && (
+                          <span>Sua assinatura de segurança Anti-CSRF expirou por inatividade. A página tentará revalidar sua sessão automaticamente.</span>
+                        )}
+                        {errorMsg.toLowerCase() === 'token expirado' && (
+                          <span>Sua sessão de acesso expirou. Por favor, digite suas credenciais para segurança.</span>
+                        )}
+                        {!['usuário não encontrado', 'senha incorreta', 'conta bloqueada', 'conta suspensa', 'banco indisponível', 'csrf inválido', 'token expirado'].includes(errorMsg.toLowerCase()) && (
+                          <span>Ocorreu uma inconsistência ao processar sua solicitação de autenticação. Por favor, verifique os dados digitados ou tente recarregar.</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Premium SaaS Contextual Call-to-actions based on error states */}
+                  {errorMsg.toLowerCase() === 'usuário não encontrado' && (
+                    <button
+                      onClick={() => { setView('register'); clearFormMessages(); }}
+                      type="button"
+                      className="mt-1 self-start px-2.5 py-1 text-[10px] uppercase font-bold text-violet-400 border border-violet-500/30 hover:bg-violet-950/40 rounded transition-all cursor-pointer"
+                    >
+                      Ir para Registro
+                    </button>
+                  )}
+                  {errorMsg.toLowerCase() === 'senha incorreta' && (
+                    <button
+                      onClick={() => { setView('forgot'); clearFormMessages(); }}
+                      type="button"
+                      className="mt-1 self-start px-2.5 py-1 text-[10px] uppercase font-bold text-amber-400 border border-amber-500/30 hover:bg-amber-950/40 rounded transition-all cursor-pointer"
+                    >
+                      Recuperar Minha Senha
+                    </button>
+                  )}
+                  {errorMsg.toLowerCase() === 'banco indisponível' && (
+                    <button
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          const testRes = await fetch('/api/health');
+                          if (testRes.ok) {
+                            showToast('Conexão restabelecida! Tente seu login novamente.', 'success');
+                            clearFormMessages();
+                          } else {
+                            showToast('O banco continua respondendo de forma limitada.', 'error');
+                          }
+                        } catch (e) {
+                          showToast('Sem conexão de infraestrutura.', 'error');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      type="button"
+                      className="mt-1 self-start px-2.5 py-1 text-[10px] uppercase font-bold text-sky-400 border border-sky-500/30 hover:bg-sky-950/40 rounded transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3 h-3 animate-spin" /> Testar Status de Instabilidade
+                    </button>
+                  )}
                 </div>
               )}
 
