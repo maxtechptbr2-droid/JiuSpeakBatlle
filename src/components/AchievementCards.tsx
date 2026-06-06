@@ -139,33 +139,20 @@ export function AchievementCards({ user, showToast, onPostCreated }: Achievement
     }
   ];
 
-  // Web Share API with universal Fallback
-  const handleShareCard = async (card: AchievementCard) => {
-    const shareUrl = `${window.location.origin}/social/share/${card.id}?user=${encodeURIComponent(user.name)}`;
-    const text = `🏆 Conquistei o card "${card.title}" no Tatame Conectado! Confira minha trajetória no Jiu-Jitsu.`;
+  // Trigger official Canvas visual image sharing card builder
+  const handleShareCard = (card: AchievementCard) => {
+    let type: 'nova_faixa' | 'novo_nivel' | 'top_ranking' | 'avatar_raro' | 'moldura_lendaria' | 'vitoria_pvp' | 'nova_conquista' = 'nova_conquista';
+    if (card.id === 'belt_prog') type = 'nova_faixa';
+    else if (card.id === 'xp_level') type = 'novo_nivel';
+    else if (card.id === 'pvp_milestone') type = 'vitoria_pvp';
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Certificado de Conquista JiuSpeak',
-          text: text,
-          url: shareUrl
-        });
-        showToast("Conquista compartilhada com sucesso nas suas redes!", "success");
-      } catch (err) {
-        console.warn("Web Share aborted or failed, trying fallback:", err);
-        handleCopyShareUrl(card, shareUrl);
+    window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+      detail: {
+        type,
+        customTitle: card.title.toUpperCase()
       }
-    } else {
-      handleCopyShareUrl(card, shareUrl);
-    }
-  };
-
-  const handleCopyShareUrl = (card: AchievementCard, url: string) => {
-    navigator.clipboard.writeText(url);
-    setCopiedCardId(card.id);
-    showToast("Link de conquista copiado para a área de transferência! Compartilhe no Instagram ou WhatsApp.", "success");
-    setTimeout(() => setCopiedCardId(null), 3000);
+    }));
+    showToast("Gerador de Compartilhamento Viral carregado com sua conquista!", "success");
   };
 
   // Convert visual card to Official Post inside global feed!

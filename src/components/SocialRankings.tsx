@@ -17,7 +17,8 @@ import {
   MessageSquare,
   Zap,
   Calendar,
-  Lock
+  Lock,
+  Share2
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
@@ -362,8 +363,24 @@ export function SocialRankings({ user }: SocialRankingsProps) {
 
                     {/* Meta info details */}
                     <div className="min-w-0 leading-tight">
-                      <span className={`block text-[11.5px] font-bold truncate ${isMe ? 'text-violet-400' : 'text-slate-200'}`}>
-                        {ranked.name} {isMe && '(Você)'}
+                      <span className={`block text-[11.5px] font-bold truncate ${isMe ? 'text-violet-400' : 'text-slate-200'} flex items-center gap-1.5`}>
+                        <span>{ranked.name} {isMe && '(Você)'}</span>
+                        {isMe && (
+                          <button
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+                                detail: {
+                                  type: 'top_ranking',
+                                  customTitle: `TOP RANKING ALCANÇADO: #${ranked.rank}!`
+                                }
+                              }));
+                            }}
+                            className="p-1 bg-violet-600/20 hover:bg-violet-600 hover:text-white text-violet-400 rounded transition-all cursor-pointer border border-violet-500/20 hover:border-transparent flex items-center justify-center shrink-0"
+                            title="Compartilhar sua posição"
+                          >
+                            <Share2 className="w-2.5 h-2.5" />
+                          </button>
+                        )}
                       </span>
 
                       <div className="flex gap-1.5 items-center flex-wrap mt-1">

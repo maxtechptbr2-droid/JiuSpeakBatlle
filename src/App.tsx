@@ -442,6 +442,16 @@ export default function App() {
     );
 
     showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP e +${found.coinReward} Kimono Coins salvos!`, 'success');
+
+    // Trigger automatic viral share congratulations overlay
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('trigger-viral-share', {
+        detail: {
+          type: 'nova_conquista',
+          customTitle: `CONQUISTA ATINGIDA: ${found.title.toUpperCase()}!`
+        }
+      }));
+    }, 1250);
   };
 
   // 5. Centralized Security Audit logger

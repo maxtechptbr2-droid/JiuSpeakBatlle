@@ -17,12 +17,16 @@ import {
   QrCode, 
   ChevronRight,
   ExternalLink,
-  Volume2
+  Volume2,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Send
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 
 export interface ShareConquest {
-  type: 'nova_faixa' | 'novo_nivel' | 'top_ranking' | 'avatar_raro' | 'moldura_lendaria' | 'vitoria_pvp';
+  type: 'nova_faixa' | 'novo_nivel' | 'top_ranking' | 'avatar_raro' | 'moldura_lendaria' | 'vitoria_pvp' | 'nova_conquista';
   title: string;
   description: string;
   badge: string; // Emoji or short code
@@ -56,7 +60,7 @@ const CONQUEST_TEMPLATES: Record<ShareConquest['type'], ShareConquest> = {
   },
   top_ranking: {
     type: 'top_ranking',
-    title: 'NO TOP DO FRANKING!',
+    title: 'NO TOP DO RANKING!',
     description: 'Elite absoluta! Consistência lendária que me destaca entre os melhores atletas da academia.',
     badge: '🏆',
     highlightColor: '#3b82f6', // Blue
@@ -81,6 +85,13 @@ const CONQUEST_TEMPLATES: Record<ShareConquest['type'], ShareConquest> = {
     description: 'Desafio em inglês finalizado via Chave de Braço perfeita! Sem dar chances pro adversário.',
     badge: '⚔️',
     highlightColor: '#10b981', // Emerald
+  },
+  nova_conquista: {
+    type: 'nova_conquista',
+    title: 'CONQUISTA DESTRAVADA!',
+    description: 'Mais um marco histórico superado com maestria nos tatames virtuais de conversação!',
+    badge: '🎖️',
+    highlightColor: '#f43f5e', // Rose
   }
 };
 
@@ -131,6 +142,7 @@ export const ViralShare: React.FC<ViralShareProps> = ({
   const [cardFormat, setCardFormat] = useState<CardFormat>('instagram');
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [instaStoriesModal, setInstaStoriesModal] = useState(false);
   
   // Editable fields to allow tailoring custom shares
   const [customName, setCustomName] = useState(user.name);
@@ -985,6 +997,142 @@ export const ViralShare: React.FC<ViralShareProps> = ({
               )}
             </button>
 
+          </div>
+
+          {/* Tatame Conectado: Social Media Share Integration */}
+          <div className="bg-slate-900/50 border border-slate-850 p-5 rounded-3xl space-y-4">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-violet-400 animate-pulse" />
+              <h4 className="text-xs font-mono font-black text-white uppercase tracking-wider">
+                Compartilhar no Tatame Conectado
+              </h4>
+            </div>
+            
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Escolha a rede social abaixo para publicar sua arte e chamar a galera para o tatame. Seus dados e QR code serão atualizados em tempo real!
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* WhatsApp */}
+              <button
+                onClick={() => {
+                  const titleStr = customTitle || CONQUEST_TEMPLATES[conquestType].title;
+                  const shareText = `Olha só o que conquistei no *Tatame Conectado* do JiuSpeak! 🥋🔥\n\n🏆 *${titleStr}*\n_"${CONQUEST_TEMPLATES[conquestType].description}"_\n\n👉 Confira meu perfil com dados dinâmicos em tempo real e venha rolar no inglês comigo:`;
+                  const url = getShareUrl();
+                  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + '\n' + url)}`, '_blank');
+                }}
+                className="p-3 bg-[#25D366]/10 border border-[#25D366]/20 hover:bg-[#25D366]/20 text-white rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+                id="social-share-whatsapp"
+              >
+                <div className="p-2 bg-[#25D366] rounded-lg text-white">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold">WhatsApp</span>
+              </button>
+
+              {/* Instagram Stories */}
+              <button
+                onClick={() => {
+                  setCardFormat('story');
+                  setInstaStoriesModal(prev => !prev);
+                }}
+                className="p-3 bg-gradient-to-tr from-[#f9ce34]/10 via-[#ee2a7b]/10 to-[#6228d7]/10 border border-[#ee2a7b]/20 hover:from-[#f9ce34]/20 hover:to-[#6228d7]/20 text-white rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+                id="social-share-instagram"
+              >
+                <div className="p-2 bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] rounded-lg text-white">
+                  <Instagram className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold">Insta Stories</span>
+              </button>
+
+              {/* Facebook */}
+              <button
+                onClick={() => {
+                  const url = getShareUrl();
+                  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+                }}
+                className="p-3 bg-[#1877F2]/10 border border-[#1877F2]/20 hover:bg-[#1877F2]/20 text-white rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+                id="social-share-facebook"
+              >
+                <div className="p-2 bg-[#1877F2] rounded-lg text-white">
+                  <Facebook className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold">Facebook</span>
+              </button>
+
+              {/* Telegram */}
+              <button
+                onClick={() => {
+                  const titleStr = customTitle || CONQUEST_TEMPLATES[conquestType].title;
+                  const shareText = `Olha só o que eu conquistei no Tatame Conectado do JiuSpeak! 🥋🔥\n\n🏆 ${titleStr}\n\nConfira meu perfil verificado em tempo real:`;
+                  const url = getShareUrl();
+                  window.open(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`, '_blank');
+                }}
+                className="p-3 bg-[#0088cc]/10 border border-[#0088cc]/20 hover:bg-[#0088cc]/20 text-white rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+                id="social-share-telegram"
+              >
+                <div className="p-2 bg-[#0088cc] rounded-lg text-white">
+                  <Send className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold">Telegram</span>
+              </button>
+
+              {/* X / Twitter */}
+              <button
+                onClick={() => {
+                  const titleStr = customTitle || CONQUEST_TEMPLATES[conquestType].title;
+                  const shareText = `Olha só o que conquistei no @JiuSpeak Tatame Conectado! 🥋🚀\n\n🔥 ${titleStr}\n\nConfira meu perfil:`;
+                  const url = getShareUrl();
+                  window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(shareText)}`, '_blank');
+                }}
+                className="p-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+                id="social-share-x"
+              >
+                <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg text-white">
+                  <Twitter className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold">X (Twitter)</span>
+              </button>
+
+              {/* LinkedIn */}
+              <button
+                onClick={() => {
+                  const url = getShareUrl();
+                  window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank');
+                }}
+                className="p-3 bg-[#0A66C2]/10 border border-[#0A66C2]/20 hover:bg-[#0A66C2]/20 text-white rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02] cursor-pointer"
+                id="social-share-linkedin"
+              >
+                <div className="p-2 bg-[#0A66C2] rounded-lg text-white">
+                  <Linkedin className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold">LinkedIn</span>
+              </button>
+            </div>
+
+            {/* Instagram Stories step-by-step assistant */}
+            {instaStoriesModal && (
+              <div className="mt-4 p-4 bg-gradient-to-tr from-[#ee2a7b]/10 to-[#6228d7]/10 rounded-2xl border border-[#ee2a7b]/15 space-y-3 animate-fadeIn">
+                <span className="text-[9px] font-mono text-fuchsia-400 block uppercase tracking-widest font-black">Guia de Customização: Instagram Stories 📸</span>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Para publicar nos Stories com qualidade máxima:
+                </p>
+                <ol className="text-[11px] text-slate-400 list-decimal list-inside space-y-1 bg-slate-950/40 p-2.5 rounded-lg border border-slate-900">
+                  <li>O formato <strong>Story (Vertical)</strong> foi ativado na visualização.</li>
+                  <li>Clique no botão <span className="font-bold text-white">"Baixar PNG"</span> acima para salvar a arte oficial.</li>
+                  <li>Copie o link usando o botão <span className="font-bold text-white">"Copiar Link Viral"</span>.</li>
+                  <li>Abra o Instagram Stories e escolha a imagem salva.</li>
+                  <li>Adicione a figurinha de <strong>Link</strong> no Story colando o link copiado!</li>
+                </ol>
+                <button
+                  onClick={() => window.open('https://instagram.com', '_blank')}
+                  className="w-full py-2 bg-gradient-to-r from-[#ee2a7b] to-[#6228d7] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1 hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer shadow-lg shadow-[#ee2a7b]/10 animate-pulse"
+                >
+                  <Instagram className="w-4 h-4" />
+                  <span>Salvar Arte e Abrir Instagram</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* High-tech QR code integration specs */}

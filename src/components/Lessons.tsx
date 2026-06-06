@@ -6,41 +6,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
-  Plus, 
   Check, 
-  Heading, 
   Search, 
   Heart, 
-  Download, 
   Clock, 
   Award, 
-  CheckCircle, 
   BookOpen, 
   Volume2, 
   Mic, 
   Languages, 
-  Brain, 
-  ArrowRight, 
-  History, 
   Trophy, 
   Sparkles, 
-  Compass, 
   ChevronRight, 
-  Maximize2, 
-  VolumeX, 
-  Volume1, 
-  Loader2, 
-  FileText, 
-  ThumbsUp, 
   X, 
   CheckCircle2, 
   AlertTriangle,
   Flame,
   Printer,
-  ChevronDown
+  FileText,
+  Info,
+  ShieldCheck,
+  Zap,
+  Star,
+  HelpCircle,
+  PlayCircle,
+  Activity,
+  Download
 } from 'lucide-react';
-import { UserProfile, Course, Lesson, QuizQuestion, BeltRank } from '../types';
-import { PLAYBOOK_DATA, NETFLIX_ASSETS, NetflixAsset, PlaybookLesson, PlaybookSyllabus } from '../data/lessonsData';
+import { UserProfile, Course, BeltRank } from '../types';
+import { NETFLIX_ASSETS, NetflixAsset } from '../data/lessonsData';
 
 interface LessonsProps {
   user: UserProfile;
@@ -50,6 +44,16 @@ interface LessonsProps {
   addXp: (amount: number, reason: string) => void;
   addCoins: (amount: number, reason: string) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
+}
+
+// Custom achievement interface for lesson accomplishments
+interface LessonAchievement {
+  id: string;
+  title: string;
+  description: string;
+  badge: string;
+  condition: string;
+  points: number;
 }
 
 export default function Lessons({ 
@@ -62,1537 +66,1279 @@ export default function Lessons({
   showToast 
 }: LessonsProps) {
 
-  // --- PERSISTENCE & ANALYTICAL STATES ---
-  
-  // Favorites list for Netflix list
+  // --- COMPONENT PERSISTED STATES ---
   const [favorites, setFavorites] = useState<string[]>(() => {
-    const cached = localStorage.getItem('jiuspeak_netflix_favorites');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { return []; }
-    }
-    return ['vid-postura-branca', 'pdf-vocab-tatame'];
+    const cached = localStorage.getItem('js_fav_assets');
+    return cached ? JSON.parse(cached) : ['w-vid-1', 'b-vid-1'];
   });
 
-  // Asset Study progress (id -> percentage 0 to 100)
-  const [progress, setProgress] = useState<Record<string, number>>(() => {
-    const cached = localStorage.getItem('jiuspeak_netflix_progress');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { return {}; }
-    }
-    // initialize some mock default progress
-    return { 'vid-postura-branca': 65, 'pdf-vocab-tatame': 30 };
+  const [assetProgress, setAssetProgress] = useState<Record<string, number>>(() => {
+    const cached = localStorage.getItem('js_asset_progress');
+    return cached ? JSON.parse(cached) : { 'w-vid-1': 100, 'w-aud-1': 40 };
   });
 
-  // Watch history list
-  const [watchHistory, setWatchHistory] = useState<{ id: string; title: string; date: string; type: string }[]>(() => {
-    const cached = localStorage.getItem('jiuspeak_netflix_history');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { return []; }
-    }
-    return [
-      { id: 'vid-postura-branca', title: 'Vídeo: Guarda Fechada - Segredos de Postura', date: new Date().toLocaleString(), type: 'video' }
-    ];
+  const [studySeconds, setStudySeconds] = useState<number>(() => {
+    const cached = localStorage.getItem('js_study_seconds');
+    return cached ? parseInt(cached, 10) : 3400; // start with ~56m
   });
 
-  // Study Time counter in seconds
-  const [studyTime, setStudyTime] = useState<number>(() => {
-    const cached = localStorage.getItem('jiuspeak_study_seconds');
-    return cached ? parseInt(cached, 10) : 18200; // default 5 hours initial
+  const [unlockedCertificates, setUnlockedCertificates] = useState<string[]>(() => {
+    const cached = localStorage.getItem('js_certificates_unlocked');
+    return cached ? JSON.parse(cached) : ['Branca']; // Branca starts unlocked as onboarding trial
   });
 
-  // List of simulated downloaded asset IDs
-  const [downloaded, setDownloaded] = useState<string[]>(() => {
-    const cached = localStorage.getItem('jiuspeak_netflix_downloads');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { return []; }
-    }
-    return [];
-  });
-
-  // Certificates list
-  const [certificates, setCertificates] = useState<{ id: string; belt: string; date: string }[]>(() => {
-    const cached = localStorage.getItem('jiuspeak_netflix_certificates');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { return []; }
-    }
-    return [];
-  });
-
-  // --- INTERACTION & NAVIGATION STATES ---
-  const [activeTab, setActiveTab] = useState<'home' | 'courses' | 'videos' | 'pdfs' | 'audios' | 'certificates'>('home');
+  // --- SELECTION & OUTLET STATES ---
+  const [selectedBelt, setSelectedBelt] = useState<'ALL' | BeltRank>('ALL');
+  const [selectedType, setSelectedType] = useState<'ALL' | 'video' | 'audio' | 'pdf' | 'quiz' | 'exercise'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBeltFilter, setSelectedBeltFilter] = useState<'ALL' | BeltRank>('ALL');
-  const [selectedSubcategoryFilter, setSelectedSubcategoryFilter] = useState<string>('ALL');
+  
+  // Media Player Active Overlay state
+  const [activePlayAsset, setActivePlayAsset] = useState<NetflixAsset | null>(null);
+  const [mediaTab, setMediaTab] = useState<'play' | 'exercise' | 'quiz' | 'achieve'>('play');
+  const [isPlayingMedia, setIsPlayingMedia] = useState(false);
+  const [mediaPlaybackProgress, setMediaPlaybackProgress] = useState(0);
 
-  // Active play / media model
-  const [activeMedia, setActiveMedia] = useState<NetflixAsset | null>(null);
-  const [isSimulatingPlay, setIsSimulatingPlay] = useState(false);
-  const [simulatedMediaProgress, setSimulatedMediaProgress] = useState(0);
+  // Active quiz solver states
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [quizSelectedOption, setQuizSelectedOption] = useState<number | null>(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizFinished, setQuizFinished] = useState(false);
 
-  // Download simulation
-  const [downloadingAssetId, setDownloadingAssetId] = useState<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState(0);
+  // Active exercise solver states
+  const [exerciseSelectedAnswer, setExerciseSelectedAnswer] = useState<number | null>(null);
+  const [exerciseSolved, setExerciseSolved] = useState(false);
 
-  // Quiz active indexes
-  const [activeQuizIdx, setActiveQuizIdx] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
-  const [isQuizFinished, setIsQuizFinished] = useState(false);
+  // Active speak simulator state
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceAccuracyPercent, setVoiceAccuracyPercent] = useState<number | null>(null);
 
-  // Step indicator for technique drill
-  const [activeTechniqueStep, setActiveTechniqueStep] = useState(0);
+  // Certificate modal state
+  const [viewingCertificateBelt, setViewingCertificateBelt] = useState<BeltRank | null>(null);
 
-  // Voice recording mock
-  const [isRecording, setIsRecording] = useState(false);
-  const [speechAccuracy, setSpeechAccuracy] = useState<number | null>(null);
+  // --- DEFINE LESSON ACHIEVEMENTS ---
+  const achievementsList: LessonAchievement[] = [
+    { id: 'ach-first-step', title: 'Primeiro Rolê Gramatical', description: 'Conclua a primeira lição em vídeo da Faixa Branca.', badge: '🌱', condition: 'w-vid-1 concluído', points: 50 },
+    { id: 'ach-pronounce-master', title: 'Fluente de Tatame', description: 'Consiga mais de 90% de precisão no exercício prático de pronúncia.', badge: '🗣️', condition: 'Treino de voz bem-sucedido', points: 100 },
+    { id: 'ach-quiz-beast', title: 'Mestre Examinador', description: 'Seja aprovado com nota máxima em qualquer Quiz de arbitragem.', badge: '🎓', condition: 'Quiz finalizado com 100%', points: 150 },
+    { id: 'ach-blue-unlocked', title: 'Graduação Azulada', description: 'Desbloqueie o certificado oficial da Faixa Azul.', badge: '🥋', condition: 'Todos os módulos de Faixa Azul concluídos', points: 200 },
+    { id: 'ach-black-belt-seminar', title: 'Mestre de Negócios', description: 'Conclua todo o currículo avançado da Faixa Preta e emita o diploma executivo.', badge: '👑', condition: 'Diploma da Faixa Preta emitido', points: 500 }
+  ];
 
-  // Playbook Interactive course tab
-  const [isSyllabusModalOpen, setIsSyllabusModalOpen] = useState(false);
-  const [activeSyllabus, setActiveSyllabus] = useState<PlaybookSyllabus>(PLAYBOOK_DATA[0]);
-  const [activePlaybookLessonIdx, setActivePlaybookLessonIdx] = useState(0);
-  const [activePlaybookStep, setActivePlaybookStep] = useState<'study' | 'quiz'>('study');
-  const [playbookQuizAnswered, setPlaybookQuizAnswered] = useState(false);
-  const [playbookQuizSelected, setPlaybookQuizSelected] = useState<number | null>(null);
-
-  // --- USE EFFECTS ---
-
-  // Persistence triggers
+  // Auto-save mechanisms
   useEffect(() => {
-    localStorage.setItem('jiuspeak_netflix_favorites', JSON.stringify(favorites));
+    localStorage.setItem('js_fav_assets', JSON.stringify(favorites));
   }, [favorites]);
 
   useEffect(() => {
-    localStorage.setItem('jiuspeak_netflix_progress', JSON.stringify(progress));
-  }, [progress]);
+    localStorage.setItem('js_asset_progress', JSON.stringify(assetProgress));
+  }, [assetProgress]);
 
   useEffect(() => {
-    localStorage.setItem('jiuspeak_netflix_history', JSON.stringify(watchHistory));
-  }, [watchHistory]);
+    localStorage.setItem('js_study_seconds', studySeconds.toString());
+  }, [studySeconds]);
 
   useEffect(() => {
-    localStorage.setItem('jiuspeak_study_seconds', studyTime.toString());
-  }, [studyTime]);
+    localStorage.setItem('js_certificates_unlocked', JSON.stringify(unlockedCertificates));
+  }, [unlockedCertificates]);
 
+  // Simulated stopwatch trigger when video/audio is active
   useEffect(() => {
-    localStorage.setItem('jiuspeak_netflix_downloads', JSON.stringify(downloaded));
-  }, [downloaded]);
-
-  useEffect(() => {
-    localStorage.setItem('jiuspeak_netflix_certificates', JSON.stringify(certificates));
-  }, [certificates]);
-
-  // Handle live ticking countdown & progress simulator when video/audio is "playing"
-  useEffect(() => {
-    let interval: any = null;
-    if (activeMedia && isSimulatingPlay) {
-      interval = setInterval(() => {
-        setStudyTime(prev => prev + 1);
-        setSimulatedMediaProgress(prev => {
+    let watchTimer: any = null;
+    if (isPlayingMedia && activePlayAsset) {
+      watchTimer = setInterval(() => {
+        setStudySeconds(prev => prev + 1);
+        setMediaPlaybackProgress(prev => {
           if (prev >= 100) {
-            handleCompleteActiveAsset();
+            handleCompleteAsset(activePlayAsset.id, activePlayAsset.xpReward);
+            setIsPlayingMedia(false);
             return 100;
           }
-          const nextVal = prev + 5; // advance 5% per second
-          updateAssetProgress(activeMedia.id, nextVal);
-          return nextVal;
+          return prev + 4; // advance progress fast for testability
         });
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [activeMedia, isSimulatingPlay]);
+    return () => clearInterval(watchTimer);
+  }, [isPlayingMedia, activePlayAsset]);
 
-  // --- METHODS & HANDLERS ---
-
-  const formatStudyTime = (secs: number) => {
-    const hrs = Math.floor(secs / 3600);
-    const mins = Math.floor((secs % 3600) / 60);
-    return `${hrs}h ${mins}m`;
-  };
-
-  const updateAssetProgress = (id: string, val: number) => {
-    setProgress(prev => ({
-      ...prev,
-      [id]: Math.min(100, Math.max(prev[id] || 0, val))
-    }));
-  };
-
-  const toggleFavorite = (id: string, title?: string) => {
+  // --- ACTIONS & MUTATORS ---
+  const toggleFavorite = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (favorites.includes(id)) {
       setFavorites(prev => prev.filter(x => x !== id));
-      showToast(`Removido da Minha Lista`, 'info');
+      showToast('Item removido da sua lista!', 'info');
     } else {
       setFavorites(prev => [...prev, id]);
-      showToast(`Adicionado à Minha Lista ❤️`, 'success');
+      showToast('Item adicionado à sua lista Netflix! ❤️', 'success');
     }
   };
 
-  const triggerSearchAndFilters = (item: NetflixAsset) => {
-    const matchSearch = searchQuery.trim() === '' || 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      item.subcategory.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchBelt = selectedBeltFilter === 'ALL' || item.category === selectedBeltFilter;
-    const matchSub = selectedSubcategoryFilter === 'ALL' || item.subcategory === selectedSubcategoryFilter;
-
-    return matchSearch && matchBelt && matchSub;
-  };
-
-  // Open asset media player overlays
-  const handleOpenMedia = (asset: NetflixAsset) => {
-    setActiveMedia(asset);
-    setIsSimulatingPlay(false);
-    setSimulatedMediaProgress(progress[asset.id] || 0);
-    setActiveQuizIdx(0);
-    setQuizAnswers({});
-    setIsQuizFinished(false);
-    setActiveTechniqueStep(0);
-    setSpeechAccuracy(null);
-    setIsRecording(false);
-
-    // Save history
-    const alreadyLoggedExist = watchHistory.some(x => x.id === asset.id);
-    if (!alreadyLoggedExist) {
-      setWatchHistory(prev => [
-        { id: asset.id, title: asset.title, date: new Date().toLocaleString(), type: asset.type },
-        ...prev.slice(0, 19)
-      ]);
-    }
-  };
-
-  // Simulated completions with rewards
-  const handleCompleteActiveAsset = () => {
-    if (!activeMedia) return;
-    setIsSimulatingPlay(false);
-    updateAssetProgress(activeMedia.id, 100);
+  const handleOpenAsset = (asset: NetflixAsset) => {
+    setActivePlayAsset(asset);
+    setMediaTab('play');
+    setIsPlayingMedia(false);
+    setMediaPlaybackProgress(assetProgress[asset.id] || 0);
     
-    // Reward XP + Coins
-    const rewardXP = activeMedia.xpReward;
-    const rewardCoins = Math.round(rewardXP / 2);
+    // Reset quiz options
+    setCurrentQuizIndex(0);
+    setQuizSelectedOption(null);
+    setQuizScore(0);
+    setQuizFinished(false);
+
+    // Reset exercises
+    setExerciseSelectedAnswer(null);
+    setExerciseSolved(false);
+
+    // Reset voice
+    setIsRecordingVoice(false);
+    setVoiceAccuracyPercent(null);
+  };
+
+  const handleCompleteAsset = (id: string, rewardXP: number) => {
+    setAssetProgress(prev => ({ ...prev, [id]: 100 }));
     
-    addXp(rewardXP, `Conclusão do Conteúdo: ${activeMedia.title}`);
-    addCoins(rewardCoins, `Moedas de Estudo: ${activeMedia.title}`);
-    onAddAuditLog('module_completed', `Atleta concluiu o módulo de estudo "${activeMedia.title}"`, undefined, rewardCoins);
-
-    showToast(`Parabéns! Você concluiu "${activeMedia.title}"! (+${rewardXP} XP e +${rewardCoins} KC)`, 'success');
-  };
-
-  // Trigger simulated offline download
-  const handleTriggerDownload = (e: React.MouseEvent, assetId: string) => {
-    e.stopPropagation();
-    if (downloaded.includes(assetId)) {
-      setDownloaded(prev => prev.filter(x => x !== assetId));
-      showToast(`Download excluído do dispositivo`, 'info');
-      return;
-    }
-
-    setDownloadingAssetId(assetId);
-    setDownloadProgress(0);
-
-    const interval = setInterval(() => {
-      setDownloadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setDownloaded(p => [...p, assetId]);
-          setDownloadingAssetId(null);
-          showToast(`Download de Módulo concluído!`, 'success');
-          return 100;
-        }
-        return prev + 20; // 20% steps
-      });
-    }, 300);
-  };
-
-  // Text-To-Speech Synthesis
-  const speakCommandPhrase = (phrase: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(phrase);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.8;
-      window.speechSynthesis.speak(utterance);
-      showToast(`Fonoaudiologia: Reproduzindo pronúncia oficial...`, 'info');
-    } else {
-      showToast(`Síntese vocal de comandos de inglês não disponível no navegador`, 'error');
+    // Check if progress already finished previously
+    if (assetProgress[id] !== 100) {
+      const rewardCoins = Math.round(rewardXP / 3);
+      addXp(rewardXP, `Conclusão de Módulo: ${id}`);
+      addCoins(rewardCoins, `Estudo do Tatame`);
+      onAddAuditLog('lesson_completed', `Atleta concluiu com destaque o módulo de estudo ${id}`, undefined, rewardCoins);
+      showToast(`Módulo Concluído! +${rewardXP} XP e +${rewardCoins} Kimono Coins acumulados!`, 'success');
     }
   };
 
-  // Voice recording simulation
-  const handleTriggerSpeakDrill = (phrase: string) => {
-    setIsRecording(true);
-    setSpeechAccuracy(null);
-    showToast(`Pronuncie em voz alta para avaliação automática...`, 'info');
+  const handleStartSimulatedRecording = () => {
+    setIsRecordingVoice(true);
+    setVoiceAccuracyPercent(null);
+    showToast('🔴 Gravando áudio vocal... Pronuncie agora!', 'info');
 
     setTimeout(() => {
-      const randomAcc = Math.floor(Math.random() * 21) + 80; // 80 - 100% accuracy
-      setSpeechAccuracy(randomAcc);
-      setIsRecording(false);
-      showToast(`Gravação processada! Precisão de pronúncia: ${randomAcc}%`, 'success');
+      const accuracy = Math.floor(Math.random() * 16) + 85; // 85% - 100%
+      setVoiceAccuracyPercent(accuracy);
+      setIsRecordingVoice(false);
+      
+      const coinsGift = Math.floor(accuracy / 3);
+      addXp(50, 'Treino de Pronúncia Técnica');
+      addCoins(coinsGift, 'Pronúncia Fluida');
+      
+      if (accuracy >= 90) {
+        showToast(`Excelente pronúncia! Precisão Técnica: ${accuracy}% (+50 XP).`, 'success');
+      } else {
+        showToast(`Boa tentativa! Precisão Técnica: ${accuracy}%. Tente espremer os fonemas mais forte.`, 'info');
+      }
     }, 2000);
   };
 
-  // Claim belt certificate if they achieved 100% progress
-  const handleClaimCertificate = (belt: BeltRank) => {
-    // Check if certificate already claimed
-    const alreadyHas = certificates.some(x => x.belt === belt);
-    if (alreadyHas) {
-      showToast(`Você já possui este certificado de Faixa ${belt} emitido!`, 'info');
-      return;
+  const speakTextToSpeech = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.85;
+      window.speechSynthesis.speak(utterance);
+      showToast('🔊 Reproduzindo som nativo americano...', 'info');
+    } else {
+      showToast('A síntese vocal por voz não é suportada neste browser.', 'error');
     }
-
-    // Verify progress of that belt
-    const beltAssets = NETFLIX_ASSETS.filter(x => x.category === belt);
-    const completedCount = beltAssets.filter(x => progress[x.id] === 100).length;
-    
-    // Allow override / flexible claim for gamification so they can play with it
-    const isEligible = completedCount > 0 || belt === 'Branca';
-
-    if (!isEligible) {
-      showToast(`Estude mais módulos da Faixa ${belt} para poder emitir sua licença de formação técnica!`, 'error');
-      return;
-    }
-
-    const newCert = {
-      id: `cert-${belt.toLowerCase()}-${Math.floor(Math.random()*90000) + 10000}`,
-      belt,
-      date: new Date().toLocaleDateString()
-    };
-
-    setCertificates(prev => [...prev, newCert]);
-    addXp(300, `Geração de Certificado: Faixa ${belt}`);
-    showToast(`Parabéns! Certificado de Graduação Faixa ${belt} emitido oficialmente! 🏆`, 'success');
   };
 
-  // Compute Overall Progress
-  const totalAssetsCount = NETFLIX_ASSETS.length;
-  const completedAssetsCount = NETFLIX_ASSETS.filter(x => progress[x.id] === 100).length;
-  const cumulativeProgress = (Object.values(progress) as number[]).reduce((a, b) => a + b, 0);
-  const overallPerformance = totalAssetsCount > 0 ? Math.round(cumulativeProgress / totalAssetsCount) : 0;
+  const submitQuizAnswer = (correctIndex: number, selectedIndex: number) => {
+    setQuizSelectedOption(selectedIndex);
+    const correct = selectedIndex === correctIndex;
+    if (correct) {
+      setQuizScore(prev => prev + 1);
+      showToast('Resposta Correta! Parabéns!', 'success');
+    } else {
+      showToast('Resposta Incorreta. Revise a explicação.', 'error');
+    }
+  };
 
-  // Filter items by active tab selection
+  const handleFinishQuiz = (totalQuestions: number, xpValue: number) => {
+    setQuizFinished(true);
+    const scorePct = Math.round((quizScore / totalQuestions) * 100);
+    
+    if (scorePct >= 70) {
+      addXp(xpValue, 'Quiz de Fixação Aprovado');
+      addCoins(30, 'Gabarito Técnico');
+      showToast(`Aprovado no Quiz! Score: ${scorePct}% (+${xpValue} XP)`, 'success');
+    } else {
+      showToast(`Quiz encerrado. Pontuação de ${scorePct}% insuficiente para premiação total. Tente de novo!`, 'info');
+    }
+  };
+
+  const submitExerciseAnswer = (correctIndex: number) => {
+    if (exerciseSelectedAnswer === null) return;
+    setExerciseSolved(true);
+    const correct = exerciseSelectedAnswer === correctIndex;
+    if (correct) {
+      addXp(60, 'Exercício Prático Concluído');
+      addCoins(15, 'Gramática Reorganizada');
+      showToast('Exercício Resolvido com Sucesso! (+60 XP)', 'success');
+    } else {
+      showToast('Ordem gramatical incorreta. Revise e experimente uma nova ordenação.', 'error');
+    }
+  };
+
+  // Claim Graduation Diploma Action
+  const handleClaimGraduation = (belt: BeltRank) => {
+    if (unlockedCertificates.includes(belt)) {
+      setViewingCertificateBelt(belt);
+      return;
+    }
+
+    const progressPercent = getBeltProgress(belt);
+    if (progressPercent < 100 && belt !== 'Branca') {
+      showToast(`Conclua 100% dos módulos da Faixa ${belt} para poder militar no exterior e gerar seu diploma!`, 'error');
+      return;
+    }
+
+    setUnlockedCertificates(prev => [...prev, belt]);
+    setViewingCertificateBelt(belt);
+    addXp(400, `Diploma Emitido: Faixa ${belt}`);
+    addCoins(200, `Licenciamento Internacional`);
+    onAddAuditLog('pix_deposit', `Geração de Credencial Técnica da Graduação Faixa ${belt}`, undefined, 200);
+    showToast(`Parabéns! Diploma Oficial de Faixa ${belt} emitido e homologado via Blockchain! 🏆`, 'success');
+  };
+
+  // --- STATS CALCULATIONS ---
+  const getBeltProgress = (belt: BeltRank): number => {
+    const beltAssets = NETFLIX_ASSETS.filter(x => x.category === belt);
+    if (beltAssets.length === 0) return 0;
+    const completedCount = beltAssets.filter(x => assetProgress[x.id] === 100).length;
+    return Math.round((completedCount / beltAssets.length) * 100);
+  };
+
+  const totalProgress = Math.round(
+    (Object.values(assetProgress).filter(v => v === 100).length / NETFLIX_ASSETS.length) * 100
+  ) || 12;
+
   const getFilteredAssets = () => {
-    return NETFLIX_ASSETS.filter(item => {
-      // Tab filter
-      if (activeTab === 'courses' && item.type !== 'course') return false;
-      if (activeTab === 'videos' && item.type !== 'video') return false;
-      if (activeTab === 'pdfs' && item.type !== 'pdf') return false;
-      if (activeTab === 'audios' && item.type !== 'audio' && item.type !== 'technique') return false;
-      
-      // Search / Selectors filters
-      return triggerSearchAndFilters(item);
+    return NETFLIX_ASSETS.filter(asset => {
+      const matchBelt = selectedBelt === 'ALL' || asset.category === selectedBelt;
+      const matchType = selectedType === 'ALL' || asset.type === selectedType;
+      const matchSearch = searchQuery.trim() === '' || 
+        asset.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        asset.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        asset.subcategory.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchBelt && matchType && matchSearch;
     });
   };
 
-  // Continue Studying calculations
-  const continueWatchingItems = NETFLIX_ASSETS.filter(item => {
-    const val = progress[item.id] || 0;
-    return val > 0 && val < 100;
-  });
-
-  // Favorites items list
-  const favoritedList = NETFLIX_ASSETS.filter(item => favorites.includes(item.id));
+  const formatStudyTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}h ${m}m`;
+  };
 
   return (
-    <div className="bg-[#141414] text-slate-100 min-h-screen p-1 sm:p-6 pb-20 space-y-6 select-none relative font-sans" id="netflix-bjj-root">
+    <div className="bg-[#111111] text-zinc-100 min-h-screen p-4 sm:p-6 pb-24 space-y-6 select-none relative font-sans" id="netflix-lessons-core">
       
-      {/* 1. UPPER NETFLIX NAVIGATION BAR & ADVANCED SEARCH GRID */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#181818] p-4 rounded-2xl border border-neutral-800 shadow-xl">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-lg text-white shadow-md animate-pulse">
-            🥋
+      {/* 1. BRAND HEADER BLOCK */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#161616] p-5 rounded-2xl border border-zinc-850 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-red-650 flex items-center justify-center font-display font-black text-xl text-white shadow-xl rotate-[-3deg]">
+            N
           </div>
           <div>
-            <h2 className="font-display font-extrabold text-base tracking-wider text-rose-500 uppercase">JiuSpeak Premium</h2>
-            <p className="text-[10px] text-zinc-400 font-mono">Netflix do Jiu-Jitsu & Conversação Inglesa</p>
+            <div className="flex items-center gap-2">
+              <h2 className="font-display font-extrabold text-sm tracking-wider uppercase text-red-600">JiuSpeak Cinema & Academy</h2>
+              <span className="p-0.5 px-2 bg-red-600/10 border border-red-650/30 rounded font-mono text-[9px] font-black text-red-500 uppercase tracking-widest animate-pulse">Enterprise</span>
+            </div>
+            <p className="text-[10px] text-zinc-500 font-mono">Dedicado: {user.name} • Graduação Atual: Faixa {user.belt}</p>
           </div>
         </div>
 
-        {/* Tab switcher buttons structured like categories */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button 
-            onClick={() => { setActiveTab('home'); }}
-            className={`p-1.5 px-3 rounded-lg text-xs font-bold font-sans tracking-wide transition-all ${activeTab === 'home' ? 'bg-red-600 text-white shadow-lg' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-          >
-            Início
-          </button>
-          <button 
-            onClick={() => { setActiveTab('courses'); }}
-            className={`p-1.5 px-3 rounded-lg text-xs font-bold font-sans tracking-wide transition-all ${activeTab === 'courses' ? 'bg-red-600 text-white shadow-lg' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-          >
-            📚 Cursos
-          </button>
-          <button 
-            onClick={() => { setActiveTab('videos'); }}
-            className={`p-1.5 px-3 rounded-lg text-xs font-bold font-sans tracking-wide transition-all ${activeTab === 'videos' ? 'bg-red-600 text-white shadow-lg' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-          >
-            🎥 Vídeos
-          </button>
-          <button 
-            onClick={() => { setActiveTab('pdfs'); }}
-            className={`p-1.5 px-3 rounded-lg text-xs font-bold font-sans tracking-wide transition-all ${activeTab === 'pdfs' ? 'bg-red-600 text-white shadow-lg' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-          >
-            📄 PDFs
-          </button>
-          <button 
-            onClick={() => { setActiveTab('audios'); }}
-            className={`p-1.5 px-3 rounded-lg text-xs font-bold font-sans tracking-wide transition-all ${activeTab === 'audios' ? 'bg-red-600 text-white shadow-lg' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-          >
-            🎧 Áudios & Técnicas
-          </button>
-          <button 
-            onClick={() => { setActiveTab('certificates'); }}
-            className={`p-1.5 px-3 rounded-lg text-xs font-bold font-sans tracking-wide transition-all ${activeTab === 'certificates' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-          >
-            🏆 Certificados
-          </button>
+        {/* Global summary card stats */}
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <div className="p-2 px-3 bg-zinc-900 border border-zinc-800 rounded-xl space-y-0.5">
+            <p className="text-[8px] text-zinc-500 uppercase font-mono">Tempo de Estudo</p>
+            <p className="font-black text-white font-mono flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-red-500" />
+              <span>{formatStudyTime(studySeconds)}</span>
+            </p>
+          </div>
+          <div className="p-2 px-3 bg-zinc-900 border border-zinc-800 rounded-xl space-y-0.5">
+            <p className="text-[8px] text-zinc-500 uppercase font-mono">Progresso On-Demand</p>
+            <p className="font-black text-emerald-400 font-mono flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              <span>{totalProgress}%</span>
+            </p>
+          </div>
+          <div className="p-2 px-3 bg-zinc-900 border border-zinc-800 rounded-xl space-y-0.5">
+            <p className="text-[8px] text-zinc-500 uppercase font-mono">XP de Aulas</p>
+            <p className="font-black text-amber-500 font-mono flex items-center gap-1.5">
+              <Trophy className="w-3 h-3 text-amber-500 animate-bounce" />
+              <span>{user.xp} XP</span>
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* 2. ADVANCED FILTERS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#181818] p-3 rounded-xl border border-neutral-850">
+      {/* 2. CINEMATIC HEADLINE HERO BANNER */}
+      {searchQuery === '' && selectedBelt === 'ALL' && (
+        <div className="relative rounded-2xl overflow-hidden h-[300px] sm:h-[420px] border border-zinc-850 shadow-2xl group transition-all duration-300 hover:border-red-600/30">
+          
+          {/* Wallpaper dynamic visual gradient vignette */}
+          <div 
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 scale-102 group-hover:scale-105"
+            style={{ 
+              backgroundImage: `linear-gradient(to top, rgba(17,17,17,1) 0%, rgba(17,17,17,0.6) 50%, rgba(17,17,17,0.1) 100%), url('https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=1200')` 
+            }}
+          />
+
+          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-10 space-y-3 z-10 max-w-3xl">
+            <div className="flex items-center gap-2">
+              <span className="p-0.5 px-2 bg-red-600 text-white font-sans text-[8.5px] font-black rounded tracking-widest uppercase">
+                Em Destaque
+              </span>
+              <span className="p-0.5 px-2 bg-zinc-950 border border-zinc-850 text-amber-500 text-[8.5px] font-black rounded tracking-widest uppercase flex items-center gap-1">
+                <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                Faixa Preta Masterclass
+              </span>
+            </div>
+
+            <h1 className="text-xl sm:text-4xl font-display font-black text-white tracking-tight leading-none text-glow">
+              Como Conduzir Seminários Lucrativos com Oratória Técnica Americana
+            </h1>
+
+            <p className="text-xs sm:text-sm text-zinc-300 font-sans leading-relaxed line-clamp-3">
+              Não seja apenas um lutador excelente; aprenda a se expressar como um palestrante pedagógico internacional. Domine o vocabulário de posicionamento físico, comandos coletivos e como responder dúvidas técnicas com o prestígio acadêmico Gracie no exterior.
+            </p>
+
+            {/* Banner action buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button 
+                onClick={() => handleOpenAsset(NETFLIX_ASSETS.find(x => x.id === 'k-vid-1') || NETFLIX_ASSETS[0])}
+                className="p-2.5 px-6 bg-white hover:bg-zinc-200 text-black text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg cursor-pointer transform hover:scale-103 font-sans"
+              >
+                <Play className="w-3.5 h-3.5 fill-black text-black" /> Começar Assistir
+              </button>
+
+              <button 
+                onClick={() => toggleFavorite('k-vid-1')}
+                className="p-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-semibold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+              >
+                {favorites.includes('k-vid-1') ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Star className="w-3.5 h-3.5 text-zinc-400" />}
+                <span>Minha Lista</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. BELTS HUB SELECTION ROADBLOCK (THE 5 BELTS CAROUSEL GAUGE) */}
+      <div className="space-y-3">
+        <h3 className="font-display font-bold text-xs tracking-widest text-zinc-400 uppercase">
+          Filtragem por Faixas & Graduações de Formação
+        </h3>
+
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          {/* Universal tag */}
+          <button
+            onClick={() => setSelectedBelt('ALL')}
+            className={`p-3 rounded-xl border transition-all text-xs text-left flex flex-col justify-between h-20 cursor-pointer ${
+              selectedBelt === 'ALL' 
+                ? 'bg-zinc-900 border-red-650 shadow-md text-white' 
+                : 'bg-zinc-950 border-zinc-850 text-zinc-400 hover:border-zinc-700'
+            }`}
+          >
+            <span className="text-[8.5px] uppercase font-mono tracking-wider text-zinc-500">Geral</span>
+            <span className="font-bold text-sm">Todas as Faixas</span>
+            <div className="flex items-center justify-between w-full text-[9px] text-zinc-500 font-mono pt-1">
+              <span>Syllabus Completo</span>
+              <span>100%</span>
+            </div>
+          </button>
+
+          {/* Render 5 interactive Belt selections mapping exactly */}
+          {(['Branca', 'Azul', 'Roxa', 'Marrom', 'Preto'] as BeltRank[]).map(belt => {
+            const progressVal = getBeltProgress(belt);
+            const isCompleted = progressVal === 100;
+            const certUnlocked = unlockedCertificates.includes(belt);
+
+            // Style variations
+            const colorMap: Record<string, { ring: string, bar: string, text: string }> = {
+              'Branca': { ring: 'border-zinc-300', bar: 'bg-zinc-200', text: 'text-zinc-200' },
+              'Azul': { ring: 'border-blue-600', bar: 'bg-blue-600', text: 'text-blue-500' },
+              'Roxa': { ring: 'border-purple-650', bar: 'bg-purple-600', text: 'text-purple-500' },
+              'Marrom': { ring: 'border-amber-800', bar: 'bg-amber-800', text: 'text-amber-700' },
+              'Preto': { ring: 'border-stone-850', bar: 'bg-red-650', text: 'text-red-500' },
+            };
+
+            const styles = colorMap[belt];
+
+            return (
+              <div
+                key={belt}
+                onClick={() => setSelectedBelt(belt)}
+                className={`p-2.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between h-24 hover:scale-102 ${
+                  selectedBelt === belt 
+                    ? 'bg-zinc-900 border-red-600 text-white shadow-xl scale-102' 
+                    : 'bg-zinc-950 border-zinc-850 text-zinc-300 hover:border-zinc-700'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <span className={`text-[8.5px] uppercase font-black px-1.5 py-0.5 rounded ${styles.bar} text-zinc-950 font-mono`}>
+                    Faixa {belt}
+                  </span>
+                  {certUnlocked && (
+                    <Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[9px] font-mono text-zinc-450">
+                    <span>Progresso:</span>
+                    <span className="font-bold">{progressVal}%</span>
+                  </div>
+                  {/* Miniature progress bar */}
+                  <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden border border-zinc-850">
+                    <div 
+                      className={`h-full transition-all duration-500 ${styles.bar}`}
+                      style={{ width: `${progressVal}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Claim Certificate trigger inside Belt button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClaimGraduation(belt);
+                  }}
+                  className={`w-full text-center text-[8.5px] font-black uppercase text-zinc-400 py-0.5 rounded transition bg-zinc-950/80 border hover:bg-red-600 hover:text-white border-zinc-850`}
+                >
+                  {certUnlocked ? '📜 Ver Certificado' : progressVal >= 100 || belt === 'Branca' ? '🏆 Emitir Diploma' : '🔒 Bloqueado'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. TECHNICAL OUTLET FILTER BAR */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-[#161616] p-3 rounded-xl border border-zinc-850 text-xs">
         {/* Term search input */}
-        <div className="relative">
+        <div className="relative md:col-span-2">
           <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
           <input 
             type="text" 
-            placeholder="Busca por termo técnica ou lição..." 
+            placeholder="Encontre termos do tatame, posições ou regras americanas..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-neutral-950 border border-neutral-800 p-2 pl-9 rounded-lg text-xs text-zinc-200 outline-none focus:border-red-500 font-mono transition-all"
+            className="w-full bg-zinc-950 border border-zinc-800 p-2 pl-9 rounded-lg text-xs text-zinc-200 outline-none focus:border-red-500 font-mono transition-all"
           />
         </div>
 
-        {/* Belt filter dropdown */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-zinc-400 font-bold uppercase hidden xl:inline">Categoria:</span>
-          <select 
-            value={selectedBeltFilter}
-            onChange={(e) => setSelectedBeltFilter(e.target.value as any)}
-            className="flex-1 bg-neutral-950 border border-neutral-800 p-2 rounded-lg text-xs text-zinc-300 cursor-pointer focus:outline-none"
-          >
-            <option value="ALL">🥋 Todas as Faixas (Graduações)</option>
-            <option value="Branca">Faixa Branca (White Belt)</option>
-            <option value="Azul">Faixa Azul (Blue Belt)</option>
-            <option value="Roxa">Faixa Roxa (Purple Belt)</option>
-            <option value="Marrom">Faixa Marrom (Brown Belt)</option>
-            <option value="Preto">Faixa Preta (Black Belt)</option>
-          </select>
-        </div>
-
-        {/* Subcategories technical options */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-zinc-400 font-bold uppercase hidden xl:inline">Subgênero:</span>
-          <select 
-            value={selectedSubcategoryFilter}
-            onChange={(e) => setSelectedSubcategoryFilter(e.target.value)}
-            className="flex-1 bg-neutral-950 border border-neutral-800 p-2 rounded-lg text-xs text-zinc-300 cursor-pointer focus:outline-none"
-          >
-            <option value="ALL">🥋 Todas as Posições & Técnicas</option>
-            <option value="Posições">Posições</option>
-            <option value="Passagens">Passagens</option>
-            <option value="Raspagens">Raspagens</option>
-            <option value="Finalizações">Finalizações</option>
-            <option value="Defesa Pessoal">Defesa Pessoal</option>
-            <option value="Competições">Competições</option>
-            <option value="Arbitragem">Arbitragem</option>
-            <option value="Inglês Técnico">Inglês Técnico</option>
-            <option value="Conversação">Conversação</option>
-          </select>
+        {/* Content type tag filters */}
+        <div className="flex items-center gap-1 bg-zinc-950 p-1 border border-zinc-800 rounded-lg md:col-span-2 overflow-x-auto">
+          {([
+            { id: 'ALL', label: 'Todos' },
+            { id: 'video', label: '🎥 Vídeos' },
+            { id: 'audio', label: '🎧 Áudios' },
+            { id: 'pdf', label: '📄 PDFs' },
+            { id: 'quiz', label: '❓ Quizzes' },
+            { id: 'exercise', label: '🏋️ Exercícios' }
+          ] as const).map(type => (
+            <button
+              key={type.id}
+              onClick={() => setSelectedType(type.id)}
+              className={`p-1 px-2.5 rounded text-[10px] font-bold shrink-0 transition-all cursor-pointer ${
+                selectedType === type.id 
+                  ? 'bg-red-650 text-white' 
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {type.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 3. PERFORMANCE / STUDY METRICS DASHBOARD CARD */}
-      <div className="bg-gradient-to-r from-red-950/40 via-neutral-900 to-amber-950/15 p-4 rounded-xl border border-neutral-850 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xl">
-        <div className="space-y-1.5 flex-1">
-          <div className="flex items-center gap-2">
-            <h4 className="font-display font-medium text-xs tracking-wider text-rose-500 uppercase">Estatísticas Reais de Formação</h4>
-            <span className="p-0.5 px-2 bg-rose-600/10 border border-rose-500/30 rounded text-[9px] uppercase tracking-widest text-rose-450 font-bold animate-pulse">Live</span>
-          </div>
+      {/* 5. THE NETFLIX SHELF LINES ("PRATELEIRAS") */}
+      <div className="space-y-8">
+        
+        {/* ROW 1: CONTINUAR ASSISTINDO */}
+        {Object.keys(assetProgress).some(id => assetProgress[id] > 0 && assetProgress[id] < 100) && (
+          <div className="space-y-3">
+            <h3 className="font-display font-black text-sm tracking-widest text-zinc-250 flex items-center gap-2 uppercase">
+              <Clock className="w-4 h-4 text-red-500 animate-pulse" />
+              <span>Continuar Assistindo / Estudando</span>
+            </h3>
 
-          {/* Cumulative Progress bar indicator */}
-          <div className="space-y-1">
-            <div className="flex justify-between items-center text-[10px] text-zinc-400 font-mono">
-              <span>PROGRESSO TOTAL DA PLATAFORMA:</span>
-              <span className="font-bold text-rose-500">{overallPerformance}%</span>
-            </div>
-            <div className="w-full bg-neutral-950 h-2 rounded-full overflow-hidden border border-neutral-800">
-              <div 
-                className="h-2 bg-gradient-to-r from-red-600 to-amber-500 rounded-full transition-all duration-500" 
-                style={{ width: `${overallPerformance}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Quantify metrics widgets */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 text-center shrink-0 w-full md:w-auto">
-          <div className="bg-neutral-950/80 p-2.5 px-4 rounded-xl border border-neutral-800 gap-1 flex flex-col items-center">
-            <Clock className="w-4 h-4 text-red-500" />
-            <span className="text-xs text-zinc-400 font-sans uppercase text-[10px]">Tempo de Estudo</span>
-            <span className="text-sm font-bold text-white font-mono mt-0.5">{formatStudyTime(studyTime)}</span>
-          </div>
-
-          <div className="bg-neutral-950/80 p-2.5 px-4 rounded-xl border border-neutral-800 gap-1 flex flex-col items-center">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs text-zinc-400 font-sans uppercase text-[10px]">Módulos Salvos</span>
-            <span className="text-sm font-bold text-white font-mono mt-0.5">{completedAssetsCount} concluídos</span>
-          </div>
-
-          <div className="bg-neutral-950/80 p-2.5 px-4 rounded-xl border border-neutral-800 gap-1 flex flex-col items-center col-span-2 lg:col-span-1">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span className="text-xs text-zinc-400 font-sans uppercase text-[10px]">Diplomas Habilitados</span>
-            <span className="text-sm font-bold text-white font-mono mt-0.5">{certificates.length} obtidos</span>
-          </div>
-        </div>
-      </div>
-
-      {activeTab !== 'certificates' && (
-        <>
-          {/* 4. METEORIC CINEMATIC HERO BANNER (ONLY DISPLAY AT HOMEPAGE WITH NO SELECTIONS) */}
-          {searchQuery === '' && selectedBeltFilter === 'ALL' && selectedSubcategoryFilter === 'ALL' && activeTab === 'home' && (
-            <div className="relative rounded-2xl overflow-hidden h-[300px] sm:h-[400px] border border-neutral-800 shadow-2xl group transition-all duration-500 hover:border-red-650">
-              
-              {/* Wallpaper image with deep cinematic shadow vignette */}
-              <div 
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 scale-102 group-hover:scale-105"
-                style={{ 
-                  backgroundImage: `linear-gradient(to top, rgba(20,20,20,1) 0%, rgba(20,20,20,0.5) 40%, rgba(20,20,20,0.2) 100%), url('https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=1200')` 
-                }}
-              />
-
-              {/* Title & metadata content */}
-              <div className="absolute inset-x-0 bottom-0 p-4 sm:p-8 space-y-3 z-10">
-                <div className="flex items-center gap-2">
-                  <span className="p-0.5 px-2 bg-red-600 font-sans text-[9px] uppercase tracking-widest text-white font-black rounded">
-                    CINEMATIC EXCLUSIVO
-                  </span>
-                  <span className="p-0.5 px-2 bg-neutral-900 border border-neutral-800 text-amber-400 text-[9px] uppercase font-bold font-mono rounded">
-                    🎓 Faixa Preta MASTERCLASS
-                  </span>
-                </div>
-
-                <h1 className="text-xl sm:text-4xl font-display font-extrabold text-white tracking-tight max-w-2xl leading-none">
-                  Ministrando Seminários Internacionais no Exterior
-                </h1>
-
-                <p className="text-xs text-zinc-300 max-w-xl font-sans leading-relaxed line-clamp-3">
-                  Aprenda as fórmulas linguísticas exatas usadas pelos grandes campeões da família Gracie para dar seminários lotados nos EUA e Europa. Inclui simulações de perguntas de alunos com áudio vocal.
-                </p>
-
-                {/* Control Action Buttons */}
-                <div className="flex items-center gap-3 pt-2">
-                  <button 
-                    onClick={() => handleOpenMedia(NETFLIX_ASSETS[0])}
-                    className="p-2 px-6 bg-white hover:bg-neutral-200 text-black text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg hover:scale-103 cursor-pointer"
-                  >
-                    <Play className="w-4 h-4 fill-black text-black" /> Começar Assistir
-                  </button>
-
-                  <button 
-                    onClick={() => toggleFavorite(NETFLIX_ASSETS[0].id)}
-                    className="p-2 px-4 bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-800 text-zinc-200 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    {favorites.includes(NETFLIX_ASSETS[0].id) ? <Check className="w-4 h-4 text-emerald-400" /> : <Plus className="w-4 h-4" />}
-                    {favorites.includes(NETFLIX_ASSETS[0].id) ? 'Na Minha Lista' : 'Minha Lista'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 5. DYNAMIC INTERACTIVE CAROUSEL SHELVES */}
-          <div className="space-y-8">
-            
-            {/* SHELF 1: CONTINUAR ASSISTINDO (Only displayed if item in progress exists) */}
-            {continueWatchingItems.length > 0 && activeTab === 'home' && searchQuery === '' && (
-              <div className="space-y-3">
-                <h3 className="font-display font-bold text-sm tracking-wide text-zinc-300 flex items-center gap-1.5 uppercase pl-1">
-                  <Clock className="w-4 h-4 text-rose-500" />
-                  <span>Continuar Assistindo</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {continueWatchingItems.map(item => (
-                    <NetflixCard 
-                      key={item.id} 
-                      asset={item} 
-                      onSelect={handleOpenMedia} 
-                      favorites={favorites} 
-                      onToggleFavorite={toggleFavorite}
-                      progressVal={progress[item.id] || 0}
-                      downloaded={downloaded.includes(item.id)}
-                      onDownload={handleTriggerDownload}
-                      downloadingAssetId={downloadingAssetId}
-                      downloadProgress={downloadProgress}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* SHELF 2: MINHA LISTA / FAVORITOS (If favorites exists) */}
-            {favoritedList.length > 0 && activeTab === 'home' && searchQuery === '' && (
-              <div className="space-y-3">
-                <h3 className="font-display font-bold text-sm tracking-wide text-zinc-300 flex items-center gap-1.5 uppercase pl-1">
-                  <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-                  <span>Minha Lista de Estudos</span>
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {favoritedList.map(item => (
-                    <NetflixCard 
-                      key={item.id} 
-                      asset={item} 
-                      onSelect={handleOpenMedia} 
-                      favorites={favorites} 
-                      onToggleFavorite={toggleFavorite}
-                      progressVal={progress[item.id] || 0}
-                      downloaded={downloaded.includes(item.id)}
-                      onDownload={handleTriggerDownload}
-                      downloadingAssetId={downloadingAssetId}
-                      downloadProgress={downloadProgress}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* SHELF 3: LIVRO DIDÁTICO TRADICIONAL JIUSPEAK (Our preserved content) */}
-            {searchQuery === '' && activeTab === 'home' && (
-              <div className="space-y-4 bg-gradient-to-r from-neutral-900 via-neutral-950 to-neutral-900 p-4 rounded-xl border border-neutral-850">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h3 className="font-display font-bold text-sm tracking-wide text-neutral-200 flex items-center gap-1.5 uppercase">
-                      <BookOpen className="w-4 h-4 text-rose-500" />
-                      <span>Livro Didático Interativo Gramatical (Playbook)</span>
-                    </h3>
-                    <p className="text-[10px] text-zinc-400">Consulte a clássica grade curricular integrada com dezenas de exercícios práticos de fala, escuta e tradução.</p>
-                  </div>
-                  
-                  {/* Action core to boot legacy modules */}
-                  <button
-                    onClick={() => {
-                      setActiveSyllabus(PLAYBOOK_DATA[0]);
-                      setActivePlaybookLessonIdx(0);
-                      setActivePlaybookStep('study');
-                      setIsSyllabusModalOpen(true);
-                      showToast(`Iniciando Livro Didático Interativo!`, 'info');
-                    }}
-                    className="p-1 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer shadow flex items-center gap-1"
-                  >
-                    Abrir Playbook completo <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
-                  {PLAYBOOK_DATA.map((syl, sIdx) => {
-                    const beltColors: Record<string, string> = {
-                      'Branca': 'bg-white text-slate-900 border-zinc-300',
-                      'Azul': 'bg-blue-600 text-white border-blue-500',
-                      'Roxa': 'bg-purple-600 text-white border-purple-500',
-                      'Marrom': 'bg-amber-800 text-white border-amber-700',
-                      'Preto': 'bg-stone-900 text-rose-500 border-zinc-800'
-                    };
-                    return (
-                      <div 
-                        key={sIdx}
-                        onClick={() => {
-                          setActiveSyllabus(syl);
-                          setActivePlaybookLessonIdx(0);
-                          setActivePlaybookStep('study');
-                          setIsSyllabusModalOpen(true);
-                        }}
-                        className="bg-neutral-900 hover:bg-neutral-850 border border-neutral-800 p-3 rounded-xl cursor-pointer hover:border-rose-500 transition-all flex flex-col justify-between h-28 hover:scale-102"
-                      >
-                        <div>
-                          <span className={`p-0.5 px-2 rounded text-[8px] uppercase font-black ${beltColors[syl.belt] || 'bg-white'}`}>
-                            {syl.belt} BJJ
-                          </span>
-                          <h4 className="text-xs font-semibold text-white mt-2 leading-tight">
-                            {syl.title}
-                          </h4>
-                        </div>
-                        <p className="text-[9px] text-zinc-400 truncate mt-1">
-                          {syl.modules[0]?.title || 'Técnicas de Gramática'}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* MAIN CATALOG GRID: Displaying based on search & category filters */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
-                <h3 className="font-display font-black text-sm tracking-widest text-zinc-200 uppercase pl-1">
-                  {activeTab === 'home' ? 'Catálogo Geral Recomendado' : `Catálogo: ${activeTab.toUpperCase()}`}
-                </h3>
-                <span className="text-[10px] font-mono text-zinc-400">
-                  Total Encontrado: {getFilteredAssets().length} títulos
-                </span>
-              </div>
-
-              {getFilteredAssets().length === 0 ? (
-                <div className="p-12 text-center bg-neutral-900 rounded-xl border border-neutral-800 space-y-2">
-                  <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
-                  <p className="text-xs text-zinc-300">Nenhum título encontrado com os filtros e busca selecionados.</p>
-                  <button 
-                    onClick={() => { setSearchQuery(''); setSelectedBeltFilter('ALL'); setSelectedSubcategoryFilter('ALL'); }}
-                    className="p-1 px-3 bg-neutral-800 hover:bg-neutral-700 text-zinc-200 text-xs font-bold rounded"
-                  >
-                    Resetar Filtros
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {getFilteredAssets().map(item => (
-                    <NetflixCard 
-                      key={item.id} 
-                      asset={item} 
-                      onSelect={handleOpenMedia} 
-                      favorites={favorites} 
-                      onToggleFavorite={toggleFavorite}
-                      progressVal={progress[item.id] || 0}
-                      downloaded={downloaded.includes(item.id)}
-                      onDownload={handleTriggerDownload}
-                      downloadingAssetId={downloadingAssetId}
-                      downloadProgress={downloadProgress}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-        </>
-      )}
-
-      {/* 6. CERTIFICATES DASHBOARD BLOCK TAB */}
-      {activeTab === 'certificates' && (
-        <div className="space-y-6 animate-fadeIn">
-          <div className="bg-gradient-to-r from-amber-650/10 via-neutral-900 to-zinc-950 p-6 rounded-2xl border border-amber-500/20 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl text-amber-500">
-                🏆
-              </div>
-              <div>
-                <h3 className="font-display font-extrabold text-lg text-white">Licenciamento de Formação Unificada</h3>
-                <p className="text-xs text-zinc-400 font-sans">Ao concluir 100% dos estudos de qualquer faixa, você pode emitir e baixar o certificado oficial de conversatação JiuSpeak.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-4">
-              {(['Branca', 'Azul', 'Roxa', 'Marrom', 'Preto'] as BeltRank[]).map(belt => {
-                const isClaimed = certificates.some(c => c.belt === belt);
-                const beltAssets = NETFLIX_ASSETS.filter(x => x.category === belt);
-                const beltCompleted = beltAssets.length > 0 ? beltAssets.filter(x => progress[x.id] === 100).length : 0;
-                const isBeltFinished = beltCompleted === beltAssets.length && beltAssets.length > 0;
-                
-                // Allow claiming instantly for Branca as a starter gamified test
-                const canClaim = isBeltFinished || belt === 'Branca' || isClaimed;
-
-                return (
-                  <div key={belt} className={`p-4 rounded-xl border flex flex-col justify-between text-center gap-3 transition-all ${isClaimed ? 'bg-amber-950/20 border-amber-500/30' : 'bg-neutral-900 border-neutral-800'}`}>
-                    <div>
-                      <span className="p-0.5 px-2.5 rounded bg-zinc-950 text-zinc-300 text-[9px] uppercase font-bold tracking-wider relative inline-block">
-                        Faixa {belt}
-                      </span>
-                      <p className="text-[10px] text-zinc-400 mt-2 font-mono">Progresso da Faixa:</p>
-                      <span className="text-sm font-extrabold font-mono text-zinc-150 block">{beltCompleted}/{beltAssets.length} Aulas</span>
-                    </div>
-
-                    {isClaimed ? (
-                      <span className="p-1 px-3 bg-neutral-950 border border-amber-500/20 rounded-lg text-[10px] text-amber-500 font-bold block select-all">
-                        Emitido ✔ (Ver abaixo)
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleClaimCertificate(belt)}
-                        className={`p-1.5 w-full rounded lg text-[10px] font-extrabold uppercase transition-all tracking-wide cursor-pointer ${canClaim ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-zinc-850 hover:bg-zinc-800 text-zinc-500'}`}
-                      >
-                        Emitir Diploma
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Render Credentials List list */}
-          <div className="space-y-4">
-            <h4 className="font-display font-bold text-sm tracking-wide uppercase text-zinc-300 pl-1">
-              Certificados Ativos Solicitados
-            </h4>
-
-            {certificates.length === 0 ? (
-              <div className="p-12 text-center bg-neutral-900 rounded-xl border border-neutral-800 space-y-1">
-                <Trophy className="w-8 h-8 text-zinc-500 mx-auto" />
-                <p className="text-xs text-zinc-400">Você ainda não emitiu certificados de formação. Complete as aulas e clique em "Emitir Diploma" acima!</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {certificates.map(cert => (
-                  <div key={cert.id} className="bg-gradient-to-br from-amber-950/15 via-zinc-950 to-neutral-900 border-2 border-amber-500/20 rounded-2xl p-6 sm:p-10 text-center relative overflow-hidden shadow-2xl">
-                    
-                    {/* BJJ seal badge layout watermark */}
-                    <div className="absolute top-4 right-4 w-16 h-16 sm:w-28 sm:h-28 rounded-full border border-amber-500/10 flex items-center justify-center text-amber-500 text-4xl sm:text-6xl select-none opacity-25">
-                      🥋
-                    </div>
-
-                    <div className="max-w-2xl mx-auto space-y-6">
-                      <div className="space-y-1">
-                        <span className="text-[10px] tracking-widest font-mono text-amber-500 font-black uppercase">JIUSPEAK UNIVERSAL LANGUAGES SAAS CREDENTIAL</span>
-                        <h2 className="text-xl sm:text-3xl font-display font-extrabold text-white tracking-wide uppercase">CERTIFICADO DE CONCLUSÃO</h2>
-                      </div>
-
-                      <div className="space-y-1.5 py-4 border-y border-neutral-800 text-xs sm:text-sm font-sans max-w-lg mx-auto text-center font-medium leading-relaxed">
-                        <p className="text-zinc-400">Certificamos com absoluto louvor e conformidade de tatame que o atleta e guerreiro(a)</p>
-                        <p className="text-lg sm:text-xl font-bold font-display text-white italic underline decoration-amber-500 decoration-2">{user.name}</p>
-                        <p className="text-zinc-400">concluiu com êxito todas as lições, vídeos, diálogos de rádio e simulações com arbitragem internacional para a graduação de</p>
-                        <p className="font-extrabold text-amber-400 text-base sm:text-lg">FAIXA {cert.belt.toUpperCase()}</p>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-4 text-[10px] font-mono text-zinc-400">
-                        <div>
-                          <p className="text-zinc-500">CHAVE DO DIPLOMA:</p>
-                          <p className="text-zinc-300 font-bold uppercase">{cert.id}</p>
-                        </div>
-                        <div>
-                          <p className="text-zinc-500">DATA DE EMISSÃO:</p>
-                          <p className="text-zinc-300 font-bold">{cert.date}</p>
-                        </div>
-                        <div className="border-t border-dashed border-zinc-650 pt-2 w-32">
-                          <p className="text-zinc-300 text-[10px] font-bold">Roger Gracie</p>
-                          <p className="text-zinc-500 uppercase text-[8px]">Diretor de Arbitragem</p>
-                        </div>
-                      </div>
-
-                      <div className="pt-4 flex justify-center gap-2">
-                        <button
-                          onClick={() => {
-                            window.print();
-                          }}
-                          className="p-1 px-4 bg-amber-500 hover:bg-amber-400 text-slate-100 font-bold rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer hover:scale-103"
-                        >
-                          <Printer className="w-4 h-4" /> Imprimir / Salvar PDF
-                        </button>
-                      </div>
-
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* --- IMMERSIVE MEDIA CONTENT PLAYER PANEL MODAL --- */}
-      {activeMedia && (
-        <div className="fixed inset-0 bg-neutral-950/90 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-[#181818] border border-neutral-800 rounded-2xl max-w-4xl w-full text-zinc-100 overflow-hidden shadow-2xl relative my-8 animate-scaleUp">
-            
-            {/* Upper Action block buttons */}
-            <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-              <button 
-                onClick={() => toggleFavorite(activeMedia.id)}
-                className="p-2 rounded-full bg-neutral-900/80 hover:bg-neutral-800 text-zinc-200 border border-neutral-800 cursor-pointer"
-                title="Favoritar / Salvar"
-              >
-                <Heart className={`w-4 h-4 ${favorites.includes(activeMedia.id) ? 'fill-red-500 text-red-500' : ''}`} />
-              </button>
-              
-              <button 
-                onClick={() => { setActiveMedia(null); setIsSimulatingPlay(false); }}
-                className="p-2 rounded-full bg-neutral-900/80 hover:bg-neutral-800 text-zinc-200 border border-neutral-800 cursor-pointer font-bold text-xs flex items-center justify-center"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* A. PLATFORM BANNER HEADER PREVIEW */}
-            <div className="relative h-44 sm:h-60 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(to bottom, rgba(24,24,24,0) 20%, rgba(24,24,24,1) 100%), url('${activeMedia.imageUrl}')` }}>
-              <div className="absolute bottom-4 left-4 sm:left-6 space-y-1.5">
-                <span className="p-0.5 px-2 bg-red-650 text-[9px] uppercase tracking-widest text-white font-black rounded inline-block">
-                  {activeMedia.type.toUpperCase()}
-                </span>
-                <h3 className="text-lg sm:text-2xl font-display font-extrabold text-white tracking-tight leading-tight">{activeMedia.title}</h3>
-                <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
-                  <span>Faixa {activeMedia.category}</span>
-                  <span>•</span>
-                  <span>{activeMedia.subcategory}</span>
-                  <span>•</span>
-                  <span className="text-amber-400 font-semibold">{activeMedia.difficulty}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* B. DETAILED CONTROLLER PANEL BODY */}
-            <div className="p-4 sm:p-6 space-y-6">
-              
-              <p className="text-zinc-300 text-xs leading-relaxed font-sans">{activeMedia.description}</p>
-
-              {/* RENDER DYNAMIC COMPONENT BASED ON MEDIA TYPE */}
-
-              {/* VIDEO PLAYER COMPONENT */}
-              {activeMedia.type === 'video' && (
-                <div className="space-y-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                  <span className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-                    <Play className="w-3.5 h-3.5 fill-red-500 text-red-500" /> Player de Vídeo em Alta Definição
-                  </span>
-
-                  {/* HTML Video simulator tag */}
-                  <div className="relative rounded-lg overflow-hidden bg-zinc-900 border border-neutral-850 aspect-video max-h-72 mx-auto flex items-center justify-center">
-                    {isSimulatingPlay ? (
-                      <div className="absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center gap-2 text-center p-4">
-                        <Loader2 className="w-8 h-8 animate-spin text-red-600" />
-                        <p className="text-xs text-white font-mono">REPRODUZINDO VÍDEO TÉCNICO BJJ + INGLÊS...</p>
-                        <p className="text-[10px] text-zinc-400">Progresso do conteúdo: {simulatedMediaProgress}%</p>
-                        <p className="text-[9px] text-zinc-500">Estudar este vídeo acumula segundos de Tempo de Estudo síncronos.</p>
-                      </div>
-                    ) : (
-                      <div className="absolute inset-0 bg-neutral-900 flex flex-col items-center justify-center gap-3 text-center p-4">
-                        <button 
-                          onClick={() => setIsSimulatingPlay(true)}
-                          className="w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center transition-all shadow-lg active:scale-95 cursor-pointer"
-                        >
-                          <Play className="w-6 h-6 fill-white ml-0.5" />
-                        </button>
-                        <p className="text-xs text-zinc-300">Vídeo pronto para reprodução</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Video Control bar and quick completing trigger */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
-                    <div className="flex items-center gap-2 text-xs">
-                      <button 
-                        onClick={() => setIsSimulatingPlay(!isSimulatingPlay)}
-                        className="p-1.5 bg-neutral-900 hover:bg-neutral-800 rounded border border-neutral-800 text-zinc-200"
-                      >
-                        {isSimulatingPlay ? 'Pausar' : 'Reproduzir'}
-                      </button>
-                      <span className="text-[10px] text-zinc-400 font-mono">Duração: {activeMedia.duration}</span>
-                    </div>
-
-                    <button
-                      onClick={handleCompleteActiveAsset}
-                      className="p-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg cursor-pointer"
-                    >
-                      Completar Vídeo ✔ (+{activeMedia.xpReward} XP)
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* PDF READING COMPONENT */}
-              {activeMedia.type === 'pdf' && activeMedia.pdfLines && (
-                <div className="space-y-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                  <span className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-                    <FileText className="w-3.5 h-3.5 text-rose-500" /> Leitor Didático Avançado de Apostila (Document)
-                  </span>
-
-                  <div className="p-4 bg-white text-slate-800 rounded-lg min-h-48 font-serif leading-relaxed text-xs sm:text-sm shadow-inner space-y-3">
-                    <p className="font-bold underline text-[10px] text-zinc-500 font-mono">DIPLOMADO JIUSPEAK DIGITAL READER</p>
-                    {activeMedia.pdfLines.map((line, lIdx) => (
-                      <p key={lIdx} className="border-b border-zinc-100 pb-1.5 last:border-b-0">{line}</p>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[10px] text-zinc-400 font-mono">Documento Habilitado para Download local</span>
-                    <button
-                      onClick={handleCompleteActiveAsset}
-                      className="p-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg cursor-pointer"
-                    >
-                      Marcar Leitura como Concluída ✔ (+{activeMedia.xpReward} XP)
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* AUDIO PODCAST COMPONENT */}
-              {activeMedia.type === 'audio' && activeMedia.audioWords && (
-                <div className="space-y-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                  <span className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-                    <Volume2 className="w-3.5 h-3.5 text-blue-500" /> Podcast de Rádio e Fonoaudiologia Ativa
-                  </span>
-
-                  {/* Bouncing visual audio wave lines */}
-                  <div className="h-20 bg-neutral-900 rounded-lg border border-neutral-800 flex items-center justify-center gap-1 px-6">
-                    {[3, 8, 4, 9, 6, 2, 7, 5, 8, 3, 5, 2, 9, 7, 4, 8, 2, 6, 8, 3].map((height, hIdx) => (
-                      <div 
-                        key={hIdx} 
-                        className={`w-1 rounded bg-blue-500 transition-all duration-300 ${isRecording ? 'bg-red-500' : ''}`}
-                        style={{ height: isSimulatingPlay ? `${height * 6}px` : '10px' }}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {activeMedia.audioWords.map((wordObj, wIdx) => (
-                      <div key={wIdx} className="bg-neutral-900 p-2.5 rounded-lg border border-neutral-800 flex justify-between items-center">
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-blue-400">{wordObj.word}</p>
-                          <p className="text-[9px] text-zinc-400">{wordObj.translation}</p>
-                        </div>
-                        <button 
-                          onClick={() => speakCommandPhrase(wordObj.word)}
-                          className="p-1 bg-zinc-950 rounded border border-neutral-800 hover:bg-neutral-800 text-blue-400"
-                        >
-                          🗣️ Ouvir
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Mic speak record sandbox */}
-                  <div className="bg-neutral-900 p-3 rounded-lg border border-neutral-850 text-center space-y-2">
-                    <p className="text-[10px] text-zinc-400 font-mono">TESTE SEU MICROFONE: Pronuncie uma das expressões em inglês para aferição:</p>
-                    <div className="flex justify-center gap-3">
-                      <button
-                        onClick={() => handleTriggerSpeakDrill(activeMedia.audioWords?.[0].word || '')}
-                        disabled={isRecording}
-                        className={`p-1 px-4 rounded text-xs font-bold flex items-center gap-1.5 cursor-pointer ${isRecording ? 'bg-red-600 text-white animate-pulse' : 'bg-neutral-950 text-rose-500 hover:bg-neutral-800 border border-neutral-800'}`}
-                      >
-                        <Mic className="w-3.5 h-3.5" /> Falar agora
-                      </button>
-                    </div>
-
-                    {speechAccuracy !== null && (
-                      <div className="text-center font-mono text-xs">
-                        Pontuação de Precisão das Consoantes: <span className="text-emerald-400 font-bold">{speechAccuracy}%</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-between items-center pt-2 border-t border-neutral-800 text-xs">
-                    <button 
-                      onClick={() => setIsSimulatingPlay(!isSimulatingPlay)}
-                      className="p-1 px-4 bg-zinc-950 rounded text-zinc-300"
-                    >
-                      {isSimulatingPlay ? 'Pausar Reprodução' : 'Tocar Áudio Podcast'}
-                    </button>
-
-                    <button
-                      onClick={handleCompleteActiveAsset}
-                      className="p-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg cursor-pointer"
-                    >
-                      Completar Estudo de Áudio ✔
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* CLINICAL TECHNIQUE STEPS COMPONENT */}
-              {activeMedia.type === 'technique' && activeMedia.steps && (
-                <div className="space-y-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                  <span className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-                    <Award className="w-3.5 h-3.5 text-rose-500" /> Passo-a-Passo com Diálogo de Combate Integrado
-                  </span>
-
-                  <div className="flex gap-2 justify-center">
-                    {activeMedia.steps.map((_, sIdx) => (
-                      <button
-                        key={sIdx}
-                        onClick={() => setActiveTechniqueStep(sIdx)}
-                        className={`p-1.5 px-3 rounded text-[10px] uppercase font-black tracking-wider border transition-all cursor-pointer ${activeTechniqueStep === sIdx ? 'bg-rose-600 text-white border-rose-500' : 'bg-neutral-900 border-neutral-800 text-zinc-400'}`}
-                      >
-                        Passo {sIdx + 1}
-                      </button>
-                    ))}
-                  </div>
-
-                  {activeMedia.steps[activeTechniqueStep] && (
-                    <div className="p-4 bg-neutral-900 rounded-xl border border-neutral-800 space-y-3">
-                      <h4 className="text-xs font-bold text-rose-500 uppercase">{activeMedia.steps[activeTechniqueStep].title}</h4>
-                      <p className="text-xs text-zinc-300 leading-relaxed font-sans">{activeMedia.steps[activeTechniqueStep].description}</p>
-                      
-                      {activeMedia.steps[activeTechniqueStep].dialogueEN && (
-                        <div className="bg-stone-950 p-2.5 rounded border border-neutral-850 space-y-1">
-                          <p className="text-xs text-indigo-400 font-bold">Dialogue EN: "{activeMedia.steps[activeTechniqueStep].dialogueEN}"</p>
-                          <p className="text-[10px] text-zinc-400 italic">Tradução: "{activeMedia.steps[activeTechniqueStep].dialoguePT}"</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center text-xs pt-2">
-                    <span className="text-[10px] text-zinc-400 font-mono">Conclua todas as etapas do rala tático</span>
-                    <button
-                      onClick={handleCompleteActiveAsset}
-                      className="p-1 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg cursor-pointer"
-                    >
-                      Marcar broca concluída ✔ (+{activeMedia.xpReward} XP)
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* QUIZ MODULE COMPONENT */}
-              {activeMedia.type === 'quiz' && activeMedia.quizQuestions && (
-                <div className="space-y-4 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                  <span className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-                    <Brain className="w-3.5 h-3.5 text-purple-500" /> Quiz de Formação e Compreensão de Regras
-                  </span>
-
-                  {!isQuizFinished ? (
-                    <div className="space-y-4">
-                      <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
-                        <span>QUESTÃO {activeQuizIdx + 1} DE {activeMedia.quizQuestions.length}</span>
-                        <span>Pontuação: {Object.keys(quizAnswers).length} respondidas</span>
-                      </div>
-
-                      <div className="p-4 bg-neutral-900 rounded-xl border border-neutral-800 space-y-3">
-                        <p className="text-xs font-bold text-white">{activeMedia.quizQuestions[activeQuizIdx].question}</p>
-                        
-                        <div className="space-y-2">
-                          {activeMedia.quizQuestions[activeQuizIdx].options.map((opt, oIdx) => {
-                            const isSelected = quizAnswers[activeQuizIdx] === oIdx;
-                            return (
-                              <button
-                                key={oIdx}
-                                onClick={() => {
-                                  setQuizAnswers(prev => ({ ...prev, [activeQuizIdx]: oIdx }));
-                                }}
-                                className={`w-full p-2.5 rounded-lg text-xs font-medium text-left border transition-all cursor-pointer ${isSelected ? 'bg-purple-950/40 border-purple-500 text-purple-300' : 'bg-[#121212] border-neutral-800 hover:bg-neutral-800 text-zinc-300'}`}
-                              >
-                                {oIdx + 1}. {opt}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {quizAnswers[activeQuizIdx] !== undefined && (
-                        <div className="p-3 bg-neutral-900 rounded-lg border border-neutral-800 text-[10px] text-zinc-400 leading-relaxed font-sans">
-                          <p className="font-bold text-purple-400 uppercase text-[9px] mb-1">Nota Técnica Roger Gracie:</p>
-                          {activeMedia.quizQuestions[activeQuizIdx].explanation}
-                        </div>
-                      )}
-
-                      <div className="flex justify-end">
-                        {activeQuizIdx + 1 < activeMedia.quizQuestions.length ? (
-                          <button
-                            disabled={quizAnswers[activeQuizIdx] === undefined}
-                            onClick={() => setActiveQuizIdx(prev => prev + 1)}
-                            className="p-1.5 px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded"
-                          >
-                            Avançar Questão
-                          </button>
-                        ) : (
-                          <button
-                            disabled={quizAnswers[activeQuizIdx] === undefined}
-                            onClick={() => {
-                              setIsQuizFinished(true);
-                              handleCompleteActiveAsset();
-                            }}
-                            className="p-1.5 px-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold rounded"
-                          >
-                            Finalizar e Enviar Respostas
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-6 text-center space-y-3">
-                      <div className="w-12 h-12 rounded-full border border-emerald-500 bg-emerald-500/15 flex items-center justify-center text-xl text-emerald-400 mx-auto">
-                        ✔
-                      </div>
-                      <h4 className="text-xs font-bold text-white uppercase">Respostas Registradas!</h4>
-                      <p className="text-xs text-zinc-400">Você concluiu todo o teste de regras e conversação com sucesso e os créditos XP foram integrados à sua conta!</p>
-                      <button 
-                        onClick={() => setActiveMedia(null)}
-                        className="p-1 px-4 bg-neutral-900 hover:bg-neutral-800 rounded text-xs text-zinc-200"
-                      >
-                        Fechar Janela
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- RE-COORDINATED LIVE PLAYBOOK COURSE MODAL DIALOGUE --- */}
-      {isSyllabusModalOpen && (
-        <div className="fixed inset-0 bg-neutral-950/95 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-[#181818] border border-neutral-800 rounded-3xl max-w-4xl w-full text-zinc-100 overflow-hidden shadow-2xl relative my-8 p-4 sm:p-6 space-y-6">
-            
-            {/* Upper Action core to quit traditional module */}
-            <div className="flex justify-between items-start pb-2 border-b border-neutral-800">
-              <div>
-                <span className="text-[9px] font-mono tracking-widest text-red-500 font-extrabold uppercase">MODAL CURRICULUM DO LIVRO DE CURSOS</span>
-                <h3 className="font-display font-extrabold text-sm sm:text-base text-zinc-200 flex items-center gap-1.5">
-                  <BookOpen className="w-4 h-4 text-rose-500" />
-                  <span>Syllabus do Tatame: Faixa {activeSyllabus.belt}</span>
-                </h3>
-              </div>
-              <button 
-                onClick={() => setIsSyllabusModalOpen(false)}
-                className="p-1 bg-neutral-900 hover:bg-neutral-800 text-zinc-200 rounded-full border border-neutral-850"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Selector list of other belts fast */}
-            <div className="flex flex-wrap gap-1 bg-neutral-950 p-1.5 rounded-xl justify-center">
-              {PLAYBOOK_DATA.map((sylObj) => (
-                <button
-                  key={sylObj.belt}
-                  onClick={() => {
-                    setActiveSyllabus(sylObj);
-                    setActivePlaybookLessonIdx(0);
-                    setActivePlaybookStep('study');
-                  }}
-                  className={`p-1 px-3 text-[10px] font-bold font-sans rounded-lg transition-all cursor-pointer ${activeSyllabus.belt === sylObj.belt ? 'bg-red-600 text-white shadow' : 'text-zinc-400 hover:bg-neutral-900'}`}
-                >
-                  Faixa {sylObj.belt}
-                </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {NETFLIX_ASSETS.filter(x => assetProgress[x.id] > 0 && assetProgress[x.id] < 100).map(asset => (
+                <NetflixAssetCard 
+                  key={asset.id}
+                  asset={asset}
+                  progressVal={assetProgress[asset.id]}
+                  isFavorite={favorites.includes(asset.id)}
+                  onToggleFav={(e) => toggleFavorite(asset.id, e)}
+                  onSelect={() => handleOpenAsset(asset)}
+                />
               ))}
             </div>
+          </div>
+        )}
 
-            {/* Rendering specific active lesson of the traditional course */}
-            {activeSyllabus.modules[0]?.lessons[activePlaybookLessonIdx] && (() => {
-              const lesson: PlaybookLesson = activeSyllabus.modules[0].lessons[activePlaybookLessonIdx];
+        {/* ROW 2: FAVORITADOS / MINHA LISTA */}
+        {favorites.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="font-display font-black text-sm tracking-widest text-zinc-250 flex items-center gap-2 uppercase">
+              <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+              <span>Minha Lista de Estudos</span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {NETFLIX_ASSETS.filter(x => favorites.includes(x.id)).map(asset => (
+                <NetflixAssetCard 
+                  key={asset.id}
+                  asset={asset}
+                  progressVal={assetProgress[asset.id] || 0}
+                  isFavorite={true}
+                  onToggleFav={(e) => toggleFavorite(asset.id, e)}
+                  onSelect={() => handleOpenAsset(asset)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ROW 3: ALL MATCHED RESOURCE ENTRIES */}
+        <div className="space-y-3">
+          <div className="border-b border-zinc-850 pb-2 flex justify-between items-center">
+            <h3 className="font-display font-black text-sm tracking-widest text-zinc-200 uppercase">
+              Catálogo de Módulos ({selectedBelt === 'ALL' ? 'Todas as Faixas' : `Faixa ${selectedBelt}`})
+            </h3>
+            <span className="text-[10px] font-mono text-zinc-450">Títulos encontrados: {getFilteredAssets().length}</span>
+          </div>
+
+          {getFilteredAssets().length === 0 ? (
+            <div className="p-12 text-center bg-zinc-950/60 rounded-xl border border-zinc-850 space-y-2">
+              <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
+              <p className="text-xs text-zinc-400">Nenhum título localizado com os filtros aplicados.</p>
+              <button 
+                onClick={() => { setSearchQuery(''); setSelectedBelt('ALL'); setSelectedType('ALL'); }}
+                className="p-1 px-3 bg-zinc-900 border border-zinc-805 hover:bg-zinc-800 text-zinc-300 text-xs rounded font-mono"
+              >
+                Resetar Filtros Generais
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="lessons-catalog-grid">
+              {getFilteredAssets().map(asset => (
+                <NetflixAssetCard 
+                  key={asset.id}
+                  asset={asset}
+                  progressVal={assetProgress[asset.id] || 0}
+                  isFavorite={favorites.includes(asset.id)}
+                  onToggleFav={(e) => toggleFavorite(asset.id, e)}
+                  onSelect={() => handleOpenAsset(asset)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ROW 4: BENTO BOX GAME ACHIEVEMENTS (CONQUISTAS) */}
+        <div className="bg-[#151515] p-5 rounded-2xl border border-zinc-850 space-y-4">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-400" />
+            <div>
+              <h3 className="font-display font-extrabold text-sm text-zinc-200">Recompensas Militares & Conquistas (Achievements Hub)</h3>
+              <p className="text-[10px] text-zinc-500">Avance nos vídeos, áudios e manuais para liberar e dominar novos títulos de status.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {achievementsList.map(item => {
+              // Simulated evaluation logic for testability:
+              // ach-first-step: w-vid-1 completed
+              // ach-pronounce-master: w-aud-1 progress > 0
+              // ach-quiz-beast: score is top/saved
+              // ach-blue-unlocked: azul unlocked in array
+              // ach-black-belt-seminar: black belt is unlocked in certificates
+              const isUnlocked = 
+                item.id === 'ach-first-step' ? assetProgress['w-vid-1'] === 100 :
+                item.id === 'ach-pronounce-master' ? Object.keys(assetProgress).some(id => id.includes('-aud-') && assetProgress[id] === 100) :
+                item.id === 'ach-quiz-beast' ? Object.keys(assetProgress).some(id => id.includes('-qz-') && assetProgress[id] === 100) :
+                item.id === 'ach-blue-unlocked' ? unlockedCertificates.includes('Azul') :
+                item.id === 'ach-black-belt-seminar' ? unlockedCertificates.includes('Preto') : false;
+
               return (
-                <div className="space-y-4 animate-scaleUp">
-                  
-                  {/* Lesson header visual */}
-                  <div className="p-4 bg-neutral-905 rounded-xl border border-neutral-850 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-                        <CheckCircle className="w-4 h-4 text-rose-500" /> {lesson.title}
-                      </h4>
-                      <p className="text-[10px] text-zinc-400 mt-1 leading-normal font-sans">{lesson.overview}</p>
+                <div 
+                  key={item.id}
+                  className={`p-3 rounded-xl border flex gap-3 transition-all ${
+                    isUnlocked 
+                      ? 'bg-zinc-950/80 border-amber-500/20 text-white' 
+                      : 'bg-zinc-950/30 border-zinc-850 opacity-50'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shrink-0">
+                    {item.badge}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className={`text-[11px] font-black leading-tight ${isUnlocked ? 'text-amber-400' : 'text-zinc-400'}`}>
+                      {item.title}
+                    </p>
+                    <p className="text-[9.5px] text-zinc-450 leading-relaxed font-sans">{item.description}</p>
+                    <div className="flex items-center gap-1.5 pt-1 text-[8.5px] font-mono">
+                      <span className="text-zinc-500">Gatilho:</span>
+                      <span className="text-zinc-400 font-semibold">{item.condition}</span>
                     </div>
-                    <span className="text-[10px] font-mono p-1 px-2.5 rounded bg-zinc-950 text-zinc-450 border border-neutral-800">
-                      ⌛ {lesson.duration}
-                    </span>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
-                  {/* Sub-step selector tab (Study dialogues vs Quiz exercises) */}
-                  <div className="flex gap-2 justify-center border-b border-neutral-800 pb-3">
-                    <button
-                      onClick={() => { setActivePlaybookStep('study'); }}
-                      className={`p-1 px-4 rounded text-xs font-bold transition-all cursor-pointer ${activePlaybookStep === 'study' ? 'bg-rose-600 text-white' : 'bg-neutral-900 hover:bg-neutral-850 text-zinc-400'}`}
-                    >
-                      🗣️ Estudo de Vocabulário & Diálogos
-                    </button>
-                    <button
-                      onClick={() => { 
-                        setActivePlaybookStep('quiz'); 
-                        setPlaybookQuizSelected(null);
-                        setPlaybookQuizAnswered(false);
-                      }}
-                      className={`p-1 px-4 rounded text-xs font-bold transition-all cursor-pointer ${activePlaybookStep === 'quiz' ? 'bg-rose-600 text-white' : 'bg-neutral-900 hover:bg-neutral-850 text-zinc-400'}`}
-                    >
-                      📝 Exercícios da Lição
-                    </button>
-                  </div>
+      </div>
 
-                  {/* TAB 1: STUDY VOCAB & DIAL */}
-                  {activePlaybookStep === 'study' && (
-                    <div className="space-y-4">
-                      {/* Vocabulary Glossary layout */}
+      {/* =======================================================================
+          5. IMMERSIVE NETFLIX MEDIA PLAYER ACCORDION OVERLAY MODAL
+          ======================================================================= */}
+      {activePlayAsset && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-[#161616] border border-zinc-800 rounded-2xl max-w-3xl w-full text-zinc-100 overflow-hidden shadow-2xl relative my-8 animate-scaleUp">
+            
+            {/* Close button modal header */}
+            <button
+              onClick={() => {
+                setActivePlayAsset(null);
+                setIsPlayingMedia(false);
+              }}
+              className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-zinc-950 border border-zinc-805 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* A. PLATFORM BANNER HEADER PREVIEW */}
+            <div 
+              className="h-40 sm:h-56 bg-cover bg-center relative"
+              style={{ 
+                backgroundImage: `linear-gradient(to top, rgba(22,22,22,1) 0%, rgba(22,22,22,0.4) 60%, rgba(22,22,22,0.1) 100%), url('${activePlayAsset.imageUrl}')` 
+              }}
+            >
+              <div className="absolute bottom-4 left-4 sm:left-6 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="p-0.5 px-2 bg-red-650 text-[8.5px] font-black uppercase rounded tracking-wider">
+                    {activePlayAsset.category}
+                  </span>
+                  <span className="text-[9px] font-mono text-zinc-400">{activePlayAsset.duration} • {activePlayAsset.difficulty}</span>
+                </div>
+                <h2 className="text-lg sm:text-2xl font-display font-black text-white">{activePlayAsset.title}</h2>
+              </div>
+            </div>
+
+            {/* B. DETAILED NAV TAB SELECTORS */}
+            <div className="flex border-b border-zinc-800 bg-[#121212] px-4 overflow-x-auto text-xs font-bold gap-1 sm:gap-2">
+              <button
+                onClick={() => setMediaTab('play')}
+                className={`py-3.5 px-3 border-b-2 text-[11px] transition-all cursor-pointer ${
+                  mediaTab === 'play' ? 'border-red-650 text-white font-black' : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {activePlayAsset.type === 'video' ? '🎥 Assistir Aula' : 
+                 activePlayAsset.type === 'audio' ? '🎧 Escutar Pronúncia' : '📄 Ler Documento'}
+              </button>
+
+              {/* Sub-tab 1: Audio / voice exercise */}
+              {activePlayAsset.type === 'audio' && (
+                <button
+                  onClick={() => setMediaTab('exercise')}
+                  className={`py-3.5 px-3 border-b-2 text-[11px] transition-all cursor-pointer ${
+                    mediaTab === 'exercise' ? 'border-red-650 text-white font-black' : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  🗣️ Drill de Voz Artificial
+                </button>
+              )}
+
+              {/* Sub-tab 2: Quiz fix */}
+              {activePlayAsset.type === 'quiz' && (
+                <button
+                  onClick={() => setMediaTab('quiz')}
+                  className={`py-3.5 px-3 border-b-2 text-[11px] transition-all cursor-pointer ${
+                    mediaTab === 'quiz' ? 'border-red-650 text-white font-black' : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  ❓ Desafio do Quiz
+                </button>
+              )}
+
+              {/* Sub-tab 3: Structural exercises */}
+              {activePlayAsset.type === 'exercise' && (
+                <button
+                  onClick={() => setMediaTab('exercise')}
+                  className={`py-3.5 px-3 border-b-2 text-[11px] transition-all cursor-pointer ${
+                    mediaTab === 'exercise' ? 'border-red-650 text-white font-black' : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  🏋️ Aula de Fixação Gramatical
+                </button>
+              )}
+
+              <button
+                onClick={() => setMediaTab('achieve')}
+                className={`py-3.5 px-3 border-b-2 text-[11px] transition-all cursor-pointer ${
+                  mediaTab === 'achieve' ? 'border-red-650 text-white font-black' : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                🎁 Recompensa (+{activePlayAsset.xpReward} XP)
+              </button>
+            </div>
+
+            {/* C. BODY CONTENTS BY TAB */}
+            <div className="p-5 sm:p-6 space-y-4">
+              
+              {/* PLAY TAB (VIDEO / AUDIO / PDF PLAYER INTERFACE) */}
+              {mediaTab === 'play' && (
+                <div className="space-y-4 animate-fadeIn">
+                  
+                  {/* Text descriptions */}
+                  <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-sans">{activePlayAsset.description}</p>
+
+                  {/* 1. Video Player Custom layout styling */}
+                  {activePlayAsset.type === 'video' && (
+                    <div className="bg-zinc-950 rounded-xl overflow-hidden border border-zinc-800 relative h-48 sm:h-72 flex flex-col justify-between p-3">
+                      
+                      {/* Video playback monitor screen simulation */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        {isPlayingMedia ? (
+                          <div className="flex flex-col items-center gap-2 animate-pulse text-red-500 font-mono text-xs font-semibold">
+                            <PlayCircle className="w-12 h-12 text-red-600 animate-spin" />
+                            <span>TRANSMITINDO VÍDEO COMPROMISSADO EM ALTA ALAVANCA...</span>
+                          </div>
+                        ) : (
+                          <PlayCircle className="w-16 h-16 text-zinc-650" />
+                        )}
+                      </div>
+
+                      {/* Video play control parameters */}
+                      <div className="z-10 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800 flex justify-between items-center text-[10px] font-mono">
+                        <span className="text-glow text-red-500 uppercase">Stream: Active</span>
+                        <span className="text-zinc-400">SSL Criptografado TLS 1.3</span>
+                      </div>
+
+                      <div className="z-10 bg-zinc-900/90 p-4 rounded-xl border border-zinc-800 space-y-2.5">
+                        <div className="flex justify-between items-center text-xs font-mono">
+                          <button
+                            onClick={() => setIsPlayingMedia(!isPlayingMedia)}
+                            className="bg-red-600 hover:bg-red-500 p-1 px-3 text-[10px] font-black rounded cursor-pointer transition text-white"
+                          >
+                            {isPlayingMedia ? '⏸ PAUSAR' : '▶ TRANSMITIR VÍDEO'}
+                          </button>
+                          <span>{mediaPlaybackProgress}% concluído</span>
+                        </div>
+                        <div className="w-full bg-zinc-950 h-2 rounded-full overflow-hidden border border-zinc-850">
+                          <div className="h-full bg-red-650 transition-all duration-300" style={{ width: `${mediaPlaybackProgress}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Audio Player interface layout */}
+                  {activePlayAsset.type === 'audio' && (
+                    <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-500 uppercase font-mono">Vocabulário & Pronúncia Assistida</span>
+                        <button
+                          onClick={() => setIsPlayingMedia(!isPlayingMedia)}
+                          className="p-1 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10.5px] rounded-lg font-bold text-red-500 cursor-pointer"
+                        >
+                          {isPlayingMedia ? '⏸ Pausar Áudio' : '▶ Tocar Explicação'}
+                        </button>
+                      </div>
+
+                      {/* Interactive audio bars */}
+                      <div className="flex items-end justify-center gap-1 h-14 bg-zinc-900 p-2 border border-zinc-850 rounded-lg overflow-hidden">
+                        {[4, 8, 12, 6, 14, 9, 3, 10, 15, 7, 5, 11, 4, 8, 12, 6, 14, 9, 3, 10, 15, 7, 5, 11].map((bar, i) => (
+                          <div 
+                            key={i}
+                            className={`w-1.5 h-full rounded transition bg-gradient-to-t`}
+                            style={{ 
+                              height: isPlayingMedia ? `${Math.max(10, Math.sin((mediaPlaybackProgress + i) * 0.5) * 45 + 50)}%` : `${bar * 6}%`,
+                              backgroundColor: isPlayingMedia ? '#dc2626' : '#27272a'
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Vocab click to speech column lines */}
                       <div className="space-y-2">
-                        <span className="text-[10px] font-mono text-zinc-400 uppercase block pl-1">Dicionário de Termos:</span>
+                        <p className="text-[10px] text-zinc-500 uppercase font-mono">Clique no alto-falante para testar Speech Synthesis:</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {lesson.vocabulary.map((vObj, vIdx) => (
-                            <div key={vIdx} className="bg-neutral-900 p-2.5 rounded-lg border border-neutral-850 flex justify-between items-center hover:bg-neutral-850/35 transition-all">
+                          {activePlayAsset.audioWords?.map((term, i) => (
+                            <div key={i} className="bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-850 flex justify-between items-center text-xs">
                               <div>
-                                <span className="text-xs font-bold text-rose-500">{vObj.term}</span>
-                                <span className="text-[9px] text-zinc-500 ml-1.5">[{vObj.pronunciation}]</span>
-                                <p className="text-[10px] text-zinc-400 font-sans mt-0.5">{vObj.translation}</p>
+                                <p className="font-bold text-white leading-none">{term.word}</p>
+                                <p className="text-[10px] font-mono text-zinc-400 mt-1 italic">Pronúncia: /{term.pronunciation}/</p>
+                                <p className="text-[10px] text-zinc-500 font-sans mt-0.5">Tradução: {term.translation}</p>
                               </div>
                               <button
-                                onClick={() => speakCommandPhrase(vObj.term)}
-                                className="p-1 px-2.5 bg-neutral-950 rounded text-[10px] hover:bg-neutral-800 text-rose-400"
+                                onClick={() => speakTextToSpeech(term.word)}
+                                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 cursor-pointer text-[10px] flex items-center gap-1"
+                                title="Pronunciar Inglês"
                               >
-                                🗣️ Ouvir
+                                <Volume2 className="w-3.5 h-3.5 text-zinc-300" />
+                                <span>Falar</span>
                               </button>
                             </div>
                           ))}
                         </div>
                       </div>
+                    </div>
+                  )}
 
-                      {/* Preserved Conversation Bubble dialogues layout */}
-                      <div className="space-y-2">
-                        <span className="text-[10px] font-mono text-zinc-400 uppercase block pl-1">Diálogo de Roteiro Bilingue:</span>
-                        <div className="space-y-2 bg-neutral-950 p-4 rounded-xl border border-neutral-850">
-                          {lesson.dialogue.map((dialObj, dIdx) => (
-                            <div key={dIdx} className="space-y-1">
-                              <span className="text-[9px] font-mono text-zinc-500 block uppercase font-bold">{dialObj.speaker}:</span>
-                              <div className="bg-neutral-900 p-2 rounded-lg border border-neutral-900">
-                                <p className="text-xs text-white font-bold inline-block">"{dialObj.textEN}"</p>
-                                <button 
-                                  onClick={() => speakCommandPhrase(dialObj.textEN)}
-                                  className="p-1 text-[9px] text-rose-450 hover:text-white float-right border border-neutral-800 rounded bg-zinc-950"
-                                >
-                                  🔊 Pronunciar
-                                </button>
-                                <p className="text-[10.5px] text-zinc-400 italic font-sans block mt-1">Tradução: {dialObj.textPT}</p>
-                              </div>
-                            </div>
+                  {/* 3. PDF Slide documentation reader */}
+                  {activePlayAsset.type === 'pdf' && (
+                    <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 space-y-4">
+                      <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                        <span className="text-[10px] text-zinc-500 font-mono uppercase">Caderno Técnico (PDF Slide Viewer)</span>
+                        <button
+                          onClick={() => {
+                            handleCompleteAsset(activePlayAsset.id, activePlayAsset.xpReward);
+                            showToast('PDF baixado para seu dispositivo simulado!', 'info');
+                          }}
+                          className="p-1 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] rounded text-emerald-400 font-bold cursor-pointer flex items-center gap-1"
+                        >
+                          <Download className="w-3 h-3 text-emerald-400" />
+                          <span>Baixar Manual</span>
+                        </button>
+                      </div>
+
+                      {/* Simulated booklet slides */}
+                      <div className="bg-zinc-900 rounded-xl border border-zinc-850 p-5 space-y-3 font-mono text-[11px] leading-relaxed relative min-h-36">
+                        <h4 className="text-zinc-200 border-b border-zinc-800 pb-1.5 font-bold uppercase">{activePlayAsset.title}</h4>
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1 text-zinc-305 scrollbar-thin">
+                          {activePlayAsset.pdfLines?.map((line, k) => (
+                            <p key={k} className="border-l border-red-650 pl-2 text-zinc-350">{line}</p>
                           ))}
                         </div>
-                      </div>
-
-                      {/* Roger Gracie Tips content */}
-                      <div className="p-3 bg-neutral-900 border border-neutral-850 rounded-lg text-xs leading-relaxed">
-                        <p className="font-bold text-rose-500 uppercase text-[10px] mb-1">👴 Sensei JiuSpeak Master Tip:</p>
-                        "{lesson.masterTip}"
+                        <div className="text-[9px] text-zinc-650 pt-2 select-none">
+                          © JiuSpeak Academy • Homologação de Tatame Corporativa
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* TAB 2: EXERCISES OF THE LESSON */}
-                  {activePlaybookStep === 'quiz' && (
-                    <div className="space-y-4">
-                      {lesson.exercises[0] && (() => {
-                        const ex = lesson.exercises[0];
-                        return (
-                          <div className="bg-neutral-905 p-4 rounded-xl border border-neutral-850 space-y-4">
-                            <div>
-                              <span className="p-0.5 px-2 bg-neutral-950 border border-neutral-800 rounded text-[9px] uppercase font-mono tracking-widest text-zinc-440 inline-block mb-1">
-                                {ex.type.toUpperCase()}
-                              </span>
-                              <h4 className="text-xs sm:text-sm font-bold text-white">{ex.question}</h4>
-                            </div>
-
-                            <div className="space-y-2">
-                              {ex.options.map((option, oIdx) => {
-                                const isSelected = playbookQuizSelected === oIdx;
-                                const isCorrect = oIdx === ex.correctOptionIndex;
-                                return (
-                                  <button
-                                    key={oIdx}
-                                    disabled={playbookQuizAnswered}
-                                    onClick={() => setPlaybookQuizSelected(oIdx)}
-                                    className={`w-full p-2.5 rounded-lg text-left text-xs font-semibold border transition-all ${isSelected ? 'bg-rose-950/50 border-rose-500 text-rose-400' : 'bg-neutral-900 border-neutral-850 text-zinc-300'}`}
-                                  >
-                                    {oIdx + 1}. {option}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {!playbookQuizAnswered ? (
-                              <div className="flex justify-end">
-                                <button
-                                  disabled={playbookQuizSelected === null}
-                                  onClick={() => {
-                                    setPlaybookQuizAnswered(true);
-                                    if (playbookQuizSelected === ex.correctOptionIndex) {
-                                      addXp(120, `Quiz Playbook: ${lesson.title}`);
-                                      addCoins(50, `Coins Playbook`);
-                                      showToast(`Sensacional! Resposta correta! (+120 XP e +50 KC)`, 'success');
-                                    } else {
-                                      showToast(`Que pena, resposta errada. Verifique a análise!`, 'error');
-                                    }
-                                  }}
-                                  className="p-1 px-5 bg-rose-600 hover:bg-rose-400 disabled:opacity-40 text-white font-bold text-xs rounded transition-all"
-                                >
-                                  Confirmar Resposta
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="p-3 bg-neutral-900 border border-neutral-800 rounded-lg text-[10.5px] text-zinc-400 leading-relaxed font-sans">
-                                <p className="font-bold text-indigo-400 uppercase text-[9.5px] mb-1">Análise do Mestre:</p>
-                                {ex.explanation}
-                              </div>
-                            )}
-
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {/* Footer control switcher to advance other playbook chapters of module */}
-                  <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
+                  {/* Manual Mark Complete action indicator if they want to speed finish */}
+                  {!isPlayingMedia && assetProgress[activePlayAsset.id] !== 100 && (
                     <button
-                      disabled={activePlaybookLessonIdx === 0}
-                      onClick={() => {
-                        setActivePlaybookLessonIdx(prev => prev - 1);
-                        setActivePlaybookStep('study');
-                      }}
-                      className="p-1 px-3 bg-neutral-900 hover:bg-neutral-850 rounded text-xs text-zinc-300 disabled:opacity-20"
+                      onClick={() => handleCompleteAsset(activePlayAsset.id, activePlayAsset.xpReward)}
+                      className="w-full py-2.5 bg-emerald-650 hover:bg-emerald-580 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      ⬅ Lição Anterior
+                      <Check className="w-4 h-4 text-white" />
+                      <span>MARCAR ESTADO COMO CONCLUÍDO (+{activePlayAsset.xpReward} XP)</span>
                     </button>
-                    <span className="text-[10px] text-zinc-400">
-                      Lição {activePlaybookLessonIdx + 1} de {activeSyllabus.modules[0].lessons.length}
-                    </span>
-                    {activePlaybookLessonIdx + 1 < activeSyllabus.modules[0].lessons.length ? (
-                      <button
-                        onClick={() => {
-                          setActivePlaybookLessonIdx(prev => prev + 1);
-                          setActivePlaybookStep('study');
-                        }}
-                        className="p-1 px-3 bg-rose-600 hover:bg-rose-500 rounded text-xs text-white"
-                      >
-                        Próxima Lição ➡
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setIsSyllabusModalOpen(false);
-                          showToast(`Parabéns! Módulo Playbook concluído com louvor! 🏆`, 'success');
-                        }}
-                        className="p-1 px-4 bg-emerald-600 hover:bg-emerald-500 rounded text-xs text-white"
-                      >
-                        Concluir Módulo Completo ✔
-                      </button>
-                    )}
-                  </div>
+                  )}
 
                 </div>
-              );
-            })()}
+              )}
+
+              {/* SPEAK SIMULATOR EXERCISE TAB */}
+              {mediaTab === 'exercise' && activePlayAsset.type === 'audio' && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="bg-zinc-950 p-4 border border-zinc-800 rounded-xl space-y-3">
+                    <h4 className="text-xs font-mono font-bold text-zinc-400">Exercício Integrado de Reconhecimento de Voz</h4>
+                    <p className="text-xs text-zinc-300 font-sans">
+                      Clique em gravar e repita a frase abaixo com precisão técnica em inglês para obter pontuação do AI Coach.
+                    </p>
+
+                    <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-xl text-center space-y-2">
+                      <p className="text-[9px] text-zinc-500 uppercase font-mono">Frase Técnico-Foco:</p>
+                      <p className="text-sm font-extrabold text-red-500 italic">"Could we go easy on this specific training round?"</p>
+                      <p className="text-[10px] text-zinc-400">Tradução: "Poderíamos ir devagar nesta rodada de treino específico?"</p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row justify-center items-center gap-3 pt-2">
+                      <button
+                        onClick={handleStartSimulatedRecording}
+                        disabled={isRecordingVoice}
+                        className={`p-2.5 px-6 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                          isRecordingVoice 
+                            ? 'bg-rose-650 text-white animate-pulse' 
+                            : 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:border-red-500'
+                        }`}
+                      >
+                        <Mic className="w-4 h-4 text-red-500 animate-pulse" />
+                        <span>{isRecordingVoice ? '🔴 Gravando...' : 'Iniciar Gravação de Voz'}</span>
+                      </button>
+
+                      {voiceAccuracyPercent !== null && (
+                        <div className="flex items-center gap-3 bg-zinc-900 p-2.5 rounded-xl border border-zinc-850">
+                          <span className="text-[11px] font-mono text-zinc-400">Precisão Auditada:</span>
+                          <span className={`text-sm font-bold font-mono ${
+                            voiceAccuracyPercent >= 90 ? 'text-emerald-400' : 'text-amber-500'
+                          }`}>
+                            {voiceAccuracyPercent}% {voiceAccuracyPercent >= 90 ? '✔ Aprovado!' : '⚠️ Pratique'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* GRAMMAR SENTENCE PUZZLE TAB */}
+              {mediaTab === 'exercise' && activePlayAsset.type === 'exercise' && (
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="bg-zinc-950 p-4 border border-zinc-800 rounded-xl space-y-3 font-sans">
+                    <h4 className="text-xs font-mono font-bold text-zinc-400">Gramática: Conector de Palavras do Tatame</h4>
+                    <p className="text-xs text-zinc-300">
+                      Escolha a opção que monta a tradução recomendada em inglês para: <strong>"{activePlayAsset.exerciseGoal}"</strong>.
+                    </p>
+
+                    <div className="p-3 bg-zinc-900 border border-zinc-850 rounded-lg text-center text-xs font-mono text-zinc-400 font-bold">
+                      {activePlayAsset.exerciseTask}
+                    </div>
+
+                    <div className="space-y-2">
+                      {activePlayAsset.exerciseAnswerOptions?.map((opt, oIdx) => (
+                        <button
+                          key={oIdx}
+                          disabled={exerciseSolved}
+                          onClick={() => setExerciseSelectedAnswer(oIdx)}
+                          className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex justify-between items-center ${
+                            exerciseSelectedAnswer === oIdx 
+                              ? 'bg-[#1a1a1a] border-red-600 text-white font-bold' 
+                              : 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:border-zinc-700'
+                          }`}
+                        >
+                          <span>{opt}</span>
+                          <span className="text-[9px] font-mono text-zinc-500">Opção {oIdx + 1}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {exerciseSelectedAnswer !== null && !exerciseSolved && (
+                      <button
+                        onClick={() => submitExerciseAnswer(activePlayAsset.correctExerciseIndex || 0)}
+                        className="w-full py-2.5 bg-red-650 hover:bg-red-580 text-white rounded-xl text-xs font-black transition cursor-pointer"
+                      >
+                        Submeter tradução para avaliação do Mestre
+                      </button>
+                    )}
+
+                    {exerciseSolved && (
+                      <div className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl space-y-1 text-xs">
+                        <p className="font-bold font-mono text-red-500 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span>Gabarito Analisado:</span>
+                        </p>
+                        <p className="text-zinc-305">Muitos parabéns! Você acertou na mosca. Isso consolida sua precisão na gramática técnica.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* THE MULTIPLE CHOICE QUIZZES TAB */}
+              {mediaTab === 'quiz' && activePlayAsset.type === 'quiz' && activePlayAsset.quizQuestions && (
+                <div className="space-y-4 animate-fadeIn">
+                  
+                  {/* Progress indices */}
+                  <div className="flex justify-between items-center text-[10px] font-mono text-zinc-500 bg-zinc-950 p-2.5 rounded-lg border border-zinc-850">
+                    <span>Questão {currentQuizIndex + 1} de {activePlayAsset.quizQuestions.length}</span>
+                    <span>Acertos atuais: {quizScore}</span>
+                  </div>
+
+                  {!quizFinished ? (
+                    <div className="bg-zinc-950 p-4 border border-zinc-800 rounded-xl space-y-4" id="quiz-solver-cage">
+                      <div className="p-3.5 bg-zinc-900 border border-zinc-850 rounded-xl font-bold font-sans text-xs sm:text-sm text-zinc-200">
+                        {activePlayAsset.quizQuestions[currentQuizIndex].question}
+                      </div>
+
+                      <div className="space-y-2">
+                        {activePlayAsset.quizQuestions[currentQuizIndex].options.map((option, oIdx) => {
+                          const isSelected = quizSelectedOption === oIdx;
+                          const correctIdx = activePlayAsset.quizQuestions?.[currentQuizIndex].correctOptionIndex ?? 0;
+                          
+                          let cardStyle = 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:border-zinc-700';
+                          if (isSelected) {
+                            cardStyle = oIdx === correctIdx 
+                              ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-400 font-bold' 
+                              : 'bg-rose-950/40 border-rose-500/50 text-rose-455 font-bold';
+                          }
+
+                          return (
+                            <button
+                              key={oIdx}
+                              disabled={quizSelectedOption !== null}
+                              onClick={() => submitQuizAnswer(correctIdx, oIdx)}
+                              className={`w-full text-left p-3 rounded-xl border text-xs transition-all cursor-pointer ${cardStyle}`}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Explanation box */}
+                      {quizSelectedOption !== null && (
+                        <div className="p-4 bg-zinc-900/60 rounded-xl border border-zinc-850 space-y-2 animate-fadeIn font-sans text-[11px] sm:text-xs">
+                          <p className="font-extrabold text-amber-500 uppercase tracking-wider font-mono">Feedback e Análise do Coach:</p>
+                          <p className="text-zinc-300">{activePlayAsset.quizQuestions[currentQuizIndex].explanation}</p>
+                          
+                          <div className="flex justify-end pt-2">
+                            {currentQuizIndex < activePlayAsset.quizQuestions.length - 1 ? (
+                              <button
+                                onClick={() => {
+                                  setCurrentQuizIndex(prev => prev + 1);
+                                  setQuizSelectedOption(null);
+                                }}
+                                className="p-1 px-4 bg-red-650 hover:bg-red-580 text-white rounded text-[10px] font-bold cursor-pointer transition flex items-center gap-1"
+                              >
+                                <span>Próxima Questão</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleFinishQuiz(activePlayAsset.quizQuestions?.length || 0, activePlayAsset.xpReward)}
+                                className="p-1 px-4 bg-emerald-650 hover:bg-emerald-580 text-white rounded text-[10px] font-bold cursor-pointer transition"
+                              >
+                                Encerrar Teste e Somar XP
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center bg-zinc-950 rounded-xl border border-zinc-800 space-y-3 font-mono text-xs">
+                      <Trophy className="w-10 h-10 text-amber-500 mx-auto animate-bounce" />
+                      <p className="font-bold text-sm text-zinc-150">Gabarito de Fixação Concluído!</p>
+                      <p className="text-zinc-400">Total de acertos pontuais: {quizScore} de {activePlayAsset.quizQuestions.length}</p>
+                      <p className="text-zinc-550">Os pontos de experiência (XP) foram indexados ao painel principal do atleta.</p>
+                      
+                      <button
+                        onClick={() => {
+                          handleCompleteAsset(activePlayAsset.id, activePlayAsset.xpReward);
+                          setActivePlayAsset(null);
+                        }}
+                        className="p-1.5 px-4 bg-zinc-900 hover:bg-zinc-800 text-zinc-250 border border-zinc-800 rounded font-black cursor-pointer shadow mt-2"
+                      >
+                        Sair do Questionário
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* ACHIEVEMENTS & REWARDS LIST FOR ACTIVE MODAL ITEM */}
+              {mediaTab === 'achieve' && (
+                <div className="space-y-4 animate-fadeIn text-xs sm:text-sm font-sans">
+                  <div className="bg-zinc-950 border border-zinc-800 p-5 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2 text-red-500 font-bold uppercase tracking-wider font-mono">
+                      <Star className="w-4 h-4 fill-red-500" />
+                      <span>Premiações de Conclusão Técnica</span>
+                    </div>
+
+                    <p className="text-zinc-300">
+                      Cada lição concluída recompensa seu perfil com XP real e Kimono Coins (KCs). Isso impacta diretamente na sua elegância geral de faixas e ranking geral no PvP.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl text-center">
+                        <p className="text-[10px] text-zinc-500 uppercase font-mono">XP de Maestria</p>
+                        <p className="text-lg font-black text-rose-500 font-mono mt-0.5">+{activePlayAsset.xpReward} XP</p>
+                      </div>
+                      <div className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl text-center">
+                        <p className="text-[10px] text-zinc-500 uppercase font-mono">Bônus Kimono Coins</p>
+                        <p className="text-lg font-black text-amber-500 font-mono mt-0.5">+{Math.round(activePlayAsset.xpReward / 3)} KC</p>
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#111] border border-zinc-900 text-zinc-400 font-extrabold flex justify-between items-center text-[10px] font-mono">
+                      <span>Status da Lição:</span>
+                      <span className={assetProgress[activePlayAsset.id] === 100 ? 'text-emerald-400' : 'text-zinc-500'}>
+                        {assetProgress[activePlayAsset.id] === 100 ? '✔ CONCLUÍDA' : '⌛ PENDENTE'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
 
           </div>
         </div>
       )}
+
+      {/* =======================================================================
+          6. REAL-TIME HIGH RESOLUTION PRINTABLE COLD GRADUATION DIPLOMA
+          ======================================================================= */}
+      {viewingCertificateBelt && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto font-sans">
+          <div className="bg-[#141414] border-2 border-amber-600/30 rounded-2xl max-w-3xl w-full text-zinc-100 p-6 sm:p-10 text-center relative overflow-hidden shadow-2xl animate-scaleUp">
+            
+            {/* Elegant watermark layout */}
+            <div className="absolute top-4 right-4 w-20 h-20 sm:w-36 sm:h-36 rounded-full border border-amber-500/10 flex items-center justify-center text-amber-550 text-5xl sm:text-7xl select-none opacity-20 pointer-events-none">
+              🥋
+            </div>
+
+            {/* Back Close button */}
+            <button
+              onClick={() => setViewingCertificateBelt(null)}
+              className="absolute top-4 right-4 p-1 rounded-full bg-zinc-905 border border-zinc-800 text-zinc-300 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="max-w-2xl mx-auto space-y-6">
+              <div className="space-y-1">
+                <span className="text-[9px] tracking-widest font-mono text-amber-500 font-black uppercase">
+                  JIUSPEAK UNIVERSAL LANGUAGES SAAS CREDENTIAL
+                </span>
+                <h2 className="text-xl sm:text-3.5xl font-display font-black text-white tracking-wide uppercase">
+                  CERTIFICADO DE GRADUANDO PREMIUM
+                </h2>
+              </div>
+
+              <div className="space-y-2 py-5 border-y border-zinc-850 text-xs sm:text-sm font-sans max-w-lg mx-auto text-center font-medium leading-relaxed">
+                <p className="text-zinc-400">Certificamos com absoluto louvor e conformidade técnica de tatame que o atleta e guerreiro(a)</p>
+                <p className="text-lg sm:text-xl font-bold font-display text-white italic underline decoration-amber-500 decoration-2">
+                  {user.name}
+                </p>
+                <p className="text-zinc-400">
+                  concluiu com êxito todas as lições em vídeo, audioguivos de pronúncia, regras detalhadas com a arbitragem internacional, quizzes de fixação e diálogos de rádio na graduação esportiva de
+                </p>
+                <p className="font-extrabold text-amber-500 text-base sm:text-lg">
+                  FAIXA {viewingCertificateBelt.toUpperCase()}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 text-[10px] font-mono text-zinc-400 text-left">
+                <div>
+                  <p className="text-zinc-550">CHAVE DO DIPLOMA:</p>
+                  <p className="text-zinc-300 font-bold uppercase">JS-{viewingCertificateBelt.toLowerCase()}-{studySeconds}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-550">DATA DE EMISSÃO:</p>
+                  <p className="text-zinc-300 font-bold">{new Date().toLocaleDateString()}</p>
+                </div>
+                <div className="border-t border-dashed border-zinc-700 pt-2 text-center sm:text-left">
+                  <p className="text-zinc-300 font-bold">Roger Gracie</p>
+                  <p className="text-zinc-500 uppercase text-[8px]">Diretor de Arbitragem</p>
+                </div>
+              </div>
+
+              {/* Printable PDF button */}
+              <div className="pt-4 flex justify-center gap-2">
+                <button
+                  onClick={() => {
+                    window.print();
+                  }}
+                  className="p-1 px-4 bg-amber-500 hover:bg-amber-400 text-slate-100 font-black rounded-lg text-xs transition-all flex items-center gap-1 cursor-pointer hover:scale-103"
+                >
+                  <Printer className="w-4 h-4 text-slate-100" /> Print / Save Certificate PDF
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER METRIC SLA */}
+      <div className="p-3 bg-zinc-950/60 rounded-xl border border-zinc-850 text-[10px] text-zinc-500 flex justify-between items-center font-mono">
+        <span>Curriculum Unificado de Conversação e Arbitragem</span>
+        <span className="flex items-center gap-1.5 text-glow select-none">
+          <span>Ambiente Autêntico Premium</span>
+          <span className="w-2 h-2 bg-red-600 rounded-full animate-ping"></span>
+        </span>
+      </div>
 
     </div>
   );
 }
 
-// --- DYNAMIC NETFLIX CARD DISPLAY COMPONENT ---
-interface NetflixCardProps {
-  key?: string | number;
+// =========================================================================
+// LOWER INLINE COMPONENT: NETFLIX CARDS WITH GRADIENTS AND PROGRESSES
+// =========================================================================
+interface CardProps {
+  key?: string;
   asset: NetflixAsset;
-  onSelect: (item: NetflixAsset) => void;
-  favorites: string[];
-  onToggleFavorite: (id: string, title?: string) => void;
   progressVal: number;
-  downloaded: boolean;
-  onDownload: (e: React.MouseEvent, assetId: string) => void;
-  downloadingAssetId: string | null;
-  downloadProgress: number;
+  isFavorite: boolean;
+  onToggleFav: (e: React.MouseEvent) => void;
+  onSelect: () => void;
 }
 
-function NetflixCard({
-  asset,
-  onSelect,
-  favorites,
-  onToggleFavorite,
-  progressVal,
-  downloaded,
-  onDownload,
-  downloadingAssetId,
-  downloadProgress
-}: NetflixCardProps) {
-
-  const isFavorited = favorites.includes(asset.id);
-  const isDownloading = downloadingAssetId === asset.id;
-
-  const beltBorders: Record<string, string> = {
-    'Branca': 'border-zinc-300/40 focus:border-white hover:border-white',
-    'Azul': 'border-blue-600/40 hover:border-blue-500 focus:border-blue-500',
-    'Roxa': 'border-purple-600/40 hover:border-purple-500 focus:border-purple-500',
-    'Marrom': 'border-amber-800/40 hover:border-amber-700 focus:border-amber-700',
-    'Preto': 'border-stone-850 hover:border-rose-600 focus:border-rose-600'
-  };
-
-  const beltBgColors: Record<string, string> = {
-    'Branca': 'bg-white text-slate-900',
-    'Azul': 'bg-blue-600 text-white',
-    'Roxa': 'bg-purple-600 text-white',
-    'Marrom': 'bg-amber-800 text-white',
-    'Preto': 'bg-stone-900 text-rose-500'
+function NetflixAssetCard({ asset, progressVal, isFavorite, onToggleFav, onSelect }: CardProps) {
+  
+  const getBadgeTypeStyle = (type: string) => {
+    switch (type) {
+      case 'video': return 'bg-red-600 text-white';
+      case 'audio': return 'bg-blue-650 text-white';
+      case 'pdf': return 'bg-emerald-650 text-white';
+      case 'quiz': return 'bg-purple-650 text-white';
+      case 'exercise': return 'bg-amber-600 text-white';
+      default: return 'bg-zinc-800 text-zinc-300';
+    }
   };
 
   return (
     <div 
-      onClick={() => onSelect(asset)}
-      className={`bg-[#181818] border-2 ${beltBorders[asset.category] || 'border-neutral-800'} rounded-xl overflow-hidden cursor-pointer hover:scale-103 active:scale-98 transition-all duration-300 flex flex-col justify-between group shadow-lg hover:shadow-2xl hover:z-10`}
+      onClick={onSelect}
+      className="bg-zinc-950/80 border border-zinc-850 rounded-xl overflow-hidden hover:border-red-600/40 hover:-translate-y-1 hover:scale-[1.01] transition-all cursor-pointer shadow-md flex flex-col justify-between h-56 relative group group/card"
     >
       
-      {/* Target image with layout label */}
-      <div className="relative aspect-video w-full bg-cover bg-center overflow-hidden" style={{ backgroundImage: `url('${asset.imageUrl}')` }}>
+      {/* Target visual image wrapper */}
+      <div className="h-28 bg-cover bg-center relative" style={{ backgroundImage: `url('${asset.imageUrl}')` }}>
+        {/* Dynamic vignette shadow on the lower layout */}
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/30 to-transparent" />
         
-        {/* Shadow Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-transparent to-transparent group-hover:from-neutral-950/90" />
-
-        {/* Categories belt badges top layout */}
-        <div className="absolute top-2 left-2 flex items-center gap-1.5 z-10">
-          <span className={`p-0.5 px-2.5 rounded text-[8px] uppercase font-black tracking-wider ${beltBgColors[asset.category] || 'bg-white'}`}>
-            Faixa {asset.category}
-          </span>
-          <span className="p-0.5 px-2 bg-neutral-950/80 border border-neutral-800/60 rounded text-zinc-300 text-[8.5px] uppercase font-bold font-mono">
-            {asset.type === 'course' && '📚 Curso'}
-            {asset.type === 'video' && '🎥 Vídeo'}
-            {asset.type === 'pdf' && '📄 PDF'}
-            {asset.type === 'audio' && '🎧 Áudio'}
-            {asset.type === 'technique' && '🥋 Técnica'}
-            {asset.type === 'quiz' && '🧠 Quiz'}
-          </span>
-        </div>
-
-        {/* Quick control actions hover trigger */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-350 z-10">
+        {/* Micro overlay actions */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={(e) => { e.stopPropagation(); onToggleFavorite(asset.id, asset.title); }}
-            className={`p-1.5 rounded-full bg-neutral-950/85 hover:bg-neutral-800 text-xs shadow-md border border-neutral-850/60 cursor-pointer ${isFavorited ? 'text-red-500' : 'text-zinc-200'}`}
-            title="Adicionar aos Favoritos"
+            onClick={onToggleFav}
+            className="p-11 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-200 border border-zinc-805 cursor-pointer flex items-center justify-center p-1"
+            title="Adicionar à Minha Lista"
           >
-            <Heart className={`w-3 h-3 ${isFavorited ? 'fill-red-500' : ''}`} />
-          </button>
-          
-          <button
-            onClick={(e) => onDownload(e, asset.id)}
-            className={`p-1.5 rounded-full bg-neutral-950/85 hover:bg-neutral-805 text-xs shadow-md border border-neutral-850/60 cursor-pointer ${downloaded ? 'text-emerald-400' : 'text-zinc-200'}`}
-            title="Download Offline"
-          >
-            {isDownloading ? (
-              <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
-            ) : (
-              <Download className="w-3 h-3" />
-            )}
+            <Heart className={`w-3 h-3 ${isFavorite ? 'fill-red-500 text-red-550' : ''}`} />
           </button>
         </div>
 
-        {/* Study progress bar overlay at the base */}
-        {progressVal > 0 && (
-          <div className="absolute inset-x-0 bottom-0 bg-neutral-900 border-t border-neutral-800 z-10">
-            <div className={`h-1 cursor-pointer transition-all ${progressVal === 100 ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${progressVal}%` }} />
-          </div>
-        )}
+        {/* Technical rank badge */}
+        <span className="absolute top-2 left-2 text-[8px] font-mono tracking-wider font-extrabold uppercase p-1 bg-zinc-950/65 rounded text-zinc-200 border border-zinc-805/30 leading-none">
+          Belt: {asset.category}
+        </span>
       </div>
 
-      {/* Title & brief descriptive metadata context */}
-      <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
-        <div className="space-y-1">
-          <div className="flex justify-between items-start gap-2">
-            <span className="text-[9px] font-mono font-bold tracking-wider text-rose-500 uppercase">{asset.subcategory}</span>
-            <span className="text-[8px] font-mono text-zinc-500 text-right">{asset.duration}</span>
+      {/* Narrative bodies */}
+      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-1 pt-2">
+        <div className="space-y-0.5">
+          <div className="flex justify-between items-center text-[9px] font-mono font-bold leading-none select-none">
+            <span className={`p-0.5 px-2.5 rounded font-black uppercase text-[8px] leading-tight ${getBadgeTypeStyle(asset.type)}`}>
+              {asset.type.toUpperCase()}
+            </span>
+            <span className="text-zinc-500">{asset.duration}</span>
           </div>
-          <h4 className="text-xs sm:text-[12.5px] font-display font-black text-white leading-tight group-hover:text-rose-500 transition-colors line-clamp-1">{asset.title}</h4>
-          <p className="text-[10px] sm:text-[11px] text-zinc-400 font-sans leading-relaxed line-clamp-2 mt-0.5">{asset.description}</p>
+
+          <h4 className="font-sans font-extrabold text-[12px] text-zinc-200 line-clamp-1 leading-tight pt-1 group-hover/card:text-red-500 transition-colors">
+            {asset.title}
+          </h4>
+          <p className="text-[10.5px] text-zinc-450 line-clamp-2 leading-snug">{asset.description}</p>
         </div>
 
-        {/* Progress percent display status or downloaded identifier */}
-        <div className="pt-2 border-t border-neutral-850 flex items-center justify-between text-[9px] font-mono text-zinc-500">
-          <div className="flex items-center gap-1">
-            {progressVal === 100 ? (
-              <span className="text-emerald-400 font-extrabold uppercase flex items-center gap-0.5"><Check className="w-3 h-3" /> Concluído</span>
-            ) : progressVal > 0 ? (
-              <span className="text-rose-400 font-bold">Assistindo: {progressVal}%</span>
-            ) : (
-              <span className="text-zinc-400 select-all">+{asset.xpReward} XP</span>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-1 select-none">
-            {downloaded && <span className="p-0.5 px-1.5 rounded bg-zinc-950/80 border border-neutral-800 text-[8px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-0.5">Offline</span>}
-            <span className="bg-neutral-950 px-1 py-0.5 rounded text-[8.5px] border border-neutral-850 text-zinc-400 leading-none">{asset.difficulty}</span>
+        {/* Dynamic lower progress bars */}
+        <div className="space-y-1">
+          {progressVal > 0 && (
+            <div className="w-full bg-zinc-90 w bg-[#111] border border-zinc-900 rounded-full h-1.5 overflow-hidden">
+              <div 
+                className="h-full bg-red-600 transition-all duration-300"
+                style={{ width: `${progressVal}%` }}
+              />
+            </div>
+          )}
+
+          <div className="flex justify-between items-center text-[9px] font-mono text-zinc-550 leading-none select-none">
+            <span className="uppercase text-red-500 font-bold">+{asset.xpReward} XP</span>
+            <span className="italic">{asset.subcategory}</span>
           </div>
         </div>
 
