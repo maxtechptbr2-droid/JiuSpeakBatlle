@@ -2,22 +2,61 @@ import jwt from 'jsonwebtoken';
 import { getPrisma } from './db';
 import { AuditActionType } from '@prisma/client';
 import crypto from 'crypto';
+import dotenv from 'dotenv';
 
-// Configurable exparations via env or defaults
-const DEFAULT_JWT_SECRET = 'super-secret-access-token-key-2026';
-const DEFAULT_JWT_REFRESH_SECRET = 'super-secret-refresh-token-key-2026-999';
+// Load variables early with override support
+dotenv.config({ override: true });
 
-export const JWT_ACCESS_SECRET = (!process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET)
-  ? (process.env.NODE_ENV === "production" 
-      ? crypto.randomBytes(32).toString('hex') 
-      : DEFAULT_JWT_SECRET)
-  : process.env.JWT_SECRET;
+const rawSecret = process.env.JWT_SECRET || '';
+const rawRefreshSecret = process.env.JWT_REFRESH_SECRET || '';
 
-export const JWT_REFRESH_SECRET = (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === DEFAULT_JWT_REFRESH_SECRET)
-  ? (process.env.NODE_ENV === "production" 
-      ? crypto.randomBytes(32).toString('hex') 
-      : DEFAULT_JWT_REFRESH_SECRET)
-  : process.env.JWT_REFRESH_SECRET;
+let validationError: string | null = null;
+
+if (!rawSecret) {
+  validationError = 'JWT_SECRET está ausente ou vazio no arquivo .env.';
+} else if (rawSecret.length < 64) {
+  validationError = `JWT_SECRET fornecido possui comprimento insuficiente (${rawSecret.length} caracteres). É necessário ter um comprimento mínimo de 64 caracteres para alta entropia.`;
+} else if (!rawRefreshSecret) {
+  validationError = 'JWT_REFRESH_SECRET está ausente ou vazio no arquivo .env.';
+} else if (rawRefreshSecret.length < 64) {
+  validationError = `JWT_REFRESH_SECRET fornecido possui comprimento insuficiente (${rawRefreshSecret.length} caracteres). É necessário ter um comprimento mínimo de 64 caracteres para alta entropia.`;
+}
+
+if (validationError) {
+  const errMsg = `[FALHA DE SEGURANÇA CRÍTICA] ${validationError} A inicialização do sistema foi cancelada de acordo com as regras rígidas corporativas.`;
+  console.error('\n' + '='.repeat(100));
+  console.error('🚨 ERRO CRÍTICO DE INICIALIZAÇÃO DE SEGURANÇA (CONFIG JWT)');
+  console.error(errMsg);
+  console.error('='.repeat(100) + '\n');
+
+  // Log to audit storage asynchronously and halt
+  const logAndExit = async () => {
+    try {
+      const prisma = getPrisma();
+      if (prisma) {
+        await prisma.auditLog.create({
+          data: {
+            actorId: null,
+            action: 'SYSTEM_SETTING_CHANGE',
+            description: `[CRITICAL CONFIG ERROR] JWT Secrets Validation Failed: ${validationError}`,
+            ipAddress: '127.0.0.1',
+            userAgent: 'Server-Init-Checker',
+          }
+        });
+        console.log("✔️ Alerta de vulnerabilidade foi registrado com sucesso na tabela de logs de auditoria.");
+      }
+    } catch (auditErr) {
+      console.warn("⚠️ Não foi possível salvar o alerta na tabela de logs de auditoria:", auditErr);
+    } finally {
+      process.exit(1);
+    }
+  };
+
+  logAndExit();
+}
+
+export const JWT_ACCESS_SECRET = rawSecret;
+export const JWT_REFRESH_SECRET = rawRefreshSecret;
 
 // Expiration definitions in ms or strings as per jsonwebtoken standards
 const ACCESS_TOKEN_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '15m'; // enterprise normal default: 15 mins

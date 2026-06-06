@@ -71,12 +71,12 @@ export default function Users() {
   const [loadingAdvanced, setLoadingAdvanced] = useState(false);
 
   // Advanced Operations State
-  const [advancedTab, setAdvancedTab] = useState<'sessions' | 'combat' | 'finance' | 'purchases' | 'study' | 'actions'>('sessions');
+  const [advancedTab, setAdvancedTab] = useState<'sessions' | 'inventory' | 'marketplace' | 'subscriptions' | 'combat' | 'finance' | 'purchases' | 'study' | 'actions'>('sessions');
   const [doubleConfirmAction, setDoubleConfirmAction] = useState<{ actionType: string; title: string; message: string; onConfirm: () => void } | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const [transferPayload, setTransferPayload] = useState({
     targetUserId: '',
-    assetType: 'COINS' as 'BELT' | 'XP' | 'ELO' | 'COINS',
+    assetType: 'COINS' as 'BELT' | 'XP' | 'ELO' | 'COINS' | 'ITEM' | 'ITENS',
     value: ''
   });
 
@@ -125,6 +125,9 @@ export default function Users() {
     let valueDisplay = value;
     if (assetType === 'BELT') {
       valueDisplay = `Faixa atual (${activeAuditUser.belt || 'Branca'})`;
+    } else if (assetType === 'ITEM') {
+      const selectedItemName = advancedInfo?.inventory?.find((itm: any) => itm.id === value)?.name || 'Item selecionado';
+      valueDisplay = `O item cosmético "${selectedItemName}" (ID: ${value})`;
     }
     
     setDoubleConfirmAction({
@@ -991,10 +994,13 @@ export default function Users() {
                 <div className="flex gap-1.5 border-b border-slate-850 pb-2 overflow-x-auto">
                   {[
                     { id: 'sessions', label: 'Sessões & Logins', icon: Terminal },
+                    { id: 'inventory', label: 'Inventário (Armário)', icon: UserIcon },
+                    { id: 'marketplace', label: 'Marketplace', icon: Trophy },
+                    { id: 'subscriptions', label: 'Contratos VIP', icon: Award },
                     { id: 'combat', label: 'Combates (PVP)', icon: Swords },
                     { id: 'finance', label: 'Histórico de Pagamentos', icon: Wallet },
-                    { id: 'purchases', label: 'Histórico de Compras', icon: UserIcon },
-                    { id: 'study', label: 'Histórico de Aulas', icon: Award },
+                    { id: 'purchases', label: 'Histórico de Compras', icon: FileText },
+                    { id: 'study', label: 'Histórico de Aulas', icon: CheckCircle },
                     { id: 'actions', label: 'Controle Executivo', icon: Sliders }
                   ].map(tabItem => {
                     const IconComponent = tabItem.icon;
@@ -1021,21 +1027,59 @@ export default function Users() {
                   
                   {/* Tab 1: SESSIONS & LOGINS */}
                   {advancedTab === 'sessions' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
                       <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5">
-                        <h5 className="text-[10px] uppercase font-bold text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
-                          <Terminal className="w-4 h-4 text-emerald-400" />
-                          <span>Dispositivos & IPs de Entrada (Sessões Ativas)</span>
+                        <h5 className="text-[10px] uppercase font-bold text-slate-350 border-b border-slate-850 pb-1.5 flex items-center justify-between gap-1.5">
+                          <span className="flex items-center gap-1.5 text-slate-400">
+                            <Terminal className="w-4 h-4 text-emerald-400" />
+                            <span>Dispositivos & IPs de Entrada (Sessões Ativas)</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDoubleConfirmAction({
+                                actionType: 'DISCONNECT_SESSIONS',
+                                title: 'Desconectar Todas as Sessões',
+                                message: `Deseja invalidar e revogar TODAS as sessões ativas e dispositivos de ${activeAuditUser.name}? Isso forçará a saída dele em todos os navegadores.`,
+                                onConfirm: async () => {
+                                  await callAdminAction(`${activeAuditUser.id}/sessions/disconnect-all`, 'POST');
+                                }
+                              });
+                            }}
+                            className="bg-rose-950/40 hover:bg-rose-900/40 border border-rose-500/30 text-rose-400 font-bold text-[8.5px] p-1 px-2 rounded cursor-pointer transition-all uppercase shrink-0"
+                          >
+                            Encerrar Todos
+                          </button>
                         </h5>
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                           {advancedInfo.tokens && advancedInfo.tokens.length > 0 ? (
                             advancedInfo.tokens.map((token: any) => (
                               <div key={token.id} className="p-2 rounded bg-slate-900 border border-slate-850 text-[10px] space-y-1">
-                                <div className="flex justify-between text-[9.5px]">
-                                  <span className="font-bold text-indigo-400">{token.ipAddress || '127.0.0.1'}</span>
-                                  <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(token.issuedAt).toLocaleString()}</span>
+                                <div className="flex justify-between items-center text-[9.5px]">
+                                  <span className="font-bold text-indigo-400 font-mono">{token.ipAddress || '127.0.0.1'}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-slate-500 flex items-center gap-1 font-mono text-[8.5px]">
+                                      <Clock className="w-3 h-3" /> {new Date(token.issuedAt || token.createdAt).toLocaleString()}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setDoubleConfirmAction({
+                                          actionType: 'TERMINATE_TOKEN',
+                                          title: 'Encerrar Dispositivo',
+                                          message: `Revogar a autorização de acesso e derrubar o dispositivo IP ${token.ipAddress || '127.0.0.1'} do atleta ${activeAuditUser.name}?`,
+                                          onConfirm: async () => {
+                                            await callAdminAction(`${activeAuditUser.id}/sessions/${token.id}/terminate`, 'POST');
+                                          }
+                                        });
+                                      }}
+                                      className="text-rose-400 hover:text-white font-bold text-[8px] p-0.5 px-1.5 rounded border border-rose-500/20 bg-rose-950/30 cursor-pointer transition-all"
+                                    >
+                                      Derrubar ✕
+                                    </button>
+                                  </div>
                                 </div>
-                                <p className="text-slate-400 font-sans text-[9px] truncate" title={token.userAgent}>Browser Agent: {token.userAgent || 'Desconhecido'}</p>
+                                <p className="text-slate-450 font-sans text-[9px] truncate" title={token.userAgent}>Browser Agent: {token.userAgent || 'Desconhecido'}</p>
                               </div>
                             ))
                           ) : (
@@ -1054,7 +1098,7 @@ export default function Users() {
                             advancedInfo.logins.map((lg: any, idx: number) => (
                               <div key={idx} className="p-2 rounded bg-slate-900 border border-slate-850 text-[9.5px] flex justify-between items-center">
                                 <div>
-                                  <p className="font-bold text-slate-350">IP: {lg.ipAddress || 'Sem IP'}</p>
+                                  <p className="font-bold text-slate-350 font-mono">IP: {lg.ipAddress || 'Sem IP'}</p>
                                   <p className="text-[8.5px] text-slate-500">{new Date(lg.timestamp).toLocaleString()}</p>
                                 </div>
                                 <span className={`p-0.5 px-2 rounded text-[8px] font-bold ${
@@ -1069,6 +1113,119 @@ export default function Users() {
                           )}
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Tab: INVENTORY (Visualizar inventário) */}
+                  {advancedTab === 'inventory' && (
+                    <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5 animate-fadeIn">
+                      <h5 className="text-[10px] uppercase font-bold text-slate-300 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                        <UserIcon className="w-4 h-4 text-emerald-400" />
+                        <span>Inventário de Itens Adquiridos & Cosméticos</span>
+                      </h5>
+                      {advancedInfo.inventory && advancedInfo.inventory.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 select-none text-[10px]">
+                          {advancedInfo.inventory.map((item: any) => (
+                            <div key={item.id} className="p-3 rounded-lg bg-slate-900 border border-slate-850 flex items-start gap-2.5">
+                              {item.imageUrl ? (
+                                <img src={item.imageUrl} alt={item.name} className="w-10 h-10 rounded object-cover border border-slate-700 shrink-0" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-10 h-10 bg-indigo-950 text-indigo-400 rounded border border-indigo-900 flex items-center justify-center font-bold text-xs shrink-0 font-mono">🥋</div>
+                              )}
+                              <div className="space-y-0.5 min-w-0 flex-1">
+                                <p className="font-bold text-slate-200 truncate">{item.name}</p>
+                                <p className="text-[9px] text-slate-450 line-clamp-1">{item.description || 'Kimono ou insígnia adquirida'}</p>
+                                <div className="flex gap-1.5 items-center pt-0.5">
+                                  <span className={`text-[8px] font-bold px-1 rounded uppercase ${
+                                    item.rarity === 'LEGENDARY' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                    item.rarity === 'EPIC' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                                    item.rarity === 'RARE' ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' :
+                                    'bg-slate-500/10 text-slate-400 border border-slate-550/10'
+                                  }`}>{item.rarity}</span>
+                                  {item.isEquipped && (
+                                    <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-1 rounded font-bold uppercase">Equipado</span>
+                                  )}
+                                </div>
+                                <p className="text-[8px] font-mono text-slate-600 truncate pt-0.5">Item ID: {item.id}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-550 text-center py-10">Este atleta possui o armário vazio ou não há itens registrados no inventário.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tab: MARKETPLACE (Visualizar marketplace) */}
+                  {advancedTab === 'marketplace' && (
+                    <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5 animate-fadeIn">
+                      <h5 className="text-[10px] uppercase font-bold text-slate-300 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
+                        <span>Ofertas Ativas de Anúncios no Marketplace Central</span>
+                      </h5>
+                      {advancedInfo.marketplace && advancedInfo.marketplace.length > 0 ? (
+                        <div className="space-y-2">
+                          {advancedInfo.marketplace.map((m: any) => (
+                            <div key={m.id} className="p-3 rounded-lg bg-slate-900 border border-slate-850 text-[10px] flex justify-between items-center">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-200">
+                                  Item anunciado: {m.inventoryItem?.name || 'Item de Coleção'}
+                                </p>
+                                <div className="flex gap-2 text-[8.5px] text-slate-500">
+                                  <span>ID Anúncio: <span className="font-mono text-slate-400 font-bold">{m.id}</span></span>
+                                  <span>•</span>
+                                  <span>Cadastrado em: {new Date(m.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-yellow-500 font-mono">{m.priceKC} KC</p>
+                                <span className={`text-[8.5px] uppercase font-bold rounded px-1.5 ${
+                                  m.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                                }`}>
+                                  {m.active ? 'ATIVO' : 'CONCLUÍDO/PAUSADO'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-550 text-center py-10">Nenhuma oferta de venda ativa registrada no marketplace por este atleta.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tab: SUBSCRIPTIONS (Visualizar assinaturas) */}
+                  {advancedTab === 'subscriptions' && (
+                    <div className="bg-slate-950 p-4 border border-slate-850 rounded-xl space-y-2.5 animate-fadeIn">
+                      <h5 className="text-[10px] uppercase font-bold text-slate-300 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-emerald-400" />
+                        <span>Planos e Contratos de Assinatura Ativos</span>
+                      </h5>
+                      {advancedInfo.subscriptions && advancedInfo.subscriptions.length > 0 ? (
+                        <div className="space-y-2">
+                          {advancedInfo.subscriptions.map((sub: any) => (
+                            <div key={sub.id} className="p-3 rounded-lg bg-slate-900 border border-slate-850 text-[10px] space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-indigo-400 text-[11px]">{sub.plan?.name || 'Acesso VIP Premium'}</span>
+                                <span className={`p-0.5 px-2 rounded text-[8px] font-bold ${
+                                  sub.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-505/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                                }`}>
+                                  {sub.status}
+                                </span>
+                              </div>
+                              <p className="text-slate-450 text-[9px]">{sub.plan?.description || 'Acesso liberado às aulas e treinos recomendados.'}</p>
+                              <div className="grid grid-cols-2 gap-3 text-[8.5px] text-slate-505 pt-1 border-t border-slate-850/50 font-mono">
+                                <p>Início: {new Date(sub.startDate).toLocaleDateString()}</p>
+                                <p>Término: {new Date(sub.endDate).toLocaleDateString()}</p>
+                              </div>
+                              <p className="text-[8px] font-mono text-slate-600">Assinatura ID: {sub.id}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-slate-550 text-center py-10">Este atleta não possui nenhum plano ou contrato de assinatura ativa cadastrada.</p>
+                      )}
                     </div>
                   )}
 
@@ -1299,27 +1456,44 @@ export default function Users() {
                             <label className="text-[9px] text-slate-500 uppercase">Tipo de Recurso:</label>
                             <select
                               value={transferPayload.assetType}
-                              onChange={(e) => setTransferPayload({ ...transferPayload, assetType: e.target.value as any })}
+                              onChange={(e) => setTransferPayload({ ...transferPayload, assetType: e.target.value as any, value: '' })}
                               className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none"
                             >
                               <option value="COINS">Kimono Coins (KC)</option>
                               <option value="XP">Estudos XP (Pontos)</option>
                               <option value="ELO">ELO Rating (Pontos)</option>
                               <option value="BELT">Graduação (Faixa Atual)</option>
+                              <option value="ITEM">Item do Inventário (Cosmético)</option>
                             </select>
                           </div>
 
                           <div className="space-y-1 md:col-span-1">
-                            <label className="text-[9px] text-slate-500 uppercase">Quantidade:</label>
-                            <input
-                              type="text"
-                              disabled={transferPayload.assetType === 'BELT'}
-                              value={transferPayload.assetType === 'BELT' ? 'F_B_001' : transferPayload.value}
-                              onChange={(e) => setTransferPayload({ ...transferPayload, value: e.target.value })}
-                              placeholder={transferPayload.assetType === 'BELT' ? 'Migra a Faixa Inteira' : 'Ex: 500'}
-                              className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none disabled:opacity-40"
-                              required={transferPayload.assetType !== 'BELT'}
-                            />
+                            <label className="text-[9px] text-slate-500 uppercase">Quantidade / Item:</label>
+                            {transferPayload.assetType === 'ITEM' ? (
+                              <select
+                                value={transferPayload.value}
+                                onChange={(e) => setTransferPayload({ ...transferPayload, value: e.target.value })}
+                                className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                required
+                              >
+                                <option value="">-- Selecione o Item --</option>
+                                {advancedInfo?.inventory && advancedInfo.inventory.map((item: any) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name} ({item.rarity})
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                disabled={transferPayload.assetType === 'BELT'}
+                                value={transferPayload.assetType === 'BELT' ? 'F_B_001' : transferPayload.value}
+                                onChange={(e) => setTransferPayload({ ...transferPayload, value: e.target.value })}
+                                placeholder={transferPayload.assetType === 'BELT' ? 'Migra a Faixa Inteira' : 'Ex: 500'}
+                                className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none disabled:opacity-40"
+                                required={transferPayload.assetType !== 'BELT'}
+                              />
+                            )}
                           </div>
 
                           <button
@@ -1395,6 +1569,35 @@ export default function Users() {
                                 }`}
                               >
                                 {advancedInfo.user.isSuspended ? "✓ REATIVAR CONTA" : "⏳ SUSPENDER"}
+                              </button>
+                            </div>
+
+                            {/* Ban Account block */}
+                            <div className="flex justify-between items-center p-2 rounded bg-slate-925 border border-slate-850">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-slate-200 text-[10.5px]">Banimento Permanente (Ban)</p>
+                                <p className="text-[8.5px] text-slate-500">Bane permanente o atleta do ranking competitivo e acessividade</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newVal = !advancedInfo.user.isBanned;
+                                  setDoubleConfirmAction({
+                                    actionType: 'BAN_TOGGLE',
+                                    title: newVal ? 'Banir Usuário' : 'Desbanir Usuário',
+                                    message: `Deseja realmente ${newVal ? 'BANIR DEFINITIVAMENTE' : 'REATIVAR / RETIRAR BLACKLIST DE'} ${activeAuditUser.name}?`,
+                                    onConfirm: async () => {
+                                      await callAdminAction(`${activeAuditUser.id}/update`, 'POST', { isBanned: newVal });
+                                    }
+                                  });
+                                }}
+                                className={`text-[9.5px] font-bold p-1 px-3.5 rounded border transition-all cursor-pointer ${
+                                  advancedInfo.user.isBanned
+                                    ? 'bg-emerald-650/15 text-emerald-450 border-emerald-500/30'
+                                    : 'bg-rose-950/40 text-rose-450 border-rose-500/30 hover:bg-rose-900/30'
+                                }`}
+                              >
+                                {advancedInfo.user.isBanned ? "✓ DESBANIR CONTA" : "🚫 BANIR ATLETA"}
                               </button>
                             </div>
                           </div>

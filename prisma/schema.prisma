@@ -416,6 +416,8 @@ model StoreProduct {
   isBundle    Boolean  @default(false)
   isSeasonal  Boolean  @default(false)
   isExclusive Boolean  @default(false)
+  releaseDate  DateTime? // Programmed launch date/time
+  promoEndDate DateTime? // Programmed promotion end date/time
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

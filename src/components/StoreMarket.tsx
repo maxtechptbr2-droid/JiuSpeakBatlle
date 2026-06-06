@@ -37,7 +37,6 @@ import {
   Plus
 } from 'lucide-react';
 import { UserProfile, InventoryItem, MarketplaceItem, MarketplaceSale } from '../types';
-import { LOJA_ITEMS } from '../data';
 
 // 1. High-Performance Canvas-based Gaming Particle Confetti Rain for legendary acquisitions
 export function ConfettiRain() {
@@ -716,8 +715,33 @@ export default function StoreMarket({
 
   // Resolve visual/name details of inventory item IDs
   const resolveItemDetails = (itId: string) => {
-    const found = LOJA_ITEMS.find(i => i.id === itId);
-    if (found) return found;
+    // 1. Search in unlockedItems (PostgreSQL synchronized items)
+    const fromUnlocked = unlockedItems.find(ui => ui.id === itId || ui.productId === itId);
+    if (fromUnlocked) {
+      return {
+        id: fromUnlocked.productId || fromUnlocked.id,
+        name: fromUnlocked.name,
+        description: fromUnlocked.description || "Recurso cosmético do banco de dados.",
+        category: fromUnlocked.category || "Itens Especiais",
+        price: 0,
+        rarity: fromUnlocked.rarity || "COMMON",
+        imageUrl: fromUnlocked.imageUrl || ""
+      };
+    }
+
+    // 2. Search in storeProducts (active store catalogue fetched loaded state)
+    const fromStore = storeProducts.find(sp => sp.id === itId);
+    if (fromStore) {
+      return {
+        id: fromStore.id,
+        name: fromStore.name,
+        description: fromStore.description || "",
+        category: fromStore.category,
+        price: fromStore.priceKC,
+        rarity: fromStore.rarity,
+        imageUrl: fromStore.imageUrl || ""
+      };
+    }
 
     // Default seeded mappings or custom fallbacks
     switch (itId) {
@@ -1827,13 +1851,7 @@ export default function StoreMarket({
 
               {/* Offline fallback / user profile sync */}
               {user.inventory.filter(invId => !unlockedItems.some(ui => ui.productId === invId)).map((invId) => {
-                const item = LOJA_ITEMS.find(i => i.id === invId) || {
-                  id: invId,
-                  name: 'Guia de Conversação Prático',
-                  description: 'Recurso cosmético ou técnico cadastrado em seu painel.',
-                  category: 'TITLE',
-                  rarity: 'COMMON',
-                };
+                const item = resolveItemDetails(invId);
 
                 return (
                   <div 
