@@ -26,10 +26,26 @@ import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
 import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
 
+// -------------------------------------------------------------------------
+// PRO-LEVEL PROCESS LISTENERS & ERROR DETECTION ENGINE (ANTI-502 CRASH LOOPS)
+// -------------------------------------------------------------------------
+process.on("uncaughtException", (error: Error) => {
+  console.error("FATAL: Uncaught Exception caught by Tatame Conectado global handler:", error);
+  logError("PROCESS_UNCAUGHT_EXCEPTION", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error("FATAL: Unhandled Rejection at Promise:", promise, "reason:", reason);
+  logError("PROCESS_UNHANDLED_REJECTION", err);
+  process.exit(1);
+});
+
 const app = express();
 app.set("trust proxy", 1);
 export let globalIo: any = null;
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Enable Gzip compression
 app.use(compression());
@@ -8803,7 +8819,32 @@ async function startServer() {
   }
 
   server.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 MULTIPLAYER PVP AUTH SERVER BOOTED: Running on port ${PORT}`);
+    const isProd = process.env.NODE_ENV === "production";
+    const startupDetails = {
+      timestamp: new Date().toISOString(),
+      processId: process.pid,
+      nodeVersion: process.version,
+      platform: process.platform,
+      port: PORT,
+      environment: process.env.NODE_ENV || "not_defined",
+      jwtReady: !!(JWT_ACCESS_SECRET && JWT_REFRESH_SECRET),
+      redisState: getRedisClient()?.isMock ? "Mocked (In-Memory Fallback)" : "Connected to Real Redis Instance",
+      databaseConnected: isDatabaseConnected(),
+      memoryUsage: {
+        rss: `${(process.memoryUsage().rss / 1024 / 1024).toFixed(2)} MB`,
+        heapTotal: `${(process.memoryUsage().heapTotal / 1024 / 1024).toFixed(2)} MB`,
+        heapUsed: `${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB`,
+      }
+    };
+
+    console.log("\n" + "=".repeat(80));
+    console.log(`🚀 TATAME CONECTADO MULTIPLAYER PVP SYSTEM BOOTED SUCCESSFULLY!`);
+    console.log(`📡 Ouvindo na porta de entrada: [${PORT}] com IP de bind global [0.0.0.0]`);
+    console.log(`📊 Detalhes do Ambiente de Inicialização:`);
+    console.log(JSON.stringify(startupDetails, null, 2));
+    console.log("=".repeat(80) + "\n");
+
+    logApp("SERVER_STARTUP_COMPLETED", startupDetails);
   });
 }
 

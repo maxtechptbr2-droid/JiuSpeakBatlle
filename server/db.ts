@@ -62,30 +62,29 @@ export async function assertDatabaseConnection(): Promise<void> {
     try {
       // Attempt connection
       await client.$connect();
-      console.log("✓ Prisma conectado");
+      console.log("✓ Prisma conectado com sucesso");
 
       // Attempt a basic check query to active postgres
       await client.$queryRaw`SELECT 1`;
-      console.log("✓ PostgreSQL conectado");
+      console.log("✓ PostgreSQL conectado e verificado com sucesso");
       dbConnected = true;
       return;
     } catch (e: any) {
       retries--;
-      console.error("✗ Erro ao conectar ao banco", {
+      console.error("✗ Erro de tentativa ao conectar ao PostgreSQL / Prisma", {
         message: e.message || e,
         retriesRemaining: retries,
         timestamp: new Date().toISOString()
       });
       if (retries === 0) {
         dbConnected = false;
-        console.warn("\n" + "=".repeat(80));
-        console.warn("[AVISO DE BANCO DE DADOS]: Não foi possível estabelecer conexão com o PostgreSQL.");
-        console.warn("A aplicação estará funcionando em modo híbrido com fallback para banco de dados em memória.");
-        console.warn("Detalhes do erro do driver:", e.message || e);
-        console.warn("=".repeat(80) + "\n");
-        // In the preview sandbox environment, we do not call process.exit(1) on connection failure
-        // so that the dev server can start and let the user interact with the non-persistent UI.
-        return;
+        console.error("\n" + "=".repeat(80));
+        console.error("[CATASTRÓFICO] ERRO DE CONEXÃO COM O POSTGRESQL:");
+        console.error("Não foi possível estabelecer conexão estável com o banco de dados principal.");
+        console.error("Como as diretrizes de produção proíbem qualquer fallback para banco em memória, encerraremos o processo para impedir inconsistência de dados (mecanismo anti-502).");
+        console.error("Detalhes do erro do driver:", e.message || e);
+        console.error("=".repeat(80) + "\n");
+        process.exit(1);
       }
       // Wait 1.5 seconds before next connection retry
       await new Promise((resolve) => setTimeout(resolve, 1500));
