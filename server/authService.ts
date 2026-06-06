@@ -64,19 +64,23 @@ export const AuthService = {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<void> {
-    const prisma = getPrisma();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
-    await prisma.refreshToken.create({
-      data: {
-        token: params.token,
-        userId: params.userId,
-        expiresAt,
-        ipAddress: params.ipAddress || null,
-        userAgent: params.userAgent || null,
-      },
-    });
+    try {
+      const prisma = getPrisma();
+      await prisma.refreshToken.create({
+        data: {
+          token: params.token,
+          userId: params.userId,
+          expiresAt,
+          ipAddress: params.ipAddress || null,
+          userAgent: params.userAgent || null,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to persist RefreshToken in DB, falling back to session tracking:', err);
+    }
   },
 
   /**

@@ -845,7 +845,7 @@ export const authenticateToken = (req: any, res: any, next: any) => {
       next();
     } catch (dbErr: any) {
       console.error("[AUTH FAILURE] Erro crítico de comunicação com o Postgres/Prisma durante autenticação de rotas:", dbErr);
-      const isDbErr = !isDatabaseConnected() || dbErr.message?.includes("connect") || dbErr.message?.includes("database") || dbErr.message?.includes("Prisma") || dbErr.message?.includes("Postgres") || dbErr.message?.includes("Can't reach database");
+      const isDbErr = isDatabaseConnected() && (dbErr.message?.includes("connect") || dbErr.message?.includes("database") || dbErr.message?.includes("Prisma") || dbErr.message?.includes("Postgres") || dbErr.message?.includes("Can't reach database"));
       if (isDbErr) {
         return res.status(503).json({ error: "Banco indisponível" });
       }
@@ -936,7 +936,7 @@ app.post("/api/auth/register", async (req: any, res: any) => {
     logError("Failed to register new athlete user", error);
     logAuth("REGISTER", req.body?.email || "unknown", false, { error: error.message });
     console.error("[REGISTER FAULT] Erro crítico no registro:", error);
-    const isDbErr = !isDatabaseConnected() || error.message?.includes("connect") || error.message?.includes("database") || error.message?.includes("Prisma") || error.message?.includes("Postgres") || error.message?.includes("Can't reach database");
+    const isDbErr = isDatabaseConnected() && (error.message?.includes("connect") || error.message?.includes("database") || error.message?.includes("Prisma") || error.message?.includes("Postgres") || error.message?.includes("Can't reach database"));
     if (isDbErr) {
       return res.status(503).json({ error: "Banco indisponível" });
     }
@@ -1067,7 +1067,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     logError("Login handler crash", error);
     logAuth("LOGIN", req.body?.email || "unknown", false, { error: error.message });
     console.error("[LOGIN FAULT] Erro crítico no login:", error);
-    const isDbErr = !isDatabaseConnected() || error.message?.includes("connect") || error.message?.includes("database") || error.message?.includes("Prisma") || error.message?.includes("Postgres") || error.message?.includes("Can't reach database");
+    const isDbErr = isDatabaseConnected() && (error.message?.includes("connect") || error.message?.includes("database") || error.message?.includes("Prisma") || error.message?.includes("Postgres") || error.message?.includes("Can't reach database"));
     if (isDbErr) {
       return res.status(503).json({ error: "Banco indisponível" });
     }
