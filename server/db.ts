@@ -62,28 +62,17 @@ export async function assertDatabaseConnection(): Promise<void> {
     try {
       // Attempt connection
       await client.$connect();
-      console.log("✓ Prisma conectado com sucesso");
 
       // Attempt a basic check query to active postgres
       await client.$queryRaw`SELECT 1`;
-      console.log("✓ PostgreSQL conectado e verificado com sucesso");
+      console.log("✓ PostgreSQL conectado");
       dbConnected = true;
       return;
     } catch (e: any) {
       retries--;
-      console.error("✗ Erro de tentativa ao conectar ao PostgreSQL / Prisma", {
-        message: e.message || e,
-        retriesRemaining: retries,
-        timestamp: new Date().toISOString()
-      });
       if (retries === 0) {
         dbConnected = false;
-        console.error("\n" + "=".repeat(80));
-        console.error("[CATASTRÓFICO] ERRO DE CONEXÃO COM O POSTGRESQL:");
-        console.error("Não foi possível estabelecer conexão estável com o banco de dados principal.");
-        console.error("Como as diretrizes de produção proíbem qualquer fallback para banco em memória, encerraremos o processo para impedir inconsistência de dados (mecanismo anti-502).");
-        console.error("Detalhes do erro do driver:", e.message || e);
-        console.error("=".repeat(80) + "\n");
+        console.error("✗ PostgreSQL indisponível");
         process.exit(1);
       }
       // Wait 1.5 seconds before next connection retry

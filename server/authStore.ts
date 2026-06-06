@@ -1540,18 +1540,11 @@ export const authStore = {
           refreshToken: u.refreshToken,
         });
       }
+      return null;
     } catch (dbErr) {
-      console.warn("Prisma findByEmail error, falling back to inMemoryUsers:", dbErr);
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
-
-    // FALLBACK
-    const foundMem = Array.from(inMemoryUsers.values()).find(
-      u => u.email.toLowerCase().trim() === formattedEmail
-    );
-    if (foundMem) {
-      return patchUserObjectWithDeterministicAvatar({ ...foundMem });
-    }
-    return null;
   },
 
   async findById(id: string): Promise<Partial<AuthUser> | null> {
@@ -1588,16 +1581,11 @@ export const authStore = {
           refreshToken: u.refreshToken,
         });
       }
+      return null;
     } catch (dbErr) {
-      console.warn("Prisma findById error, falling back to inMemoryUsers:", dbErr);
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
-
-    // FALLBACK
-    const foundMem = inMemoryUsers.get(id);
-    if (foundMem) {
-      return patchUserObjectWithDeterministicAvatar({ ...foundMem });
-    }
-    return null;
   },
 
   async createUser(data: {
@@ -1639,34 +1627,6 @@ export const authStore = {
         },
       });
 
-      const userObj: AuthUser = {
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        passwordHash: u.password,
-        role: u.role as any,
-        isAdminApproved: u.isAdminApproved,
-        belt: u.belt as any,
-        stripes: u.stripes,
-        xp: u.xp,
-        level: u.level,
-        elo: u.elo,
-        avatar: u.avatar,
-        coins: 200,
-        balanceAvailableBRL: 0.00,
-        balancePendingBRL: 0.00,
-        totalEarnedBRL: 0.00,
-        totalWithdrawnBRL: 0.00,
-        isEmailVerified: u.isEmailVerified,
-        verificationToken: u.verificationToken,
-        resetToken: u.resetToken,
-        resetTokenExpires: u.resetTokenExpires,
-        refreshToken: u.refreshToken,
-      };
-
-      // Sync memory cache too
-      inMemoryUsers.set(u.id, userObj);
-
       return {
         id: u.id,
         email: u.email,
@@ -1676,55 +1636,12 @@ export const authStore = {
         isEmailVerified: u.isEmailVerified,
       };
     } catch (dbErr) {
-      console.warn("Prisma createUser error, falling back to inMemoryUsers:", dbErr);
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
-
-    // FALLBACK
-    const memId = 'mem_user_' + Math.random().toString(36).substring(2, 11);
-    const userObj: AuthUser = {
-      id: memId,
-      email: formattedEmail,
-      name: data.name,
-      passwordHash: data.passwordHash,
-      role: role as any,
-      isAdminApproved: approved,
-      belt: 'WHITE',
-      stripes: 0,
-      xp: 0,
-      level: 1,
-      elo: 1000,
-      avatar: null,
-      coins: 200,
-      balanceAvailableBRL: 0.00,
-      balancePendingBRL: 0.00,
-      totalEarnedBRL: 0.00,
-      totalWithdrawnBRL: 0.00,
-      isEmailVerified: false,
-      verificationToken: data.verificationToken,
-      resetToken: null,
-      resetTokenExpires: null,
-      refreshToken: null,
-    };
-
-    inMemoryUsers.set(memId, userObj);
-
-    return {
-      id: userObj.id,
-      email: userObj.email,
-      name: userObj.name,
-      role: userObj.role,
-      isAdminApproved: userObj.isAdminApproved,
-      isEmailVerified: userObj.isEmailVerified,
-    };
   },
 
   async updateUser(id: string, fields: Partial<AuthUser>): Promise<boolean> {
-    // 1. Sync in-memory cache
-    const memUser = inMemoryUsers.get(id);
-    if (memUser) {
-      Object.assign(memUser, fields);
-    }
-
     try {
       const prisma = getPrisma();
       const prismaData: any = {};
@@ -1792,8 +1709,8 @@ export const authStore = {
       }
       return true;
     } catch (dbErr) {
-      console.warn("Prisma updateUser error, falling back to inMemory cache only:", dbErr);
-      return true;
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
   },
 

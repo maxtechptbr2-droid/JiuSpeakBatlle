@@ -14,7 +14,7 @@ import bcrypt from "bcrypt";
 import http from "http";
 import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
-import { authStore, simulatedSentEmails, inMemoryUsers, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar, patchProductObjectWithBjjAvatar } from "./server/authStore";
+import { authStore, simulatedSentEmails, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar, patchProductObjectWithBjjAvatar } from "./server/authStore";
 import { AuthService, generateAccessToken, generateRefreshToken, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
@@ -1241,27 +1241,19 @@ app.post("/api/auth/verify", async (req: any, res: any) => {
       return res.status(400).json({ error: "Token de verificação não informado." });
     }
 
-    // Traverse users in DB/fallback to find matched verificationToken
+    const prisma = getPrisma();
     let matchedId: string | null = null;
     let matchedUser: any = null;
 
-    const prisma = getPrisma();
-    if (prisma) {
+    try {
       const u = await prisma.user.findFirst({ where: { verificationToken: token } });
       if (u) {
         matchedId = u.id;
         matchedUser = u;
       }
-    }
-
-    if (!matchedId) {
-      for (const u of inMemoryUsers.values()) {
-        if (u.verificationToken === token) {
-          matchedId = u.id;
-          matchedUser = u;
-          break;
-        }
-      }
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     if (!matchedId || !matchedUser) {
@@ -1340,27 +1332,19 @@ app.post("/api/auth/reset-password", async (req: any, res: any) => {
       return res.status(400).json({ error: "A nova senha precisa ter ao menos 6 caracteres." });
     }
 
-    // Locate user by reset token
+    const prisma = getPrisma();
     let matchedId: string | null = null;
     let matchedTokenExpires: Date | null = null;
 
-    const prisma = getPrisma();
-    if (prisma) {
+    try {
       const u = await prisma.user.findFirst({ where: { resetToken: token } });
       if (u) {
         matchedId = u.id;
         matchedTokenExpires = u.resetTokenExpires;
       }
-    }
-
-    if (!matchedId) {
-      for (const u of inMemoryUsers.values()) {
-        if (u.resetToken === token) {
-          matchedId = u.id;
-          matchedTokenExpires = u.resetTokenExpires;
-          break;
-        }
-      }
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     if (!matchedId || !matchedTokenExpires) {
@@ -1413,58 +1397,32 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
   try {
     const { skip, take, page, limit } = parsePagination(req.query, 20, 100);
 
-    // Collect from real database or local in memory lists
+    // Collect from real database exclusively
     const usersList: any[] = [];
     const prisma = getPrisma();
     let totalCount = 0;
 
-    if (prisma) {
-      try {
-        totalCount = await prisma.user.count();
-        const list = await prisma.user.findMany({
-          orderBy: { createdAt: "desc" },
-          skip,
-          take,
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            belt: true,
-            stripes: true,
-            level: true,
-            elo: true,
-            isEmailVerified: true,
-            createdAt: true,
-          }
-        });
-        list.forEach((u: any) => {
-          usersList.push(patchUserObjectWithDeterministicAvatar({
-            id: u.id,
-            email: u.email,
-            name: u.name,
-            role: u.role,
-            belt: u.belt,
-            stripes: u.stripes,
-            level: u.level,
-            elo: u.elo,
-            isEmailVerified: u.isEmailVerified,
-            createdAt: u.createdAt,
-            avatar: null
-          }));
-        });
-      } catch (err) {
-        console.error("Failed to query prisma list, will use in memory", err);
-      }
-    }
-
-    if (usersList.length === 0) {
-      totalCount = inMemoryUsers.size;
-      const memArray = Array.from(inMemoryUsers.values());
-      const paginatedMem = memArray.slice(skip, skip + take);
-      
-      for (const u of paginatedMem) {
-        usersList.push({
+    try {
+      totalCount = await prisma.user.count();
+      const list = await prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          belt: true,
+          stripes: true,
+          level: true,
+          elo: true,
+          isEmailVerified: true,
+          createdAt: true,
+        }
+      });
+      list.forEach((u: any) => {
+        usersList.push(patchUserObjectWithDeterministicAvatar({
           id: u.id,
           email: u.email,
           name: u.name,
@@ -1474,9 +1432,13 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           level: u.level,
           elo: u.elo,
           isEmailVerified: u.isEmailVerified,
-          createdAt: u.resetTokenExpires || new Date(),
-        });
-      }
+          createdAt: u.createdAt,
+          avatar: null
+        }));
+      });
+    } catch (err) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     res.json({ 
@@ -2445,60 +2407,36 @@ app.get("/api/admin/subscriptions", authenticateToken, requireRole(["ADMIN"]), a
     const prisma = getPrisma();
     let resultList: any[] = [];
 
-    if (prisma) {
-      try {
-        const subs = await prisma.subscription.findMany({
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            plan: true
-          },
-          orderBy: { createdAt: "desc" },
-          take: 500 // Cap database readout to prevent locking
-        });
-        resultList = subs.map((s: any) => ({
-          id: s.id,
-          userId: s.userId,
-          subscriberName: s.user?.name || "Desconhecido",
-          subscriberEmail: s.user?.email || "unknown@jiuspeak.com",
-          planId: s.planId,
-          planName: s.plan?.name || "Premium",
-          amountBRL: Number(s.plan?.priceBRL || 49.90),
-          status: s.status,
-          startDate: s.startDate.toISOString(),
-          endDate: s.endDate.toISOString(),
-          canceledAt: s.canceledAt ? s.canceledAt.toISOString() : null,
-          createdAt: s.createdAt.toISOString()
-        }));
-      } catch (err) {
-        console.warn("DB subscription aggregate fallback triggered:", err);
-      }
+    try {
+      const subs = await prisma.subscription.findMany({
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          plan: true
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500 // Cap database readout to prevent locking
+      });
+      resultList = subs.map((s: any) => ({
+        id: s.id,
+        userId: s.userId,
+        subscriberName: s.user?.name || "Desconhecido",
+        subscriberEmail: s.user?.email || "unknown@jiuspeak.com",
+        planId: s.planId,
+        planName: s.plan?.name || "Premium",
+        amountBRL: Number(s.plan?.priceBRL || 49.90),
+        status: s.status,
+        startDate: s.startDate.toISOString(),
+        endDate: s.endDate.toISOString(),
+        canceledAt: s.canceledAt ? s.canceledAt.toISOString() : null,
+        createdAt: s.createdAt.toISOString()
+      }));
+    } catch (err) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
-    // Merge Mock / In-Memory Subscriptions
-    const list = [...resultList];
-    for (const sub of inMemorySubscriptions) {
-      if (!list.some(s => s.id === sub.id)) {
-        const matchedUser = inMemoryUsers.get(sub.userId);
-        const matchedPlan = inMemoryPlans.find(p => p.id === sub.planId);
-        list.push({
-          id: sub.id,
-          userId: sub.userId,
-          subscriberName: matchedUser ? matchedUser.name : "Simulador Local",
-          subscriberEmail: matchedUser ? matchedUser.email : "sim@jiuspeak.com",
-          planId: sub.planId,
-          planName: matchedPlan ? matchedPlan.name : "Faixa Preta Premium",
-          amountBRL: matchedPlan ? Number(matchedPlan.priceBRL) : 49.90,
-          status: sub.status,
-          startDate: sub.startDate,
-          endDate: sub.endDate,
-          canceledAt: sub.canceledAt || null,
-          createdAt: sub.createdAt || new Date().toISOString()
-        });
-      }
-    }
-
-    const totalCount = list.length;
-    const paginatedList = list.slice(skip, skip + take);
+    const totalCount = resultList.length;
+    const paginatedList = resultList.slice(skip, skip + take);
 
     res.json({ 
       subscriptions: paginatedList,
@@ -2582,59 +2520,40 @@ app.get("/api/admin/pix", authenticateToken, requireRole(["ADMIN"]), async (req:
     const prisma = getPrisma();
     let resultList: any[] = [];
 
-    if (prisma) {
-      try {
-        const dbPix = await prisma.pixPayment.findMany({
-          include: {
-            transaction: {
-              include: {
-                wallet: {
-                  include: { user: { select: { name: true, email: true } } }
-                }
+    try {
+      const dbPix = await prisma.pixPayment.findMany({
+        include: {
+          transaction: {
+            include: {
+              wallet: {
+                include: { user: { select: { name: true, email: true } } }
               }
             }
-          },
-          orderBy: { createdAt: "desc" },
-          take: 500 // Cap database readout to prevent locking
-        });
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 500 // Cap database readout to prevent locking
+      });
 
-        resultList = dbPix.map((p: any) => ({
-          id: p.id,
-          txid: p.txid,
-          userName: p.transaction?.wallet?.user?.name || "Atleta Externo",
-          userEmail: p.transaction?.wallet?.user?.email || "external@atleta.com",
-          amountBRL: Number(p.amountBRL),
-          status: p.status,
-          createdAt: p.createdAt.toISOString(),
-          expiresAt: p.expiresAt.toISOString(),
-          paidAt: p.paidAt ? p.paidAt.toISOString() : null,
-          type: "DEPÓSITO WALLET"
-        }));
-      } catch (_) {}
+      resultList = dbPix.map((p: any) => ({
+        id: p.id,
+        txid: p.txid,
+        userName: p.transaction?.wallet?.user?.name || "Atleta Externo",
+        userEmail: p.transaction?.wallet?.user?.email || "external@atleta.com",
+        amountBRL: Number(p.amountBRL),
+        status: p.status,
+        createdAt: p.createdAt.toISOString(),
+        expiresAt: p.expiresAt.toISOString(),
+        paidAt: p.paidAt ? p.paidAt.toISOString() : null,
+        type: "DEPÓSITO WALLET"
+      }));
+    } catch (err) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
-    // Merge In-Memory
-    const combined = [...resultList];
-    for (const mem of inMemoryPixPayments) {
-      if (!combined.some(c => c.txid === mem.txid)) {
-        const u = inMemoryUsers.get(mem.userId);
-        combined.push({
-          id: mem.txid,
-          txid: mem.txid,
-          userName: u ? u.name : "Simulador Local",
-          userEmail: u ? u.email : "sim@jiuspeak.com",
-          amountBRL: Number(mem.amountBRL),
-          status: mem.status,
-          createdAt: mem.createdAt || new Date(Date.now() - 3600 * 2000).toISOString(),
-          expiresAt: mem.expiresAt || new Date(Date.now() + 3600 * 5000).toISOString(),
-          paidAt: mem.paidAt || null,
-          type: mem.type === "WALLET_DEPOSIT" ? "CRÉDITO AVULSO" : "PLANO PREMIUM"
-        });
-      }
-    }
-
-    const totalCount = combined.length;
-    const paginatedList = combined.slice(skip, skip + take);
+    const totalCount = resultList.length;
+    const paginatedList = resultList.slice(skip, skip + take);
 
     res.json({ 
       pixPayments: paginatedList,
@@ -2664,28 +2583,35 @@ app.post("/api/admin/pix/:id/action", authenticateToken, requireRole(["ADMIN"]),
 // 18. GET ALL P2P MARKETPLACE TRANSACTIONS FOR MONITORING
 app.get("/api/admin/marketplace", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
-    const list: any[] = [];
-    
-    // Convert active listings
-    inMemoryMarketplaceItems.forEach(item => {
-      const seller = inMemoryUsers.get(item.sellerId);
-      list.push({
-        id: item.id,
-        name: item.name,
-        priceKC: item.priceKC,
-        active: item.active,
-        rarity: item.rarity || "COMMON",
-        sellerName: seller ? seller.name : "Atleta Vendedor",
-        sellerEmail: seller ? seller.email : "des@vendedor.com",
-        createdAt: item.createdAt || new Date().toISOString(),
-        inventoryItemId: item.inventoryItemId,
-        status: item.active ? "ATIVO À VENDA" : "VENDIDO / CANCELADO"
-      });
+    const prisma = getPrisma();
+    const items = await prisma.marketplaceItem.findMany({
+      include: {
+        seller: { select: { name: true, email: true } }
+      },
+      orderBy: { createdAt: "desc" }
     });
 
-    res.json({ marketplace: list, sales: inMemoryMarketplaceSales });
-  } catch (error) {
-    res.status(500).json({ error: "Erro ao carregar dados do comércio interno." });
+    const sales = await prisma.marketplaceSale.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+
+    const mappedListings = items.map((item: any) => ({
+      id: item.id,
+      name: ALL_ITEMS_CATALOG[item.inventoryItemId]?.name || "Equipamento Especial",
+      priceKC: item.priceKC,
+      active: item.active,
+      rarity: ALL_ITEMS_CATALOG[item.inventoryItemId]?.rarity || "COMMON",
+      sellerName: item.seller?.name || "Atleta Vendedor",
+      sellerEmail: item.seller?.email || "des@vendedor.com",
+      createdAt: item.createdAt.toISOString(),
+      inventoryItemId: item.inventoryItemId,
+      status: item.active ? "ATIVO À VENDA" : "VENDIDO / CANCELADO"
+    }));
+
+    res.json({ marketplace: mappedListings, sales });
+  } catch (err: any) {
+    console.error("✗ PostgreSQL indisponível");
+    process.exit(1);
   }
 });
 
@@ -4709,104 +4635,77 @@ app.post("/api/subscriptions/simulate-cron", async (req: any, res: any) => {
     const now = new Date();
     const prisma = getPrisma();
 
-    if (prisma) {
-      try {
-        const expiredSubs = await prisma.subscription.findMany({
-          where: {
-            status: "ACTIVE",
-            endDate: { lt: now }
-          },
-          include: {
-            plan: true,
-            user: { include: { wallet: true } }
-          }
-        });
+    try {
+      const expiredSubs = await prisma.subscription.findMany({
+        where: {
+          status: "ACTIVE",
+          endDate: { lt: now }
+        },
+        include: {
+          plan: true,
+          user: { include: { wallet: true } }
+        }
+      });
 
-        logs.push(`🔍 Encontradas ${expiredSubs.length} assinaturas com data de faturamento vencida na base SQL.`);
+      logs.push(`🔍 Encontradas ${expiredSubs.length} assinaturas com data de faturamento vencida na base SQL.`);
 
-        for (const sub of expiredSubs) {
-          const userWallet = sub.user.wallet;
-          const userBalance = userWallet ? Number(userWallet.balanceAvailable) : 0;
-          const planCost = Number(sub.plan.priceBRL);
+      for (const sub of expiredSubs) {
+        const userWallet = sub.user.wallet;
+        const userBalance = userWallet ? Number(userWallet.balanceAvailable) : 0;
+        const planCost = Number(sub.plan.priceBRL);
 
-          const isAutoRenew = sub.canceledAt === null;
+        const isAutoRenew = sub.canceledAt === null;
 
-          if (isAutoRenew) {
-            if (userWallet && userBalance >= planCost) {
-              const nextAvailable = userBalance - planCost;
-              await prisma.wallet.update({
-                where: { id: userWallet.id },
-                data: { balanceAvailable: nextAvailable }
-              });
+        if (isAutoRenew) {
+          if (userWallet && userBalance >= planCost) {
+            const nextAvailable = userBalance - planCost;
+            await prisma.wallet.update({
+              where: { id: userWallet.id },
+              data: { balanceAvailable: nextAvailable }
+            });
 
-              const newEndDate = new Date(sub.endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-              await prisma.subscription.update({
-                where: { id: sub.id },
-                data: { endDate: newEndDate }
-              });
+            const newEndDate = new Date(sub.endDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+            await prisma.subscription.update({
+              where: { id: sub.id },
+              data: { endDate: newEndDate }
+            });
 
-              await prisma.subscriptionPayment.create({
-                data: {
-                  subscriptionId: sub.id,
-                  amountBRL: planCost,
-                  status: "COMPLETED",
-                  paidAt: new Date()
-                }
-              });
+            await prisma.subscriptionPayment.create({
+              data: {
+                subscriptionId: sub.id,
+                amountBRL: planCost,
+                status: "COMPLETED",
+                paidAt: new Date()
+              }
+            });
 
-              await prisma.auditLog.create({
-                data: {
-                  actorId: sub.userId,
-                  action: "PIX_DEPOSIT",
-                  description: `Renovação Automática: Cobrança recorrente de R$ ${planCost.toFixed(2)} debitada do saldo para o plano "${sub.plan.name}". Assinatura prorrogada por mais 30 dias.`
-                }
-              });
+            await prisma.auditLog.create({
+              data: {
+                actorId: sub.userId,
+                action: "PIX_DEPOSIT",
+                description: `Renovação Automática: Cobrança recorrente de R$ ${planCost.toFixed(2)} debitada do saldo para o plano "${sub.plan.name}". Assinatura prorrogada por mais 30 dias.`
+              }
+            });
 
-              logs.push(`🔄 RENOVAÇÃO AUTOMÁTICA COMPENSADA: Usuário "${sub.user.name}" (${sub.user.email}) teve o plano "${sub.plan.name}" renovado por débito em saldo.`);
-            } else {
-              await prisma.subscription.update({
-                where: { id: sub.id },
-                data: { status: "EXPIRED" }
-              });
-              logs.push(`⚠️ FALHA NA RENOVAÇÃO (Saldo de R$ ${userBalance.toFixed(2)} insuficiente para cobrir R$ ${planCost.toFixed(2)}): Assinatura do usuário "${sub.user.name}" foi alterada para EXPIRADA.`);
-            }
+            logs.push(`🔄 RENOVAÇÃO AUTOMÁTICA COMPENSADA: Usuário "${sub.user.name}" (${sub.user.email}) teve o plano "${sub.plan.name}" renovado por débito em saldo.`);
           } else {
             await prisma.subscription.update({
               where: { id: sub.id },
               data: { status: "EXPIRED" }
             });
-            logs.push(`⌛ EXPIRAÇÃO AMIGÁVEL: Assinatura do usuário "${sub.user.name}" encerrou o ciclo regular e foi desativada amigavelmente.`);
+            logs.push(`⚠️ FALHA NA RENOVAÇÃO (Saldo de R$ ${userBalance.toFixed(2)} insuficiente para cobrir R$ ${planCost.toFixed(2)}): Assinatura do usuário "${sub.user.name}" foi alterada para EXPIRADA.`);
           }
-        }
-      } catch (dbErr) {
-        console.warn("DB Cron simulation error:", dbErr);
-        logs.push(`⚠️ Erro na auditoria SQL de Cron, processando memória...`);
-      }
-    }
-
-    const memExpiredSubs = inMemorySubscriptions.filter(s => s.status === "ACTIVE" && new Date(s.endDate) < now);
-    logs.push(`🔍 Encontradas ${memExpiredSubs.length} assinaturas vencidas na memória de fallback.`);
-
-    for (const sub of memExpiredSubs) {
-      const plan = inMemoryPlans.find(p => p.id === sub.planId);
-      const planCost = plan ? Number(plan.priceBRL) : 0;
-      const userCache = inMemoryUsers.get(sub.userId);
-      const userBalance = userCache?.balanceAvailableBRL || 0;
-
-      if (sub.autoRenew) {
-        if (userCache && userBalance >= planCost) {
-          userCache.balanceAvailableBRL = userBalance - planCost;
-          sub.endDate = new Date(new Date(sub.endDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-          
-          logs.push(`🔄 RENOVAÇÃO MEMÓRIA OK: Integrado debito de R$ ${planCost.toFixed(2)} para usuário id ${sub.userId}.`);
         } else {
-          sub.status = "EXPIRED";
-          logs.push(`⚠️ FALHA RENOVAÇÃO MEMÓRIA (Saldo de R$ ${userBalance.toFixed(2)} insuficiente): Assinatura expirada.`);
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { status: "EXPIRED" }
+          });
+          logs.push(`⌛ EXPIRAÇÃO AMIGÁVEL: Assinatura do usuário "${sub.user.name}" encerrou o ciclo regular e foi desativada amigavelmente.`);
         }
-      } else {
-        sub.status = "EXPIRED";
-        logs.push(`⌛ EXPIRAÇÃO MEMÓRIA AMIGÁVEL: Assinatura expirada conforme solicitação prévia.`);
       }
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     res.json({
@@ -5024,59 +4923,51 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
 
     // 1. REJECT STATUSES OTHER THAN APPROVED (EXPIRED, CANCELED, ETC.)
     if (status !== "approved") {
-      const idx = inMemoryPixPayments.findIndex(p => p.txid === txid);
-      if (idx !== -1) {
-        inMemoryPixPayments[idx].status = "EXPIRED";
-      }
-
-      if (prisma) {
-        try {
-          const pp = await prisma.pixPayment.findUnique({ where: { txid } });
-          if (pp) {
-            await prisma.pixPayment.update({
-              where: { txid },
-              data: { status: "EXPIRED" }
-            });
-            await prisma.transaction.update({
-              where: { id: pp.transactionId },
-              data: { status: "FAILED" }
-            });
-          }
-        } catch (dbErr) {}
+      try {
+        const pp = await prisma.pixPayment.findUnique({ where: { txid } });
+        if (pp) {
+          await prisma.pixPayment.update({
+            where: { txid },
+            data: { status: "EXPIRED" }
+          });
+          await prisma.transaction.update({
+            where: { id: pp.transactionId },
+            data: { status: "FAILED" }
+          });
+        }
+      } catch (dbErr) {
+        console.error("✗ PostgreSQL indisponível");
+        process.exit(1);
       }
       return res.json({ message: "Webhook recebido: Pagamento PIX marcado como cancelado/expirado." });
     }
 
-    // 2. DISCOVER REGISTERED PAYMENT SPECS (DB AND MEMORY INBOUND CHANNELS)
+    // 2. DISCOVER REGISTERED PAYMENT SPECS (DB INBOUND CHANNEL ONLY)
     let dbPixPayment: any = null;
     let dbSubPayment: any = null;
 
-    if (prisma) {
-      try {
-        dbPixPayment = await prisma.pixPayment.findUnique({
+    try {
+      dbPixPayment = await prisma.pixPayment.findUnique({
+        where: { txid },
+        include: { transaction: { include: { wallet: true } } }
+      });
+      if (!dbPixPayment) {
+        dbSubPayment = await prisma.subscriptionPayment.findFirst({
           where: { txid },
-          include: { transaction: { include: { wallet: true } } }
+          include: { subscription: true }
         });
-        if (!dbPixPayment) {
-          dbSubPayment = await prisma.subscriptionPayment.findFirst({
-            where: { txid },
-            include: { subscription: true }
-          });
-        }
-      } catch (e) {
-        console.warn("Prisma search for webhook txid error:", e);
       }
+    } catch (e) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
-    const memPixPayment = inMemoryPixPayments.find(p => p.txid === txid);
-    const memSubPayment = inMemorySubscriptionPayments.find(p => p.txid === txid);
-
     // 3. VALIDATE TXID (Requirement 7)
-    if (!dbPixPayment && !dbSubPayment && !memPixPayment && !memSubPayment) {
+    if (!dbPixPayment && !dbSubPayment) {
       const logMsg = `REJEITADO - TXID INCORRETO: Tentativa de conciliação do TXID inexistente: ${txid} vindo do IP: ${clientIp}.`;
       console.warn(logMsg);
       
-      if (prisma) {
+      try {
         await prisma.auditLog.create({
           data: {
             actorId: null,
@@ -5085,8 +4976,9 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
             ipAddress: clientIp,
             userAgent: req.headers["user-agent"]
           }
-        }).catch(() => {});
-      }
+        });
+      } catch (logErr) {}
+
       return res.status(404).json({ error: "Chave de transação PIX (TXID) não encontrada no ecossistema." });
     }
 
@@ -5103,15 +4995,6 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
       registeredAmount = Number(dbSubPayment.amountBRL);
       paymentType = "SUBSCRIPTION";
       targetUserId = dbSubPayment.subscription.userId;
-    } else if (memPixPayment) {
-      registeredAmount = Number(memPixPayment.amountBRL);
-      paymentType = memPixPayment.type;
-      targetUserId = memPixPayment.userId;
-    } else if (memSubPayment) {
-      registeredAmount = Number(memSubPayment.amountBRL);
-      paymentType = "SUBSCRIPTION";
-      const matchingSub = inMemorySubscriptions.find(s => s.id === memSubPayment.subscriptionId);
-      if (matchingSub) targetUserId = matchingSub.userId;
     }
 
     // 4. VALIDATE RECEIVED VALUE (Requirement 6)
@@ -5120,7 +5003,7 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
       const logMsg = `REJEITADO - VALOR EMBUTIDO INVÁLIDO: Webhook para TXID ${txid} sem valor numérico de pagamento. Recebido: ${receivedVal}`;
       console.warn(logMsg);
       
-      if (prisma) {
+      try {
         await prisma.auditLog.create({
           data: {
             actorId: targetUserId !== "system" ? targetUserId : null,
@@ -5129,8 +5012,9 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
             ipAddress: clientIp,
             userAgent: req.headers["user-agent"]
           }
-        }).catch(() => {});
-      }
+        });
+      } catch (logErr) {}
+
       return res.status(400).json({ error: "O valor de pagamento PIX transmitido pelo Webhook é inválido ou ausente." });
     }
 
@@ -5138,7 +5022,7 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
       const logMsg = `REJEITADO - DIVERGÊNCIA DE VALORES DETECTADA: Webhook para TXID ${txid}. Esperado R$ ${registeredAmount.toFixed(2)}, recebido R$ ${receivedVal.toFixed(2)}. IP: ${clientIp}`;
       console.error(logMsg);
 
-      if (prisma) {
+      try {
         await prisma.auditLog.create({
           data: {
             actorId: targetUserId !== "system" ? targetUserId : null,
@@ -5148,178 +5032,113 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
             ipAddress: clientIp,
             userAgent: req.headers["user-agent"]
           }
-        }).catch(() => {});
-      }
+        });
+      } catch (logErr) {}
+
       return res.status(400).json({ error: `Divergência de valores. Este TXID possui cobrança de R$ ${registeredAmount.toFixed(2)}, mas o valor enviado foi R$ ${receivedVal.toFixed(2)}.` });
     }
 
     // 5. PROCESS PAYMENTS SECURELY & GENERATE AUDIT LOGS (Requirement 8)
     let responseMsg = "";
-    let isDbProcessed = false;
 
-    if (dbPixPayment) {
-      if (dbPixPayment.status === "COMPLETED") {
-        return res.json({ message: "Idempotência: Este faturamento PIX já foi liquidado anteriormente." });
-      }
-
-      await prisma.pixPayment.update({
-        where: { id: dbPixPayment.id },
-        data: { 
-          status: "COMPLETED",
-          paidAt: new Date()
-        }
-      });
-
-      await prisma.transaction.update({
-        where: { id: dbPixPayment.transactionId },
-        data: { status: "COMPLETED" }
-      });
-
-      const userWallet = dbPixPayment.transaction.wallet;
-      const u = await authStore.findById(targetUserId);
-
-      if (u) {
-        let nextAvailable = u.balanceAvailableBRL ?? 0;
-        let nextPending = u.balancePendingBRL ?? 0;
-        let nextEarned = u.totalEarnedBRL ?? 0;
-
-        if (paymentType === "MARKETPLACE_SELL") {
-          const prevPending = Number(userWallet.balancePending);
-          const prevEarned = Number(userWallet.totalEarned);
-          
-          nextPending = Number((prevPending + registeredAmount).toFixed(2));
-          nextEarned = Number((prevEarned + registeredAmount).toFixed(2));
-
-          await prisma.wallet.update({
-            where: { id: userWallet.id },
-            data: {
-              balancePending: nextPending,
-              totalEarned: nextEarned
-            }
-          });
-        } else {
-          const prevAvailable = Number(userWallet.balanceAvailable);
-          nextAvailable = Number((prevAvailable + registeredAmount).toFixed(2));
-
-          await prisma.wallet.update({
-            where: { id: userWallet.id },
-            data: {
-              balanceAvailable: nextAvailable,
-              balanceBRL: nextAvailable
-            }
-          });
+    try {
+      if (dbPixPayment) {
+        if (dbPixPayment.status === "COMPLETED") {
+          return res.json({ message: "Idempotência: Este faturamento PIX já foi liquidado anteriormente." });
         }
 
-        // Sync authStore state
-        await authStore.updateUser(targetUserId, {
-          balanceAvailableBRL: nextAvailable,
-          balancePendingBRL: nextPending,
-          totalEarnedBRL: nextEarned,
-        });
-      }
-
-      responseMsg = `Depósito via PIX liquidado! R$ ${registeredAmount.toFixed(2)} creditados com sucesso.`;
-      isDbProcessed = true;
-    } 
-    else if (dbSubPayment) {
-      if (dbSubPayment.status === "COMPLETED") {
-        return res.json({ message: "Idempotência: Esta assinatura já está paga e ativa." });
-      }
-
-      // Deactivate other subscriptions first
-      await prisma.subscription.updateMany({
-        where: { userId: targetUserId, status: "ACTIVE" },
-        data: { status: "CANCELED", canceledAt: new Date() }
-      });
-
-      // Update payment
-      await prisma.subscriptionPayment.update({
-        where: { id: dbSubPayment.id },
-        data: { status: "COMPLETED", paidAt: new Date() }
-      });
-
-      // Activate sub
-      const activeDbSub = await prisma.subscription.update({
-        where: { id: dbSubPayment.subscriptionId },
-        data: {
-          status: "ACTIVE",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        },
-        include: { plan: true }
-      });
-
-      responseMsg = `Plano VIP "${activeDbSub.plan.name}" ativado com confirmação de pagamento via Webhook!`;
-      isDbProcessed = true;
-    }
-
-    // 6. SYNC IN-MEMORY DATABASE FALLBACKS
-    const inMemPixIdx = inMemoryPixPayments.findIndex(p => p.txid === txid);
-    if (inMemPixIdx !== -1) {
-      if (inMemoryPixPayments[inMemPixIdx].status !== "COMPLETED") {
-        inMemoryPixPayments[inMemPixIdx].status = "COMPLETED";
-        inMemoryPixPayments[inMemPixIdx].paidAt = new Date().toISOString();
-        
-        const uId = inMemoryPixPayments[inMemPixIdx].userId;
-        const uObj = inMemoryUsers.get(uId);
-        if (uObj) {
-          if (paymentType === "MARKETPLACE_SELL") {
-            uObj.balancePendingBRL = Number(uObj.balancePendingBRL || 0) + registeredAmount;
-            uObj.totalEarnedBRL = Number(uObj.totalEarnedBRL || 0) + registeredAmount;
-          } else {
-            uObj.balanceAvailableBRL = Number(uObj.balanceAvailableBRL || 0) + registeredAmount;
+        await prisma.pixPayment.update({
+          where: { id: dbPixPayment.id },
+          data: { 
+            status: "COMPLETED",
+            paidAt: new Date()
           }
-          await authStore.updateUser(uId, {
-            balanceAvailableBRL: uObj.balanceAvailableBRL,
-            balancePendingBRL: uObj.balancePendingBRL,
-            totalEarnedBRL: uObj.totalEarnedBRL,
+        });
+
+        await prisma.transaction.update({
+          where: { id: dbPixPayment.transactionId },
+          data: { status: "COMPLETED" }
+        });
+
+        const userWallet = dbPixPayment.transaction.wallet;
+        const u = await authStore.findById(targetUserId);
+
+        if (u) {
+          let nextAvailable = u.balanceAvailableBRL ?? 0;
+          let nextPending = u.balancePendingBRL ?? 0;
+          let nextEarned = u.totalEarnedBRL ?? 0;
+
+          if (paymentType === "MARKETPLACE_SELL") {
+            const prevPending = Number(userWallet.balancePending);
+            const prevEarned = Number(userWallet.totalEarned);
+            
+            nextPending = Number((prevPending + registeredAmount).toFixed(2));
+            nextEarned = Number((prevEarned + registeredAmount).toFixed(2));
+
+            await prisma.wallet.update({
+              where: { id: userWallet.id },
+              data: {
+                balancePending: nextPending,
+                totalEarned: nextEarned
+              }
+            });
+          } else {
+            const prevAvailable = Number(userWallet.balanceAvailable);
+            nextAvailable = Number((prevAvailable + registeredAmount).toFixed(2));
+
+            await prisma.wallet.update({
+              where: { id: userWallet.id },
+              data: {
+                balanceAvailable: nextAvailable,
+                balanceBRL: nextAvailable
+              }
+            });
+          }
+
+          // Sync authStore state
+          await authStore.updateUser(targetUserId, {
+            balanceAvailableBRL: nextAvailable,
+            balancePendingBRL: nextPending,
+            totalEarnedBRL: nextEarned,
           });
         }
-      }
-    }
 
-    const inMemSubPay = inMemorySubscriptionPayments.find(p => p.txid === txid);
-    if (inMemSubPay) {
-      if (inMemSubPay.status !== "COMPLETED") {
-        inMemSubPay.status = "COMPLETED";
-        inMemSubPay.paidAt = new Date().toISOString();
-
-        const linkedSub = inMemorySubscriptions.find(s => s.id === inMemSubPay.subscriptionId);
-        if (linkedSub) {
-          inMemorySubscriptions = inMemorySubscriptions.map(s => s.userId === linkedSub.userId && s.status === "ACTIVE" ? { ...s, status: "CANCELED", canceledAt: new Date().toISOString() } : s);
-
-          linkedSub.status = "ACTIVE";
-          linkedSub.startDate = new Date().toISOString();
-          linkedSub.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        }
-      }
-    }
-
-    // Apply Memory Only Fallback user state updates if not DB processed
-    if (!isDbProcessed) {
-      const uObj = await authStore.findById(targetUserId);
-      if (uObj) {
-        let nextAvailable = uObj.balanceAvailableBRL ?? 0;
-        let nextPending = uObj.balancePendingBRL ?? 0;
-        let nextEarned = uObj.totalEarnedBRL ?? 0;
-
-        if (paymentType === "MARKETPLACE_SELL") {
-          nextPending = Number((nextPending + registeredAmount).toFixed(2));
-          nextEarned = Number((nextEarned + registeredAmount).toFixed(2));
-        } else if (paymentType === "DEPOSIT") {
-          nextAvailable = Number((nextAvailable + registeredAmount).toFixed(2));
+        responseMsg = `Depósito via PIX liquidado! R$ ${registeredAmount.toFixed(2)} creditados com sucesso.`;
+      } 
+      else if (dbSubPayment) {
+        if (dbSubPayment.status === "COMPLETED") {
+          return res.json({ message: "Idempotência: Esta assinatura já está paga e ativa." });
         }
 
-        await authStore.updateUser(targetUserId, {
-          balanceAvailableBRL: nextAvailable,
-          balancePendingBRL: nextPending,
-          totalEarnedBRL: nextEarned,
+        await prisma.subscription.updateMany({
+          where: { userId: targetUserId, status: "ACTIVE" },
+          data: { status: "CANCELED", canceledAt: new Date() }
         });
+
+        await prisma.subscriptionPayment.update({
+          where: { id: dbSubPayment.id },
+          data: { status: "COMPLETED", paidAt: new Date() }
+        });
+
+        const activeDbSub = await prisma.subscription.update({
+          where: { id: dbSubPayment.subscriptionId },
+          data: {
+            status: "ACTIVE",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          },
+          include: { plan: true }
+        });
+
+        responseMsg = `Plano VIP "${activeDbSub.plan.name}" ativado com confirmação de pagamento via Webhook!`;
       }
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     // 7. RECORD DETAILED AUDITABLE FINANCIAL LOGS (Requirement 8)
-    if (prisma) {
+    try {
       await prisma.auditLog.create({
         data: {
           actorId: targetUserId !== "system" ? targetUserId : null,
@@ -5329,8 +5148,8 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
           ipAddress: clientIp,
           userAgent: req.headers["user-agent"]
         }
-      }).catch((logErr) => console.warn("Failed posting secure auditLog inside Webhook:", logErr));
-    }
+      });
+    } catch (logErr) {}
 
     logPayment("PIX_CONFIRM", registeredAmount, targetUserId || "sys", { txid, type: paymentType });
 
@@ -5891,67 +5710,66 @@ app.get("/api/store", async (req: any, res: any) => {
     let items: any[] = [];
     let total = 0;
 
-    const dbConnected = isDatabaseConnected();
-    if (dbConnected) {
-      const prisma = getPrisma();
-      const now = new Date();
-      const whereClause: any = {
-        active: true,
-        AND: [
-          {
-            OR: [
-              { releaseDate: null },
-              { releaseDate: { lte: now } }
-            ]
-          }
-        ]
-      };
-
-      if (category && category !== "all" && category !== "Todos") {
-        const categoryMap: Record<string, string> = {
-          "Avatares": "AVATAR",
-          "Avatares Masculinos": "Avatares Masculinos",
-          "Avatares Femininos": "Avatares Femininos",
-          "Molduras": "Molduras",
-          "Títulos": "Títulos",
-          "Pacotes VIP": "Pacotes VIP",
-          "XP Boost": "XP Boost",
-          "Kimono Coins": "Kimono Coins",
-          "Itens Especiais": "Itens Especiais"
-        };
-        const targetCategory = categoryMap[category as string] || (category as string);
-        whereClause.category = targetCategory;
-      }
-
-      if (rarity && rarity !== "all" && rarity !== "Todos") {
-        if (rarity === "MYTHIC" || rarity === "Mítico") {
-          whereClause.rarity = "LEGENDARY";
-          whereClause.priceKC = { gte: 4000 };
-        } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
-          whereClause.rarity = "LEGENDARY";
-          whereClause.priceKC = { lt: 4000 };
-        } else {
-          const rarityMap: Record<string, string> = {
-            "Comum": "COMMON",
-            "COMMON": "COMMON",
-            "Raro": "RARE",
-            "RARE": "RARE",
-            "Épico": "EPIC",
-            "EPIC": "EPIC"
-          };
-          whereClause.rarity = rarityMap[rarity as string] || (rarity as string).toUpperCase();
-        }
-      }
-
-      if (search) {
-        whereClause.AND.push({
+    const prisma = getPrisma();
+    const now = new Date();
+    const whereClause: any = {
+      active: true,
+      AND: [
+        {
           OR: [
-            { name: { contains: search as string, mode: "insensitive" } },
-            { description: { contains: search as string, mode: "insensitive" } }
+            { releaseDate: null },
+            { releaseDate: { lte: now } }
           ]
-        });
-      }
+        }
+      ]
+    };
 
+    if (category && category !== "all" && category !== "Todos") {
+      const categoryMap: Record<string, string> = {
+        "Avatares": "AVATAR",
+        "Avatares Masculinos": "Avatares Masculinos",
+        "Avatares Femininos": "Avatares Femininos",
+        "Molduras": "Molduras",
+        "Títulos": "Títulos",
+        "Pacotes VIP": "Pacotes VIP",
+        "XP Boost": "XP Boost",
+        "Kimono Coins": "Kimono Coins",
+        "Itens Especiais": "Itens Especiais"
+      };
+      const targetCategory = categoryMap[category as string] || (category as string);
+      whereClause.category = targetCategory;
+    }
+
+    if (rarity && rarity !== "all" && rarity !== "Todos") {
+      if (rarity === "MYTHIC" || rarity === "Mítico") {
+        whereClause.rarity = "LEGENDARY";
+        whereClause.priceKC = { gte: 4000 };
+      } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
+        whereClause.rarity = "LEGENDARY";
+        whereClause.priceKC = { lt: 4000 };
+      } else {
+        const rarityMap: Record<string, string> = {
+          "Comum": "COMMON",
+          "COMMON": "COMMON",
+          "Raro": "RARE",
+          "RARE": "RARE",
+          "Épico": "EPIC",
+          "EPIC": "EPIC"
+        };
+        whereClause.rarity = rarityMap[rarity as string] || (rarity as string).toUpperCase();
+      }
+    }
+
+    if (search) {
+      whereClause.AND.push({
+        OR: [
+          { name: { contains: search as string, mode: "insensitive" } },
+          { description: { contains: search as string, mode: "insensitive" } }
+        ]
+      });
+    }
+
+    try {
       items = await prisma.storeProduct.findMany({
         where: whereClause,
         orderBy: { priceKC: "asc" },
@@ -5959,48 +5777,9 @@ app.get("/api/store", async (req: any, res: any) => {
         take: limitNum
       });
       total = await prisma.storeProduct.count({ where: whereClause });
-    } else {
-      // In-Memory Fallback Operation
-      let list = [...inMemoryStoreProducts];
-      const now = new Date();
-      list = list.filter(it => it.active && (!it.releaseDate || new Date(it.releaseDate) <= now));
-
-      if (category && category !== "all" && category !== "Todos") {
-        const catLower = String(category).toLowerCase();
-        list = list.filter(it => 
-          it.category.toLowerCase().includes(catLower) || 
-          (catLower === "avatares" && (it.category.includes("Avatares") || it.category === "AVATAR"))
-        );
-      }
-
-      if (rarity && rarity !== "all" && rarity !== "Todos") {
-        const rarLower = String(rarity).toLowerCase();
-        if (rarLower === "mythic" || rarLower === "mítico") {
-          list = list.filter(it => it.rarity === "LEGENDARY" && it.priceKC >= 4000);
-        } else if (rarLower === "legendary" || rarLower === "lendário") {
-          list = list.filter(it => it.rarity === "LEGENDARY" && it.priceKC < 4000);
-        } else {
-          const rarityMap: Record<string, string> = {
-            "comum": "COMMON",
-            "raro": "RARE",
-            "épico": "EPIC",
-            "epico": "EPIC"
-          };
-          const mappedRar = rarityMap[rarLower] || rarLower.toUpperCase();
-          list = list.filter(it => it.rarity === mappedRar);
-        }
-      }
-
-      if (search) {
-        const s = String(search).toLowerCase();
-        list = list.filter(it => 
-          it.name.toLowerCase().includes(s) || 
-          it.description.toLowerCase().includes(s)
-        );
-      }
-
-      total = list.length;
-      items = list.slice(skip, skip + limitNum);
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     const formattedItems = items.map((item: any) => {
@@ -7657,79 +7436,43 @@ app.get("/api/social/network", authenticateToken, async (req: any, res: any) => 
     const currentUserId = req.user.id;
     let usersNetwork: any[] = [];
 
-    if (prisma) {
-      try {
-        const dbUsers = await prisma.user.findMany({
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            belt: true,
-            role: true,
-            level: true,
-            followers: true,
-            following: true
-          }
-        });
+    try {
+      const dbUsers = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          belt: true,
+          role: true,
+          level: true,
+          followers: true,
+          following: true
+        }
+      });
 
-        usersNetwork = dbUsers.map((u: any) => {
-          const patched = patchUserObjectWithDeterministicAvatar({
-            id: u.id,
-            name: u.name,
-            avatar: u.avatar,
-            role: u.role
-          });
-          const isFollowedByMe = u.followers.some((f: any) => f.followerId === currentUserId);
-          return {
-            id: u.id,
-            name: patched.name,
-            avatar: patched.avatar,
-            belt: u.belt,
-            role: u.role,
-            level: u.level || 1,
-            followersCount: u.followers.length,
-            followingCount: u.following.length,
-            isFollowing: isFollowedByMe
-          };
-        });
-      } catch (dbErr) {
-        console.warn("Prisma network query failed, falling back to memory:", dbErr);
-      }
-    }
-
-    if (usersNetwork.length === 0) {
-      // Memory Fallback
-      const itemsList: any[] = Array.from(inMemoryUsers.values());
-      
-      if (itemsList.length < 5) {
-        itemsList.push({ id: "prof_gracie", name: "Sensei Roger Gracie", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150", belt: "BLACK", role: "INSTRUCTOR", level: 82 });
-        itemsList.push({ id: "user_4593", name: "Guilherme Faixa Azul", avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150", belt: "BLUE", role: "ATHLETE", level: 12 });
-        itemsList.push({ id: "user_1199", name: "Fabrícia Guardeira", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150", belt: "PURPLE", role: "ATHLETE", level: 27 });
-      }
-
-      usersNetwork = itemsList.map((u: any) => {
+      usersNetwork = dbUsers.map((u: any) => {
         const patched = patchUserObjectWithDeterministicAvatar({
           id: u.id,
           name: u.name,
           avatar: u.avatar,
           role: u.role
         });
-        const isFollowedByMe = inMemoryFollowers.some(f => f.followerId === currentUserId && f.followingId === u.id);
-        const followersCount = inMemoryFollowers.filter(f => f.followingId === u.id).length;
-        const followingCount = inMemoryFollowers.filter(f => f.followerId === u.id).length;
-
+        const isFollowedByMe = u.followers.some((f: any) => f.followerId === currentUserId);
         return {
           id: u.id,
           name: patched.name,
           avatar: patched.avatar,
-          belt: u.belt || "WHITE",
-          role: u.role || "ATHLETE",
+          belt: u.belt,
+          role: u.role,
           level: u.level || 1,
-          followersCount: followersCount,
-          followingCount: followingCount,
+          followersCount: u.followers.length,
+          followingCount: u.following.length,
           isFollowing: isFollowedByMe
         };
       });
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     // Filter out current user from the recommendations/list to avoid following yourself
@@ -8190,39 +7933,23 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
 
     let allUsers: any[] = [];
 
-    if (prisma) {
-      try {
-        allUsers = await prisma.user.findMany({
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            belt: true,
-            level: true,
-            xp: true,
-            elo: true,
-            role: true,
-            createdAt: true
-          }
-        });
-      } catch (dbErr) {
-        console.warn("Could not retrieve users for rankings, using inMemoryUsers:", dbErr);
-      }
-    }
-
-    // Fallback if db returned nothing or is disconnected
-    if (allUsers.length === 0) {
-      allUsers = Array.from(inMemoryUsers.values()).map((u: any) => ({
-        id: u.id,
-        name: u.name,
-        avatar: u.avatar || "",
-        belt: u.belt || "WHITE",
-        level: u.level || 1,
-        xp: u.xp || 0,
-        elo: u.elo || 1000,
-        role: u.role || "ATHLETE",
-        createdAt: u.createdAt || new Date()
-      }));
+    try {
+      allUsers = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          avatar: true,
+          belt: true,
+          level: true,
+          xp: true,
+          elo: true,
+          role: true,
+          createdAt: true
+        }
+      });
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL indisponível");
+      process.exit(1);
     }
 
     // Helper functions for normalization
