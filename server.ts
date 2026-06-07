@@ -811,10 +811,14 @@ const purchaseVelocityTracker = new Map<string, { count: number; lastTime: numbe
 // Middleware to authenticate JWT Access Token
 export const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  let token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    console.error("[AUTH FAILURE] Erro de autenticação: cabeçalho Bearer Token ausente.");
+    token = req.cookies?.["accessToken"] || req.cookies?.["token"];
+  }
+
+  if (!token) {
+    console.error("[AUTH FAILURE] Erro de autenticação: cabeçalho Bearer Token ou cookie accessToken ausente.");
     return res.status(401).json({ error: "Access token missing. Please authenticate." });
   }
 
@@ -965,6 +969,7 @@ app.post("/api/auth/register", async (req: any, res: any) => {
 
 // 2. LOGIN
 app.post("/api/auth/login", async (req: any, res: any) => {
+  console.log("Login solicitado");
   try {
     const { email, password } = req.body;
     const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString();
@@ -991,6 +996,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       return res.status(401).json({ error: "Usuário não encontrado" });
     }
 
+    console.log("Usuário encontrado");
+
     // Verify Password Hash
     const isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordCorrect) {
@@ -1009,6 +1016,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       console.error(`[LOGIN FAILURE] Senha incorreta fornecida para o usuário: ${email}`);
       return res.status(401).json({ error: "Senha incorreta" });
     }
+
+    console.log("Senha validada");
 
     // Ensure Professor Administrador has been approved by the general administrator
     if (user.role === "ADMIN" && !user.isAdminApproved) {
@@ -1043,6 +1052,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
     const refreshToken = generateRefreshToken(user.id!);
 
+    console.log("JWT criado");
+
     // Persist new Refresh Token in Postgres
     await AuthService.registerSession({
       userId: user.id!,
@@ -1054,6 +1065,24 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     // Simpler backwards compatibility sync
     await authStore.updateUser(user.id!, { refreshToken });
 
+    // Set secure, httpOnly cookies
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProd,
+      path: "/",
+      maxAge: 15 * 60 * 1000 // 15m
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProd,
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
     // Audit login success
     await AuthService.audit({
       actorId: user.id!,
@@ -1064,6 +1093,8 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     });
 
     logAuth("LOGIN", email, true, { ipAddress, userId: user.id });
+
+    console.log("Login concluído");
 
     res.json({
       message: "Login realizado com sucesso!",
@@ -1097,7 +1128,10 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 // 3. REFRESH TOKEN (Roda de Refresh Tokens com rota segura e auto-rotação)
 app.post("/api/auth/refresh", async (req: any, res: any) => {
   try {
-    const { refreshToken } = req.body;
+    let { refreshToken } = req.body;
+    if (!refreshToken) {
+      refreshToken = req.cookies?.["refreshToken"];
+    }
     const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString();
     const userAgent = req.headers["user-agent"];
 
@@ -1110,6 +1144,23 @@ app.post("/api/auth/refresh", async (req: any, res: any) => {
         refreshToken,
         ipAddress,
         userAgent
+      });
+
+      const isProd = process.env.NODE_ENV === "production";
+      res.cookie("accessToken", tokens.accessToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: isProd,
+        path: "/",
+        maxAge: 15 * 60 * 1000 // 15m
+      });
+
+      res.cookie("refreshToken", tokens.refreshToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: isProd,
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
       res.json({
@@ -1138,7 +1189,10 @@ app.post("/api/auth/refresh", async (req: any, res: any) => {
 // 4. LOGOUT
 app.post("/api/auth/logout", async (req: any, res: any) => {
   try {
-    const { refreshToken } = req.body;
+    let { refreshToken } = req.body;
+    if (!refreshToken) {
+      refreshToken = req.cookies?.["refreshToken"];
+    }
     let fallbackEmail = "unknown";
     if (refreshToken) {
       try {
@@ -1158,6 +1212,10 @@ app.post("/api/auth/logout", async (req: any, res: any) => {
       await AuthService.invalidateSession(refreshToken);
     }
     logAuth("LOGOUT", fallbackEmail, true, { hasToken: !!refreshToken });
+
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+
     res.json({ message: "Desconectado com sucesso." });
   } catch (error: any) {
     logError("Error on logout handler", error);
