@@ -107,6 +107,19 @@ export async function assertDatabaseConnection(): Promise<void> {
     console.warn("⚠️ DATABASE_URL não configurada ou inválida. Ativando banco de dados em memória.");
     return;
   }
+
+  // Attempt to apply migrations automatically on boot to avoid schema drift
+  if (process.env.DATABASE_URL) {
+    try {
+      console.log("⚙️  [DATABASE BOOTSTRAP] Verificando e aplicando migrações pendentes...");
+      const { execSync } = require("child_process");
+      execSync("npx prisma migrate deploy", { stdio: "inherit" });
+      console.log("✓ [DATABASE BOOTSTRAP] Migrações aplicadas ou verificadas com sucesso!");
+    } catch (migError: any) {
+      console.warn("⚠️ [DATABASE BOOTSTRAP FAILURE] Não foi possível rodar migrations automáticas:", migError.message || migError);
+    }
+  }
+
   let retries = 5;
   while (retries > 0) {
     try {
