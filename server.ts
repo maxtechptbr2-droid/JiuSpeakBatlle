@@ -5513,10 +5513,21 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
 
     if (prisma) {
       try {
-        const dbListing = await prisma.marketplaceItem.findFirst({
+        // Atomic compare-and-swap (CAS) to atomically reserve the marketplace item and prevent concurrent double-buying
+        const updateResult = await prisma.marketplaceItem.updateMany({
           where: { id: marketplaceItemId, active: true },
+          data: { active: false }
+        });
+
+        if (updateResult.count === 0) {
+          return res.status(404).json({ error: "Esta oferta não está mais disponível ou foi finalizada por outro atleta." });
+        }
+
+        const dbListing = await prisma.marketplaceItem.findUnique({
+          where: { id: marketplaceItemId },
           include: { inventoryItem: true, seller: true }
         });
+
         if (dbListing) {
           listing = {
             id: dbListing.id,
@@ -5524,7 +5535,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
             sellerId: dbListing.sellerId,
             sellerName: dbListing.seller?.name || "Lutador",
             priceKC: dbListing.priceKC,
-            active: dbListing.active,
+            active: false, // Already atomically disabled by the CAS operation above
           };
         }
       } catch (dbErr) {
@@ -5659,11 +5670,6 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
             pricePaidKC: priceKC,
             feePaidKC
           }
-        });
-
-        await prisma.marketplaceItem.update({
-          where: { id: marketplaceItemId },
-          data: { active: false }
         });
 
         await prisma.auditLog.create({
@@ -5997,24 +6003,35 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
     }
 
     // D. FINANCIAL DEDUCTION & STOCK DECREMENT
-    const updatedCoins = currentCoins - pricePaid;
-    await authStore.updateUser(buyerId, { coins: updatedCoins });
-
-    // Decrement stock if applicable
+    // Decrement stock if applicable (use atomic compare-and-swap to protect against concurrency race conditions)
     if (product.stock !== null && product.stock !== undefined) {
       if (dbConnected) {
         const prisma = getPrisma();
-        await prisma.storeProduct.update({
-          where: { id: product.id },
-          data: { stock: Math.max(0, product.stock - 1) }
+        const updateResult = await prisma.storeProduct.updateMany({
+          where: {
+            id: product.id,
+            stock: { gte: 1 }
+          },
+          data: {
+            stock: { decrement: 1 }
+          }
         });
+        if (updateResult.count === 0) {
+          return res.status(400).json({ error: "Este item esgotou o limite de estoque disponível na loja enquanto você finalizava a transação." });
+        }
       } else {
         const inMemIdx = inMemoryStoreProducts.findIndex(p => p.id === product.id);
         if (inMemIdx !== -1) {
+          if (inMemoryStoreProducts[inMemIdx].stock <= 0) {
+            return res.status(400).json({ error: "Este item esgotou o limite de estoque disponível na loja." });
+          }
           inMemoryStoreProducts[inMemIdx].stock = Math.max(0, inMemoryStoreProducts[inMemIdx].stock - 1);
         }
       }
     }
+
+    const updatedCoins = currentCoins - pricePaid;
+    await authStore.updateUser(buyerId, { coins: updatedCoins });
 
     // Sync in memory tracker
     const buyerInv = inMemoryUserInventories.get(buyerId) || [];
