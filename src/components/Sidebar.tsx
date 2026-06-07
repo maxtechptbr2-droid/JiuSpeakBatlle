@@ -22,7 +22,8 @@ import {
   Wallet,
   CreditCard,
   Share2,
-  Shield
+  Shield,
+  GraduationCap
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
@@ -36,6 +37,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout }: SidebarProps) {
+  const [academyExpanded, setAcademyExpanded] = React.useState(true);
+  
   // BJJ belt background configurations
   const getBeltBg = (belt: BeltRank) => {
     switch (belt) {
@@ -183,6 +186,55 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
 
       {/* Tabs Menu Navigation */}
       <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+        
+        {/* Academy Accordion Section */}
+        <div className="mb-4 bg-slate-900/10 border border-slate-900 rounded-2xl p-1.5 shadow-sm">
+          <button
+            onClick={() => setAcademyExpanded(!academyExpanded)}
+            className="w-full flex items-center justify-between px-3 py-2.5 text-left opacity-95 text-violet-300 font-bold hover:text-white hover:bg-slate-900/60 rounded-xl transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <GraduationCap className="w-4.5 h-4.5 text-violet-400" />
+              <span className="text-xs uppercase tracking-wider font-mono font-black">📚 JiuSpeak Academy</span>
+            </div>
+            <ChevronRight className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${academyExpanded ? 'rotate-90 text-violet-400' : ''}`} />
+          </button>
+
+          {academyExpanded && (
+            <div className="pl-3.5 mt-1 space-y-0.5 border-l border-slate-800 ml-4.5 mb-1.5">
+              {[
+                { id: 'academy_white', label: '🤍 White Belt Path' },
+                { id: 'academy_blue', label: '💙 Blue Belt Path' },
+                { id: 'academy_purple', label: '💜 Purple Belt Path' },
+                { id: 'academy_brown', label: '🤎 Brown Belt Path' },
+                { id: 'academy_black', label: '🖤 Black Belt Path' },
+                { id: 'academy_pvp', label: '🥊 Arena PVP' },
+                { id: 'academy_progress', label: '📊 Meu Progresso' },
+                { id: 'academy_certs', label: '📜 Certificados' },
+                ...((user.role === 'admin' || user.role === 'professor') ? [
+                  { id: 'academy_admin', label: '🛠️ Academy Manager' }
+                ] : [])
+              ].map((sub) => {
+                const isSubActive = currentTab === sub.id;
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setCurrentTab(sub.id)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors cursor-pointer ${
+                      isSubActive
+                        ? 'bg-violet-950/50 text-violet-300 font-bold border-l-2 border-violet-500 pl-2'
+                        : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900'
+                    }`}
+                  >
+                    <span>{sub.label}</span>
+                    {isSubActive && <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {menuItems.map((item) => {
           const isActive = currentTab === item.id;
           const IconComponent = item.icon;

@@ -8843,6 +8843,586 @@ async function startServer() {
     });
   });
 
+  // =========================================================================
+  // JIUSPEAK ACADEMY SYSTEM - POSTGRESQL & IN-MEMORY HYBRID DATABASE ENGINE
+  // =========================================================================
+
+  const inMemoryAcademyModules = [
+    { id: "mod_white", title: "White Belt Foundations", description: "Aprenda os fundamentos do Brazilian Jiu-Jitsu enquanto desenvolve seu inglês técnico.", beltLevel: "WHITE", orderIndex: 1, active: true },
+    { id: "mod_blue", title: "Blue Belt Path - Guard Passing & Defense", description: "Aprofunde na passagem de guarda, finalizações avançadas e nomenclaturas em inglês de alto nível.", beltLevel: "BLUE", orderIndex: 2, active: true },
+    { id: "mod_purple", title: "Purple Belt Tactics - Submissions & Transitions", description: "Conecte transições e domine termos técnicos e termos de arbitragem internacional.", beltLevel: "PURPLE", orderIndex: 3, active: true },
+    { id: "mod_brown", title: "Brown Belt Dominance - Pressure & Submissions", description: "Aperfeiçoe sua pressão de quadril e seu vocabulário de coaching internacional.", beltLevel: "BROWN", orderIndex: 4, active: true },
+    { id: "mod_black", title: "Black Belt Mastery - Leadership & Strategy", description: "Explore táticas de campeonato internacional, liderança, técnicas avançadas e mentoria de alta performance.", beltLevel: "BLACK", orderIndex: 5, active: true }
+  ];
+
+  const inMemoryAcademyLessons = [
+    { id: "less_white_1", moduleId: "mod_white", title: "Introdução ao BJJ", description: "BJJ Fundamentals for Beginners - Conceitos fundamentais de postura, base e alavancas.", youtubeUrl: "https://www.youtube.com/watch?v=Wt_RyWErotc", xpReward: 100, orderIndex: 1 },
+    { id: "less_white_2", moduleId: "mod_white", title: "Defesa Pessoal Básica", description: "Postura contra agressão, saídas de gravata e defesa de golpes no chão.", youtubeUrl: "https://www.youtube.com/watch?v=BWB1R3SdAyk", xpReward: 100, orderIndex: 2 },
+    { id: "less_white_3", moduleId: "mod_white", title: "Guarda Fechada", description: "Closed Guard Basics - Como manter seu oponente sob controle de postura.", youtubeUrl: "https://www.youtube.com/watch?v=2U5fREK9W5I", xpReward: 100, orderIndex: 3 },
+    { id: "less_white_4", moduleId: "mod_white", title: "Armbar", description: "BJJ Armbar for Beginners - Alavanca clássica partindo do controle fechado.", youtubeUrl: "https://www.youtube.com/watch?v=9_jGszL3j9o", xpReward: 100, orderIndex: 4 },
+    { id: "less_white_5", moduleId: "mod_white", title: "Triangle Choke", description: "Triangle Choke Fundamentals - Estrangulamento clássico usando as pernas.", youtubeUrl: "https://www.youtube.com/watch?v=R9_mGka2yYg", xpReward: 100, orderIndex: 5 },
+    { id: "less_white_6", moduleId: "mod_white", title: "Kimura", description: "Kimura from Closed Guard - Chave de ombro clássica de controle e submissão.", youtubeUrl: "https://www.youtube.com/watch?v=yW6WvA0hG2s", xpReward: 100, orderIndex: 6 },
+    { id: "less_white_7", moduleId: "mod_white", title: "Escape da Montada", description: "Mount Escape BJJ - Saídas de Upa e Cotovelo sob forte pressão do montador.", youtubeUrl: "https://www.youtube.com/watch?v=Xh0l07f607g", xpReward: 100, orderIndex: 7 },
+    { id: "less_white_8", moduleId: "mod_white", title: "Side Control Escape", description: "Side Control Escape Basics - Criação de frames, pontes e reposição completa.", youtubeUrl: "https://www.youtube.com/watch?v=P_V6XNfHIs0", xpReward: 100, orderIndex: 8 },
+    { id: "less_white_9", moduleId: "mod_white", title: "Guard Pass", description: "Guard Passing Fundamentals - Postura por cima e abertura de joelhos ativa.", youtubeUrl: "https://www.youtube.com/watch?v=X-8v_Y9rQzU", xpReward: 100, orderIndex: 9 },
+    { id: "less_white_10", moduleId: "mod_white", title: "White Belt Final Challenge", description: "Exame teórico cobrando 20 questões fundamentais de jiu-jitsu e vocabulário em inglês.", youtubeUrl: "https://www.youtube.com/watch?v=vAg_m9X_qK0", xpReward: 100, orderIndex: 10 },
+
+    { id: "less_blue_1", moduleId: "mod_blue", title: "Knee Slide Guard Pass", description: "Como cruzar o joelho com velocidade, esgrima forte de tronco e estabilização nos 100kg.", youtubeUrl: "https://www.youtube.com/watch?v=Y8Y52nswWAs", xpReward: 150, orderIndex: 1 },
+    { id: "less_purple_1", moduleId: "mod_purple", title: "Berimbolo Tech & Concepts", description: "Entrada moderna rolando por baixo do quadril do oponente para expor e atacar as costas.", youtubeUrl: "https://www.youtube.com/watch?v=84G477f1f3A", xpReward: 200, orderIndex: 1 },
+    { id: "less_brown_1", moduleId: "mod_brown", title: "Deep Half Guard Mastery", description: "Como se posicionar embaixo do centro de gravidade de adversários pesados e golpear raspagens.", youtubeUrl: "https://www.youtube.com/watch?v=7hR9qgI0jhs", xpReward: 250, orderIndex: 1 },
+    { id: "less_black_1", moduleId: "mod_black", title: "Leglock Defense & Counters", description: "Aprenda rotas de liberação da linha de joelho e saídas seguras do sela/ashi garami.", youtubeUrl: "https://www.youtube.com/watch?v=QfJbAtW1v_A", xpReward: 300, orderIndex: 1 }
+  ];
+
+  const inMemoryAcademyProgress: any[] = [];
+  const inMemoryPvpStats: any[] = [];
+
+  // Seeding helper to load standard curriculum in database
+  const seedAcademyInDb = async () => {
+    const prisma = getPrisma() as any;
+    if (!isDatabaseConnected() || !prisma) return;
+    try {
+      const existing = await prisma.academyModule.count();
+      if (existing > 0) return;
+      console.log("🌱 [ACADEMY SEED] Iniciando semeamento no banco PostgreSQL...");
+      for (const mod of inMemoryAcademyModules) {
+        const createdMod = await prisma.academyModule.create({
+          data: {
+            id: mod.id,
+            title: mod.title,
+            description: mod.description,
+            beltLevel: mod.beltLevel,
+            orderIndex: mod.orderIndex,
+            active: mod.active
+          }
+        });
+        const modLessons = inMemoryAcademyLessons.filter(l => l.moduleId === mod.id);
+        for (const les of modLessons) {
+          await prisma.academyLesson.create({
+            data: {
+              id: les.id,
+              moduleId: createdMod.id,
+              title: les.title,
+              description: les.description,
+              youtubeUrl: les.youtubeUrl,
+              xpReward: les.xpReward,
+              orderIndex: les.orderIndex
+            }
+          });
+        }
+      }
+      console.log("✓ [ACADEMY SEED] Concluido semeamento no banco PostgreSQL!");
+    } catch (err: any) {
+      console.warn("⚠️ [ACADEMY SEED FAILURE] Semeamento falhou no PostgreSQL. Usando fallback em memória:", err.message);
+    }
+  };
+
+  // Run seed
+  seedAcademyInDb().catch(e => console.warn("Erro ao semear banco da Academy:", e));
+
+  // 1. GET ALL MODULES (with lessons & completeness)
+  app.get("/api/academy/modules", authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const prisma = getPrisma() as any;
+      let modules: any[] = [];
+      let progress: any[] = [];
+
+      if (isDatabaseConnected() && prisma) {
+        try {
+          modules = await prisma.academyModule.findMany({
+            where: { active: true },
+            include: {
+              lessons: {
+                orderBy: { orderIndex: "asc" }
+              }
+            },
+            orderBy: { orderIndex: "asc" }
+          });
+          progress = await prisma.academyProgress.findMany({
+            where: { userId }
+          });
+        } catch (dbErr: any) {
+          console.warn("⚠️ [ACADEMY DB ERROR] Falhou na leitura do SQL, usando in-memory fallback:", dbErr.message);
+          modules = [];
+        }
+      }
+
+      if (modules.length === 0) {
+        modules = JSON.parse(JSON.stringify(inMemoryAcademyModules)).map((mod: any) => {
+          mod.lessons = inMemoryAcademyLessons.filter((l: any) => l.moduleId === mod.id);
+          return mod;
+        });
+        progress = inMemoryAcademyProgress.filter((p: any) => p.userId === userId);
+      }
+
+      // Merge completion status for current user
+      const responseData = modules.map((mod: any) => {
+        const lessons = mod.lessons.map((les: any) => {
+          const completedRecord = progress.find((p: any) => p.lessonId === les.id);
+          const urlIdMatch = les.youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+          const youtubeId = urlIdMatch ? urlIdMatch[1] : null;
+
+          return {
+            ...les,
+            youtubeId,
+            completed: completedRecord ? completedRecord.completed : false,
+            completedAt: completedRecord ? completedRecord.completedAt : null
+          };
+        });
+
+        return {
+          ...mod,
+          lessons
+        };
+      });
+
+      res.json({ success: true, modules: responseData });
+    } catch (error: any) {
+      console.error("Erro no carregamento do JiuSpeak Academy:", error);
+      res.status(200).json({ success: false, error: "Falha ao processar módulos academy.", modules: [] });
+    }
+  });
+
+  // 2. COMPLETE LESSON / REWARD XP
+  app.post("/api/academy/progress/complete", authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { lessonId } = req.body;
+      if (!lessonId) {
+        return res.status(400).json({ success: false, error: "ID da lição obrigatório." });
+      }
+
+      const prisma = getPrisma() as any;
+      let lesson: any = null;
+
+      if (isDatabaseConnected() && prisma) {
+        try {
+          lesson = await prisma.academyLesson.findUnique({ where: { id: lessonId } });
+        } catch (e) {}
+      }
+      if (!lesson) {
+        lesson = inMemoryAcademyLessons.find((l: any) => l.id === lessonId);
+      }
+      if (!lesson) {
+        return res.status(404).json({ success: false, error: "Lição não encontrada." });
+      }
+
+      const xpReward = lesson.xpReward || 100;
+      let completedRecord: any = null;
+
+      if (isDatabaseConnected() && prisma) {
+        try {
+          completedRecord = await prisma.academyProgress.findFirst({
+            where: { userId, lessonId }
+          });
+
+          if (!completedRecord) {
+            completedRecord = await prisma.academyProgress.create({
+              data: {
+                userId,
+                lessonId,
+                completed: true,
+                completedAt: new Date()
+              }
+            });
+          }
+        } catch (dbErr) {
+          console.warn("⚠️ Falha ao salvar progresso no PostgreSQL. Usando in-memory:", dbErr);
+        }
+      }
+
+      if (!completedRecord) {
+        completedRecord = inMemoryAcademyProgress.find((p: any) => p.userId === userId && p.lessonId === lessonId);
+        if (!completedRecord) {
+          completedRecord = {
+            id: "prog_" + Math.random().toString(36).substring(2),
+            userId,
+            lessonId,
+            completed: true,
+            completedAt: new Date().toISOString()
+          };
+          inMemoryAcademyProgress.push(completedRecord);
+        }
+      }
+
+      // Add XP using AuthStore updateUser to maintain synchronicity
+      const user = (await authStore.findById(userId)) as any;
+      if (user) {
+        const currentXp = user.xp || 0;
+        const currentLevel = user.level || 1;
+        const newXp = currentXp + xpReward;
+        let newLevel = currentLevel;
+
+        while (newXp >= newLevel * 1000) {
+          newLevel += 1;
+        }
+
+        const unlockedAchievements = user.unlockedAchievements || [];
+        // Grant White Belt Graduate badge on Lesson 10 completion
+        if (lessonId === "less_white_10" && !unlockedAchievements.includes("White Belt Graduate")) {
+          unlockedAchievements.push("White Belt Graduate");
+        }
+
+        await authStore.updateUser(userId, {
+          xp: newXp,
+          level: newLevel,
+          unlockedAchievements
+        } as any);
+      }
+
+      res.json({
+        success: true,
+        message: "Progresso salvo com sucesso!",
+        xpReward,
+        completedAt: completedRecord.completedAt
+      });
+    } catch (error: any) {
+      console.error("Erro ao salvar progresso de lição:", error);
+      res.status(200).json({ success: false, error: "Erro interno ao computar progresso." });
+    }
+  });
+
+  // 3. COMPLETE FINAL CHALLENGE EXAM (White Belt Graduate + 1000 XP)
+  app.post("/api/academy/progress/final-challenge", authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { score } = req.body;
+      if (score === undefined || score < 70) {
+        return res.status(400).json({ success: false, error: "O score de provimento tático deve ser de pelo menos 70%." });
+      }
+
+      const prisma = getPrisma() as any;
+      const lessonId = "less_white_10";
+      const extraXp = 1000;
+
+      // Save progression
+      if (isDatabaseConnected() && prisma) {
+        try {
+          const exist = await prisma.academyProgress.findFirst({
+            where: { userId, lessonId }
+          });
+          if (!exist) {
+            await prisma.academyProgress.create({
+              data: {
+                userId,
+                lessonId,
+                completed: true,
+                completedAt: new Date()
+              }
+            });
+          }
+        } catch (dbErr) {
+          console.warn("⚠️ Falha ao salvar final challenge no Prisma. Usando fallback em memória:", dbErr);
+        }
+      }
+
+      const inMemoryExist = inMemoryAcademyProgress.find((p: any) => p.userId === userId && p.lessonId === lessonId);
+      if (!inMemoryExist) {
+        inMemoryAcademyProgress.push({
+          id: "prog_" + Math.random().toString(36).substring(2),
+          userId,
+          lessonId,
+          completed: true,
+          completedAt: new Date().toISOString()
+        });
+      }
+
+      // Award 1000 XP & Award "White Belt Graduate"
+      const user = (await authStore.findById(userId)) as any;
+      if (user) {
+        const currentXp = user.xp || 0;
+        const currentLevel = user.level || 1;
+        const newXp = currentXp + extraXp;
+        let newLevel = currentLevel;
+
+        while (newXp >= newLevel * 1055) { // let's match the level threshold loops
+          newLevel += 1;
+        }
+
+        const unlockedAchievements = user.unlockedAchievements || [];
+        if (!unlockedAchievements.includes("White Belt Graduate")) {
+          unlockedAchievements.push("White Belt Graduate");
+        }
+
+        await authStore.updateUser(userId, {
+          xp: newXp,
+          level: newLevel,
+          unlockedAchievements
+        } as any);
+      }
+
+      res.json({
+        success: true,
+        message: "Parabéns! Desafio do Faixa Branca aprovado com sucesso! Medalha 'White Belt Graduate' recebida + 1000 XP!",
+        xpReward: extraXp,
+        badge: "White Belt Graduate"
+      });
+    } catch (error: any) {
+      console.error("Erro no final challenge:", error);
+      res.status(200).json({ success: false, error: "Erro interno no processamento do desafio final." });
+    }
+  });
+
+  // 4. ARENA PVP STATISTICS LOGGER
+  app.post("/api/academy/pvp/simulate", authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { correctCount, totalCount, xpEarned, belt } = req.body;
+
+      const statsRecord = {
+        id: "pvp_stat_" + Math.random().toString(36).substring(2),
+        userId,
+        belt: belt || "WHITE",
+        correctCount: correctCount || 0,
+        totalCount: totalCount || 5,
+        xpEarned: xpEarned || 0,
+        timestamp: new Date().toISOString()
+      };
+
+      inMemoryPvpStats.push(statsRecord);
+
+      // Reward XP
+      if (xpEarned > 0) {
+        const user = (await authStore.findById(userId)) as any;
+        if (user) {
+          const currentXp = user.xp || 0;
+          const currentLevel = user.level || 1;
+          const newXp = currentXp + xpEarned;
+          let newLevel = currentLevel;
+
+          while (newXp >= newLevel * 1055) {
+            newLevel += 1;
+          }
+
+          await authStore.updateUser(userId, {
+            xp: newXp,
+            level: newLevel
+          } as any);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: "Resultados da Arena PvP salvos!",
+        stats: statsRecord
+      });
+    } catch (err) {
+      console.error("Erro ao simular PVP da academia:", err);
+      res.status(200).json({ success: false, error: "Erro interno na arena pvp." });
+    }
+  });
+
+  // 5. GET PROGRESS SUMMARY FOR USER
+  app.get("/api/academy/progress/summary", authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const prisma = getPrisma() as any;
+      let completedLessonsCount = 0;
+
+      if (isDatabaseConnected() && prisma) {
+        try {
+          completedLessonsCount = await prisma.academyProgress.count({
+            where: { userId, completed: true }
+          });
+        } catch (e) {}
+      }
+
+      if (completedLessonsCount === 0) {
+        completedLessonsCount = inMemoryAcademyProgress.filter(p => p.userId === userId && p.completed).length;
+      }
+
+      const user = (await authStore.findById(userId)) as any;
+      const achievements = user?.unlockedAchievements || [];
+
+      res.json({
+        success: true,
+        completedLessonsCount,
+        unlockedCertificates: achievements.filter((a: any) => a.includes("Graduate") || a.includes("Certificate")),
+        isWhiteBeltGraduate: achievements.includes("White Belt Graduate"),
+        xp: user?.xp || 0,
+        level: user?.level || 1
+      });
+    } catch (err) {
+      res.status(200).json({ success: false, error: "Falha ao processar resumo do usuário." });
+    }
+  });
+
+  // 6. ADMIN SUMMARY AND DATA MANAGEMENT FOR ACADEMY MANAGER
+  app.get("/api/admin/academy/progress", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const prisma = getPrisma() as any;
+      const allUsers = (authStore as any).getAllUsers ? await (authStore as any).getAllUsers() : Array.from((await import("./server/authStore")).inMemoryUsers.values());
+      
+      let progressRecords: any[] = [];
+      if (isDatabaseConnected() && prisma) {
+        try {
+          progressRecords = await prisma.academyProgress.findMany();
+        } catch (e) {}
+      }
+      if (progressRecords.length === 0) {
+        progressRecords = inMemoryAcademyProgress;
+      }
+
+      const studentsProgress = allUsers.map((u: any) => {
+        const uProg = progressRecords.filter((p: any) => p.userId === u.id);
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          level: u.level || 1,
+          xp: u.xp || 0,
+          completedLessons: uProg.length,
+          isWhiteBeltGraduate: (u.unlockedAchievements || []).includes("White Belt Graduate")
+        };
+      });
+
+      res.json({
+        success: true,
+        studentsProgress,
+        totalModules: inMemoryAcademyModules.length,
+        totalLessons: inMemoryAcademyLessons.length,
+        modules: inMemoryAcademyModules,
+        lessons: inMemoryAcademyLessons
+      });
+    } catch (err) {
+      res.status(200).json({ success: false, studentsProgress: [], error: "Erro no carregamento do painel administrativo da Academy." });
+    }
+  });
+
+  // 7. ADMIN CREATE OR EDIT AcademyModule
+  app.post("/api/admin/academy/modules/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id, title, description, beltLevel, orderIndex, active } = req.body;
+      const prisma = getPrisma() as any;
+      let updatedModule: any = null;
+
+      if (id) {
+        // Edit
+        const existing = inMemoryAcademyModules.find(m => m.id === id);
+        if (existing) {
+          existing.title = title || existing.title;
+          existing.description = description || existing.description;
+          existing.beltLevel = beltLevel || existing.beltLevel;
+          existing.orderIndex = orderIndex !== undefined ? Number(orderIndex) : existing.orderIndex;
+          existing.active = active !== undefined ? !!active : existing.active;
+          updatedModule = existing;
+        }
+        
+        if (isDatabaseConnected() && prisma) {
+          try {
+            await prisma.academyModule.update({
+              where: { id },
+              data: { title, description, beltLevel, orderIndex: Number(orderIndex), active: !!active }
+            });
+          } catch (e) {}
+        }
+      } else {
+        // Create
+        const newId = "mod_" + Math.random().toString(36).substring(2);
+        updatedModule = {
+          id: newId,
+          title,
+          description,
+          beltLevel,
+          orderIndex: Number(orderIndex) || 1,
+          active: active !== undefined ? !!active : true
+        };
+        inMemoryAcademyModules.push(updatedModule);
+
+        if (isDatabaseConnected() && prisma) {
+          try {
+            await prisma.academyModule.create({
+              data: {
+                id: newId,
+                title,
+                description,
+                beltLevel,
+                orderIndex: Number(orderIndex) || 1,
+                active: active !== undefined ? !!active : true
+              }
+            });
+          } catch (e) {}
+        }
+      }
+
+      res.json({ success: true, updatedModule });
+    } catch (err) {
+      res.status(200).json({ success: false, error: "Falha ao gravar módulo." });
+    }
+  });
+
+  // 8. ADMIN CREATE OR EDIT AcademyLesson
+  app.post("/api/admin/academy/lessons/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id, moduleId, title, description, youtubeUrl, xpReward, orderIndex } = req.body;
+      const prisma = getPrisma() as any;
+      let updatedLesson: any = null;
+
+      if (id) {
+        // Edit
+        const existing = inMemoryAcademyLessons.find(l => l.id === id);
+        if (existing) {
+          existing.moduleId = moduleId || existing.moduleId;
+          existing.title = title || existing.title;
+          existing.description = description || existing.description;
+          existing.youtubeUrl = youtubeUrl || existing.youtubeUrl;
+          existing.xpReward = xpReward !== undefined ? Number(xpReward) : existing.xpReward;
+          existing.orderIndex = orderIndex !== undefined ? Number(orderIndex) : existing.orderIndex;
+          updatedLesson = existing;
+        }
+
+        if (isDatabaseConnected() && prisma) {
+          try {
+            await prisma.academyLesson.update({
+              where: { id },
+              data: {
+                moduleId,
+                title,
+                description,
+                youtubeUrl,
+                xpReward: Number(xpReward),
+                orderIndex: Number(orderIndex)
+              }
+            });
+          } catch (e) {}
+        }
+      } else {
+        // Create
+        const newId = "less_" + Math.random().toString(36).substring(2);
+        updatedLesson = {
+          id: newId,
+          moduleId,
+          title,
+          description,
+          youtubeUrl,
+          xpReward: Number(xpReward) || 100,
+          orderIndex: Number(orderIndex) || 1
+        };
+        inMemoryAcademyLessons.push(updatedLesson);
+
+        if (isDatabaseConnected() && prisma) {
+          try {
+            await prisma.academyLesson.create({
+              data: {
+                id: newId,
+                moduleId,
+                title,
+                description,
+                youtubeUrl,
+                xpReward: Number(xpReward) || 100,
+                orderIndex: Number(orderIndex) || 1
+              }
+            });
+          } catch (e) {}
+        }
+      }
+
+      res.json({ success: true, updatedLesson });
+    } catch (err) {
+      res.status(200).json({ success: false, error: "Falha ao salvar lição." });
+    }
+  });
+
   // Global Express Error-handling logging middleware
   app.use((err: any, req: any, res: any, next: any) => {
     logError(`UNHANDLED_ROUTE_ERROR [${req.method} ${req.url}]`, err);

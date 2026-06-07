@@ -40,6 +40,7 @@ const AuthPortal = React.lazy(() => import('./components/AuthPortal'));
 const FinancePanel = React.lazy(() => import('./components/FinancePanel'));
 const SubscriptionPanel = React.lazy(() => import('./components/SubscriptionPanel'));
 const AcademiesCommunities = React.lazy(() => import('./components/AcademiesCommunities'));
+const JiuSpeakAcademy = React.lazy(() => import('./components/JiuSpeakAcademy'));
 
 // Spinner skeleton screen for lazy-loaded route transitions 
 const LoadingFallback = () => (
@@ -775,6 +776,16 @@ export default function App() {
 
         {/* Mounted Views Router */}
         <React.Suspense fallback={<LoadingFallback />}>
+          {currentTab.startsWith('academy') && (
+            <JiuSpeakAcademy 
+              activeSubTab={currentTab}
+              setCurrentTab={setCurrentTab}
+              user={user}
+              updateUser={handleUpdateUserProfile}
+              showToast={showToast}
+            />
+          )}
+
           {currentTab === 'viral' && (
             <ViralShare 
               user={user} 
