@@ -2190,7 +2190,7 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
       let sourceCoins = 0;
       let targetCoins = 0;
 
-      if (isDatabaseConnected) {
+      if (isDatabaseConnected()) {
         const sw = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
         const tw = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
         sourceCoins = sw ? sw.balanceKC : 0;
@@ -2204,7 +2204,7 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
 
       const actualTransfer = Math.min(amt, sourceCoins);
 
-      if (isDatabaseConnected) {
+      if (isDatabaseConnected()) {
         // Sync to wallet tables if present
         const srcWallet = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
         if (srcWallet) {
@@ -6524,7 +6524,7 @@ app.get("/api/admin/store/items", authenticateToken, requireRole(["ADMIN"]), asy
     res.json({ success: true, items });
   } catch (err: any) {
     console.error("Erro admin list store:", err);
-    res.status(500).json({ error: "Erro ao obter itens do painel admin." });
+    res.status(500).json({ error: "Erro ao obter itens do painel admin: " + (err.stack || err.message || String(err)) });
   }
 });
 
@@ -8436,13 +8436,15 @@ async function startServer() {
   ArenaService.init(io);
   MatchmakingService.init();
 
+  // Populate initial users in-memory fallback & optionally database
+  try {
+    await seedInitialUsers();
+  } catch (err) {
+    console.error("Failed to seed initial users:", err);
+  }
+
   // Try database seeding if PostgreSQL is available
   if (isDatabaseConnected()) {
-    try {
-      await seedInitialUsers();
-    } catch (err) {
-      console.error("Failed to seed initial users:", err);
-    }
     try {
       await seedStoreProducts();
     } catch (err) {
