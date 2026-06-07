@@ -60,6 +60,8 @@ export default function InventoryPanel({
 
   // Loading indicator for actions
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'rarity' | 'date'>('date');
+  const [viewItemModal, setViewItemModal] = useState<any | null>(null);
 
   // Sincronizar Mochila do Atleta
   const fetchInventory = async () => {
@@ -227,9 +229,9 @@ export default function InventoryPanel({
     }
   };
 
-  // Filters catalog lists matching categorization tabs + query
+  // Filters and sorts catalog lists matching categorization tabs + query + order choice
   const getFilteredItems = () => {
-    return items.filter((item) => {
+    const list = items.filter((item) => {
       // 1. Filter by category
       if (activeCategory !== 'Todos') {
         const itemCat = item.product?.category?.toUpperCase();
@@ -245,6 +247,23 @@ export default function InventoryPanel({
       }
 
       return true;
+    });
+
+    // 3. Sort dynamic item list
+    return list.sort((a, b) => {
+      if (sortBy === 'name') {
+        return (a.name || '').localeCompare(b.name || '');
+      } else if (sortBy === 'rarity') {
+        const rRank: Record<string, number> = { 'MYTHIC': 5, 'LEGENDARY': 4, 'EPIC': 3, 'RARE': 2, 'COMMON': 1 };
+        const rankA = rRank[a.rarity?.toUpperCase() || 'COMMON'] || 1;
+        const rankB = rRank[b.rarity?.toUpperCase() || 'COMMON'] || 1;
+        return rankB - rankA; // highest rarity first
+      } else if (sortBy === 'date') {
+        const dateA = a.acquiredAt ? new Date(a.acquiredAt).getTime() : 0;
+        const dateB = b.acquiredAt ? new Date(b.acquiredAt).getTime() : 0;
+        return dateB - dateA; // newest first
+      }
+      return 0;
     });
   };
 
@@ -640,15 +659,13 @@ export default function InventoryPanel({
               {/* Category Selector Tabs */}
               <div className="flex flex-wrap gap-1.5" id="inventory-cat-filters">
                 {[
-                  { value: 'Todos', label: 'Todos os Itens' },
+                  { value: 'Todos', label: '🔥 Todos' },
                   { value: 'AVATAR', label: '👤 Avatares' },
-                  { value: 'FRAME', label: '🖼️ Molduras' },
-                  { value: 'TITLE', label: '🏷️ Títulos' },
-                  { value: 'EMOTE', label: '💬 Emojis' },
-                  { value: 'EFFECT', label: '✨ Efeitos' },
-                  { value: 'THEME', label: '🎨 Temas' },
-                  { value: 'BELT', label: '🥋 Faixas Esp.' },
-                  { value: 'LEGENDARY', label: '👑 Lendários' }
+                  { value: 'TITLE', label: '🏆 Medalhas' },
+                  { value: 'FRAME', label: '🎖️ Molduras' },
+                  { value: 'BELT', label: '🎒 Equipamentos' },
+                  { value: 'EFFECT', label: '🔥 Boosters XP' },
+                  { value: 'EMOTE', label: '⭐ Colecionáveis' }
                 ].map((cat) => {
                   const isActive = activeCategory === cat.value;
                   return (
@@ -660,7 +677,7 @@ export default function InventoryPanel({
                       }}
                       className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-violet-600 text-white shadow shadow-violet-500/20 border-l-2 border-violet-450'
+                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow shadow-violet-500/20 border-l-2 border-violet-400 pl-2'
                           : 'bg-slate-950 text-slate-400 hover:text-slate-100 border border-slate-850 hover:border-slate-800'
                       }`}
                     >
@@ -670,19 +687,33 @@ export default function InventoryPanel({
                 })}
               </div>
 
-              {/* Dynamic search inside backpack */}
-              <div className="relative group min-w-[240px]">
-                <input
-                  type="text"
-                  placeholder="Pesquisar na mochila..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setVisibleLimit(8); // Reset limit
-                  }}
-                  className="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-850 focus:border-violet-500 focus:outline-none transition-all placeholder-slate-550 font-mono"
-                />
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+              {/* Filtering and Search Controls Section */}
+              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                <span className="text-[10px] uppercase font-mono text-slate-500">Ordenar por:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-slate-950 border border-slate-850 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500 cursor-pointer transition-all"
+                >
+                  <option value="date">🕒 Obtidos Recentes</option>
+                  <option value="rarity">💎 Maior Raridade</option>
+                  <option value="name">🔤 Nome Alfabético</option>
+                </select>
+
+                {/* Dynamic search inside backpack */}
+                <div className="relative group min-w-[200px]">
+                  <input
+                    type="text"
+                    placeholder="Pesquisar na mochila..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setVisibleLimit(8); // Reset limit
+                    }}
+                    className="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-850 focus:border-violet-500 focus:outline-none transition-all placeholder-slate-550 font-mono"
+                  />
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+                </div>
               </div>
 
             </div>
@@ -703,7 +734,7 @@ export default function InventoryPanel({
               <div className="space-y-1">
                 <p className="text-sm font-bold text-slate-300">Nenhum recurso encontrado nesta categoria.</p>
                 <p className="text-xs text-slate-505 max-w-sm mx-auto leading-normal">
-                  Visite a **Biblioteca de Recursos / Loja Virtual** para desbloquear avatares personalizados, títulos e efeitos especiais usando seus Kimono Coins.
+                  Visite a **Loja JiuSpeak** para desbloquear avatares personalizados, títulos e efeitos especiais usando seus Kimono Coins.
                 </p>
               </div>
             </div>
@@ -743,7 +774,7 @@ export default function InventoryPanel({
                       id={`inventory-card-${item.id}`}
                     >
                       {/* Top visualization preview block */}
-                      <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div className="p-4 flex-1 flex flex-col justify-between cursor-pointer group/card" onClick={() => setViewItemModal(item)} title="Ver detalhes do item">
                         <div>
                           
                           {/* Image Box */}
@@ -752,11 +783,11 @@ export default function InventoryPanel({
                               <img
                                 src={item.imageUrl || item.product?.imageUrl}
                                 alt={item.name}
-                                className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-300"
+                                className="w-full h-full object-cover opacity-90 group-hover/card:scale-110 transition-transform duration-500"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <div className="text-4xl filter drop-shadow">{typeDetails.icon}</div>
+                              <div className="text-4xl filter drop-shadow group-hover/card:animate-pulse">{typeDetails.icon}</div>
                             )}
 
                             {/* Category Indicator overlay */}
@@ -777,11 +808,11 @@ export default function InventoryPanel({
                             )}
                           </div>
 
-                          <h4 className="font-display font-bold text-xs text-slate-101 truncate leading-tight">
+                          <h4 className="font-display font-bold text-xs text-slate-101 truncate leading-tight group-hover/card:text-violet-300 transition-colors">
                             {item.name}
                           </h4>
                           
-                          <p className="text-[10px] text-slate-400 mt-1 lines-clamp-3 leading-snug">
+                          <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 leading-snug">
                             {item.description || "Este item faz parte da sua coleção de conquistas e itens de tatame."}
                           </p>
                         </div>
@@ -896,6 +927,124 @@ export default function InventoryPanel({
         </div>
 
       </div>
+
+      {/* DETAILED BACKPACK ITEM OVERLAY MODAL */}
+      {viewItemModal && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 font-sans animate-fade-in" id="inventory-item-detail-modal">
+          <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-violet-500/50 rounded-3xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(139,92,246,0.3)] relative">
+            
+            {/* Ambient colorful energy filter */}
+            <div className={`absolute -right-20 -top-20 w-48 h-48 rounded-full blur-3xl opacity-35 ${
+              viewItemModal.rarity?.toUpperCase() === 'MYTHIC' ? 'bg-red-500' :
+              viewItemModal.rarity?.toUpperCase() === 'LEGENDARY' ? 'bg-amber-500' :
+              viewItemModal.rarity?.toUpperCase() === 'EPIC' ? 'bg-purple-500' : 'bg-blue-500'
+            }`} />
+
+            {/* Absolute Close button */}
+            <button 
+              onClick={() => setViewItemModal(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-900/90 p-2 rounded-full border border-slate-850 transition-colors cursor-pointer z-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="p-6 md:p-8 space-y-6">
+              
+              <div className="text-center">
+                <span className={`text-[10px] font-mono tracking-widest font-black px-3 py-1 rounded-full border ${getRarityBadgeStyle(viewItemModal.rarity)} uppercase`}>
+                  🎒 COFRE DA MOCHILA — {getRarityLabel(viewItemModal.rarity)}
+                </span>
+              </div>
+
+              {/* Central high resolution visual chamber */}
+              <div className="w-full h-56 bg-slate-950 rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center group shadow-inner">
+                {viewItemModal.imageUrl || viewItemModal.product?.imageUrl ? (
+                  <img 
+                    src={viewItemModal.imageUrl || viewItemModal.product?.imageUrl} 
+                    alt={viewItemModal.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="text-6xl text-slate-700 select-none group-hover:scale-110 transition-transform">🎒</div>
+                )}
+                
+                {/* Visualizer filters */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
+                
+                <div className="absolute bottom-4 left-4 flex gap-2">
+                  <span className="bg-slate-900/95 border border-slate-800 text-slate-350 px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase">
+                    {viewItemModal.product?.category || "Cosmético"}
+                  </span>
+                  
+                  {viewItemModal.isEquipped && (
+                    <span className="bg-yellow-500 text-slate-950 px-3 py-1 rounded-lg text-xs font-mono font-black uppercase flex items-center gap-1 animate-pulse">
+                      <Check className="w-3.5 h-3.5" /> ATIVO
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Text metadata */}
+              <div className="space-y-3">
+                <h3 className="text-xl md:text-2xl font-display font-black text-white text-center tracking-tight leading-tight">
+                  {viewItemModal.name}
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed text-center font-sans max-w-sm mx-auto">
+                  {viewItemModal.description || "Este item faz parte da sua coleção exclusiva JiuSpeak e está com validade permanente."}
+                </p>
+              </div>
+
+              {/* Acquisition timeline block */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-xl border border-slate-900/80 text-xs text-center">
+                <div className="space-y-0.5 text-left pl-2">
+                  <span className="block text-[9px] text-slate-550 font-mono uppercase">CONQUISTADO EM</span>
+                  <span className="font-bold text-slate-300">{formatDate(viewItemModal.acquiredAt)}</span>
+                </div>
+                <div className="space-y-0.5 text-left pl-2 border-l border-slate-900">
+                  <span className="block text-[9px] text-slate-550 font-mono uppercase">ESTADO ATUAL</span>
+                  <span className={`font-black uppercase text-[10px] ${viewItemModal.isEquipped ? 'text-yellow-500' : 'text-slate-500'}`}>
+                    {viewItemModal.isEquipped ? 'Equipado & Ativado' : 'Na Mochila'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Call to action buttons */}
+              <div className="flex gap-3 justify-center">
+                {viewItemModal.isEquipped ? (
+                  <button
+                    onClick={() => {
+                      handleUnequipItem(viewItemModal);
+                      setViewItemModal(null);
+                    }}
+                    className="flex-1 py-3 bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-mono font-extrabold uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-yellow-500/10 cursor-pointer"
+                  >
+                    📴 DESEQUIPAR ITEM
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      handleEquipItem(viewItemModal);
+                      setViewItemModal(null);
+                    }}
+                    className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-mono font-extrabold uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-violet-500/20 cursor-pointer animate-pulse"
+                  >
+                    ⚡ EQUIPAR IMEDIATAMENTE
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setViewItemModal(null)}
+                  className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 text-xs font-mono font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  FECHAR
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

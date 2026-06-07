@@ -144,6 +144,7 @@ export default function StoreMarket({
   
   // Tabs within economics: 'loja' | 'market' | 'inventorio' | 'vip' | 'admin_store'
   const [activeSubTab, setActiveSubTab] = useState<'loja' | 'market' | 'inventorio' | 'vip' | 'admin_store'>('loja');
+  const [viewItemModal, setViewItemModal] = useState<any | null>(null);
 
   // Admin Store control states
   const [adminProducts, setAdminProducts] = useState<any[]>([]);
@@ -468,15 +469,17 @@ export default function StoreMarket({
   const fetchStoreProducts = async () => {
     setIsStoreLoading(true);
     try {
-      let apiCategory = storeCategory;
-      if (storeCategory === 'Avatares') apiCategory = 'AVATAR';
-      else if (storeCategory === 'Molduras') apiCategory = 'FRAME';
-      else if (storeCategory === 'Títulos') apiCategory = 'TITLE';
-      else if (storeCategory === 'Emotes' || storeCategory === 'Emojis') apiCategory = 'EMOTE';
-      else if (storeCategory === 'Efeitos Especiais' || storeCategory === 'Efeitos visuais') apiCategory = 'EFFECT';
-      else if (storeCategory === 'Temas') apiCategory = 'THEME';
-      else if (storeCategory === 'Faixas especiais') apiCategory = 'BELT';
-      else if (storeCategory === 'Itens lendários') apiCategory = 'LEGENDARY';
+      let apiCategory = 'Todos';
+      if (storeCategory === '🥋 Kimonos') apiCategory = 'Itens Especiais';
+      else if (storeCategory === '👕 Rash Guards') apiCategory = 'Itens Especiais';
+      else if (storeCategory === '👤 Avatares') apiCategory = 'Todos'; // we will fetch all and filter avatares
+      else if (storeCategory === '🏆 Medalhas') apiCategory = 'Títulos';
+      else if (storeCategory === '🎖️ Molduras') apiCategory = 'Molduras';
+      else if (storeCategory === '🎒 Equipamentos') apiCategory = 'Itens Especiais';
+      else if (storeCategory === '💎 Itens Premium') apiCategory = 'Pacotes VIP';
+      else if (storeCategory === '🔥 Boosters XP') apiCategory = 'XP Boost';
+      else if (storeCategory === '⭐ Colecionáveis') apiCategory = 'Kimono Coins';
+      else if (storeCategory === '🎨 Temas de Perfil') apiCategory = 'Títulos';
 
       let apiRarity = storeRarity;
       if (storeRarity === 'Comum') apiRarity = 'COMMON';
@@ -486,15 +489,56 @@ export default function StoreMarket({
       else if (storeRarity === 'Mítico') apiRarity = 'MYTHIC';
 
       const token = localStorage.getItem('jiuspeak_access_token');
-      const url = `/api/store?category=${apiCategory}&rarity=${apiRarity}&search=${encodeURIComponent(storeSearch)}&page=${storePage}&limit=8`;
+      const url = `/api/store?category=${apiCategory}&rarity=${apiRarity}&search=${encodeURIComponent(storeSearch)}&page=${storePage}&limit=12`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token || ''}` }
       });
       const data = await res.json();
       if (data && data.success) {
-        setStoreProducts(data.items);
+        let itemsFiltered = data.items;
+
+        // Perform semantic visual categorization locally to avoid altering database
+        if (storeCategory === '🥋 Kimonos') {
+          itemsFiltered = itemsFiltered.filter((item: any) => 
+            item.name.toLowerCase().includes('kimono') || 
+            item.name.toLowerCase().includes('quimono') ||
+            item.name.toLowerCase().includes('faixa') ||
+            item.category?.toLowerCase().includes('faixa')
+          );
+        } else if (storeCategory === '👕 Rash Guards') {
+          itemsFiltered = itemsFiltered.filter((item: any) => 
+            item.name.toLowerCase().includes('rash') || 
+            item.name.toLowerCase().includes('guard') ||
+            item.description?.toLowerCase().includes('rash')
+          );
+        } else if (storeCategory === '👤 Avatares') {
+          itemsFiltered = itemsFiltered.filter((item: any) => 
+            item.category?.toLowerCase().includes('avatar') || 
+            item.name.toLowerCase().includes('avatar')
+          );
+        } else if (storeCategory === '🏆 Medalhas') {
+          itemsFiltered = itemsFiltered.filter((item: any) => 
+            item.name.toLowerCase().includes('medalha') || 
+            item.name.toLowerCase().includes('título') ||
+            item.category?.toLowerCase().includes('título')
+          );
+        } else if (storeCategory === '🎒 Equipamentos') {
+          itemsFiltered = itemsFiltered.filter((item: any) => 
+            !item.name.toLowerCase().includes('rash') && 
+            !item.name.toLowerCase().includes('kimono') && 
+            !item.name.toLowerCase().includes('quimono')
+          );
+        } else if (storeCategory === '⭐ Colecionáveis') {
+          itemsFiltered = itemsFiltered.filter((item: any) => 
+            item.name.toLowerCase().includes('coins') || 
+            item.name.toLowerCase().includes('colecion') ||
+            item.name.toLowerCase().includes('maleta')
+          );
+        }
+
+        setStoreProducts(itemsFiltered);
         setStoreTotalPages(data.pagination.totalPages || 1);
-        setStoreTotalItems(data.pagination.total || 0);
+        setStoreTotalItems(itemsFiltered.length);
       }
     } catch (error) {
       console.error("Erro ao carregar catálogo da Loja:", error);
@@ -1028,14 +1072,17 @@ export default function StoreMarket({
     <div className="space-y-6" id="bjj-store-marketplace">
       
       {/* Dynamic Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-950/40 p-6 rounded-2xl border border-slate-800">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-950/40 p-6 rounded-2xl border border-slate-800 shadow-[0_0_30px_rgba(139,92,246,0.1)]">
         <div>
-          <h3 className="text-xl md:text-2xl font-display font-extrabold text-white flex items-center gap-2">
-            <Store className="w-6 h-6 text-violet-400" />
-            <span>Biblioteca de Recursos & Guias de Estudo</span>
+          <span className="text-[10px] bg-violet-600/20 text-violet-300 font-mono font-bold uppercase py-0.5 px-2 rounded-full tracking-wide">
+            Arsenal e Aparência Virtual
+          </span>
+          <h3 className="text-xl md:text-2xl font-display font-extrabold text-white flex items-center gap-2 mt-1">
+            <Store className="w-6 h-6 text-violet-400 animate-pulse" />
+            <span>Loja JiuSpeak</span>
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Desbloqueie guias de conversação, cheat sheets oficiais de arbitragem, dicionários ilustrados e áudio-guias de tatame.
+          <p className="text-xs text-slate-430 mt-1 max-w-2xl leading-normal">
+            Adquira kimonos de elite, rash guards personalizadas, avatares lendários, boosters de XP, medalhas lendárias e efeitos de perfil com seus Kimono Coins (KC).
           </p>
         </div>
 
@@ -1061,9 +1108,9 @@ export default function StoreMarket({
       {/* Economics selector micro tabs */}
       <div className="flex border-b border-slate-800 gap-1 overflow-x-auto scroller-hidden">
         {[
-          { id: 'loja', label: '📖 Materiais Oficiais', desc: 'Desbloquear com KC' },
+          { id: 'loja', label: '🥋 Loja JiuSpeak', desc: 'Desbloquear com KC' },
           { id: 'market', label: '🤝 Swap de Conteúdo', desc: 'Trocas entre alunos' },
-          { id: 'inventorio', label: '🎒 Biblioteca Pessoal', desc: `${user.inventory.length} itens` },
+          { id: 'inventorio', label: '🎒 Mochila JiuSpeak', desc: `${user.inventory.length} itens` },
           { id: 'vip', label: '👑 Planos Premium VIP', desc: 'BRL / Pix' },
           ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ Painel de Operações', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
@@ -1298,17 +1345,29 @@ export default function StoreMarket({
               
               {/* Category Pills Selector */}
               <div className="flex flex-wrap gap-1.5 animate-fade-in" id="store-category-filters">
-                {['Todos', 'Avatares', 'Molduras', 'Títulos', 'Emojis', 'Temas', 'Efeitos visuais', 'Faixas especiais', 'Itens lendários'].map((cat) => {
+                {[
+                  'Todos',
+                  '🥋 Kimonos',
+                  '👕 Rash Guards',
+                  '👤 Avatares',
+                  '🏆 Medalhas',
+                  '🎖️ Molduras',
+                  '🎒 Equipamentos',
+                  '💎 Itens Premium',
+                  '🔥 Boosters XP',
+                  '⭐ Colecionáveis',
+                  '🎨 Temas de Perfil'
+                ].map((cat) => {
                   const isActive = storeCategory === cat;
                   return (
                     <button
                       key={cat}
                       id={`btn-cat-${cat.toLowerCase().replace(' ', '-')}`}
                       onClick={() => { setStoreCategory(cat); setStorePage(1); }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         isActive
-                          ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20'
-                          : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-850 hover:border-slate-800'
+                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20 border-l-2 border-violet-400 pl-2'
+                          : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-850 hover:border-slate-800 focus:outline-none'
                       }`}
                     >
                       {cat}
@@ -1458,18 +1517,18 @@ export default function StoreMarket({
                       )}
 
                       <div className="p-4 flex-1 flex flex-col justify-between space-y-3 relative z-10">
-                        <div>
+                        <div className="cursor-pointer group/card" onClick={() => setViewItemModal(product)} title="Clique para abrir detalhes do item">
                           {/* Image Box / Visualizer with high glare */}
                           <div className="h-32 bg-slate-900 rounded-xl overflow-hidden relative border border-slate-850 mb-3 flex items-center justify-center">
                             {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500 opacity-90"
+                                className="w-full h-full object-cover group-hover/card:scale-110 transition-all duration-500 opacity-90"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <div className="text-4xl filter drop-shadow group-hover:animate-bounce transition-transform">{catDisplay.icon}</div>
+                              <div className="text-4xl filter drop-shadow group-hover/card:animate-bounce transition-transform">{catDisplay.icon}</div>
                             )}
 
                             {/* Class Badge */}
@@ -1487,7 +1546,7 @@ export default function StoreMarket({
 
                           {/* Titles */}
                           <div className="space-y-1">
-                            <h4 className="font-display font-black text-xs text-white leading-tight line-clamp-1 group-hover:text-violet-300 transition-colors">
+                            <h4 className="font-display font-black text-xs text-white leading-tight line-clamp-1 group-hover/card:text-violet-300 transition-colors">
                               {product.name}
                             </h4>
                             <p className="text-[10px] text-slate-450 leading-relaxed font-normal line-clamp-2 h-7 overflow-hidden">
@@ -3012,6 +3071,112 @@ export default function StoreMarket({
             {cart.length}
           </span>
         </button>
+      )}
+
+      {/* ITEM DETAILS MODAL OVERLAY */}
+      {viewItemModal && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 font-sans animate-fade-in" id="bjj-item-detail-modal">
+          <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-violet-500/50 rounded-3xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(139,92,246,0.3)] relative">
+            
+            {/* Glowing core background effect */}
+            <div className={`absolute -right-20 -top-20 w-48 h-48 rounded-full blur-3xl opacity-30 ${
+              viewItemModal.rarity?.toUpperCase() === 'MYTHIC' ? 'bg-red-500' :
+              viewItemModal.rarity?.toUpperCase() === 'LEGENDARY' ? 'bg-amber-500' :
+              viewItemModal.rarity?.toUpperCase() === 'EPIC' ? 'bg-purple-500' : 'bg-blue-500'
+            }`} />
+
+            {/* Absolute close button */}
+            <button 
+              onClick={() => setViewItemModal(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-900/85 p-2 rounded-full border border-slate-800 transition-colors cursor-pointer z-50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Body Info Container */}
+            <div className="p-6 md:p-8 space-y-6">
+              
+              <div className="text-center">
+                <span className={`text-[10px] font-mono tracking-widest font-extrabold px-3 py-1 rounded-full border ${getRarityBadgeColor(viewItemModal.rarity)} uppercase`}>
+                  🎯 DETALHES DO COSMÉTICO — {getRarityLabel(viewItemModal.rarity)}
+                </span>
+              </div>
+
+              {/* Large item image visualization chamber */}
+              <div className="w-full h-56 bg-slate-950 rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center group shadow-inner">
+                {viewItemModal.imageUrl ? (
+                  <img 
+                    src={viewItemModal.imageUrl} 
+                    alt={viewItemModal.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="text-6xl text-slate-750 drop-shadow select-none group-hover:scale-110 transition-transform">🥋</div>
+                )}
+                
+                {/* Glowing neon shadow chamber inside */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-85" />
+                <div className="absolute bottom-4 left-4 flex gap-2">
+                  <span className="bg-slate-900/95 border border-slate-800 text-slate-300 px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase">
+                    {viewItemModal.category || "Cosmético"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Item nomenclature text header */}
+              <div className="space-y-3">
+                <h3 className="text-xl md:text-2xl font-display font-black text-white text-center tracking-tight leading-tight">
+                  {viewItemModal.name}
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed text-center font-sans max-w-sm mx-auto">
+                  {viewItemModal.description || "Incrível item de customização oficial. Equipando este cosmético, seu perfil e conquistas refletirão seu estilo inovador de rolar no tatame virtual."}
+                </p>
+              </div>
+
+              {/* Pricing & Rarity Metadata Chamber */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-xl border border-slate-900/80 text-xs">
+                <div className="space-y-0.5">
+                  <span className="block text-[9px] text-slate-500 font-mono uppercase">CLASSIFICAÇÃO</span>
+                  <span className="font-bold text-slate-200">{getRarityLabel(viewItemModal.rarity)}</span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="block text-[9px] text-slate-500 font-mono uppercase">VALOR DE RESGATE</span>
+                  <span className="font-bold text-amber-500 flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5 fill-amber-500/10" />
+                    {viewItemModal.priceKC || 0} KC
+                  </span>
+                </div>
+              </div>
+
+              {/* Modal footer call actions */}
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => {
+                    if (user.inventory.includes(viewItemModal.id)) {
+                      showToast("Você já possui este item na mochila!", "info");
+                    } else {
+                      handlePurchaseProduct(viewItemModal);
+                    }
+                    setViewItemModal(null);
+                  }}
+                  disabled={user.inventory.includes(viewItemModal.id)}
+                  className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-mono font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-violet-500/20 cursor-pointer disabled:opacity-50"
+                >
+                  {user.inventory.includes(viewItemModal.id) ? '✓ ADQUIRIDO' : '🛒 COMPRAR AGORA'}
+                </button>
+
+                <button
+                  onClick={() => setViewItemModal(null)}
+                  className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-mono font-bold rounded-xl transition-all cursor-pointer"
+                >
+                  FECHAR
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
