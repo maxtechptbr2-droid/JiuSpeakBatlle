@@ -614,6 +614,11 @@ export const inMemoryUserInventories = new Map<string, string[]>();
 inMemoryUserInventories.set("user_athlete_test_1", ["item_purple_belt", "item_armor_badge"]);
 inMemoryUserInventories.set("user_admin_test_1", ["item_gold_gi", "p2p_title_leao"]);
 
+export const inMemoryEquippedItemIds = new Map<string, Set<string>>();
+// Pre-equip some items for test users in memory
+inMemoryEquippedItemIds.set("user_athlete_test_1", new Set(["mem_item_user_athlete_test_1_0"]));
+inMemoryEquippedItemIds.set("user_admin_test_1", new Set(["mem_item_user_admin_test_1_0"]));
+
 export const inMemoryFrozenUserIds = new Set<string>();
 
 export let inMemoryStoreProducts: any[] = [
@@ -5859,17 +5864,67 @@ app.get("/api/store", async (req: any, res: any) => {
       });
     }
 
-    try {
-      items = await prisma.storeProduct.findMany({
-        where: whereClause,
-        orderBy: { priceKC: "asc" },
-        skip,
-        take: limitNum
-      });
-      total = await prisma.storeProduct.count({ where: whereClause });
-    } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível:", dbErr);
-      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
+    const dbConnected = isDatabaseConnected();
+    if (dbConnected) {
+      try {
+        items = await prisma.storeProduct.findMany({
+          where: whereClause,
+          orderBy: { priceKC: "asc" },
+          skip,
+          take: limitNum
+        });
+        total = await prisma.storeProduct.count({ where: whereClause });
+      } catch (dbErr) {
+        console.error("✗ PostgreSQL indisponível, recorrendo à simulação de catálogo:", dbErr);
+        items = [];
+      }
+    }
+
+    if (!dbConnected || items.length === 0) {
+      let filtered = [...inMemoryStoreProducts];
+      
+      if (category && category !== "all" && category !== "Todos") {
+        const categoryMap: Record<string, string> = {
+          "Avatares": "AVATAR",
+          "Avatares Masculinos": "Avatares Masculinos",
+          "Avatares Femininos": "Avatares Femininos",
+          "Molduras": "Molduras",
+          "Títulos": "Títulos",
+          "Pacotes VIP": "Pacotes VIP",
+          "XP Boost": "XP Boost",
+          "Kimono Coins": "Kimono Coins",
+          "Itens Especiais": "Itens Especiais"
+        };
+        const targetCategory = categoryMap[category as string] || (category as string);
+        filtered = filtered.filter(p => p.category === targetCategory);
+      }
+
+      if (rarity && rarity !== "all" && rarity !== "Todos") {
+        if (rarity === "MYTHIC" || rarity === "Mítico") {
+          filtered = filtered.filter(p => p.rarity === "LEGENDARY" && p.priceKC >= 4000);
+        } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
+          filtered = filtered.filter(p => p.rarity === "LEGENDARY" && p.priceKC < 4000);
+        } else {
+          const rarityMap: Record<string, string> = {
+            "Comum": "COMMON",
+            "COMMON": "COMMON",
+            "Raro": "RARE",
+            "RARE": "RARE",
+            "Épico": "EPIC",
+            "EPIC": "EPIC"
+          };
+          const targetRarity = rarityMap[rarity as string] || (rarity as string).toUpperCase();
+          filtered = filtered.filter(p => p.rarity === targetRarity);
+        }
+      }
+
+      if (search) {
+        const s = (search as string).toLowerCase();
+        filtered = filtered.filter(p => p.name.toLowerCase().includes(s) || p.description.toLowerCase().includes(s));
+      }
+
+      total = filtered.length;
+      items = filtered.slice(skip, skip + limitNum);
     }
 
     const formattedItems = items.map((item: any) => {
@@ -6115,44 +6170,79 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
 app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
   try {
     const userId = req.user.id;
+    const dbConnected = isDatabaseConnected();
     const prisma = getPrisma();
-    if (!prisma) {
-      return res.status(500).json({ error: "Banco de dados indisponível." });
-    }
 
-    const inventory = await prisma.inventory.findUnique({
-      where: { userId },
-      include: {
-        items: {
-          include: {
-            product: true
-          },
-          orderBy: { acquiredAt: "desc" }
+    if (dbConnected && prisma) {
+      const inventory = await prisma.inventory.findUnique({
+        where: { userId },
+        include: {
+          items: {
+            include: {
+              product: true
+            },
+            orderBy: { acquiredAt: "desc" }
+          }
         }
-      }
-    });
+      });
 
-    const rawItems = inventory?.items || [];
-    const mappedItems = rawItems.map((item: any) => {
-      if (item.product) {
-        item.product = patchProductObjectWithBjjAvatar({
-          id: item.product.id,
-          name: item.product.name,
-          description: item.product.description,
-          category: item.product.category,
-          rarity: item.product.rarity,
-          imageUrl: item.product.imageUrl,
-          priceKC: item.product.priceKC,
-          priceBRL: item.product.priceBRL ? Number(item.product.priceBRL) : undefined
-        });
-      }
-      return item;
-    });
+      const rawItems = inventory?.items || [];
+      const mappedItems = rawItems.map((item: any) => {
+        if (item.product) {
+          item.product = patchProductObjectWithBjjAvatar({
+            id: item.product.id,
+            name: item.product.name,
+            description: item.product.description,
+            category: item.product.category,
+            rarity: item.product.rarity,
+            imageUrl: item.product.imageUrl,
+            priceKC: item.product.priceKC,
+            priceBRL: item.product.priceBRL ? Number(item.product.priceBRL) : undefined
+          });
+        }
+        return item;
+      });
 
-    res.json({
-      success: true,
-      items: mappedItems
-    });
+      return res.json({
+        success: true,
+        items: mappedItems
+      });
+    } else {
+      // In-Memory Simulation Fallback
+      const rawUserItems = inMemoryUserInventories.get(userId) || [];
+      const equippedSet = inMemoryEquippedItemIds.get(userId) || new Set<string>();
+
+      const mappedItems = rawUserItems.map((itemId, idx) => {
+        const product = inMemoryStoreProducts.find(p => p.id === itemId);
+        const itemObj: any = {
+          id: `mem_item_${userId}_${idx}`,
+          inventoryId: `mem_inv_${userId}`,
+          productId: itemId,
+          name: product ? product.name : (itemId === "item_purple_belt" ? "Faixa Roxa Autografada" : (itemId === "item_armor_badge" ? "Emblema 'Guarda Inabalável'" : itemId)),
+          description: product ? product.description : (itemId === "item_purple_belt" ? "Uma faixa roxa autografada por Royce Gracie." : "Item especial conquistado"),
+          rarity: product ? product.rarity : "COMMON",
+          imageUrl: product ? product.imageUrl : "",
+          isEquipped: equippedSet.has(`mem_item_${userId}_${idx}`),
+          acquiredAt: new Date(),
+          product: product ? patchProductObjectWithBjjAvatar({
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            category: product.category,
+            rarity: product.rarity,
+            imageUrl: product.imageUrl,
+            priceKC: product.priceKC,
+            priceBRL: product.priceBRL ? Number(product.priceBRL) : undefined
+          }) : null
+        };
+        return itemObj;
+      });
+
+      return res.json({
+        success: true,
+        items: mappedItems
+      });
+    }
   } catch (error: any) {
     console.error("Erro ao carregar inventário de usuário:", error);
     res.status(500).json({ error: "Incapaz de acessar mochila e recursos do atleta." });
@@ -6169,79 +6259,145 @@ app.post("/api/inventory/equip", authenticateToken, async (req: any, res: any) =
       return res.status(400).json({ error: "ID do item não fornecido." });
     }
 
+    const dbConnected = isDatabaseConnected();
     const prisma = getPrisma();
-    if (!prisma) {
-      return res.status(500).json({ error: "Banco de dados indisponível." });
-    }
 
-    // A. FETCH SELECTED ITEM & CHECK OWNERSHIP
-    const item = await prisma.inventoryItem.findFirst({
-      where: {
-        id: itemId,
-        inventory: {
-          userId: userId
-        }
-      },
-      include: {
-        product: true
-      }
-    });
-
-    if (!item) {
-      return res.status(404).json({ error: "Item de inventário não encontrado ou não pertence ao seu atleta." });
-    }
-
-    // Determine category from product or name fallback
-    const category = item.product?.category;
-    if (!category) {
-      return res.status(400).json({ error: "Não foi possível determinar a categoria do cosmético para equipar." });
-    }
-
-    // B. UNEQUIP PREVIOUS ACTIVE ITEMS OF THE SAME CATEGORY
-    const activeSameCategoryItems = await prisma.inventoryItem.findMany({
-      where: {
-        inventory: {
-          userId: userId
-        },
-        isEquipped: true,
-        product: {
-          category: category
-        }
-      }
-    });
-
-    const activeIds = activeSameCategoryItems.map((it: any) => it.id);
-    if (activeIds.length > 0) {
-      await prisma.inventoryItem.updateMany({
+    if (dbConnected && prisma) {
+      // A. FETCH SELECTED ITEM & CHECK OWNERSHIP
+      const item = await prisma.inventoryItem.findFirst({
         where: {
-          id: {
-            in: activeIds
+          id: itemId,
+          inventory: {
+            userId: userId
           }
         },
-        data: {
-          isEquipped: false
+        include: {
+          product: true
         }
       });
-    }
 
-    // C. EQUIP CURRENT ITEM
-    const updatedItem = await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { isEquipped: true },
-      include: {
-        product: true
+      if (!item) {
+        return res.status(404).json({ error: "Item de inventário não encontrado ou não pertence ao seu atleta." });
       }
-    });
 
-    // D. IF ITEM IS AN AVATAR, UPDATE USER AVATAR IN DATABASE & LIVE SOCKETS
-    const isAvatar = category?.toUpperCase() === 'AVATAR';
-    if (isAvatar) {
-      const avatarUrl = item.imageUrl || item.product?.imageUrl;
-      if (avatarUrl) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { avatar: avatarUrl }
+      // Determine category from product or name fallback
+      const category = item.product?.category;
+      if (!category) {
+        return res.status(400).json({ error: "Não foi possível determinar a categoria do cosmético para equipar." });
+      }
+
+      // B. UNEQUIP PREVIOUS ACTIVE ITEMS OF THE SAME CATEGORY
+      const activeSameCategoryItems = await prisma.inventoryItem.findMany({
+        where: {
+          inventory: {
+            userId: userId
+          },
+          isEquipped: true,
+          product: {
+            category: category
+          }
+        }
+      });
+
+      const activeIds = activeSameCategoryItems.map((it: any) => it.id);
+      if (activeIds.length > 0) {
+        await prisma.inventoryItem.updateMany({
+          where: {
+            id: {
+              in: activeIds
+            }
+          },
+          data: {
+            isEquipped: false
+          }
         });
+      }
+
+      // C. EQUIP CURRENT ITEM
+      const updatedItem = await prisma.inventoryItem.update({
+        where: { id: itemId },
+        data: { isEquipped: true },
+        include: {
+          product: true
+        }
+      });
+
+      // D. IF ITEM IS AN AVATAR, UPDATE USER AVATAR IN DATABASE & LIVE SOCKETS
+      const isAvatar = category?.toUpperCase() === 'AVATAR';
+      if (isAvatar) {
+        const avatarUrl = item.imageUrl || item.product?.imageUrl;
+        if (avatarUrl) {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { avatar: avatarUrl }
+          });
+
+          if (globalIo) {
+            try {
+              const sockets = await globalIo.fetchSockets();
+              for (const s of sockets) {
+                if (s.data.userId === userId) {
+                  if (s.data.userProfile) {
+                    s.data.userProfile.avatar = avatarUrl;
+                  }
+                  s.emit("profile:avatar_updated", { avatar: avatarUrl });
+                }
+              }
+            } catch (ioErr) {
+              console.error("Erro ao notificar sockets sobre avatar alterado:", ioErr);
+            }
+          }
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: `Cosmético "${item.name}" equipado com sucesso!`,
+        item: updatedItem
+      });
+    } else {
+      // In-Memory Simulation Fallback
+      const rawUserItems = inMemoryUserInventories.get(userId) || [];
+      const match = itemId.match(/^mem_item_([^_]+)_(\d+)$/);
+      if (!match || match[1] !== userId) {
+        return res.status(404).json({ error: "Item de inventário não encontrado ou não pertence ao seu atleta." });
+      }
+      const idx = parseInt(match[2], 10);
+      if (idx < 0 || idx >= rawUserItems.length) {
+        return res.status(404).json({ error: "Item de inventário não encontrado ou não pertence ao seu atleta." });
+      }
+
+      const productId = rawUserItems[idx];
+      const product = inMemoryStoreProducts.find(p => p.id === productId);
+
+      const category = product ? product.category : (productId === "item_purple_belt" ? "gi" : "badge");
+      if (!category) {
+        return res.status(400).json({ error: "Não foi possível determinar a categoria do cosmético para equipar." });
+      }
+
+      const equippedSet = inMemoryEquippedItemIds.get(userId) || new Set<string>();
+
+      // Unequip items of same category
+      for (const reqItemId of equippedSet) {
+        const itemMatch = reqItemId.match(/^mem_item_([^_]+)_(\d+)$/);
+        if (itemMatch && itemMatch[1] === userId) {
+          const itemIdx = parseInt(itemMatch[2], 10);
+          const itemProdId = rawUserItems[itemIdx];
+          const itemProd = inMemoryStoreProducts.find(p => p.id === itemProdId);
+          const itemCat = itemProd ? itemProd.category : (itemProdId === "item_purple_belt" ? "gi" : "badge");
+          if (itemCat === category) {
+            equippedSet.delete(reqItemId);
+          }
+        }
+      }
+
+      equippedSet.add(itemId);
+      inMemoryEquippedItemIds.set(userId, equippedSet);
+
+      const isAvatar = category?.toUpperCase().includes('AVATAR');
+      if (isAvatar && product && product.imageUrl) {
+        const avatarUrl = product.imageUrl;
+        await authStore.updateUser(userId, { avatar: avatarUrl });
 
         if (globalIo) {
           try {
@@ -6251,7 +6407,7 @@ app.post("/api/inventory/equip", authenticateToken, async (req: any, res: any) =
                 if (s.data.userProfile) {
                   s.data.userProfile.avatar = avatarUrl;
                 }
-                s.emit("profile:avatar_updated", { avatar: avatarUrl });
+                  s.emit("profile:avatar_updated", { avatar: avatarUrl });
               }
             }
           } catch (ioErr) {
@@ -6259,14 +6415,24 @@ app.post("/api/inventory/equip", authenticateToken, async (req: any, res: any) =
           }
         }
       }
+
+      const updatedItem = {
+        id: itemId,
+        productId,
+        name: product ? product.name : (productId === "item_purple_belt" ? "Faixa Roxa Autografada" : "Item"),
+        description: product ? product.description : "",
+        rarity: product ? product.rarity : "COMMON",
+        imageUrl: product ? product.imageUrl : "",
+        isEquipped: true,
+        product: product ? patchProductObjectWithBjjAvatar(product) : null
+      };
+
+      return res.json({
+        success: true,
+        message: `Cosmético equipado com sucesso!`,
+        item: updatedItem
+      });
     }
-
-    res.json({
-      success: true,
-      message: `Cosmético "${item.name}" equipado com sucesso!`,
-      item: updatedItem
-    });
-
   } catch (error: any) {
     console.error("Erro técnico ao equipar item:", error);
     res.status(500).json({ error: "Erro interno ao processar equipamento de cosmético." });
@@ -6283,70 +6449,118 @@ app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any)
       return res.status(400).json({ error: "ID do item não fornecido." });
     }
 
+    const dbConnected = isDatabaseConnected();
     const prisma = getPrisma();
-    if (!prisma) {
-      return res.status(500).json({ error: "Banco de dados indisponível." });
-    }
 
-    // Check ownership & include product info for category checking
-    const item = await prisma.inventoryItem.findFirst({
-      where: {
-        id: itemId,
-        inventory: {
-          userId: userId
+    if (dbConnected && prisma) {
+      // Check ownership & include product info for category checking
+      const item = await prisma.inventoryItem.findFirst({
+        where: {
+          id: itemId,
+          inventory: {
+            userId: userId
+          }
+        },
+        include: {
+          product: true
         }
-      },
-      include: {
-        product: true
-      }
-    });
-
-    if (!item) {
-      return res.status(404).json({ error: "Item do inventário não corresponde ou não foi localizado." });
-    }
-
-    // Update state to unequipped
-    const updatedItem = await prisma.inventoryItem.update({
-      where: { id: itemId },
-      data: { isEquipped: false },
-      include: {
-        product: true
-      }
-    });
-
-    // If item is an avatar, restore default general placeholder avatar
-    const category = item.product?.category;
-    const isAvatar = category?.toUpperCase() === 'AVATAR';
-    if (isAvatar) {
-      const defaultAvatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150";
-      await prisma.user.update({
-        where: { id: userId },
-        data: { avatar: defaultAvatar }
       });
 
-      if (globalIo) {
-        try {
-          const sockets = await globalIo.fetchSockets();
-          for (const s of sockets) {
-            if (s.data.userId === userId) {
-              if (s.data.userProfile) {
-                s.data.userProfile.avatar = defaultAvatar;
+      if (!item) {
+        return res.status(404).json({ error: "Item do inventário não corresponde ou não foi localizado." });
+      }
+
+      // Update state to unequipped
+      const updatedItem = await prisma.inventoryItem.update({
+        where: { id: itemId },
+        data: { isEquipped: false },
+        include: {
+          product: true
+        }
+      });
+
+      // If item is an avatar, restore default general placeholder avatar
+      const category = item.product?.category;
+      const isAvatar = category?.toUpperCase() === 'AVATAR';
+      if (isAvatar) {
+        const defaultAvatar = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150";
+        await prisma.user.update({
+          where: { id: userId },
+          data: { avatar: defaultAvatar }
+        });
+
+        if (globalIo) {
+          try {
+            const sockets = await globalIo.fetchSockets();
+            for (const s of sockets) {
+              if (s.data.userId === userId) {
+                if (s.data.userProfile) {
+                  s.data.userProfile.avatar = defaultAvatar;
+                }
+                s.emit("profile:avatar_updated", { avatar: defaultAvatar });
               }
-              s.emit("profile:avatar_updated", { avatar: defaultAvatar });
             }
+          } catch (ioErr) {
+            console.error("Erro ao notificar sockets sobre avatar alterado:", ioErr);
           }
-        } catch (ioErr) {
-          console.error("Erro ao notificar sockets sobre avatar alterado:", ioErr);
         }
       }
+
+      return res.json({
+        success: true,
+        message: `Item desequipado.`,
+        item: updatedItem
+      });
+    } else {
+      // In-Memory Simulation Fallback
+      const equippedSet = inMemoryEquippedItemIds.get(userId) || new Set<string>();
+      if (!equippedSet.has(itemId)) {
+        return res.status(404).json({ error: "Item do inventário não corresponde ou não foi localizado." });
+      }
+
+      equippedSet.delete(itemId);
+      inMemoryEquippedItemIds.set(userId, equippedSet);
+
+      const match = itemId.match(/^mem_item_([^_]+)_(\d+)$/);
+      if (match && match[1] === userId) {
+        const idx = parseInt(match[2], 10);
+        const rawUserItems = inMemoryUserInventories.get(userId) || [];
+        const productId = rawUserItems[idx];
+        const product = inMemoryStoreProducts.find(p => p.id === productId);
+        const category = product ? product.category : (productId === "item_purple_belt" ? "gi" : "badge");
+
+        const isAvatar = category?.toUpperCase().includes('AVATAR');
+        if (isAvatar) {
+          const defaultAvatar = "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200";
+          await authStore.updateUser(userId, { avatar: defaultAvatar });
+
+          if (globalIo) {
+            try {
+              const sockets = await globalIo.fetchSockets();
+              for (const s of sockets) {
+                if (s.data.userId === userId) {
+                  if (s.data.userProfile) {
+                    s.data.userProfile.avatar = defaultAvatar;
+                  }
+                  s.emit("profile:avatar_updated", { avatar: defaultAvatar });
+                }
+              }
+            } catch (ioErr) {
+              console.error("Erro ao notificar sockets sobre avatar alterado:", ioErr);
+            }
+          }
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: "Cosmético removido com sucesso!",
+        item: {
+          id: itemId,
+          isEquipped: false
+        }
+      });
     }
-
-    res.json({
-      success: true,
-      message: `Item desequipado.`,
-      item: updatedItem
-    });
-
   } catch (error: any) {
     console.error("Erro ao desequipar item:", error);
     res.status(500).json({ error: "Erro interno ao desequipar cosmético." });

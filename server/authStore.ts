@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { getPrisma } from './db';
+import { getPrisma, isDatabaseConnected } from './db';
 
 // Unified type representation for authentication states
 export interface AuthUser {
@@ -148,6 +148,11 @@ export const seedInitialUsers = async () => {
 
   if (process.env.NODE_ENV === "production") {
     console.log("⚠️ Production Mode: Seeding test accounts or seed users bypassed.");
+    return;
+  }
+
+  if (!isDatabaseConnected()) {
+    console.warn("⚠️ PostgreSQL está offline ou indisponível. Pulando semeadura de usuários no banco de dados.");
     return;
   }
 
