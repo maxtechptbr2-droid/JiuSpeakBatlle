@@ -8956,10 +8956,11 @@ async function startServer() {
       }
 
       // Merge completion status for current user
-      const responseData = modules.map((mod: any) => {
-        const lessons = mod.lessons.map((les: any) => {
-          const completedRecord = progress.find((p: any) => p.lessonId === les.id);
-          const urlIdMatch = les.youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+      const responseData = (modules || []).map((mod: any) => {
+        const lessons = (mod.lessons || []).map((les: any) => {
+          const completedRecord = (progress || []).find((p: any) => p && p.lessonId === les.id);
+          const youtubeUrl = les && typeof les.youtubeUrl === "string" ? les.youtubeUrl : "";
+          const urlIdMatch = youtubeUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
           const youtubeId = urlIdMatch ? urlIdMatch[1] : null;
 
           return {

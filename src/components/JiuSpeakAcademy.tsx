@@ -195,6 +195,73 @@ const FlashcardItem = ({ fc }: { fc: { term: string; phonetic: string; translati
   );
 };
 
+const FALLBACK_MODULES: Module[] = [
+  {
+    id: "mod_white",
+    title: "White Belt Foundations",
+    description: "Aprenda os fundamentos do Brazilian Jiu-Jitsu enquanto desenvolve seu inglês técnico.",
+    beltLevel: "WHITE",
+    orderIndex: 1,
+    active: true,
+    lessons: [
+      { id: "less_white_1", moduleId: "mod_white", title: "Introdução ao BJJ", description: "BJJ Fundamentals for Beginners - Conceitos fundamentais de postura, base e alavancas.", youtubeUrl: "https://www.youtube.com/watch?v=Wt_RyWErotc", youtubeId: "Wt_RyWErotc", xpReward: 100, orderIndex: 1, completed: false, completedAt: null },
+      { id: "less_white_2", moduleId: "mod_white", title: "Defesa Pessoal Básica", description: "Postura contra agressão, saídas de gravata e defesa de golpes no chão.", youtubeUrl: "https://www.youtube.com/watch?v=BWB1R3SdAyk", youtubeId: "BWB1R3SdAyk", xpReward: 100, orderIndex: 2, completed: false, completedAt: null },
+      { id: "less_white_3", moduleId: "mod_white", title: "Guarda Fechada", description: "Closed Guard Basics - Como manter seu oponente sob controle de postura.", youtubeUrl: "https://www.youtube.com/watch?v=2U5fREK9W5I", youtubeId: "2U5fREK9W5I", xpReward: 100, orderIndex: 3, completed: false, completedAt: null },
+      { id: "less_white_4", moduleId: "mod_white", title: "Armbar", description: "BJJ Armbar for Beginners - Alavanca clássica partindo do controle fechado.", youtubeUrl: "https://www.youtube.com/watch?v=9_jGszL3j9o", youtubeId: "9_jGszL3j9o", xpReward: 100, orderIndex: 4, completed: false, completedAt: null },
+      { id: "less_white_5", moduleId: "mod_white", title: "Triangle Choke", description: "Triangle Choke Fundamentals - Estrangulamento clássico usando as pernas.", youtubeUrl: "https://www.youtube.com/watch?v=R9_mGka2yYg", youtubeId: "R9_mGka2yYg", xpReward: 100, orderIndex: 5, completed: false, completedAt: null },
+      { id: "less_white_6", moduleId: "mod_white", title: "Kimura", description: "Kimura from Closed Guard - Chave de ombro clássica de controle e submissão.", youtubeUrl: "https://www.youtube.com/watch?v=yW6WvA0hG2s", youtubeId: "yW6WvA0hG2s", xpReward: 100, orderIndex: 6, completed: false, completedAt: null },
+      { id: "less_white_7", moduleId: "mod_white", title: "Escape da Montada", description: "Mount Escape BJJ - Saídas de Upa e Cotovelo sob forte pressão do montador.", youtubeUrl: "https://www.youtube.com/watch?v=Xh0l07f607g", youtubeId: "Xh0l07f607g", xpReward: 100, orderIndex: 7, completed: false, completedAt: null },
+      { id: "less_white_8", moduleId: "mod_white", title: "Side Control Escape", description: "Side Control Escape Basics - Criação de frames, pontes e reposição completa.", youtubeUrl: "https://www.youtube.com/watch?v=P_V6XNfHIs0", youtubeId: "P_V6XNfHIs0", xpReward: 100, orderIndex: 8, completed: false, completedAt: null },
+      { id: "less_white_9", moduleId: "mod_white", title: "Guard Pass", description: "Guard Passing Fundamentals - Postura por cima e abertura de joelhos ativa.", youtubeUrl: "https://www.youtube.com/watch?v=X-8v_Y9rQzU", youtubeId: "X-8v_Y9rQzU", xpReward: 100, orderIndex: 9, completed: false, completedAt: null },
+      { id: "less_white_10", moduleId: "mod_white", title: "White Belt Final Challenge", description: "Exame teórico cobrando 20 questões fundamentais de jiu-jitsu e vocabulário em inglês.", youtubeUrl: "https://www.youtube.com/watch?v=vAg_m9X_qK0", youtubeId: "vAg_m9X_qK0", xpReward: 100, orderIndex: 10, completed: false, completedAt: null }
+    ]
+  },
+  {
+    id: "mod_blue",
+    title: "Blue Belt Path - Guard Passing & Defense",
+    description: "Aprofunde na passagem de guarda, finalizações avançadas e nomenclaturas em inglês de alto nível.",
+    beltLevel: "BLUE",
+    orderIndex: 2,
+    active: true,
+    lessons: [
+      { id: "less_blue_1", moduleId: "mod_blue", title: "Knee Slide Guard Pass", description: "Como cruzar o joelho com velocidade, esgrima forte de tronco e estabilização nos 100kg.", youtubeUrl: "https://www.youtube.com/watch?v=Y8Y52nswWAs", youtubeId: "Y8Y52nswWAs", xpReward: 150, orderIndex: 1, completed: false, completedAt: null }
+    ]
+  },
+  {
+    id: "mod_purple",
+    title: "Purple Belt Tactics - Submissions & Transitions",
+    description: "Conecte transições e domine termos técnicos e termos de arbitragem internacional.",
+    beltLevel: "PURPLE",
+    orderIndex: 3,
+    active: true,
+    lessons: [
+      { id: "less_purple_1", moduleId: "mod_purple", title: "Berimbolo Tech & Concepts", description: "Entrada moderna rolando por baixo do quadril do oponente para expor e atacar as costas.", youtubeUrl: "https://www.youtube.com/watch?v=84G477f1f3A", youtubeId: "84G477f1f3A", xpReward: 200, orderIndex: 1, completed: false, completedAt: null }
+    ]
+  },
+  {
+    id: "mod_brown",
+    title: "Brown Belt Dominance - Pressure & Submissions",
+    description: "Aperfeiçoe sua pressão de quadril e seu vocabulário de coaching internacional.",
+    beltLevel: "BROWN",
+    orderIndex: 4,
+    active: true,
+    lessons: [
+      { id: "less_brown_1", moduleId: "mod_brown", title: "Deep Half Guard Mastery", description: "Como se posicionar embaixo do centro de gravidade de adversários pesados e golpear raspagens.", youtubeUrl: "https://www.youtube.com/watch?v=7hR9qgI0jhs", youtubeId: "7hR9qgI0jhs", xpReward: 250, orderIndex: 1, completed: false, completedAt: null }
+    ]
+  },
+  {
+    id: "mod_black",
+    title: "Black Belt Mastery - Leadership & Strategy",
+    description: "Explore táticas de campeonato internacional, liderança, técnicas avançadas e mentoria de alta performance.",
+    beltLevel: "BLACK",
+    orderIndex: 5,
+    active: true,
+    lessons: [
+      { id: "less_black_1", moduleId: "mod_black", title: "Leglock Defense & Counters", description: "Aprenda rotas de liberação da linha de joelho e saídas seguras do sela/ashi garami.", youtubeUrl: "https://www.youtube.com/watch?v=QfJbAtW1v_A", youtubeId: "QfJbAtW1v_A", xpReward: 300, orderIndex: 1, completed: false, completedAt: null }
+    ]
+  }
+];
+
 export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, updateUser, showToast }: JiuSpeakAcademyProps) {
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
@@ -374,9 +441,27 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
         setModules(data.modules);
       } else {
         showToast("Erro ao ler matriz da academia. Usando in-memory.", "error");
+        const localCompletions = JSON.parse(localStorage.getItem('jiuspeak_completed_lessons') || '[]');
+        const fallbackWithCompletions = FALLBACK_MODULES.map(m => ({
+          ...m,
+          lessons: m.lessons.map(l => ({
+            ...l,
+            completed: localCompletions.includes(l.id)
+          }))
+        }));
+        setModules(fallbackWithCompletions);
       }
     } catch (err) {
       console.error(err);
+      const localCompletions = JSON.parse(localStorage.getItem('jiuspeak_completed_lessons') || '[]');
+      const fallbackWithCompletions = FALLBACK_MODULES.map(m => ({
+        ...m,
+        lessons: m.lessons.map(l => ({
+          ...l,
+          completed: localCompletions.includes(l.id)
+        }))
+      }));
+      setModules(fallbackWithCompletions);
     } finally {
       setLoading(false);
     }
@@ -416,12 +501,50 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
         }
         return true;
       } else {
-        showToast(data.error || "Falha ao gravar check-in.", "error");
-        return false;
+        // Fallback local completion
+        const localCompletions = JSON.parse(localStorage.getItem('jiuspeak_completed_lessons') || '[]');
+        if (!localCompletions.includes(lesson.id)) {
+          localCompletions.push(lesson.id);
+          localStorage.setItem('jiuspeak_completed_lessons', JSON.stringify(localCompletions));
+        }
+        showToast(`🥋 Concluído em modo in-memory! Ganhou +${lesson.xpReward} XP!`, "success");
+        updateUser({
+          xp: user.xp + lesson.xpReward,
+          coins: user.coins + 20
+        });
+        setModules(prev => prev.map(m => ({
+          ...m,
+          lessons: m.lessons.map(l => l.id === lesson.id ? { ...l, completed: true } : l)
+        })));
+        if (shouldExitView) {
+          setActiveLesson(null);
+        } else {
+          setActiveLesson(prev => prev && prev.id === lesson.id ? { ...prev, completed: true } : prev);
+        }
+        return true;
       }
     } catch (e) {
-      showToast("Falha de conexão com a VPS.", "error");
-      return false;
+      // Fallback local completion on connection error
+      const localCompletions = JSON.parse(localStorage.getItem('jiuspeak_completed_lessons') || '[]');
+      if (!localCompletions.includes(lesson.id)) {
+        localCompletions.push(lesson.id);
+        localStorage.setItem('jiuspeak_completed_lessons', JSON.stringify(localCompletions));
+      }
+      showToast(`🥋 Concluído em modo local! Ganhou +${lesson.xpReward} XP!`, "success");
+      updateUser({
+        xp: user.xp + lesson.xpReward,
+        coins: user.coins + 20
+      });
+      setModules(prev => prev.map(m => ({
+        ...m,
+        lessons: m.lessons.map(l => l.id === lesson.id ? { ...l, completed: true } : l)
+      })));
+      if (shouldExitView) {
+        setActiveLesson(null);
+      } else {
+        setActiveLesson(prev => prev && prev.id === lesson.id ? { ...prev, completed: true } : prev);
+      }
+      return true;
     }
   };
 
