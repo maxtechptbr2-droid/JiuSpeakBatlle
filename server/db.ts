@@ -14,13 +14,13 @@ export function getPrisma(): PrismaClient {
   if (!prisma) {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
-      console.error(JSON.stringify({
-        error: "FATAL_DATABASE_ERROR",
+      console.warn(JSON.stringify({
+        warning: "DATABASE_URL_MISSING",
         message: "A variável de ambiente DATABASE_URL está ausente ou vazia.",
-        advice: "A plataforma JiuSpeak requer um banco de dados PostgreSQL rodando para persistência confiável de dados de produção.",
+        advice: "A plataforma JiuSpeak continuará usando o fallback de simulação em memória.",
         timestamp: new Date().toISOString()
       }, null, 2));
-      process.exit(1);
+      return null as any;
     }
     try {
       // Configure specific pool limits for high concurrency (connection_limit=20, pool_timeout=15)
@@ -44,11 +44,11 @@ export function getPrisma(): PrismaClient {
     } catch (e: any) {
       console.error(JSON.stringify({
         error: "FATAL_DATABASE_ERROR",
-        message: "Falha crítica ao instanciar o PrismaClient do Postgres.",
+        message: "Falha crítica ao instanciar o PrismaClient do Postgres. Continuando sem DB.",
         exception: e.message || e,
         timestamp: new Date().toISOString()
       }, null, 2));
-      process.exit(1);
+      return null as any;
     }
   }
   return prisma;
@@ -57,6 +57,11 @@ export function getPrisma(): PrismaClient {
 // Assert database readiness, preventing application boot if postgres connection fails
 export async function assertDatabaseConnection(): Promise<void> {
   const client = getPrisma();
+  if (!client) {
+    dbConnected = false;
+    console.warn("⚠️ DATABASE_URL não configurada. Ativando banco de dados em memória.");
+    return;
+  }
   let retries = 5;
   while (retries > 0) {
     try {
@@ -72,9 +77,10 @@ export async function assertDatabaseConnection(): Promise<void> {
       retries--;
       if (retries === 0) {
         dbConnected = false;
-        console.error("✗ PostgreSQL indisponível");
-        process.exit(1);
+        console.error("✗ PostgreSQL indisponível. Rodando em modo de simulação em memória.");
+        return;
       }
+      console.warn(`Tentativa de conexão com banco de dados falhou. Retentando em 1.5s (${retries} restantes)...`);
       // Wait 1.5 seconds before next connection retry
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }
