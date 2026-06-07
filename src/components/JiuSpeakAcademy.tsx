@@ -27,7 +27,17 @@ import {
   User,
   ExternalLink,
   Shield,
-  BookMarked
+  BookMarked,
+  Trash2,
+  Copy,
+  Search,
+  Filter,
+  Volume2,
+  ArrowUp,
+  ArrowDown,
+  Eye,
+  FileText,
+  Check
 } from 'lucide-react';
 import { UserProfile } from '../types';
 
@@ -320,27 +330,48 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
   const [editingLesson, setEditingLesson] = useState<any>(null);
   
   // Technical BJJ Flashcards data
-  const vocabularyFlashcards: Record<string, { term: string; phonetic: string; translation: string; bjjContext: string }[]> = {
-    less_white_1: [
-      { term: "Posture", phonetic: "/ˈpɒs.tʃər/", translation: "Postura", bjjContext: "Crucial inside the closed guard to prevent sweeps and submissions." },
-      { term: "Leverage", phonetic: "/ˈliː.vər.ɪdʒ/", translation: "Alavanca", bjjContext: "Using mechanic force advantage instead of pure muscular power." },
-      { term: "Base", phonetic: "/beɪs/", translation: "Base / Equilíbrio", bjjContext: "Spreading weight wide to prevent being easily knocked over." }
-    ],
-    less_white_3: [
-      { term: "Closed Guard", phonetic: "/kləʊzd ɡɑːd/", translation: "Guarda Fechada", bjjContext: "Wrapping both legs around the opponent's waist with locked ankles." },
-      { term: "Underhook", phonetic: "/ˈʌn.dər.hʊk/", translation: "Esgrima (por baixo)", bjjContext: "Slipping your arm under the opponent's armpit to gain superior body control." },
-      { term: "Posture control", phonetic: "/ˈpɒs.tʃər kənˈtrəʊl/", translation: "Controle de postura", bjjContext: "Pulling the opponent down using collar and sleeve grips to neutralize threat." }
-    ],
-    less_white_4: [
-      { term: "Armbar", phonetic: "/ˈɑːm.bɑːr/", translation: "Chave de braço", bjjContext: "An entry attacking the elbow joint by creating a fulcrum with your hips." },
-      { term: "Bridge", phonetic: "/brɪdʒ/", translation: "Ponte (Upa)", bjjContext: "Exploding hips off the ground supporting weight on heels and shoulders." },
-      { term: "Tap out", phonetic: "/tæp aʊt/", translation: "Bater (desistir)", bjjContext: "The physical gesture of submitting to tap the mat or opponent." }
-    ],
-    less_white_5: [
-      { term: "Triangle choke", phonetic: "/ˈtraɪ.æŋ.ɡəl tʃəʊk/", translation: "Triângulo", bjjContext: "Strangling using your leg crossed over opponent's neck and arm." },
-      { term: "Shin", phonetic: "/ʃɪn/", translation: "Canela", bjjContext: "Gripping your own shin with hands to secure and lock the triangle figure four." },
-      { term: "Choke", phonetic: "/tʃəʊk/", translation: "Estrangulamento", bjjContext: "Cutting block to blood flow or airway for submission victory." }
-    ]
+  const [vocabularyFlashcards, setVocabularyFlashcards] = useState<Record<string, { term: string; phonetic: string; translation: string; bjjContext: string }[]>>(() => {
+    try {
+      const stored = localStorage.getItem('jiuspeak_vocabulary_flashcards');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return {
+      less_white_1: [
+        { term: "Posture", phonetic: "/ˈpɒs.tʃər/", translation: "Postura", bjjContext: "Crucial inside the closed guard to prevent sweeps and submissions." },
+        { term: "Leverage", phonetic: "/ˈliː.vər.ɪdʒ/", translation: "Alavanca", bjjContext: "Using mechanic force advantage instead of pure muscular power." },
+        { term: "Base", phonetic: "/beɪs/", translation: "Base / Equilíbrio", bjjContext: "Spreading weight wide to prevent being easily knocked over." }
+      ],
+      less_white_3: [
+        { term: "Closed Guard", phonetic: "/kləʊzd ɡɑːd/", translation: "Guarda Fechada", bjjContext: "Wrapping both legs around the opponent's waist with locked ankles." },
+        { term: "Underhook", phonetic: "/ˈʌn.dər.hʊk/", translation: "Esgrima (por baixo)", bjjContext: "Slipping your arm under the opponent's armpit to gain superior body control." },
+        { term: "Posture control", phonetic: "/ˈpɒs.tʃər kənˈtrəʊl/", translation: "Controle de postura", bjjContext: "Pulling the opponent down using collar and sleeve grips to neutralize threat." }
+      ],
+      less_white_4: [
+        { term: "Armbar", phonetic: "/ˈɑːm.bɑːr/", translation: "Chave de braço", bjjContext: "An entry attacking the elbow joint by creating a fulcrum with your hips." },
+        { term: "Bridge", phonetic: "/brɪdʒ/", translation: "Ponte (Upa)", bjjContext: "Exploding hips off the ground supporting weight on heels and shoulders." },
+        { term: "Tap out", phonetic: "/tæp aʊt/", translation: "Bater (desistir)", bjjContext: "The physical gesture of submitting to tap the mat or opponent." }
+      ],
+      less_white_5: [
+        { term: "Triangle choke", phonetic: "/ˈtraɪ.æŋ.ɡəl tʃəʊk/", translation: "Triângulo", bjjContext: "Strangling using your leg crossed over opponent's neck and arm." },
+        { term: "Shin", phonetic: "/ʃɪn/", translation: "Canela", bjjContext: "Gripping your own shin with hands to secure and lock the triangle figure four." },
+        { term: "Choke", phonetic: "/tʃəʊk/", translation: "Estrangulamento", bjjContext: "Cutting block to blood flow or airway for submission victory." }
+      ]
+    };
+  });
+
+  const updateVocabularyFlashcards = (newFlashcards: Record<string, any[]>) => {
+    setVocabularyFlashcards(newFlashcards);
+    try {
+      localStorage.setItem('jiuspeak_vocabulary_flashcards', JSON.stringify(newFlashcards));
+    } catch (e) {}
+    fetch('/api/admin/academy/flashcards/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ flashcards: newFlashcards })
+    }).catch(() => {});
   };
 
   // Sample dynamic flashcard deck
@@ -353,68 +384,127 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
   ];
 
   // Technical English Quiz Questions for White Belt final graduation test
-  const quizQuestions = [
-    {
-      q: "Qual termo em inglês refere-se à famosa raspagem onde o de baixo vai para cima na guarda?",
-      options: ["Submission", "Sweep", "Guard Pass", "Sprawl"],
-      answer: 1,
-      explanation: "Sweep significa golpear a raspagem partindo de posições inferiores de guarda para dominar por cima."
-    },
-    {
-      q: "Como se traduz 'estrangulamento' no vocabulário oficial norte-americano?",
-      options: ["Lock", "Choke", "Sweep", "Escape"],
-      answer: 1,
-      explanation: "Choke refere-se a qualquer estrangulamento de carótida ou via aérea."
-    },
-    {
-      q: "Diga a tradução correta para a ação de 'bater em desistência':",
-      options: ["Break out", "Underhook", "Tap out", "Takedown"],
-      answer: 2,
-      explanation: "Tap out significa dar tapinhas no corpo do colega ou tatame em sinal de desistência segura."
-    },
-    {
-      q: "O golpe clássico 'Upa' de elevação explosiva de quadril é traduzido graficamente como:",
-      options: ["Hip Throw", "Sprawl", "Bridge", "Sweep"],
-      answer: 2,
-      explanation: "Bridge ou Upa é o principal movimento de ponte ponte-escape do sistema defensivo."
-    },
-    {
-      q: "O termo 'Underhook' significa o que na prática dos treinos de luta?",
-      options: ["Dar as costas ao adversário", "Girar em Berimbolo", "Realizar a pegada de esgrima por baixo do braço", "Chave de calcanhar"],
-      answer: 2,
-      explanation: "Underhook é a tradicional esgrima por baixo da axila adversária para travar distância."
-    },
-    {
-      q: "O que significa 'Full Mount' no Jiu-Jitsu?",
-      options: ["Montada completa por cima", "Guarda fechada", "Pegada pelas costas", "Passagem de joelho cruzado"],
-      answer: 0,
-      explanation: "Full Mount é a posição de dominância total montado sobre o peito/quadril adversário."
-    },
-    {
-      q: "Seu professor ensinou um 'Guard Pass'. Ele quer que você:",
-      options: ["Responda perguntas", "Passe a guarda do companheiro de treino", "Defenda uma pegada", "Finalize de triângulo"],
-      answer: 1,
-      explanation: "Guard Pass indica a progressão de transpasse da linha das pernas do oponente."
-    },
-    {
-      q: "Como dizemos 'chave de braço' em inglês?",
-      options: ["Armbar", "Leglock", "Choke hold", "Wristlock"],
-      answer: 0,
-      explanation: "Armbar é a alavanca mecânica direta sobre o cotovelo."
-    },
-    {
-      q: "O que é um 'Takedown'?",
-      options: ["Passagem de guarda", "Queda / Projeção para o solo", "Pegada pelas costas", "Defesa contra mata leão"],
-      answer: 1,
-      explanation: "Takedown refere-se a quedas, como baiana/Double Leg ou quedas de judô."
-    },
-    {
-      q: "Qual é a tradução mais precisa para 'Postura' inside guard?",
-      options: ["Leverage", "Posture", "Kimono", "Base"],
-      answer: 1,
-      explanation: "Posture refere-se a boa verticalidade de coluna por cima para evitar triângulos e raspagens."
-    }
-  ];
+  const [quizQuestions, setQuizQuestions] = useState<{ q: string; options: string[]; answer: number; explanation: string }[]>(() => {
+    try {
+      const stored = localStorage.getItem('jiuspeak_quiz_questions');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return [
+      {
+        q: "Qual termo em inglês refere-se à famosa raspagem onde o de baixo vai para cima na guarda?",
+        options: ["Submission", "Sweep", "Guard Pass", "Sprawl"],
+        answer: 1,
+        explanation: "Sweep significa golpear a raspagem partindo de posições inferiores de guarda para dominar por cima."
+      },
+      {
+        q: "Como se traduz 'estrangulamento' no vocabulário oficial norte-americano?",
+        options: ["Lock", "Choke", "Sweep", "Escape"],
+        answer: 1,
+        explanation: "Choke refere-se a qualquer estrangulamento de carótida ou via aérea."
+      },
+      {
+        q: "Diga a tradução correta para a ação de 'bater em desistência':",
+        options: ["Break out", "Underhook", "Tap out", "Takedown"],
+        answer: 2,
+        explanation: "Tap out significa dar tapinhas no corpo do colega ou tatame em sinal de desistência segura."
+      },
+      {
+        q: "O golpe clássico 'Upa' de elevação explosiva de quadril é traduzido graficamente como:",
+        options: ["Hip Throw", "Sprawl", "Bridge", "Sweep"],
+        answer: 2,
+        explanation: "Bridge ou Upa é o principal movimento de ponte ponte-escape do sistema defensivo."
+      },
+      {
+        q: "O termo 'Underhook' significa o que na prática dos treinos de luta?",
+        options: ["Dar as costas ao adversário", "Girar em Berimbolo", "Realizar a pegada de esgrima por baixo do braço", "Chave de calcanhar"],
+        answer: 2,
+        explanation: "Underhook é a tradicional esgrima por baixo da axila adversária para travar distância."
+      },
+      {
+        q: "O que significa 'Full Mount' no Jiu-Jitsu?",
+        options: ["Montada completa por cima", "Guarda fechada", "Pegada pelas costas", "Passagem de joelho cruzado"],
+        answer: 0,
+        explanation: "Full Mount é a posição de dominância total montado sobre o peito/quadril adversário."
+      },
+      {
+        q: "Seu professor ensinou um 'Guard Pass'. Ele quer que você:",
+        options: ["Responda perguntas", "Passe a guarda do companheiro de treino", "Defenda uma pegada", "Finalize de triângulo"],
+        answer: 1,
+        explanation: "Guard Pass indica a progressão de transpasse da linha das pernas do oponente."
+      },
+      {
+        q: "Como dizemos 'chave de braço' em inglês?",
+        options: ["Armbar", "Leglock", "Choke hold", "Wristlock"],
+        answer: 0,
+        explanation: "Armbar é a alavanca mecânica direta sobre o cotovelo."
+      },
+      {
+        q: "O que é um 'Takedown'?",
+        options: ["Passagem de guarda", "Queda / Projeção para o solo", "Pegada pelas costas", "Defesa contra mata leão"],
+        answer: 1,
+        explanation: "Takedown refere-se a quedas, como baiana/Double Leg ou quedas de judô."
+      },
+      {
+        q: "Qual é a tradução mais precisa para 'Postura' inside guard?",
+        options: ["Leverage", "Posture", "Kimono", "Base"],
+        answer: 1,
+        explanation: "Posture refere-se a boa verticalidade de coluna por cima para evitar triângulos e raspagens."
+      }
+    ];
+  });
+
+  const updateQuizQuestions = (newQuestions: any[]) => {
+    setQuizQuestions(newQuestions);
+    try {
+      localStorage.setItem('jiuspeak_quiz_questions', JSON.stringify(newQuestions));
+    } catch (e) {}
+    fetch('/api/admin/academy/quizzes/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ quizzes: newQuestions })
+    }).catch(() => {});
+  };
+
+  const [adminSubTab, setAdminSubTab] = useState<'dashboard' | 'modules' | 'lessons' | 'videos' | 'quizzes' | 'flashcards' | 'vocabulary' | 'course-order' | 'preview'>('dashboard');
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminFilterBelt, setAdminFilterBelt] = useState('ALL');
+
+  // Preview and Quizzes/Flashcards administrative states
+  const [previewLesson, setPreviewLesson] = useState<any>(null);
+  const [previewMuted, setPreviewMuted] = useState(true);
+  const [editingQuestion, setEditingQuestion] = useState<any>(null);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [selectedLessonForFlashcards, setSelectedLessonForFlashcards] = useState<string>('');
+  const [editingFlashcard, setEditingFlashcard] = useState<any>(null);
+  const [showFlashcardModal, setShowFlashcardModal] = useState(false);
+
+  useEffect(() => {
+    const loadCustomItems = async () => {
+      try {
+        const quizRes = await fetch('/api/admin/academy/quizzes', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        const quizData = await quizRes.json();
+        if (quizData.success && quizData.quizzes && quizData.quizzes.length > 0) {
+          setQuizQuestions(quizData.quizzes);
+          localStorage.setItem('jiuspeak_quiz_questions', JSON.stringify(quizData.quizzes));
+        }
+
+        const fcRes = await fetch('/api/admin/academy/flashcards', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        const fcData = await fcRes.json();
+        if (fcData.success && fcData.flashcards && Object.keys(fcData.flashcards).length > 0) {
+          setVocabularyFlashcards(fcData.flashcards);
+          localStorage.setItem('jiuspeak_vocabulary_flashcards', JSON.stringify(fcData.flashcards));
+        }
+      } catch (e) {}
+    };
+    loadCustomItems();
+  }, []);
 
   // Arena PvP multiple choice queries
   const pvpBank = [
@@ -760,6 +850,60 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
         fetchModules();
       }
     } catch (e) {}
+  };
+
+  // Handle module delete on Admin Mode
+  const handleDeleteModule = async (moduleId: string) => {
+    if (!window.confirm("Atenção! Excluir um módulo removerá permanentemente todas as suas lições e dados associados. Deseja continuar?")) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/academy/modules/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ id: moduleId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("✓ Módulo e suas lições excluídos do sistema!", "success");
+        loadAdminProgress();
+        fetchModules();
+      } else {
+        showToast("❌ Falha ao excluir o módulo.", "error");
+      }
+    } catch (e) {
+      showToast("❌ Erro de comunicação com o servidor.", "error");
+    }
+  };
+
+  // Handle lesson delete on Admin Mode
+  const handleDeleteLesson = async (lessonId: string) => {
+    if (!window.confirm("Deseja realmente excluir esta lição permanentemente?")) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/academy/lessons/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ id: lessonId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("✓ Lição removida do sistema com sucesso!", "success");
+        loadAdminProgress();
+        fetchModules();
+      } else {
+        showToast("❌ Falha ao excluir a lição.", "error");
+      }
+    } catch (e) {
+      showToast("❌ Erro de comunicação com o servidor.", "error");
+    }
   };
 
   // Helper mapping target belt levels
@@ -1484,9 +1628,45 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
       );
     }
 
+    // Embed/YouTube URL parsing functions
+    const getYoutubeId = (url: string) => {
+      if (!url) return "";
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : "";
+    };
+
+    const getThumbnailUrl = (url: string) => {
+      const id = getYoutubeId(url);
+      if (!id) return "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=400&q=80";
+      return `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+    };
+
+    const allLessons = modules.flatMap(m => m.lessons || []);
+    const totalLessons = allLessons.length;
+    const videoLessons = allLessons.filter(l => l.youtubeUrl);
+    const activeStudents = adminProgress?.studentsProgress?.length || 0;
+    const completedAulasCount = adminProgress?.studentsProgress?.reduce((acc: number, val: any) => acc + (val.completedLessons || 0), 0) || 0;
+    const totalXPDistributed = adminProgress?.studentsProgress?.reduce((acc: number, val: any) => acc + ((val.completedLessons || 0) * 100), 0) || 0;
+
+    // Filters for lists
+    const filteredModules = modules.filter(m => {
+      if (adminFilterBelt !== 'ALL' && m.beltLevel !== adminFilterBelt) return false;
+      if (adminSearch && !m.title.toLowerCase().includes(adminSearch.toLowerCase())) return false;
+      return true;
+    });
+
+    const filteredLessons = allLessons.filter(l => {
+      const parentMod = modules.find(m => m.id === l.moduleId);
+      if (adminFilterBelt !== 'ALL' && parentMod?.beltLevel !== adminFilterBelt) return false;
+      if (adminSearch && !l.title.toLowerCase().includes(adminSearch.toLowerCase())) return false;
+      return true;
+    });
+
     return (
       <div className="space-y-6" id="academy-admin-panel">
-        <div className="bg-gradient-to-r from-violet-950/40 via-slate-900 to-slate-950 p-6 rounded-2xl border border-slate-900 flex justify-between items-center">
+        {/* Header Ribbon */}
+        <div className="bg-gradient-to-r from-violet-955/40 via-slate-900 to-slate-955 p-6 rounded-2xl border border-slate-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h2 className="font-display font-extrabold text-2xl text-white">🛠️ JiuSpeak Academy Manager</h2>
             <p className="text-xs text-slate-400 font-sans mt-0.5">
@@ -1496,7 +1676,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
           
           <div className="flex gap-2">
             <button
-              onClick={() => setEditingModule({ title: "", description: "", beltLevel: "WHITE", orderIndex: 1, active: true })}
+              onClick={() => setEditingModule({ title: "", description: "", beltLevel: "WHITE", orderIndex: modules.length + 1, active: true })}
               className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs uppercase cursor-pointer flex items-center gap-1.5 transition-colors"
             >
               <Plus className="w-4 h-4" /> Novo Módulo
@@ -1510,236 +1690,1441 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
           </div>
         </div>
 
-        {/* Editing or Creating module modal form */}
+        {/* MODAL: Edit/Create Module */}
         {editingModule && (
-          <form onSubmit={handleSaveModule} className="bg-slate-900 border border-violet-500/20 p-6 rounded-2xl max-w-lg space-y-4 animate-scaleIn">
-            <h3 className="font-display font-bold text-base text-white">{editingModule.id ? "Editar Módulo" : "Criar Novo Módulo Acadêmico"}</h3>
-            
-            <div className="space-y-3 font-sans text-xs">
-              <label className="block text-slate-400">Título do Módulo:</label>
-              <input 
-                type="text" 
-                required 
-                value={editingModule.title} 
-                onChange={(e) => setEditingModule({ ...editingModule, title: e.target.value })}
-                className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-              />
-
-              <label className="block text-slate-400">Descrição/Objetivo:</label>
-              <textarea 
-                required 
-                rows={3}
-                value={editingModule.description} 
-                onChange={(e) => setEditingModule({ ...editingModule, description: e.target.value })}
-                className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-              />
-
-              <div className="grid grid-cols-2 gap-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <form onSubmit={handleSaveModule} className="bg-slate-900 border border-violet-500/30 p-6 rounded-2xl max-w-lg w-full space-y-4 animate-scaleIn">
+              <h3 className="font-display font-bold text-base text-white">{editingModule.id ? "Editar Módulo" : "Criar Novo Módulo Acadêmico"}</h3>
+              
+              <div className="space-y-3 font-sans text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Graduação Categoria:</label>
-                  <select
-                    value={editingModule.beltLevel}
-                    onChange={(e) => setEditingModule({ ...editingModule, beltLevel: e.target.value })}
+                  <label className="block text-slate-400 mb-1">Título do Módulo:</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editingModule.title} 
+                    onChange={(e) => setEditingModule({ ...editingModule, title: e.target.value })}
+                    className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Descrição/Objetivo:</label>
+                  <textarea 
+                    required 
+                    value={editingModule.description} 
+                    onChange={(e) => setEditingModule({ ...editingModule, description: e.target.value })}
+                    className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200 h-24"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 mb-1">Graduação Vinculada (Faixa):</label>
+                    <select 
+                      value={editingModule.beltLevel} 
+                      onChange={(e) => setEditingModule({ ...editingModule, beltLevel: e.target.value })}
+                      className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
+                    >
+                      <option value="WHITE">WHITE BELT</option>
+                      <option value="BLUE">BLUE BELT</option>
+                      <option value="PURPLE">PURPLE BELT</option>
+                      <option value="BROWN">BROWN BELT</option>
+                      <option value="BLACK">BLACK BELT</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1">Ordem (Índice):</label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={editingModule.orderIndex} 
+                      onChange={(e) => setEditingModule({ ...editingModule, orderIndex: Number(e.target.value) })}
+                      className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <input 
+                    type="checkbox" 
+                    id="module-active"
+                    checked={editingModule.active !== false}
+                    onChange={(e) => setEditingModule({ ...editingModule, active: e.target.checked })}
+                    className="accent-violet-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="module-active" className="text-slate-200 cursor-pointer text-xs font-semibold">Definir como módulo ativo no currículo</label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingModule(null)}
+                  className="px-4 py-2 bg-slate-800 text-slate-400 hover:text-slate-200 rounded-xl font-bold cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 bg-violet-650 hover:bg-violet-555 text-white rounded-xl font-bold cursor-pointer transition-colors"
+                >
+                  Gravar Módulo
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* MODAL: Edit/Create Lesson */}
+        {editingLesson && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <form onSubmit={handleSaveLesson} className="bg-slate-900 border border-violet-500/30 p-6 rounded-2xl max-w-lg w-full space-y-4 animate-scaleIn">
+              <h3 className="font-display font-bold text-base text-white">{editingLesson.id ? "Editar Lição Acadêmica" : "Criar Nova Lição Acadêmica"}</h3>
+              
+              <div className="space-y-3 font-sans text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1">Módulo Vinculado:</label>
+                  <select 
+                    value={editingLesson.moduleId} 
+                    onChange={(e) => setEditingLesson({ ...editingLesson, moduleId: e.target.value })}
                     className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
                   >
-                    <option value="WHITE">WHITE (Branca)</option>
-                    <option value="BLUE">BLUE (Azul)</option>
-                    <option value="PURPLE">PURPLE (Roxa)</option>
-                    <option value="BROWN">BROWN (Marrom)</option>
-                    <option value="BLACK">BLACK (Preta)</option>
+                    {modules.map(m => (
+                      <option key={m.id} value={m.id}>{m.title} ({m.beltLevel})</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Índice de Ordenação:</label>
+                  <label className="block text-slate-400 mb-1">Módulo / Título da Lição:</label>
                   <input 
-                    type="number" 
+                    type="text" 
                     required 
-                    value={editingModule.orderIndex} 
-                    onChange={(e) => setEditingModule({ ...editingModule, orderIndex: Number(e.target.value) })}
-                    className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2.5 pt-2 justify-end">
-              <button type="button" onClick={() => setEditingModule(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-xl text-xs font-bold cursor-pointer">
-                Cancelar
-              </button>
-              <button type="submit" className="px-5 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-505 text-white rounded-xl font-bold text-xs cursor-pointer">
-                Salvar Módulo
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Editing or Creating lesson modal form */}
-        {editingLesson && (
-          <form onSubmit={handleSaveLesson} className="bg-slate-900 border border-violet-500/20 p-6 rounded-2xl max-w-lg space-y-4 animate-scaleIn">
-            <h3 className="font-display font-bold text-base text-white">{editingLesson.id ? "Editar Lição de Vídeo" : "Adicionar Nova Lição de Vídeo"}</h3>
-            
-            <div className="space-y-3 font-sans text-xs">
-              <label className="block text-slate-400">Vincular ao Módulo Belt:</label>
-              <select
-                value={editingLesson.moduleId}
-                onChange={(e) => setEditingLesson({ ...editingLesson, moduleId: e.target.value })}
-                className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-              >
-                {modules.map(m => (
-                  <option key={m.id} value={m.id}>{m.title}</option>
-                ))}
-              </select>
-
-              <label className="block text-slate-400">Título da Lição:</label>
-              <input 
-                type="text" 
-                required 
-                value={editingLesson.title} 
-                onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
-                className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-              />
-
-              <label className="block text-slate-400">Descrição em Inglês/Português:</label>
-              <textarea 
-                required 
-                rows={3}
-                value={editingLesson.description} 
-                onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
-                className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-              />
-
-              <label className="block text-slate-400">YouTube URL Completa:</label>
-              <input 
-                type="url" 
-                required 
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={editingLesson.youtubeUrl} 
-                onChange={(e) => setEditingLesson({ ...editingLesson, youtubeUrl: e.target.value })}
-                className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-400 mb-1">Recompensa XP:</label>
-                  <input 
-                    type="number" 
-                    required 
-                    value={editingLesson.xpReward} 
-                    onChange={(e) => setEditingLesson({ ...editingLesson, xpReward: Number(e.target.value) })}
+                    value={editingLesson.title} 
+                    onChange={(e) => setEditingLesson({ ...editingLesson, title: e.target.value })}
                     className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Ordem / Índice:</label>
-                  <input 
-                    type="number" 
+                  <label className="block text-slate-400 mb-1">Descrição didática / Inglês Técnico:</label>
+                  <textarea 
                     required 
-                    value={editingLesson.orderIndex} 
-                    onChange={(e) => setEditingLesson({ ...editingLesson, orderIndex: Number(e.target.value) })}
-                    className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200"
+                    value={editingLesson.description} 
+                    onChange={(e) => setEditingLesson({ ...editingLesson, description: e.target.value })}
+                    className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200 h-20"
                   />
                 </div>
-              </div>
-            </div>
 
-            <div className="flex gap-2.5 pt-2 justify-end">
-              <button type="button" onClick={() => setEditingLesson(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-xl text-xs font-bold cursor-pointer">
-                Cancelar
-              </button>
-              <button type="submit" className="px-5 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-505 text-white rounded-xl font-bold text-xs cursor-pointer">
-                Gravar Lição
-              </button>
-            </div>
-          </form>
-        )}
+                <div>
+                  <label className="block text-slate-400 mb-1">YouTube URL (watch?v=... ou embed ou youtu.be):</label>
+                  <input 
+                    type="url" 
+                    required 
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={editingLesson.youtubeUrl} 
+                    onChange={(e) => setEditingLesson({ ...editingLesson, youtubeUrl: e.target.value })}
+                    className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200 font-mono"
+                  />
+                  <p className="text-[10px] text-slate-550 mt-1 font-sans">
+                    Aceita URLs normais do YouTube. O sistema converte automaticamente para incorporação segura.
+                  </p>
+                </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main List of modules and editing shortcuts */}
-          <div className="lg:col-span-2 bg-slate-900 border border-slate-850 p-6 rounded-2xl space-y-4">
-            <h3 className="font-display font-semibold text-white text-base">Currículo Acadêmico Publicado</h3>
-            
-            <div className="space-y-4">
-              {modules.map((mod) => (
-                <div key={mod.id} className="p-4 bg-slate-950 border border-slate-850 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center bg-[#070a13] p-2.5 rounded border border-slate-900">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-violet-300">[{mod.beltLevel}]</span>
-                      <h4 className="font-display font-bold text-sm text-slate-200">{mod.title}</h4>
-                    </div>
-                    
-                    <div className="flex gap-1.5">
-                      <button 
-                        onClick={() => setEditingModule(mod)}
-                        className="p-1 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-mono text-[10px] uppercase cursor-pointer"
-                      >
-                        Editar Módulo
-                      </button>
-                    </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-400 mb-1">XP Recompensado:</label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={editingLesson.xpReward} 
+                      onChange={(e) => setEditingLesson({ ...editingLesson, xpReward: Number(e.target.value) })}
+                      className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200 font-mono"
+                    />
                   </div>
 
-                  <p className="text-xs text-slate-400 font-sans">{mod.description}</p>
-                  
-                  <div className="pl-4 border-l-2 border-slate-800 space-y-2 mt-2">
-                    {mod.lessons.map(les => (
-                      <div key={les.id} className="flex justify-between items-center text-xs p-1.5 py-2 hover:bg-slate-900/40 rounded transition-colors border border-transparent hover:border-slate-850">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${les.completed ? 'text-emerald-500' : 'text-slate-600'}`} />
-                          <span className="text-slate-300 font-semibold truncate text-[11px]">{les.title}</span>
+                  <div>
+                    <label className="block text-slate-400 mb-1">Ordem (Índice):</label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={editingLesson.orderIndex} 
+                      onChange={(e) => setEditingLesson({ ...editingLesson, orderIndex: Number(e.target.value) })}
+                      className="w-full bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-200 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingLesson(null)}
+                  className="px-4 py-2 bg-slate-800 text-slate-400 hover:text-slate-200 rounded-xl font-bold cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 bg-indigo-650 hover:bg-indigo-555 text-white rounded-xl font-bold cursor-pointer transition-colors"
+                >
+                  Salvar Lição
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* MAIN CMS FLEX WORKSPACE */}
+        <div className="flex flex-col lg:flex-row gap-6 min-h-[600px]" id="academy-editor-root">
+          {/* LEFT SUBMENU RAIL */}
+          <div className="w-full lg:w-64 shrink-0 bg-slate-900 border border-slate-850 p-4 rounded-2xl flex flex-col gap-1.5 h-fit">
+            <div className="pb-3 border-b border-slate-800 px-2 mb-2">
+              <h3 className="font-display font-extrabold text-[10px] tracking-wider text-slate-400 uppercase">📚 Academy CMS Menu</h3>
+            </div>
+            
+            <button 
+              onClick={() => setAdminSubTab('dashboard')} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'dashboard' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><Activity className="w-4 h-4" /> Dashboard Academy</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono font-bold">Resumo</span>
+            </button>
+
+            <button 
+              onClick={() => setAdminSubTab('modules')} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'modules' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><Layers className="w-4 h-4" /> Módulos</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono">{modules.length}</span>
+            </button>
+
+            <button 
+              onClick={() => setAdminSubTab('lessons')} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'lessons' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><BookOpen className="w-4 h-4" /> Lições</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono">{totalLessons}</span>
+            </button>
+
+            <button 
+              onClick={() => setAdminSubTab('videos')} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'videos' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><Play className="w-4 h-4" /> Vídeos / Players</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono">{videoLessons.length}</span>
+            </button>
+
+            <button 
+              onClick={() => setAdminSubTab('quizzes')} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'quizzes' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><Award className="w-4 h-4" /> Quizzes / Exames</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono">{quizQuestions.length}</span>
+            </button>
+
+            <button 
+              onClick={() => {
+                setAdminSubTab('flashcards');
+                if (allLessons.length > 0 && !selectedLessonForFlashcards) {
+                  setSelectedLessonForFlashcards(allLessons[0].id);
+                }
+              }} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'flashcards' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><BookMarked className="w-4 h-4" /> Flashcards</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono">Vocab</span>
+            </button>
+
+            <button 
+              onClick={() => {
+                setAdminSubTab('vocabulary');
+                if (allLessons.length > 0 && !selectedLessonForFlashcards) {
+                  setSelectedLessonForFlashcards(allLessons[0].id);
+                }
+              }} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'vocabulary' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> Vocabulário</span>
+              <span className="bg-slate-800 text-[10px] text-slate-400 px-1.5 py-0.5 rounded-full font-mono">Dicionário</span>
+            </button>
+
+            <button 
+              onClick={() => setAdminSubTab('course-order')} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'course-order' ? 'bg-violet-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-slate-200'}`}
+            >
+              <span className="flex items-center gap-2"><Zap className="w-4 h-4" /> Ordem do Curso</span>
+              <span className="bg-violet-950 text-[10px] text-violet-400 px-1.5 py-0.5 rounded-full font-bold">D&D</span>
+            </button>
+
+            <button 
+              onClick={() => {
+                setAdminSubTab('preview');
+                if (allLessons.length > 0 && !previewLesson) {
+                  setPreviewLesson(allLessons[0]);
+                }
+              }} 
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${adminSubTab === 'preview' ? 'bg-emerald-650 text-white shadow-md' : 'text-slate-400 hover:bg-slate-850 hover:text-emerald-400'}`}
+            >
+              <span className="flex items-center gap-2"><Eye className="w-4 h-4" /> Pré-visualização</span>
+              <span className="bg-emerald-950 text-[10px] text-emerald-400 px-1.5 py-0.5 rounded-full font-bold">PLAY</span>
+            </button>
+          </div>
+
+          {/* RIGHT WORKBENCH WORKSPACE PANEL */}
+          <div className="flex-1 bg-slate-900 border border-slate-850 p-6 rounded-2xl shadow-xl min-w-0" id="academy-editor-body">
+            
+            {/* SEARCH AND FILTER BAR (except for Dashboard / Course order / Preview) */}
+            {adminSubTab !== 'dashboard' && adminSubTab !== 'course-order' && adminSubTab !== 'preview' && (
+              <div className="flex flex-col md:flex-row gap-3 items-center justify-between pb-5 border-b border-slate-850 mb-6 gap-4">
+                <div className="relative w-full md:w-72">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Filtrar por nome/pesquisar..."
+                    value={adminSearch}
+                    onChange={(e) => setAdminSearch(e.target.value)}
+                    className="w-full bg-slate-950 pl-10 pr-4 py-2 rounded-xl text-xs border border-slate-850 text-slate-300 focus:outline-none focus:border-violet-500 font-sans"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-slate-400 text-xs font-sans flex items-center gap-1">
+                    <Filter className="w-3.5 h-3.5" /> Faixa:
+                  </span>
+                  {['ALL', 'WHITE', 'BLUE', 'PURPLE', 'BROWN', 'BLACK'].map(b => (
+                    <button
+                      key={b}
+                      onClick={() => setAdminFilterBelt(b)}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold tracking-wider cursor-pointer border transition-all ${adminFilterBelt === b ? 'border-violet-500 bg-violet-600/20 text-violet-300' : 'border-slate-800 bg-slate-950 text-slate-500 hover:text-slate-300'}`}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: DASHBOARD                  */}
+            {/**************************************/}
+            {adminSubTab === 'dashboard' && (
+              <div className="space-y-6 animate-scaleIn">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-display font-semibold text-lg text-white">Resumo Geral da Academia</h3>
+                  <span className="text-xs font-mono text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/10">● Servidor Sincronizado</span>
+                </div>
+
+                {/* KPI Metrics Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Módulos</p>
+                    <p className="text-3xl font-extrabold text-white mt-1 font-display">{modules.length}</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Faixas de ensino</p>
+                  </div>
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Lições Gravadas</p>
+                    <p className="text-3xl font-extrabold text-indigo-400 mt-1 font-display">{totalLessons}</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Teóricas & Práticas</p>
+                  </div>
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Aulas em Vídeo</p>
+                    <p className="text-3xl font-extrabold text-violet-400 mt-1 font-display">{videoLessons.length}</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Com player ativo</p>
+                  </div>
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Alunos Ativos</p>
+                    <p className="text-3xl font-extrabold text-emerald-400 mt-1 font-display">{activeStudents}</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">No Tatame Virtual</p>
+                  </div>
+                </div>
+
+                {/* Extended info widgets */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-bold uppercase font-mono">Estudos Completos</p>
+                      <p className="text-xl font-extrabold text-white font-display mt-0.5">{completedAulasCount}</p>
+                    </div>
+                    <CheckCircle className="w-8 h-8 text-emerald-500/25 shrink-0" />
+                  </div>
+
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-bold uppercase font-mono">Tempo Estimado</p>
+                      <p className="text-xl font-extrabold text-white font-display mt-0.5">{totalLessons * 10} min</p>
+                    </div>
+                    <Clock className="w-8 h-8 text-sky-500/25 shrink-0" />
+                  </div>
+
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] text-slate-500 font-bold uppercase font-mono">XP Recompensada</p>
+                      <p className="text-xl font-extrabold text-white font-display mt-0.5">{totalXPDistributed} XP</p>
+                    </div>
+                    <Coins className="w-8 h-8 text-amber-500/25 shrink-0" />
+                  </div>
+                </div>
+
+                {/* Quick actions panel */}
+                <div className="bg-indigo-950/20 border border-indigo-900/30 p-5 rounded-xl space-y-3">
+                  <h4 className="text-white text-xs font-bold uppercase tracking-wider font-mono">Ações Administrativas Rápidas</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <button 
+                      onClick={() => setEditingModule({ title: "", description: "", beltLevel: "WHITE", orderIndex: modules.length + 1, active: true })}
+                      className="p-3 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl font-semibold border border-slate-800 text-left flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Plus className="w-4 h-4 text-violet-500" /> Adicionar Módulo
+                    </button>
+                    <button 
+                      onClick={() => setEditingLesson({ moduleId: modules[0]?.id || "", title: "", description: "", youtubeUrl: "", xpReward: 100, orderIndex: 1 })}
+                      className="p-3 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl font-semibold border border-slate-800 text-left flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Plus className="w-4 h-4 text-indigo-500" /> Adicionar Lição
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setAdminSubTab('quizzes');
+                        setEditingQuestion({ idx: -1, q: "", options: ["", "", "", ""], answer: 0, explanation: "" });
+                        setShowQuestionModal(true);
+                      }}
+                      className="p-3 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl font-semibold border border-slate-800 text-left flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Award className="w-4 h-4 text-amber-500" /> Nova Questão
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setAdminSubTab('preview');
+                        if (allLessons.length > 0) setPreviewLesson(allLessons[0]);
+                      }}
+                      className="p-3 bg-emerald-650 hover:bg-emerald-555 text-white rounded-xl font-bold text-center flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Eye className="w-4 h-4" /> Visualizar Curso
+                    </button>
+                  </div>
+                </div>
+
+                {/* Student logs summary */}
+                <div className="bg-slate-950 p-4 border border-slate-855 rounded-xl space-y-4">
+                  <h4 className="text-white text-xs font-semibold family-display">Alunos Ativos no Currículo</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto font-sans text-xs">
+                    {adminProgress?.studentsProgress?.map((student: any) => (
+                      <div key={student.id} className="bg-slate-900 border border-slate-855 px-3 py-2.5 rounded-xl flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-slate-200">{student.name}</p>
+                          <p className="text-[10px] text-slate-550 font-mono">{student.email}</p>
                         </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <span className="bg-slate-900 text-[10px] text-slate-500 px-1.5 py-0.5 rounded font-mono">+{les.xpReward} XP</span>
-                          <button 
-                            onClick={() => setEditingLesson(les)}
-                            className="text-violet-400 hover:text-white font-mono text-[10px] uppercase align-middle"
-                            title="Editar Lição"
-                          >
-                            ✏️
-                          </button>
+                        <div className="text-right">
+                          <p className="font-mono font-bold text-indigo-400">{student.completedLessons} Lições feitas</p>
+                          <p className="text-[9px] text-slate-500 font-mono">Nível {student.level} • {student.xp} XP</p>
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Students Tracker Table */}
-          <div className="bg-slate-900 border border-slate-850 p-6 rounded-2xl space-y-4">
-            <h3 className="font-display font-semibold text-white text-base">Alunos Matriculados</h3>
-            
-            <p className="text-xs text-slate-400 font-sans leading-relaxed">
-              Monitore o rendimento e a conquista de diplomas táticos de cada estudante matriculado na JiuSpeak Academy:
-            </p>
-
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {adminProgress?.studentsProgress?.map((student: any) => (
-                <div key={student.id} className="bg-slate-950 p-3 rounded-xl border border-slate-855 flex justify-between items-center text-xs gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-250 truncate">{student.name}</p>
-                    <p className="text-[10px] text-slate-550 font-mono truncate">{student.email}</p>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <div className="flex items-center gap-1 justify-end font-mono text-[10px]">
-                      <CheckCircle2 className={`w-3 h-3 ${student.completedLessons >= 10 ? 'text-emerald-500' : 'text-slate-500'}`} />
-                      <span className="text-slate-400">{student.completedLessons} Aulas</span>
-                    </div>
-                    {student.isWhiteBeltGraduate ? (
-                      <span className="text-[9px] font-mono uppercase bg-violet-500/10 text-violet-300 border border-violet-500/20 px-1.5 rounded-full mt-1 inline-block">
-                        🎓 White Belt Grad
-                      </span>
-                    ) : (
-                      <span className="text-[9px] font-mono uppercase bg-slate-900 text-slate-600 px-1.5 rounded-full mt-1 inline-block">
-                        Cursando
-                      </span>
+                    {(!adminProgress?.studentsProgress || adminProgress.studentsProgress.length === 0) && (
+                      <p className="text-slate-550 text-center py-4 font-mono">Sem dados de atividade no histórico.</p>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: MODULES MANAGER             */}
+            {/**************************************/}
+            {adminSubTab === 'modules' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="flex justify-between items-center pb-2">
+                  <h3 className="font-display font-semibold text-white">Módulos de Estudo ({filteredModules.length})</h3>
+                  <p className="text-xs text-slate-400 font-sans">Ordene e duplique módulos rapidamente.</p>
+                </div>
+
+                <div className="space-y-2.5">
+                  {filteredModules.map((mod, idx) => {
+                    const belt = getBeltLabel(mod.beltLevel);
+                    return (
+                      <div key={mod.id} className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all hover:bg-slate-900/50">
+                        <div className="space-y-1 max-w-xl">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold border truncate uppercase ${belt.bg}`}>
+                              {belt.icon} {belt.label}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">Ordem: {mod.orderIndex}</span>
+                            {!mod.active && <span className="px-1.5 py-0.5 bg-red-950/40 text-red-500 border border-red-950 border-dotted text-[8px] font-mono uppercase rounded">Inativo</span>}
+                          </div>
+                          <p className="text-xs font-bold text-slate-200 leading-snug">{mod.title}</p>
+                          <p className="text-[10px] text-slate-400 truncate leading-relaxed">{mod.description}</p>
+                        </div>
+
+                        {/* Control actions */}
+                        <div className="flex gap-1.5 shrink-0 w-full md:w-auto justify-end">
+                          {/* Reordering Controls */}
+                          <button 
+                            disabled={idx === 0}
+                            onClick={() => {
+                              // Swap order up
+                              const targetIdx = idx - 1;
+                              if (targetIdx >= 0) {
+                                const targetMod = filteredModules[targetIdx];
+                                const temp = mod.orderIndex;
+                                mod.orderIndex = targetMod.orderIndex;
+                                targetMod.orderIndex = temp;
+                                handleSaveModule({ preventDefault: () => {} } as any);
+                              }
+                            }}
+                            className="p-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-slate-400 rounded-lg cursor-pointer"
+                            title="Subir na lista"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            disabled={idx === filteredModules.length - 1}
+                            onClick={() => {
+                              // Swap order down
+                              const targetIdx = idx + 1;
+                              if (targetIdx < filteredModules.length) {
+                                const targetMod = filteredModules[targetIdx];
+                                const temp = mod.orderIndex;
+                                mod.orderIndex = targetMod.orderIndex;
+                                targetMod.orderIndex = temp;
+                                handleSaveModule({ preventDefault: () => {} } as any);
+                              }
+                            }}
+                            className="p-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-slate-900 text-slate-400 rounded-lg cursor-pointer"
+                            title="Descer na lista"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Action triggers */}
+                          <button 
+                            onClick={() => setEditingModule({ ...mod })}
+                            className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 rounded-lg text-[10px] font-mono cursor-pointer flex items-center gap-1 border border-slate-800"
+                          >
+                            <Edit3 className="w-3 h-3 text-violet-400" /> Editar
+                          </button>
+
+                          <button 
+                            onClick={async () => {
+                              const duplicated = {
+                                title: `${mod.title} (Cópia)`,
+                                description: mod.description,
+                                beltLevel: mod.beltLevel,
+                                orderIndex: modules.length + 1,
+                                active: mod.active
+                              };
+                              try {
+                                const res = await fetch('/api/admin/academy/modules/save', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                  body: JSON.stringify(duplicated)
+                                });
+                                if ((await res.json()).success) {
+                                  showToast("✓ Módulo duplicado com sucesso!", "success");
+                                  fetchModules();
+                                }
+                              } catch(e) {}
+                            }}
+                            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 rounded-lg cursor-pointer flex items-center gap-1 border border-slate-800 text-[10px] font-mono"
+                            title="Duplicar módulo"
+                          >
+                            <Copy className="w-3 h-3 text-sky-400" /> Duplicar
+                          </button>
+
+                          <button 
+                            onClick={() => handleDeleteModule(mod.id)}
+                            className="p-1.5 bg-red-955/40 hover:bg-red-955 text-red-400 rounded-lg cursor-pointer flex items-center gap-1 border border-red-900/30"
+                            title="Excluir módulo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredModules.length === 0 && (
+                    <p className="text-center py-12 text-slate-550 font-mono text-xs">Nenhum módulo corresponde aos filtros de busca.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: LESSONS MANAGER             */}
+            {/**************************************/}
+            {adminSubTab === 'lessons' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="flex justify-between items-center pb-2">
+                  <h3 className="font-display font-semibold text-white">Lições Acadêmicas ({filteredLessons.length})</h3>
+                  <button 
+                    onClick={() => setEditingLesson({ moduleId: modules[0]?.id || "", title: "", description: "", youtubeUrl: "", xpReward: 100, orderIndex: 1 })}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold uppercase transition cursor-pointer"
+                  >
+                    ➕ Adicionar Lição
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {filteredLessons.map((lesson, idx) => {
+                    const parentMod = modules.find(m => m.id === lesson.moduleId);
+                    const belt = parentMod ? getBeltLabel(parentMod.beltLevel) : null;
+                    return (
+                      <div key={lesson.id} className="bg-slate-950 border border-slate-850 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-900/50">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-200">{lesson.title}</p>
+                          <p className="text-[10px] text-slate-450 line-clamp-1 leading-relaxed">{lesson.description}</p>
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
+                            {belt && (
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${belt.bg}`}>
+                                {belt.icon} {belt.label}
+                              </span>
+                            )}
+                            <span className="text-[9px] font-mono text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/10">+{lesson.xpReward} XP</span>
+                            <span className="text-[9px] font-mono text-slate-550">Ordem: {lesson.orderIndex}</span>
+                            <span className="text-[9px] font-mono text-slate-550 underline truncate max-w-xs">{lesson.youtubeUrl}</span>
+                          </div>
+                        </div>
+
+                        {/* Quick lesson edit actions */}
+                        <div className="flex gap-1.5 shrink-0 select-none w-full md:w-auto justify-end">
+                          <button 
+                            onClick={() => setEditingLesson({ ...lesson })}
+                            className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-350 rounded-lg text-[10px] font-mono cursor-pointer flex items-center gap-1 border border-slate-800"
+                          >
+                            <Edit3 className="w-3 h-3 text-violet-400" /> Editar
+                          </button>
+
+                          <button 
+                            onClick={async () => {
+                              const duplicated = {
+                                moduleId: lesson.moduleId,
+                                title: `${lesson.title} (Cópia)`,
+                                description: lesson.description,
+                                youtubeUrl: lesson.youtubeUrl,
+                                xpReward: lesson.xpReward,
+                                orderIndex: lesson.orderIndex + 1
+                              };
+                              try {
+                                const res = await fetch('/api/admin/academy/lessons/save', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                  body: JSON.stringify(duplicated)
+                                });
+                                if ((await res.json()).success) {
+                                  showToast("✓ Lição duplicada no módulo!", "success");
+                                  fetchModules();
+                                }
+                              } catch(e) {}
+                            }}
+                            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-355 rounded-lg cursor-pointer flex items-center gap-1 border border-slate-800 text-[10px] font-mono font-bold"
+                            title="Duplicar lição"
+                          >
+                            <Copy className="w-3 h-3 text-sky-400" /> Duplicar
+                          </button>
+
+                          <button 
+                            onClick={() => handleDeleteLesson(lesson.id)}
+                            className="p-1.5 bg-red-955/40 hover:bg-red-955 text-red-450 rounded-lg cursor-pointer flex items-center border border-red-900/30"
+                            title="Remover lição"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredLessons.length === 0 && (
+                    <p className="text-center py-12 text-slate-550 font-mono text-xs">Nenhuma lição encontrada para os termos inseridos.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: VIDEOS MANAGER              */}
+            {/**************************************/}
+            {adminSubTab === 'videos' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="pb-2 border-b border-slate-850">
+                  <h3 className="font-display font-semibold text-white">Central de Vídeos dos Players</h3>
+                  <p className="text-xs text-slate-400 font-sans mt-0.5">Foque em gerenciar URLs incorporadas oficial do YouTube, Thumbnails e tempos.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-1">
+                  {filteredLessons.map(lesson => {
+                    const thumb = getThumbnailUrl(lesson.youtubeUrl);
+                    const vId = getYoutubeId(lesson.youtubeUrl);
+                    return (
+                      <div key={lesson.id} className="bg-slate-950 border border-slate-850 rounded-xl overflow-hidden flex flex-col justify-between">
+                        <div>
+                          {/* Thumbnail display */}
+                          <div className="relative aspect-video bg-slate-900 w-full group overflow-hidden">
+                            <img 
+                              src={thumb} 
+                              alt="Thumbnail" 
+                              referrerPolicy="no-referrer"
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              onError={(e) => {
+                                (e.target as any).src = "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=400&q=80";
+                              }}
+                            />
+                            {vId ? (
+                              <span className="absolute bottom-2 right-2 bg-slate-950/80 backdrop-blur text-[9px] text-indigo-400 font-mono px-2 py-0.5 rounded border border-indigo-500/20 uppercase font-bold">
+                                YouTube ID: {vId}
+                              </span>
+                            ) : (
+                              <span className="absolute bottom-2 right-2 bg-red-950/90 backdrop-blur text-[9px] text-red-400 font-mono px-2 py-0.5 rounded border border-red-550/20 uppercase font-bold">
+                                Sem ID Ativo
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="p-4 space-y-2">
+                            <h4 className="text-xs font-bold text-slate-200 line-clamp-1 leading-snug">{lesson.title}</h4>
+                            <p className="text-[10px] text-slate-450 line-clamp-2 leading-relaxed">{lesson.description}</p>
+                          </div>
+                        </div>
+
+                        {/* Inline Quick Edit of Video Link */}
+                        <div className="p-4 pt-0 border-t border-slate-850 bg-slate-950 flex flex-col gap-2">
+                          <div className="space-y-1 pt-3">
+                            <label className="text-[9px] text-slate-500 uppercase font-mono font-bold">URL Oficial do Player:</label>
+                            <input 
+                              type="text"
+                              value={lesson.youtubeUrl}
+                              onChange={async (e) => {
+                                const newUrl = e.target.value;
+                                lesson.youtubeUrl = newUrl;
+                                // Save modification instantly to server
+                                try {
+                                  await fetch('/api/admin/academy/lessons/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                    body: JSON.stringify(lesson)
+                                  });
+                                } catch(err) {}
+                              }}
+                              className="w-full bg-slate-900 border border-slate-800 p-2.5 rounded-lg text-[10px] font-mono text-slate-350 focus:border-violet-500 focus:outline-none"
+                              placeholder="Faltando link do YouTube..."
+                            />
+                          </div>
+
+                          <div className="flex justify-between items-center pt-1">
+                            <span className="text-[9px] text-slate-550 font-mono">Recompensa: +{lesson.xpReward} XP</span>
+                            <button 
+                              onClick={() => setEditingLesson({ ...lesson })}
+                              className="px-2.5 py-1 text-[9px] font-bold font-mono uppercase text-indigo-400 hover:text-indigo-300 transition-colors"
+                            >
+                              Editar Lição Completa
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredLessons.length === 0 && (
+                    <p className="text-center py-12 text-slate-550 font-mono text-xs col-span-2">Nenhum vídeo acadêmico disponível.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: QUIZZES MANAGER             */}
+            {/**************************************/}
+            {adminSubTab === 'quizzes' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-850">
+                  <div>
+                    <h3 className="font-display font-semibold text-white">Banco de Questões / Exame de Graduação</h3>
+                    <p className="text-xs text-slate-400 font-sans mt-0.5">Gerencie os exames teóricos de graduação técnica.</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setEditingQuestion({ idx: -1, q: "", options: ["", "", "", ""], answer: 0, explanation: "" });
+                      setShowQuestionModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-[10px] font-bold uppercase cursor-pointer"
+                  >
+                    ➕ Adicionar Questão
+                  </button>
+                </div>
+
+                {/* MODAL / FORM: Adding & Editing Question */}
+                {showQuestionModal && editingQuestion && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-violet-500/30 p-6 rounded-2xl max-w-lg w-full space-y-4 font-sans text-xs">
+                      <h3 className="font-display font-bold text-sm text-white">
+                        {editingQuestion.idx !== -1 ? `Editar Questão #${editingQuestion.idx + 1}` : "Inserir Nova Pergunta Teórica"}
+                      </h3>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-slate-450 block mb-1">Enunciado da pergunta:</label>
+                          <textarea 
+                            required
+                            value={editingQuestion.q}
+                            onChange={(e) => setEditingQuestion({ ...editingQuestion, q: e.target.value })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-100 font-bold"
+                            placeholder="Ex: Qual palavra traduz o golpe 'Montada'?"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-slate-450 block font-bold leading-relaxed">Alternativas:</label>
+                          {editingQuestion.options.map((opt: string, optI: number) => (
+                            <div key={optI} className="flex gap-2 items-center">
+                              <span className="font-mono text-[10px] font-bold text-slate-500 w-5">
+                                {optI === 0 ? "A" : optI === 1 ? "B" : optI === 2 ? "C" : "D"}
+                              </span>
+                              <input 
+                                type="text"
+                                required
+                                value={opt}
+                                onChange={(e) => {
+                                  const clonedOpts = [...editingQuestion.options];
+                                  clonedOpts[optI] = e.target.value;
+                                  setEditingQuestion({ ...editingQuestion, options: clonedOpts });
+                                }}
+                                className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg flex-1 text-slate-200"
+                                placeholder={`Ex: Mount para opção ${optI + 1}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div>
+                          <label className="text-slate-450 block mb-1">Opção Correta:</label>
+                          <select
+                            value={editingQuestion.answer}
+                            onChange={(e) => setEditingQuestion({ ...editingQuestion, answer: Number(e.target.value) })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-200 font-mono font-bold"
+                          >
+                            <option value={0}>OPÇÃO A</option>
+                            <option value={1}>OPÇÃO B</option>
+                            <option value={2}>OPÇÃO C</option>
+                            <option value={3}>OPÇÃO D</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-slate-450 block mb-1">Explicação Teórica (Feedback Acadêmico):</label>
+                          <textarea 
+                            value={editingQuestion.explanation}
+                            onChange={(e) => setEditingQuestion({ ...editingQuestion, explanation: e.target.value })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-305"
+                            placeholder="Diga por que essa é a alternativa correta e o contexto técnico para ajudar no inglês."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                        <button 
+                          onClick={() => {
+                            setShowQuestionModal(false);
+                            setEditingQuestion(null);
+                          }}
+                          className="px-3 py-1.5 bg-slate-800 text-slate-400 rounded-lg font-bold hover:text-slate-300 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const updatedList = [...quizQuestions];
+                            if (editingQuestion.idx !== -1) {
+                              updatedList[editingQuestion.idx] = {
+                                q: editingQuestion.q,
+                                options: editingQuestion.options,
+                                answer: editingQuestion.answer,
+                                explanation: editingQuestion.explanation
+                              };
+                            } else {
+                              updatedList.push({
+                                q: editingQuestion.q,
+                                options: editingQuestion.options,
+                                answer: editingQuestion.answer,
+                                explanation: editingQuestion.explanation
+                              });
+                            }
+                            updateQuizQuestions(updatedList);
+                            setShowQuestionModal(false);
+                            setEditingQuestion(null);
+                            showToast("✓ Questões do exame salvas com sucesso!", "success");
+                          }}
+                          className="px-4 py-1.5 bg-violet-650 hover:bg-violet-555 text-white rounded-lg font-bold cursor-pointer"
+                        >
+                          Salvar Questão
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Question Inventory List */}
+                <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                  {quizQuestions.map((q, idx) => (
+                    <div key={idx} className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-2 hover:bg-slate-900/40 transition-colors">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded border border-indigo-505/10 font-mono uppercase font-bold">Questão #{idx + 1}</span>
+                        
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => {
+                              setEditingQuestion({ idx, ...q });
+                              setShowQuestionModal(true);
+                            }}
+                            className="p-1 px-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-350 rounded font-mono text-[9px]"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm("Remover esta questão do exame final permanentemente?")) {
+                                const list = quizQuestions.filter((_, i) => i !== idx);
+                                updateQuizQuestions(list);
+                                showToast("✓ Questão eliminada do exame com sucesso!", "success");
+                              }
+                            }}
+                            className="p-1 bg-red-955/40 hover:bg-red-955 border border-red-900/30 text-red-400 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="font-bold text-xs text-slate-200 mt-1">{q.q}</p>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-sans text-slate-400 pt-1">
+                        {q.options.map((opt, oI) => (
+                          <div 
+                            key={oI} 
+                            className={`p-2 rounded-lg border ${oI === q.answer ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400 font-bold' : 'border-slate-850 bg-slate-950/50 text-slate-350'}`}
+                          >
+                            <span className="font-mono font-extrabold pr-1.5 text-slate-500">{oI === 0 ? "A" : oI === 1 ? "B" : oI === 2 ? "C" : "D"}:</span> {opt}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="p-3 bg-slate-900 border border-slate-855 rounded-xl text-[10px] text-slate-450 leading-relaxed font-sans">
+                        💡 <strong className="text-slate-300">Explicação didática:</strong> {q.explanation}
+                      </div>
+                    </div>
+                  ))}
+                  {quizQuestions.length === 0 && (
+                    <p className="text-center py-12 text-slate-550 font-mono text-xs">Exame sem questões ativas. Crie novos enunciados.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: FLASHCARDS MANAGER          */}
+            {/**************************************/}
+            {adminSubTab === 'flashcards' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="pb-3 border-b border-slate-850 space-y-3">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-display font-semibold text-white">Gerenciador de Flashcards Técnicos</h3>
+                      <p className="text-xs text-slate-400 mt-0.5 font-sans">Vincule e edite flashcards específicos para fixação de termos por lição.</p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (!selectedLessonForFlashcards) {
+                          showToast("Por favor, selecione ou crie uma lição primeiro.", "error");
+                          return;
+                        }
+                        setEditingFlashcard({ idx: -1, term: "", phonetic: "", translation: "", bjjContext: "" });
+                        setShowFlashcardModal(true);
+                      }}
+                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-[10px] font-bold uppercase shrink-0 transition cursor-pointer"
+                    >
+                      ➕ Adicionar Card
+                    </button>
+                  </div>
+
+                  {/* Dropdown to SELECT Lesson for vocabulary study */}
+                  <div className="flex items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-850 flex-wrap">
+                    <label className="text-[10px] text-slate-500 uppercase font-mono tracking-wider font-bold shrink-0">Filtrar por Lição Ativa:</label>
+                    <select
+                      value={selectedLessonForFlashcards}
+                      onChange={(e) => setSelectedLessonForFlashcards(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 p-2 rounded-lg text-xs text-slate-200 flex-1 font-mono outline-none cursor-pointer"
+                    >
+                      {allLessons.map(l => (
+                        <option key={l.id} value={l.id}>{l.title} ({modules.find(m => m.id === l.moduleId)?.beltLevel})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* MODAL / FORM: Adding & Editing Flashcard */}
+                {showFlashcardModal && editingFlashcard && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
+                    <div className="bg-slate-900 border border-violet-500/30 p-6 rounded-2xl max-w-md w-full space-y-4 font-sans text-xs">
+                      <h3 className="font-display font-bold text-sm text-white">
+                        {editingFlashcard.idx !== -1 ? "Editar Flashcard Técnico" : "Adicionar Novo Flashcard"}
+                      </h3>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-slate-450 block mb-1">Termo em Inglês (Ex: Posture):</label>
+                          <input 
+                            type="text"
+                            required
+                            value={editingFlashcard.term}
+                            onChange={(e) => setEditingFlashcard({ ...editingFlashcard, term: e.target.value })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-100 font-bold"
+                            placeholder="Posture"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-slate-455 block mb-1">Pronúncia Fonética (Fonética - Ex: /ˈpɒs.tʃər/):</label>
+                          <input 
+                            type="text"
+                            required
+                            value={editingFlashcard.phonetic}
+                            onChange={(e) => setEditingFlashcard({ ...editingFlashcard, phonetic: e.target.value })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-200 font-mono"
+                            placeholder="/ˈpɒs.tʃər/"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-slate-450 block mb-1">Tradução em Português (Ex: Postura):</label>
+                          <input 
+                            type="text"
+                            required
+                            value={editingFlashcard.translation}
+                            onChange={(e) => setEditingFlashcard({ ...editingFlashcard, translation: e.target.value })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-200"
+                            placeholder="Postura"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-slate-450 block mb-1">Contexto Técnico no Jiu-Jitsu (BJJ Context em Inglês):</label>
+                          <textarea 
+                            required
+                            value={editingFlashcard.bjjContext}
+                            onChange={(e) => setEditingFlashcard({ ...editingFlashcard, bjjContext: e.target.value })}
+                            className="bg-slate-950 border border-slate-800 p-2.5 rounded-lg w-full text-slate-300"
+                            placeholder="Ex: Crucial inside guard to prevent submissions."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                        <button 
+                          onClick={() => {
+                            setShowFlashcardModal(false);
+                            setEditingFlashcard(null);
+                          }}
+                          className="px-3 py-1.5 bg-slate-800 text-slate-450 rounded-lg hover:text-slate-300 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          onClick={() => {
+                            const deck = [...(vocabularyFlashcards[selectedLessonForFlashcards] || [])];
+                            if (editingFlashcard.idx !== -1) {
+                              deck[editingFlashcard.idx] = {
+                                term: editingFlashcard.term,
+                                phonetic: editingFlashcard.phonetic,
+                                translation: editingFlashcard.translation,
+                                bjjContext: editingFlashcard.bjjContext
+                              };
+                            } else {
+                              deck.push({
+                                term: editingFlashcard.term,
+                                phonetic: editingFlashcard.phonetic,
+                                translation: editingFlashcard.translation,
+                                bjjContext: editingFlashcard.bjjContext
+                              });
+                            }
+                            const updatedVocab = { ...vocabularyFlashcards, [selectedLessonForFlashcards]: deck };
+                            updateVocabularyFlashcards(updatedVocab);
+                            setShowFlashcardModal(false);
+                            setEditingFlashcard(null);
+                            showToast("✓ Flashcards salvos com sucesso!", "success");
+                          }}
+                          className="px-4 py-1.5 bg-violet-650 hover:bg-violet-555 text-white rounded-lg font-bold cursor-pointer"
+                        >
+                          Salvar Card
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Display active list for selected lesson */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-1">
+                  {(vocabularyFlashcards[selectedLessonForFlashcards] || []).map((card, idx) => (
+                    <div key={idx} className="bg-slate-950 p-4 rounded-xl border border-slate-850 space-y-2.5 flex flex-col justify-between">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono text-[9px] font-bold text-slate-500 uppercase tracking-wider">Card #{idx + 1}</span>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingFlashcard({ idx, ...card });
+                                setShowFlashcardModal(true);
+                              }}
+                              className="text-[9px] font-mono hover:text-white text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 cursor-pointer"
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Deseja realmente excluir este flashcard da lição?")) {
+                                  const list = (vocabularyFlashcards[selectedLessonForFlashcards] || []).filter((_, i) => i !== idx);
+                                  const updated = { ...vocabularyFlashcards, [selectedLessonForFlashcards]: list };
+                                  updateVocabularyFlashcards(updated);
+                                  showToast("✓ Card removido do baralho!", "success");
+                                }
+                              }}
+                              className="text-red-450 bg-red-955/20 border border-red-955 px-1 rounded hover:bg-red-955 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="font-extrabold text-sm text-indigo-400">{card.term}</p>
+                          <p className="text-[10px] font-mono text-slate-500">{card.phonetic}</p>
+                        </div>
+                        <p className="text-xs text-slate-200 leading-snug"><strong className="text-slate-500">Tradução:</strong> {card.translation}</p>
+                        <p className="text-[11px] text-slate-400 italic leading-relaxed">"{card.bjjContext}"</p>
+                      </div>
+                    </div>
+                  ))}
+                  {(!vocabularyFlashcards[selectedLessonForFlashcards] || vocabularyFlashcards[selectedLessonForFlashcards].length === 0) && (
+                    <div className="bg-slate-950 border border-slate-850 border-dashed rounded-xl p-8 text-center col-span-2 space-y-2">
+                      <p className="text-slate-550 text-xs font-mono">Sem flashcards técnicos configurados nesta lição.</p>
+                      <button 
+                        onClick={() => {
+                          setEditingFlashcard({ idx: -1, term: "", phonetic: "", translation: "", bjjContext: "" });
+                          setShowFlashcardModal(true);
+                        }}
+                        className="text-[10px] px-3 py-1 bg-violet-650 hover:bg-violet-555 text-white rounded-lg font-bold cursor-pointer"
+                      >
+                        ➕ Criar primeiro card
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: VOCABULARIO MANAGER         */}
+            {/**************************************/}
+            {adminSubTab === 'vocabulary' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="pb-3 border-b border-slate-850">
+                  <h3 className="font-display font-semibold text-white">Dicionário e Banco de Vocabulário Técnico</h3>
+                  <p className="text-xs text-slate-400 font-sans mt-0.5">Defina correspondência técnica de termos do jiu-jitsu em inglês / português.</p>
+                </div>
+
+                <div className="flex gap-2 bg-slate-950 p-4 rounded-xl border border-slate-850 items-center justify-between flex-wrap">
+                  <span className="text-xs font-sans text-slate-350">Selecione uma lição para ver seu glossário estruturado ou editar termos.</span>
+                  <select 
+                    value={selectedLessonForFlashcards}
+                    onChange={(e) => setSelectedLessonForFlashcards(e.target.value)}
+                    className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-xs text-slate-200 font-mono outline-none cursor-pointer"
+                  >
+                    {allLessons.map(l => (
+                      <option key={l.id} value={l.id}>{l.title} ({modules.find(m => m.id === l.moduleId)?.beltLevel})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-850 rounded-xl overflow-x-auto overflow-y-auto max-h-[450px] font-sans text-xs">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                      <tr className="bg-slate-900 text-slate-400 font-mono text-[9px] uppercase tracking-wider border-b border-slate-800">
+                        <th className="p-3">Inglês Técnico</th>
+                        <th className="p-3">Phonetic</th>
+                        <th className="p-3">Tradução Oficial</th>
+                        <th className="p-3">Contexto (Prático)</th>
+                        <th className="p-3 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(vocabularyFlashcards[selectedLessonForFlashcards] || []).map((v, i) => (
+                        <tr key={i} className="border-b border-slate-855 hover:bg-slate-900/40">
+                          <td className="p-3 font-bold text-indigo-400 font-mono">{v.term}</td>
+                          <td className="p-3 font-mono text-slate-500">{v.phonetic}</td>
+                          <td className="p-3 text-slate-200">{v.translation}</td>
+                          <td className="p-3 text-slate-400 italic">"{v.bjjContext}"</td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => {
+                                setEditingFlashcard({ idx: i, ...v });
+                                setShowFlashcardModal(true);
+                              }}
+                              className="text-violet-400 hover:text-violet-300 font-bold font-mono text-[10px] cursor-pointer"
+                            >
+                              Editar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!vocabularyFlashcards[selectedLessonForFlashcards] || vocabularyFlashcards[selectedLessonForFlashcards].length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-500 font-mono">Nenhum termo técnico registrado nesta lição acadêmica.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: COURSE ORDER                */}
+            {/**************************************/}
+            {adminSubTab === 'course-order' && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="pb-3 border-b border-slate-850">
+                  <h3 className="font-display font-semibold text-white">Estrutura e Ordem do Currículo</h3>
+                  <p className="text-xs text-slate-400 font-sans mt-0.5">Visualize a árvore didática estrutural completa de ponta a ponta e reordene usando controles de um clique.</p>
+                </div>
+
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                  {modules.map((mod, modIdx) => {
+                    const belt = getBeltLabel(mod.beltLevel);
+                    return (
+                      <div key={mod.id} className="bg-slate-950 border border-slate-850 p-4 rounded-xl space-y-3">
+                        <div className="flex justify-between items-center bg-slate-900 px-3 py-2 rounded-lg border border-slate-850">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-slate-550 text-xs font-bold">#{modIdx + 1}</span>
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase truncate border ${belt.bg}`}>
+                              {belt.icon} {belt.label}
+                            </span>
+                            <span className="text-xs font-bold text-slate-200 truncate">{mod.title}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0 select-none">
+                            <button 
+                              disabled={modIdx === 0}
+                              onClick={async () => {
+                                // Swap up
+                                const prevMod = modules[modIdx - 1];
+                                const temp = mod.orderIndex;
+                                mod.orderIndex = prevMod.orderIndex;
+                                prevMod.orderIndex = temp;
+                                try {
+                                  await fetch('/api/admin/academy/modules/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                    body: JSON.stringify(mod)
+                                  });
+                                  await fetch('/api/admin/academy/modules/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                    body: JSON.stringify(prevMod)
+                                  });
+                                  showToast("✓ Ordem do módulo alterada com sucesso!", "success");
+                                  fetchModules();
+                                } catch(e) {}
+                              }}
+                              className="p-1 px-2 bg-slate-950 hover:bg-slate-800 disabled:opacity-20 text-slate-400 rounded cursor-pointer text-xs"
+                              title="Mover módulo para cima"
+                            >
+                              ⬆️
+                            </button>
+                            <button 
+                              disabled={modIdx === modules.length - 1}
+                              onClick={async () => {
+                                // Swap down
+                                const nextMod = modules[modIdx + 1];
+                                const temp = mod.orderIndex;
+                                mod.orderIndex = nextMod.orderIndex;
+                                nextMod.orderIndex = temp;
+                                try {
+                                  await fetch('/api/admin/academy/modules/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                    body: JSON.stringify(mod)
+                                  });
+                                  await fetch('/api/admin/academy/modules/save', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                    body: JSON.stringify(nextMod)
+                                  });
+                                  showToast("✓ Ordem do módulo alterada com sucesso!", "success");
+                                  fetchModules();
+                                } catch(e) {}
+                              }}
+                              className="p-1 px-2 bg-slate-950 hover:bg-slate-800 disabled:opacity-20 text-slate-400 rounded cursor-pointer text-xs"
+                              title="Mover módulo para baixo"
+                            >
+                              ⬇️
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Lessons nested rail under module */}
+                        <div className="pl-4 space-y-1 border-l border-slate-850">
+                          {mod.lessons && [...mod.lessons].sort((a,b) => a.orderIndex - b.orderIndex).map((les, lesIdx, lesArr) => (
+                            <div key={les.id} className="bg-slate-900 border border-slate-855 px-3 py-2 rounded-lg flex justify-between items-center text-xs">
+                              <span className="text-slate-400 truncate flex-1 leading-snug">
+                                <span className="font-mono text-[9px] text-slate-600 mr-2">Ordem {les.orderIndex} •</span> {les.title}
+                              </span>
+
+                              <div className="flex gap-1 shrink-0 select-none">
+                                <button 
+                                  disabled={lesIdx === 0}
+                                  onClick={async () => {
+                                    const prevLes = lesArr[lesIdx - 1];
+                                    const temp = les.orderIndex;
+                                    les.orderIndex = prevLes.orderIndex;
+                                    prevLes.orderIndex = temp;
+                                    try {
+                                      await fetch('/api/admin/academy/lessons/save', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                        body: JSON.stringify(les)
+                                      });
+                                      await fetch('/api/admin/academy/lessons/save', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                        body: JSON.stringify(prevLes)
+                                      });
+                                      showToast("✓ Ordem da lição modificada com sucesso!", "success");
+                                      fetchModules();
+                                    } catch(e) {}
+                                  }}
+                                  className="p-0.5 px-1 bg-slate-950 hover:bg-slate-800 disabled:opacity-20 text-slate-400 rounded cursor-pointer text-[10px]"
+                                  title="Subir lição"
+                                >
+                                  ⬆️
+                                </button>
+                                <button 
+                                  disabled={lesIdx === lesArr.length - 1}
+                                  onClick={async () => {
+                                    const nextLes = lesArr[lesIdx + 1];
+                                    const temp = les.orderIndex;
+                                    les.orderIndex = nextLes.orderIndex;
+                                    nextLes.orderIndex = temp;
+                                    try {
+                                      await fetch('/api/admin/academy/lessons/save', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                        body: JSON.stringify(les)
+                                      });
+                                      await fetch('/api/admin/academy/lessons/save', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                                        body: JSON.stringify(nextLes)
+                                      });
+                                      showToast("✓ Ordem da lição modificada com sucesso!", "success");
+                                      fetchModules();
+                                    } catch(e) {}
+                                  }}
+                                  className="p-0.5 px-1 bg-slate-950 hover:bg-slate-800 disabled:opacity-20 text-slate-400 rounded cursor-pointer text-[10px]"
+                                  title="Descer lição"
+                                >
+                                  ⬇️
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {(!mod.lessons || mod.lessons.length === 0) && (
+                            <p className="text-slate-550 text-[10px] font-mono italic pl-2">Nenhuma lição vinculada a este módulo.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/**************************************/}
+            {/* SUBTAB: COURSE PREVIEW              */}
+            {/**************************************/}
+            {adminSubTab === 'preview' && previewLesson && (
+              <div className="space-y-4 animate-scaleIn">
+                <div className="pb-3 border-b border-slate-850 flex justify-between items-center flex-wrap gap-2">
+                  <div>
+                    <h3 className="font-display font-semibold text-white">Simulador de Aluno - Premium Player</h3>
+                    <p className="text-xs text-slate-400 font-sans mt-0.5">Visualize e teste a navegação do player tal como o aluno interage.</p>
+                  </div>
+                  <button 
+                    onClick={() => setPreviewMuted(!previewMuted)}
+                    className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 hover:bg-slate-700 transition cursor-pointer"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" /> {previewMuted ? "Mutado (Muted)" : "Som Ativo (Unmuted)"}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  {/* Student View Official Player */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <div className="aspect-video bg-black rounded-2xl border border-slate-800 overflow-hidden relative shadow-lg shadow-black/40">
+                      {getYoutubeId(previewLesson.youtubeUrl) ? (
+                        <iframe 
+                          src={`https://www.youtube.com/embed/${getYoutubeId(previewLesson.youtubeUrl)}?autoplay=1&mute=${previewMuted ? 1 : 0}&rel=0&modestbranding=1&enablejsapi=1`}
+                          title={previewLesson.title}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 font-mono text-center p-6 space-y-2">
+                          <Play className="w-12 h-12 text-slate-700 animate-pulse" />
+                          <p className="text-xs col-span-2">Este player de vídeo está em branco ou indisponível.</p>
+                          <p className="text-[10px] text-slate-600 max-w-xs truncate col-span-2">Insira uma URL oficial do YouTube para habilitar a visualização.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[9px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded uppercase border border-emerald-500/25 font-bold">PREVIEW MODE</span>
+                        <span className="font-mono text-[9px] text-slate-500">+{previewLesson.xpReward} XP Recompensa</span>
+                      </div>
+                      <h4 className="font-display font-extrabold text-white text-base leading-snug">{previewLesson.title}</h4>
+                      <p className="text-xs text-slate-350 leading-relaxed font-sans">{previewLesson.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Navigation simulator */}
+                  <div className="bg-slate-950 border border-slate-850 p-4 rounded-2xl space-y-3 flex flex-col h-[400px]">
+                    <h5 className="font-display font-bold text-slate-300 text-[10px] uppercase tracking-wider font-mono">Navegar como Aluno:</h5>
+                    <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 font-sans text-xs">
+                      {modules.map(mod => (
+                        <div key={mod.id} className="space-y-1">
+                          <p className="text-[9px] text-slate-500 font-mono font-bold uppercase leading-none pt-2">{mod.title}</p>
+                          <div className="space-y-1 pl-1">
+                            {mod.lessons && [...mod.lessons].sort((a,b) => a.orderIndex - b.orderIndex).map(les => (
+                              <button
+                                key={les.id}
+                                onClick={() => setPreviewLesson(les)}
+                                className={`w-full text-left p-2.5 rounded-xl cursor-pointer transition-all flex items-center justify-between border ${previewLesson.id === les.id ? 'bg-violet-650 border-violet-500 text-white font-bold' : 'bg-slate-900/50 border-slate-855 text-slate-450 hover:text-slate-200'}`}
+                              >
+                                <span className="truncate flex-1 pr-2">{les.title}</span>
+                                <Play className="w-3 h-3 shrink-0 opacity-70" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>

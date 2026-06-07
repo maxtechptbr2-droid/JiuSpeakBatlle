@@ -9424,6 +9424,97 @@ async function startServer() {
     }
   });
 
+  // 9. ADMIN DELETE AcademyModule
+  app.post("/api/admin/academy/modules/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id } = req.body;
+      const prisma = getPrisma() as any;
+
+      // Remove lessons under this module
+      for (let i = inMemoryAcademyLessons.length - 1; i >= 0; i--) {
+        if (inMemoryAcademyLessons[i].moduleId === id) {
+          inMemoryAcademyLessons.splice(i, 1);
+        }
+      }
+
+      // Remove module
+      const idx = inMemoryAcademyModules.findIndex(m => m.id === id);
+      if (idx !== -1) {
+        inMemoryAcademyModules.splice(idx, 1);
+      }
+
+      if (isDatabaseConnected() && prisma) {
+        try {
+          await prisma.academyLesson.deleteMany({ where: { moduleId: id } });
+          await prisma.academyModule.delete({ where: { id } });
+        } catch (e) {
+          console.error("Error deleting module/lessons in DB:", e);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(200).json({ success: false, error: "Falha ao excluir módulo." });
+    }
+  });
+
+  // 10. ADMIN DELETE AcademyLesson
+  app.post("/api/admin/academy/lessons/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id } = req.body;
+      const prisma = getPrisma() as any;
+
+      const idx = inMemoryAcademyLessons.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        inMemoryAcademyLessons.splice(idx, 1);
+      }
+
+      if (isDatabaseConnected() && prisma) {
+        try {
+          await prisma.academyLesson.delete({ where: { id } });
+        } catch (e) {
+          console.error("Error deleting lesson in DB:", e);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(200).json({ success: false, error: "Falha ao excluir lição." });
+    }
+  });
+
+  // In-memory global store to backup quizzes & flashcards modified by administrator
+  let inMemoryQuizzes: any[] = [];
+  let inMemoryFlashcards: Record<string, any[]> = {};
+
+  // 11. QUIZZES GET & SAVE ENDPOINTS
+  app.get("/api/admin/academy/quizzes", authenticateToken, async (req: any, res: any) => {
+    res.json({ success: true, quizzes: inMemoryQuizzes });
+  });
+
+  app.post("/api/admin/academy/quizzes/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      inMemoryQuizzes = req.body.quizzes || [];
+      res.json({ success: true });
+    } catch (e) {
+      res.json({ success: false });
+    }
+  });
+
+  // 12. FLASHCARDS GET & SAVE ENDPOINTS
+  app.get("/api/admin/academy/flashcards", authenticateToken, async (req: any, res: any) => {
+    res.json({ success: true, flashcards: inMemoryFlashcards });
+  });
+
+  app.post("/api/admin/academy/flashcards/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      inMemoryFlashcards = req.body.flashcards || {};
+      res.json({ success: true });
+    } catch (e) {
+      res.json({ success: false });
+    }
+  });
+
   // Global Express Error-handling logging middleware
   app.use((err: any, req: any, res: any, next: any) => {
     logError(`UNHANDLED_ROUTE_ERROR [${req.method} ${req.url}]`, err);
