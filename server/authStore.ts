@@ -1542,8 +1542,8 @@ export const authStore = {
       }
       return null;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível na consulta findByEmail:", dbErr);
+      throw dbErr;
     }
   },
 
@@ -1583,8 +1583,8 @@ export const authStore = {
       }
       return null;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível na consulta findById:", dbErr);
+      throw dbErr;
     }
   },
 
@@ -1636,8 +1636,8 @@ export const authStore = {
         isEmailVerified: u.isEmailVerified,
       };
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL na criação de usuário indisponível:", dbErr);
+      throw dbErr;
     }
   },
 
@@ -1709,8 +1709,8 @@ export const authStore = {
       }
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL na atualização de usuário indisponível:", dbErr);
+      throw dbErr;
     }
   },
 

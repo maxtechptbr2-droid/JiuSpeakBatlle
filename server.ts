@@ -30,16 +30,14 @@ import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
 // PRO-LEVEL PROCESS LISTENERS & ERROR DETECTION ENGINE (ANTI-502 CRASH LOOPS)
 // -------------------------------------------------------------------------
 process.on("uncaughtException", (error: Error) => {
-  console.error("FATAL: Uncaught Exception caught by Tatame Conectado global handler:", error);
+  console.error("⚠️ [UNCAUGHT EXCEPTION] Caught by Tatame Conectado global handler:", error);
   logError("PROCESS_UNCAUGHT_EXCEPTION", error);
-  process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
-  console.error("FATAL: Unhandled Rejection at Promise:", promise, "reason:", reason);
+  console.error("⚠️ [UNHANDLED REJECTION] At promise:", promise, "reason:", reason);
   logError("PROCESS_UNHANDLED_REJECTION", err);
-  process.exit(1);
 });
 
 const app = express();
@@ -1311,8 +1309,8 @@ app.post("/api/auth/verify", async (req: any, res: any) => {
         matchedUser = u;
       }
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     if (!matchedId || !matchedUser) {
@@ -1402,8 +1400,8 @@ app.post("/api/auth/reset-password", async (req: any, res: any) => {
         matchedTokenExpires = u.resetTokenExpires;
       }
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     if (!matchedId || !matchedTokenExpires) {
@@ -1496,8 +1494,8 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
         }));
       });
     } catch (err) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", err);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     res.json({ 
@@ -2490,8 +2488,8 @@ app.get("/api/admin/subscriptions", authenticateToken, requireRole(["ADMIN"]), a
         createdAt: s.createdAt.toISOString()
       }));
     } catch (err) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", err);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     const totalCount = resultList.length;
@@ -2607,8 +2605,8 @@ app.get("/api/admin/pix", authenticateToken, requireRole(["ADMIN"]), async (req:
         type: "DEPÓSITO WALLET"
       }));
     } catch (err) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", err);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     const totalCount = resultList.length;
@@ -2669,8 +2667,8 @@ app.get("/api/admin/marketplace", authenticateToken, requireRole(["ADMIN"]), asy
 
     res.json({ marketplace: mappedListings, sales });
   } catch (err: any) {
-    console.error("✗ PostgreSQL indisponível");
-    process.exit(1);
+    console.error("✗ PostgreSQL indisponível na listagem de marketplace:", err);
+    return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual de Marketplace." });
   }
 });
 
@@ -4790,8 +4788,8 @@ app.post("/api/subscriptions/simulate-cron", async (req: any, res: any) => {
         }
       }
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     res.json({
@@ -5022,9 +5020,9 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
           });
         }
       } catch (dbErr) {
-        console.error("✗ PostgreSQL indisponível");
-        process.exit(1);
-      }
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
+    }
       return res.json({ message: "Webhook recebido: Pagamento PIX marcado como cancelado/expirado." });
     }
 
@@ -5044,8 +5042,8 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
         });
       }
     } catch (e) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", e);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     // 3. VALIDATE TXID (Requirement 7)
@@ -5219,8 +5217,8 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
         responseMsg = `Plano VIP "${activeDbSub.plan.name}" ativado com confirmação de pagamento via Webhook!`;
       }
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     // 7. RECORD DETAILED AUDITABLE FINANCIAL LOGS (Requirement 8)
@@ -5864,8 +5862,8 @@ app.get("/api/store", async (req: any, res: any) => {
       });
       total = await prisma.storeProduct.count({ where: whereClause });
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     const formattedItems = items.map((item: any) => {
@@ -7557,8 +7555,8 @@ app.get("/api/social/network", authenticateToken, async (req: any, res: any) => 
         };
       });
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     // Filter out current user from the recommendations/list to avoid following yourself
@@ -8034,8 +8032,8 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
         }
       });
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível");
-      process.exit(1);
+      console.error("✗ PostgreSQL indisponível:", dbErr);
+      return res.status(503).json({ error: "Banco de dados temporariamente indisponível no Tatame Virtual." });
     }
 
     // Helper functions for normalization
@@ -8366,8 +8364,12 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
 // VITE DEV SERVER ENGINE INTEGRATION & SOCKET.IO SERVICES
 // =========================================================================
 async function startServer() {
-  // Assert PostgreSQL connectivity immediately, failing hard if offline
-  await assertDatabaseConnection();
+  // Assert PostgreSQL connectivity immediately, non-blocking fallback if offline
+  try {
+    await assertDatabaseConnection();
+  } catch (dbErr) {
+    console.error("⚠️ [DATABASE CONNECTION WARNING] Falha ao verificar banco de dados durante bootstrap:", dbErr);
+  }
 
   const server = http.createServer(app);
   
