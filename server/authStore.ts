@@ -1509,6 +1509,9 @@ export const authStore = {
     const formattedEmail = email.toLowerCase().trim();
     try {
       const prisma = getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client is missing.");
+      }
       const u = await prisma.user.findUnique({ 
         where: { email: formattedEmail },
         include: { wallet: true }
@@ -1540,16 +1543,31 @@ export const authStore = {
           refreshToken: u.refreshToken,
         });
       }
+
+      // Fallback search in-memory if not found in db but exists locally
+      for (const u of inMemoryUsers.values()) {
+        if (u.email.toLowerCase().trim() === formattedEmail) {
+          return u;
+        }
+      }
       return null;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível na consulta findByEmail:", dbErr);
-      throw dbErr;
+      console.error("✗ PostgreSQL indisponível na consulta findByEmail. Tentando fallback em memória:", dbErr);
+      for (const u of inMemoryUsers.values()) {
+        if (u.email.toLowerCase().trim() === formattedEmail) {
+          return u;
+        }
+      }
+      return null;
     }
   },
 
   async findById(id: string): Promise<Partial<AuthUser> | null> {
     try {
       const prisma = getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client is missing.");
+      }
       const u = await prisma.user.findUnique({ 
         where: { id },
         include: { wallet: true }
@@ -1581,10 +1599,10 @@ export const authStore = {
           refreshToken: u.refreshToken,
         });
       }
-      return null;
+      return inMemoryUsers.get(id) || null;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível na consulta findById:", dbErr);
-      throw dbErr;
+      console.error("✗ PostgreSQL indisponível na consulta findById. Tentando fallback em memória:", dbErr);
+      return inMemoryUsers.get(id) || null;
     }
   },
 
@@ -1602,6 +1620,9 @@ export const authStore = {
 
     try {
       const prisma = getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client is missing.");
+      }
       const u = await prisma.user.create({
         data: {
           email: formattedEmail,
@@ -1627,6 +1648,31 @@ export const authStore = {
         },
       });
 
+      const inMemUser: AuthUser = {
+        id: u.id,
+        email: formattedEmail,
+        name: data.name,
+        passwordHash: data.passwordHash,
+        role: role,
+        isAdminApproved: approved,
+        belt: 'WHITE',
+        stripes: 0,
+        xp: 0,
+        level: 1,
+        elo: 1000,
+        isEmailVerified: false,
+        verificationToken: data.verificationToken,
+        resetToken: null,
+        resetTokenExpires: null,
+        refreshToken: null,
+        coins: 200,
+        balanceAvailableBRL: 0,
+        balancePendingBRL: 0,
+        totalEarnedBRL: 0,
+        totalWithdrawnBRL: 0,
+      };
+      inMemoryUsers.set(u.id, inMemUser);
+
       return {
         id: u.id,
         email: u.email,
@@ -1636,14 +1682,46 @@ export const authStore = {
         isEmailVerified: u.isEmailVerified,
       };
     } catch (dbErr) {
-      console.error("✗ PostgreSQL na criação de usuário indisponível:", dbErr);
-      throw dbErr;
+      console.error("✗ PostgreSQL na criação de usuário indisponível. Tentando em memória:", dbErr);
+      const mockId = 'user_' + Math.random().toString(36).substring(2, 11);
+      const mockUser: AuthUser = {
+        id: mockId,
+        email: formattedEmail,
+        name: data.name,
+        passwordHash: data.passwordHash,
+        role: role,
+        isAdminApproved: approved,
+        belt: 'WHITE',
+        stripes: 0,
+        xp: 0,
+        level: 1,
+        elo: 1000,
+        isEmailVerified: false,
+        verificationToken: data.verificationToken,
+        resetToken: null,
+        resetTokenExpires: null,
+        refreshToken: null,
+        coins: 200,
+        balanceAvailableBRL: 0,
+        balancePendingBRL: 0,
+        totalEarnedBRL: 0,
+        totalWithdrawnBRL: 0,
+      };
+      inMemoryUsers.set(mockId, mockUser);
+      return mockUser;
     }
   },
 
   async updateUser(id: string, fields: Partial<AuthUser>): Promise<boolean> {
+    const memUser = inMemoryUsers.get(id);
+    if (memUser) {
+      Object.assign(memUser, fields);
+    }
     try {
       const prisma = getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client is missing.");
+      }
       const prismaData: any = {};
 
       if (fields.name !== undefined) prismaData.name = fields.name;
@@ -1669,7 +1747,6 @@ export const authStore = {
         data: prismaData,
       });
 
-      // Handle updates of Wallet and Kimono Coins balance
       if (
         fields.coins !== undefined ||
         fields.balanceAvailableBRL !== undefined ||
@@ -1693,7 +1770,6 @@ export const authStore = {
             data: walletData
           });
         } catch {
-          // Fallback recreate of wallet if it is missing
           await prisma.wallet.create({
             data: {
               userId: id,
@@ -1709,8 +1785,8 @@ export const authStore = {
       }
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL na atualização de usuário indisponível:", dbErr);
-      throw dbErr;
+      console.error("✗ PostgreSQL na atualização de usuário indisponível. Executado com fallback em memória:", dbErr);
+      return !!memUser;
     }
   },
 

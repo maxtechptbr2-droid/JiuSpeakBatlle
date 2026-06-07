@@ -2,11 +2,55 @@
 import { PrismaClient } from '@prisma/client';
 
 let prisma: PrismaClient | null = null;
+let mockPrisma: any = null;
 
 let dbConnected = false;
 
 export function isDatabaseConnected(): boolean {
   return dbConnected;
+}
+
+function createMockPrismaProxy(): any {
+  if (!mockPrisma) {
+    const handler: ProxyHandler<any> = {
+      get(target, prop) {
+        if (prop === "then") return undefined;
+        if (
+          typeof prop === "string" &&
+          [
+            "findMany",
+            "findUnique",
+            "findFirst",
+            "count",
+            "create",
+            "update",
+            "delete",
+            "updateMany",
+            "deleteMany",
+            "upsert",
+            "$queryRaw",
+            "$executeRaw",
+            "$transaction",
+            "$connect",
+            "$disconnect"
+          ].includes(prop)
+        ) {
+          return async (...args: any[]) => {
+            console.warn(`⚠️ [MOCK PRISMA PROXY] Intercepted mock query: ${prop}`);
+            if (prop === "findMany" || prop === "$queryRaw") return [];
+            if (prop === "count") return 0;
+            return null;
+          };
+        }
+        return new Proxy(() => {}, handler);
+      },
+      apply(target, thisArg, argumentsList) {
+        return new Proxy(() => {}, handler);
+      }
+    };
+    mockPrisma = new Proxy(() => {}, handler);
+  }
+  return mockPrisma;
 }
 
 // Enforce strict initialization. No silent fallback to null or bypass if PostgreSQL is mandatory.
@@ -20,7 +64,7 @@ export function getPrisma(): PrismaClient {
         advice: "A plataforma JiuSpeak continuará usando o fallback de simulação em memória.",
         timestamp: new Date().toISOString()
       }, null, 2));
-      return null as any;
+      return createMockPrismaProxy() as any;
     }
     try {
       // Configure specific pool limits for high concurrency (connection_limit=20, pool_timeout=15)
@@ -48,7 +92,7 @@ export function getPrisma(): PrismaClient {
         exception: e.message || e,
         timestamp: new Date().toISOString()
       }, null, 2));
-      return null as any;
+      return createMockPrismaProxy() as any;
     }
   }
   return prisma;
@@ -57,9 +101,10 @@ export function getPrisma(): PrismaClient {
 // Assert database readiness, preventing application boot if postgres connection fails
 export async function assertDatabaseConnection(): Promise<void> {
   const client = getPrisma();
-  if (!client) {
+  // If we got the mock client, we consider the database down but continue healthy
+  if (!client || client === mockPrisma) {
     dbConnected = false;
-    console.warn("⚠️ DATABASE_URL não configurada. Ativando banco de dados em memória.");
+    console.warn("⚠️ DATABASE_URL não configurada ou inválida. Ativando banco de dados em memória.");
     return;
   }
   let retries = 5;
