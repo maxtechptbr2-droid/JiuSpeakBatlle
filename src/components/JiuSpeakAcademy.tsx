@@ -62,10 +62,177 @@ interface Module {
   lessons: Lesson[];
 }
 
+interface YoutubeAutoPlayerProps {
+  youtubeId: string;
+  onStartInProgress: () => void;
+  onVideoEnded: () => void;
+  onPlayerRef: (player: any) => void;
+}
+
+const YoutubeAutoPlayer = ({ youtubeId, onStartInProgress, onVideoEnded, onPlayerRef }: YoutubeAutoPlayerProps) => {
+  const containerId = `yt-player-${youtubeId}`;
+  
+  useEffect(() => {
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let ytPlayer: any = null;
+
+    const initPlayer = () => {
+      if (!(window as any).YT || !(window as any).YT.Player) {
+        setTimeout(initPlayer, 100);
+        return;
+      }
+
+      const el = document.getElementById(containerId);
+      if (!el) {
+        setTimeout(initPlayer, 100);
+        return;
+      }
+
+      try {
+        ytPlayer = new (window as any).YT.Player(containerId, {
+          height: '100%',
+          width: '100%',
+          videoId: youtubeId,
+          playerVars: {
+            autoplay: 1,
+            mute: 1, // Crucial default mute to comply with strict automatic play policies of modern browsers
+            rel: 0,
+            modestbranding: 1,
+            controls: 1,
+            playsinline: 1, // Crucial for automatic playing in iOS
+            origin: window.location.origin
+          },
+          events: {
+            onReady: (event: any) => {
+              if (!active) return;
+              event.target.playVideo();
+              onPlayerRef(event.target);
+            },
+            onStateChange: (event: any) => {
+              if (!active) return;
+              if (event.data === (window as any).YT.PlayerState.PLAYING) {
+                onStartInProgress();
+              }
+              if (event.data === (window as any).YT.PlayerState.ENDED) {
+                onVideoEnded();
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Erro ao inicializar player do YouTube", err);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      initPlayer();
+    }, 150);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      onPlayerRef(null);
+      if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+        try {
+          ytPlayer.destroy();
+        } catch (e) {}
+      }
+    };
+  }, [youtubeId]);
+
+  return (
+    <div className="w-full h-full relative">
+      <div id={containerId} className="w-full h-full absolute inset-0 border-0 rounded-2xl" />
+    </div>
+  );
+};
+
+const FlashcardItem = ({ fc }: { fc: { term: string; phonetic: string; translation: string; bjjContext: string }; key?: any }) => {
+  const [flipped, setFlipped] = useState(false);
+  return (
+    <div 
+      onClick={() => setFlipped(!flipped)}
+      className={`p-4 rounded-xl border transition-all duration-300 cursor-pointer select-none text-left min-h-[150px] flex flex-col justify-between h-full ${
+        flipped 
+          ? 'bg-violet-950/20 border-violet-500/30 ring-1 ring-violet-500/25 shadow-lg' 
+          : 'bg-slate-950 border-slate-850 hover:border-slate-755 hover:bg-slate-900/40 shadow'
+      }`}
+    >
+      {!flipped ? (
+        <>
+          <div className="flex justify-between items-start gap-2">
+            <span className="font-mono text-sm font-bold text-violet-350">{fc.term}</span>
+            <span className="font-mono text-[9.5px] text-slate-500 tracking-wider font-semibold">{fc.phonetic}</span>
+          </div>
+          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-450 font-sans">
+            <span>Clique para revelar</span>
+            <span className="text-violet-400 text-xs">➔</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div>
+            <span className="text-[10px] font-mono font-bold bg-violet-600/15 text-violet-300 px-1.5 py-0.5 rounded border border-violet-600/20">
+              {fc.translation}
+            </span>
+            <p className="text-[11px] text-slate-300 mt-2.5 font-sans leading-relaxed">
+              {fc.bjjContext}
+            </p>
+          </div>
+          <span className="text-[9px] font-mono text-slate-500 mt-2 text-right block italic font-semibold">Girar de volta</span>
+        </>
+      )}
+    </div>
+  );
+};
+
 export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, updateUser, showToast }: JiuSpeakAcademyProps) {
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+
+  // States and refs to support autoplay and automated sequence progression
+  const activeLessonRef = React.useRef<Lesson | null>(null);
+  useEffect(() => {
+    activeLessonRef.current = activeLesson;
+  }, [activeLesson]);
+
+  const [currentPlayerInstance, setCurrentPlayerInstance] = useState<any>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isAdvancing, setIsAdvancing] = useState(false);
+
+  const [inProgressLessons, setInProgressLessons] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('jiuspeak_in_progress_lessons');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const markLessonInProgress = (lessonId: string) => {
+    setInProgressLessons(prev => {
+      if (prev.includes(lessonId)) return prev;
+      const updated = [...prev, lessonId];
+      try {
+        localStorage.setItem('jiuspeak_in_progress_lessons', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const [reviewActive, setReviewActive] = useState(false);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [showingTranslation, setShowingTranslation] = useState(false);
   
   // Quiz State for White Belt Final Challenge
   const [quizActive, setQuizActive] = useState(false);
@@ -215,7 +382,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
     }
   };
 
-  const completeLesson = async (lesson: Lesson) => {
+  const completeLesson = async (lesson: Lesson, shouldExitView: boolean = true) => {
     try {
       showToast("Salvando progresso e computando XP...", "info");
       const res = await fetch('/api/academy/progress/complete', {
@@ -241,12 +408,73 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
             lessons: m.lessons.map(l => l.id === lesson.id ? { ...l, completed: true } : l)
           };
         }));
-        setActiveLesson(null);
+        
+        if (shouldExitView) {
+          setActiveLesson(null);
+        } else {
+          setActiveLesson(prev => prev && prev.id === lesson.id ? { ...prev, completed: true } : prev);
+        }
+        return true;
       } else {
         showToast(data.error || "Falha ao gravar check-in.", "error");
+        return false;
       }
     } catch (e) {
       showToast("Falha de conexão com a VPS.", "error");
+      return false;
+    }
+  };
+
+  const findNextLesson = (currentLesson: Lesson) => {
+    const parentModule = modules.find(m => m.id === currentLesson.moduleId);
+    if (!parentModule) return null;
+    const currentIndex = parentModule.lessons.findIndex(l => l.id === currentLesson.id);
+    if (currentIndex !== -1 && currentIndex + 1 < parentModule.lessons.length) {
+      return parentModule.lessons[currentIndex + 1];
+    }
+    return null;
+  };
+
+  const handleVideoEnded = async () => {
+    const currentActive = activeLessonRef.current;
+    if (!currentActive) return;
+    if (isAdvancing) return;
+
+    setIsAdvancing(true);
+    showToast("🎯 Vídeo concluído! Aula registrada com sucesso.", "success");
+    
+    // Complete lesson and keep active view open
+    const success = await completeLesson(currentActive, false);
+    
+    if (success) {
+      setTimeout(() => {
+        const next = findNextLesson(currentActive);
+        if (next) {
+          showToast("➔ Carregando próxima lição automaticamente em 2 segundos...", "info");
+          setActiveLesson(next);
+        } else {
+          showToast("🏁 Módulo Concluído!", "success");
+        }
+        setIsAdvancing(false);
+      }, 2000);
+    } else {
+      setIsAdvancing(false);
+    }
+  };
+
+  const handleStartInProgress = (lessonId: string) => {
+    markLessonInProgress(lessonId);
+  };
+
+  const startCourseMode = () => {
+    if (!currentModule) return;
+    const firstIncomplete = currentModule.lessons.find(l => !l.completed);
+    const target = firstIncomplete || currentModule.lessons[0];
+    if (target) {
+      setActiveLesson(target);
+      showToast(`▶ Modo Curso Iniciado: ${target.title}`, "success");
+    } else {
+      showToast("Aulas indisponíveis neste módulo.", "error");
     }
   };
 
@@ -441,30 +669,115 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
   if (activeLesson) {
     const flashcards = vocabularyFlashcards[activeLesson.id] || generalFlashcards;
     
+    // Find current module information to populate above-the-video headers and progress percentages
+    const currentModuleInfo = modules.find(m => m.id === activeLesson.moduleId);
+    const completedCountInfo = currentModuleInfo?.lessons.filter(l => l.completed).length || 0;
+    const totalCountInfo = currentModuleInfo?.lessons.length || 0;
+    const modulePercentInfo = totalCountInfo > 0 ? Math.round((completedCountInfo / totalCountInfo) * 100) : 0;
+    const beltLabelMetaInfo = currentModuleInfo ? getBeltLabel(currentModuleInfo.beltLevel) : { icon: "🥋", label: "Academy" };
+    const lessonIndexInfo = currentModuleInfo?.lessons.findIndex(l => l.id === activeLesson.id) ?? -1;
+    const lessonNumberInfo = lessonIndexInfo !== -1 ? lessonIndexInfo + 1 : activeLesson.orderIndex;
+    const hasNextLessonInfo = currentModuleInfo && lessonIndexInfo !== -1 && lessonIndexInfo + 1 < currentModuleInfo.lessons.length;
+
+    const handlePlayerRef = (player: any) => {
+      setCurrentPlayerInstance(player);
+      if (player) {
+        setIsMuted(player.isMuted());
+      } else {
+        setIsMuted(true);
+      }
+    };
+
+    const handleUnmute = () => {
+      if (currentPlayerInstance && typeof currentPlayerInstance.unMute === 'function') {
+        currentPlayerInstance.unMute();
+        setIsMuted(false);
+        showToast("🔊 Som ativado!", "success");
+      }
+    };
+
     return (
-      <div className="space-y-6" id="academy-active-lesson">
+      <div className="space-y-6 animate-fadeIn" id="academy-active-lesson">
+        {/* Upper Back Button Area */}
         <button 
           onClick={() => {
             setActiveLesson(null);
             setQuizActive(false);
+            setReviewActive(false);
           }}
           className="flex items-center gap-2 text-xs font-mono text-violet-300 hover:text-white transition-colors cursor-pointer bg-slate-900/80 p-2.5 rounded-xl border border-slate-850 w-fit"
         >
           <ArrowLeft className="w-4 h-4" /> Voltar para os Módulos
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Video Section */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl relative aspect-video">
-              {activeLesson.youtubeId ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${activeLesson.youtubeId}?autoplay=1`}
-                  title={activeLesson.title}
-                  className="w-full h-full absolute inset-0 border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
+        {/* INTERFACE: Acima do vídeo */}
+        <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-850 space-y-3.5 shadow-xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">{beltLabelMetaInfo.icon}</span>
+                <span className="text-[10px] font-mono tracking-widest text-violet-300 uppercase font-black">
+                  Nível: {beltLabelMetaInfo.label} • Lição {lessonNumberInfo} de {totalCountInfo}
+                </span>
+                {activeLesson.completed ? (
+                  <span className="text-[9px] font-mono font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
+                    CONCLUÍDA
+                  </span>
+                ) : inProgressLessons.includes(activeLesson.id) ? (
+                  <span className="text-[9px] font-mono font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20 animate-pulse">
+                    EM ANDAMENTO
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-mono font-bold bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
+                    NÃO INICIADA
+                  </span>
+                )}
+              </div>
+              <h2 className="font-display font-black text-2xl text-white tracking-tight mt-1">
+                {activeLesson.title}
+              </h2>
+              <p className="text-xs text-slate-455 font-sans max-w-2xl leading-relaxed">
+                {activeLesson.description}
+              </p>
+            </div>
+
+            <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-850 min-w-[160px] text-center space-y-1.5 shadow-inner">
+              <span className="text-[9.5px] font-mono text-slate-500 uppercase tracking-wider block font-bold">Progresso do Módulo</span>
+              <span className="text-sm font-black text-violet-300 font-mono">{completedCountInfo} / {totalCountInfo} ({modulePercentInfo}%)</span>
+              <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                <div 
+                  className="bg-violet-500 h-full rounded-full transition-all duration-700"
+                  style={{ width: `${modulePercentInfo}%` }}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Video Player and Flashcards Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-5">
+            {/* Embedded YouTube Iframe container with smart overlay state check */}
+            <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl relative aspect-video flex items-center justify-center">
+              {activeLesson.youtubeId ? (
+                <>
+                  <YoutubeAutoPlayer
+                    youtubeId={activeLesson.youtubeId}
+                    onStartInProgress={() => handleStartInProgress(activeLesson.id)}
+                    onVideoEnded={handleVideoEnded}
+                    onPlayerRef={handlePlayerRef}
+                  />
+
+                  {/* Autoplay blocker Unmute Floating Button */}
+                  {isMuted && (
+                    <button
+                      onClick={handleUnmute}
+                      className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg text-xs tracking-wide shadow-lg cursor-pointer animate-bounce border border-violet-400 transition-all active:scale-[0.98]"
+                    >
+                      🔊 Ativar Som
+                    </button>
+                  )}
+                </>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 p-6 text-center">
                   <Play className="w-12 h-12 text-violet-400 mb-3 animate-pulse" />
@@ -476,73 +789,233 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
               )}
             </div>
 
-            <div className="bg-slate-900/40 border border-slate-850 p-6 rounded-2xl space-y-4">
-              <div className="flex justify-between items-start gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-mono font-bold bg-violet-500/10 text-violet-300 px-2 py-0.5 rounded border border-violet-500/20">
-                      RECOMPENSA: +{activeLesson.xpReward} XP
-                    </span>
-                    <span className="text-[10px] font-mono font-bold bg-yellow-500/10 text-yellow-500 px-2 py-0.5 rounded border border-yellow-500/20">
-                      ESTIMADO: 10 MINS
-                    </span>
+            {/* INTERFACE: Abaixo do vídeo */}
+            <div className="bg-slate-900/40 border border-slate-850 p-6 rounded-2xl space-y-6 shadow-sm">
+              <div className="flex flex-wrap justify-between items-center gap-4 border-b border-slate-800 pb-5">
+                {/* XP ganho & Status label list */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="bg-violet-500/10 text-violet-300 border border-violet-500/20 px-3 py-1.5 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-violet-400" />
+                    Recompensa: +{activeLesson.xpReward} XP
                   </div>
-                  <h2 className="font-display font-bold text-xl text-white">{activeLesson.title}</h2>
+
+                  {/* Status checklist representation */}
+                  <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-850 text-xs">
+                    <span className="text-slate-455 font-sans font-medium">Status da Lição:</span>
+                    {activeLesson.completed ? (
+                      <span className="text-emerald-400 font-bold font-mono flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Concluída
+                      </span>
+                    ) : inProgressLessons.includes(activeLesson.id) ? (
+                      <span className="text-amber-400 font-bold font-mono flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Em andamento
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 font-bold font-mono flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-slate-500" /> Não iniciada
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {!activeLesson.completed && (
-                  <button
-                    onClick={() => completeLesson(activeLesson)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl font-bold cursor-pointer text-xs uppercase shadow-md transition-all shrink-0 hover:scale-[1.02]"
-                  >
-                    <CheckCircle className="w-4 h-4" /> Finalizar Aula
-                  </button>
-                )}
+                {/* Navigation and state management controls */}
+                <div className="flex items-center gap-2">
+                  {!activeLesson.completed ? (
+                    <button
+                      onClick={() => completeLesson(activeLesson, false)}
+                      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl font-bold cursor-pointer text-xs uppercase shadow-md transition-all shrink-0 hover:scale-[1.02]"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Finalizar Aula Manuscrita
+                    </button>
+                  ) : null}
+
+                  {hasNextLessonInfo ? (
+                    <button
+                      disabled={!activeLesson.completed}
+                      onClick={() => {
+                        const nextLes = findNextLesson(activeLesson);
+                        if (nextLes) {
+                          setActiveLesson(nextLes);
+                        }
+                      }}
+                      className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs uppercase shadow-md transition-all cursor-pointer ${
+                        activeLesson.completed
+                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white hover:scale-[1.02]'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-850'
+                      }`}
+                    >
+                      Próxima Lição <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      disabled={!activeLesson.completed}
+                      onClick={() => {
+                        showToast("🎉 Parabéns! Módulo completado com absoluto sucesso!", "success");
+                        setActiveLesson(null);
+                      }}
+                      className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl font-bold text-xs uppercase shadow-md transition-all cursor-pointer ${
+                        activeLesson.completed
+                          ? 'bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 font-black'
+                          : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-850'
+                      }`}
+                    >
+                      Módulo Finalizado 🏁
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <p className="text-sm text-slate-350 leading-relaxed font-sans">{activeLesson.description}</p>
+              {/* Vocabulário em inglês & flashcard layouts as requested */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <h3 className="font-display font-bold text-sm text-white flex items-center gap-2">
+                      <span>✓</span> Vocabulário em Inglês & Flashcards
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-sans leading-snug">
+                      Domine os principais jargões em inglês usados globalmente no tatame de lutas e em torneios. Clique para virar o card:
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setReviewIndex(0);
+                      setShowingTranslation(false);
+                      setReviewActive(true);
+                      showToast("🔄 Modo revisão iniciado!", "info");
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono border border-slate-750 transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+                  >
+                    🔄 Botão Revisar
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4.5 pt-1.5">
+                  {flashcards.map((fc, idx) => (
+                    <FlashcardItem key={idx} fc={fc} />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Flashcards & English Helper Content */}
+          {/* Right rail - Vocabulary Study references */}
           <div className="space-y-5">
-            <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl relative overflow-hidden flex flex-col h-full justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <BookMarked className="w-5 h-5 text-violet-400" />
-                  <h3 className="font-display font-semibold text-white text-sm">BJJ Vocabulary Decks</h3>
+            <div className="bg-slate-900/85 border border-slate-800 p-5 rounded-2xl relative overflow-hidden flex flex-col h-full justify-between shadow-sm">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-850">
+                  <BookMarked className="w-4.5 h-4.5 text-violet-400" />
+                  <h3 className="font-display font-bold text-sm text-white">Manual Teórico JiuSpeak</h3>
                 </div>
                 
-                <p className="text-xs text-slate-400 mb-4 font-sans leading-snug">
-                  Estude e domine os termos em inglês usados globalmente no tatame de lutas e em campeonatos de Jiu-Jitsu:
+                <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                  A fluência tática exige consistência. Estude a pronúncia fonética e coloque em prática os termos anotados:
                 </p>
 
-                <div className="space-y-3.5">
+                <div className="space-y-3 pt-1">
                   {flashcards.map((fc, idx) => (
-                    <div key={idx} className="bg-slate-950/80 p-3 rounded-xl border border-slate-850 hover:border-violet-600/30 transition-all">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="font-mono text-sm font-semibold text-violet-300">{fc.term}</span>
-                        <span className="font-mono text-[10px] text-slate-500">{fc.phonetic}</span>
+                    <div key={idx} className="p-3 bg-slate-950/80 rounded-xl border border-slate-855 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono text-xs font-bold text-violet-300">{fc.term}</span>
+                        <span className="font-mono text-[9px] text-slate-500 font-medium">{fc.phonetic}</span>
                       </div>
-                      <p className="text-xs text-slate-200 mt-1 font-sans">
-                        👉 <strong className="text-slate-300">Tradução:</strong> {fc.translation}
+                      <p className="text-[11px] text-slate-350 leading-tight">
+                        <strong className="text-slate-400">Significado:</strong> {fc.translation}
                       </p>
-                      <p className="text-[10px] text-slate-450 mt-1.5 leading-snug font-sans bg-slate-900/50 p-2 rounded">
-                        ℹ️ {fc.bjjContext}
+                      <p className="text-[10px] text-slate-505 italic leading-snug pt-1">
+                        👉 {fc.bjjContext}
                       </p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-5 p-3 rounded-xl bg-violet-950/10 border border-violet-900/20 text-center">
-                <p className="text-[10px] text-slate-400 font-sans leading-relaxed">
-                  📖 Memorize estes termos! No final do curso você precisará deles para passar no exame de graduação nacional e internacional.
+              <div className="mt-6 p-3 rounded-xl bg-violet-950/10 border border-violet-900/20 text-center">
+                <p className="text-[10px] text-slate-455 font-sans leading-relaxed">
+                  📖 Memorize estes termos! No final do curso você realizará o exame de graduação oral para a liberação da blockchain de faixas!
                 </p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Floating Modal for interactive "Botão Revisar" study deck */}
+        {reviewActive && (
+          <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-violet-500/30 rounded-2xl max-w-md w-full p-6 space-y-6 animate-scaleIn shadow-2xl relative">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-mono text-violet-400 uppercase tracking-widest font-bold block">RECONHECIMENTO VOCABULÁRIO TÁTICO</span>
+                  <h3 className="font-display font-extrabold text-white text-sm">Painel de Revisão Ativa</h3>
+                </div>
+                <button 
+                  onClick={() => setReviewActive(false)}
+                  className="p-1 px-2.5 bg-slate-850 hover:bg-slate-800 rounded font-mono text-slate-300 text-xs cursor-pointer"
+                >
+                  Sair
+                </button>
+              </div>
+
+              <div className="bg-slate-950 p-6 rounded-2xl border border-slate-850 text-center space-y-5 min-h-[200px] flex flex-col justify-center items-center relative overflow-hidden group">
+                <span className="text-3xl">🎴</span>
+                <h4 className="font-mono font-black text-xl text-violet-300">{flashcards[reviewIndex]?.term}</h4>
+                <p className="font-mono text-xs text-slate-500 font-semibold">{flashcards[reviewIndex]?.phonetic}</p>
+                
+                {showingTranslation ? (
+                  <div className="pt-2 animate-fadeIn space-y-2.5">
+                    <p className="text-sm text-emerald-400 font-black">Tradução: {flashcards[reviewIndex]?.translation}</p>
+                    <p className="text-xs text-slate-300 leading-relaxed font-sans max-w-sm">{flashcards[reviewIndex]?.bjjContext}</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowingTranslation(true)}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg text-xs cursor-pointer transform hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                  >
+                    Revelar Significado
+                  </button>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center font-sans text-xs pt-2">
+                <span className="text-slate-500 font-mono text-[10px] font-bold">Carta {reviewIndex + 1} de {flashcards.length}</span>
+                
+                <div className="flex gap-2">
+                  <button
+                    disabled={reviewIndex === 0}
+                    onClick={() => {
+                      setReviewIndex(prev => prev - 1);
+                      setShowingTranslation(false);
+                    }}
+                    className="px-3 py-1.5 bg-slate-855 hover:bg-slate-800 text-slate-300 rounded-lg text-[10.5px] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer font-bold"
+                  >
+                    Anterior
+                  </button>
+                  {reviewIndex + 1 < flashcards.length ? (
+                    <button
+                      onClick={() => {
+                        setReviewIndex(prev => prev + 1);
+                        setShowingTranslation(false);
+                      }}
+                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-[10.5px] font-bold cursor-pointer"
+                    >
+                      Avançar
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setReviewActive(false);
+                        showToast("✓ Revisão de lição completada com sucesso!", "success");
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10.5px] font-bold cursor-pointer"
+                    >
+                      Terminar
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1179,13 +1652,22 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
     <div className="space-y-6" id="academy-belt-path-view">
       {/* Upper overview header */}
       <div className="bg-gradient-to-r from-slate-900 via-[#070a13] to-slate-950 p-6 rounded-2xl border border-slate-850 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-xl">
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 flex-1 w-full">
           <div className="flex items-center gap-2">
             <span className="text-xl">{beltLabelMeta.icon}</span>
             <span className="text-[10px] font-mono tracking-widest text-violet-300 uppercase font-black">GRADUAÇÃO {beltLabelMeta.label}</span>
           </div>
           <h2 className="font-display font-black text-2xl text-white tracking-tight leading-none mt-1">{currentModule.title}</h2>
           <p className="text-xs text-slate-400 font-sans max-w-2xl leading-relaxed mt-1.5">{currentModule.description}</p>
+          
+          <div className="pt-3">
+            <button
+              onClick={startCourseMode}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs uppercase cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform duration-100 shadow-lg shadow-violet-600/10"
+            >
+              ▶ Iniciar Curso
+            </button>
+          </div>
         </div>
 
         <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 flex flex-col items-center justify-center shrink-0 w-full md:w-fit text-center space-y-1 min-w-36">
