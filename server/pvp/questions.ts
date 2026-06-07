@@ -146,8 +146,21 @@ export async function seedQuestionsInDb() {
     if (count === 0) {
       console.log("🌱 Semeando banco de dados com perguntas de BJJ de alta fidelidade...");
       for (const q of bjjQuestionsPool) {
-        await prisma.pvpQuestion.create({
-          data: {
+        await prisma.pvpQuestion.upsert({
+          where: { id: q.id },
+          update: {
+            text: q.text,
+            category: q.category,
+            difficulty: q.difficulty,
+            optionA: q.optionA,
+            optionB: q.optionB,
+            optionC: q.optionC,
+            optionD: q.optionD,
+            correctOption: q.correctOption,
+            explanation: q.explanation,
+            isActive: true
+          },
+          create: {
             id: q.id,
             text: q.text,
             category: q.category,

@@ -4245,8 +4245,17 @@ export async function seedPlansInDb() {
     const count = await prisma.plan.count();
     if (count > 0) return;
 
-    await prisma.plan.create({
-      data: {
+    await prisma.plan.upsert({
+      where: { id: "plan-free-id" },
+      update: {
+        name: "FREE",
+        description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
+        priceBRL: 0.00,
+        interval: "monthly",
+        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"],
+        active: true
+      },
+      create: {
         id: "plan-free-id",
         name: "FREE",
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
@@ -4257,8 +4266,17 @@ export async function seedPlansInDb() {
       }
     });
 
-    await prisma.plan.create({
-      data: {
+    await prisma.plan.upsert({
+      where: { id: "plan-pro-id" },
+      update: {
+        name: "PRO",
+        description: "Acesso completo a lições avançadas, geradores inteligentes de treinos e carteira.",
+        priceBRL: 29.90,
+        interval: "monthly",
+        features: ["Todas as lições completas", "Gerador Inteligente de Treinos (Gemini AI)", "Histórico financeiro profissional", "Suporte prioritário via tatame", "Selo Pro de destaque"],
+        active: true
+      },
+      create: {
         id: "plan-pro-id",
         name: "PRO",
         description: "Acesso completo a lições avançadas, geradores inteligentes de treinos e carteira.",
@@ -4269,8 +4287,17 @@ export async function seedPlansInDb() {
       }
     });
 
-    await prisma.plan.create({
-      data: {
+    await prisma.plan.upsert({
+      where: { id: "plan-master-id" },
+      update: {
+        name: "MASTER",
+        description: "Todas as vantagens do PRO, Arena PvP sem limites e simuladores avançados.",
+        priceBRL: 59.90,
+        interval: "monthly",
+        features: ["Tudo incluído do plano PRO", "Arena PvP ilimitada 🥋", "Simulador ilimitado de Pix", "Insígnias lendárias personalizadas", "Relatório de desempenho em tempo-real"],
+        active: true
+      },
+      create: {
         id: "plan-master-id",
         name: "MASTER",
         description: "Todas as vantagens do PRO, Arena PvP sem limites e simuladores avançados.",
