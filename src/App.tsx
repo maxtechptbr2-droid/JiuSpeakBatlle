@@ -284,6 +284,8 @@ export default function App() {
     localStorage.removeItem('jiuspeak_access_token');
     localStorage.removeItem('jiuspeak_refresh_token');
     localStorage.removeItem('jiuspeak_user_profile_v2');
+    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
     setSession(null);
     showToast("Dispositivo desconectado do sistema.", "info");
   };
@@ -291,6 +293,8 @@ export default function App() {
   const handleLoginSuccess = (data: { accessToken: string; refreshToken: string; user: any }) => {
     localStorage.setItem('jiuspeak_access_token', data.accessToken);
     localStorage.setItem('jiuspeak_refresh_token', data.refreshToken);
+    localStorage.setItem('token', data.accessToken);
+    localStorage.setItem('accessToken', data.accessToken);
     setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
     syncMe(data.accessToken);
   };
@@ -312,6 +316,8 @@ export default function App() {
           if (res.ok) {
             const data = await res.json();
             localStorage.setItem('jiuspeak_access_token', data.accessToken);
+            localStorage.setItem('token', data.accessToken);
+            localStorage.setItem('accessToken', data.accessToken);
             setSession({ accessToken: data.accessToken, refreshToken: refresh });
             await syncMe(data.accessToken);
           } else {
@@ -320,6 +326,9 @@ export default function App() {
         } catch (err) {
           console.error("Refresh token failure", err);
         }
+      } else {
+        localStorage.setItem('token', access);
+        localStorage.setItem('accessToken', access);
       }
     };
     initAuth();

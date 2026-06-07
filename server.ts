@@ -1197,11 +1197,12 @@ app.post("/api/auth/logout", async (req: any, res: any) => {
     if (refreshToken) {
       try {
         const decoded: any = jwt.decode(refreshToken);
-        if (decoded && decoded.id) {
+        const targetUserId = decoded ? (decoded.userId || decoded.id) : null;
+        if (targetUserId) {
           const prisma = getPrisma();
           if (prisma) {
             const u = await prisma.user.findUnique({
-              where: { id: decoded.id },
+              where: { id: targetUserId },
               select: { email: true }
             });
             if (u) fallbackEmail = u.email;
