@@ -16,6 +16,7 @@ import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
 import { authStore, simulatedSentEmails, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar, patchProductObjectWithBjjAvatar } from "./server/authStore";
 import { BASE_CHARACTERS, BELTS, getAvatarSvg } from "./server/avatarGenerator";
+import { scanAvatarsDirectory } from "./scripts/import-avatars";
 import { AuthService, generateAccessToken, generateRefreshToken, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
@@ -458,6 +459,7 @@ export async function initializePremiumBjjAvatars() {
   
   const avatarsList: any[] = [];
   
+  // 1. Setup default dynamic vector characters
   for (const c of BASE_CHARACTERS) {
     for (const belt of BELTS) {
       let rarity = "COMMON";
@@ -504,31 +506,48 @@ export async function initializePremiumBjjAvatars() {
       };
       
       avatarsList.push(prod);
-      
-      // Inject into inMemoryStoreProducts if not already exists
-      const exists = inMemoryStoreProducts.some(p => p.id === prod.id);
-      if (!exists) {
-        inMemoryStoreProducts.push(prod);
+    }
+  }
+
+  // 2. Scan physical premium image assets if they exist (Automatic Auto-detection)
+  let scannedList: any[] = [];
+  try {
+    scannedList = scanAvatarsDirectory();
+    console.log(`📂 Varredura física encontrou ${scannedList.length} arquivos WebP de avatar na pasta assets.`);
+    for (const s of scannedList) {
+      const existsIdx = avatarsList.findIndex(p => p.id === s.id);
+      if (existsIdx === -1) {
+        avatarsList.push(s);
+      } else {
+        avatarsList[existsIdx] = s; // Replace with physical image path
+      }
+    }
+  } catch (err) {
+    console.log("ℹ️ Erro ao obter avatares físicos para inicialização:", err);
+  }
+  
+  // 3. Populate in-memory store
+  for (const prod of avatarsList) {
+    const exists = inMemoryStoreProducts.some(p => p.id === prod.id);
+    if (!exists) {
+      inMemoryStoreProducts.push(prod);
+    } else {
+      const idx = inMemoryStoreProducts.findIndex(p => p.id === prod.id);
+      if (idx !== -1) {
+        inMemoryStoreProducts[idx] = { ...inMemoryStoreProducts[idx], ...prod };
       }
     }
   }
-  
-  console.log(`Linker: ${avatarsList.length} avatares mapeados.`);
+
+  console.log(`Linker: ${avatarsList.length} total de avatares mapeados na loja.`);
 
   if (isDatabaseConnected()) {
     try {
       const prisma = getPrisma();
       if (prisma) {
         console.log("🌱 Semeando os avatares premium no banco PostgreSQL de forma resiliente...");
-        const existingCount = await prisma.storeProduct.count({
-          where: { id: { startsWith: "prod_avatar_isabella_" } }
-        });
-        if (existingCount >= 12) {
-          console.log("✨ Catálogo de avatares premium já existente no PostgreSQL.");
-          return;
-        }
         
-        // Seed concurrently in small batches to speed up boot
+        // Seed concurrently in batches to speed up boot
         for (let i = 0; i < avatarsList.length; i += 20) {
           const batch = avatarsList.slice(i, i + 20);
           await Promise.all(batch.map(async (prod) => {
@@ -542,6 +561,7 @@ export async function initializePremiumBjjAvatars() {
                   category: prod.category,
                   rarity: prod.rarity as any,
                   imageUrl: prod.imageUrl,
+                  stock: prod.stock ?? null,
                   active: true
                 },
                 create: {
@@ -552,6 +572,7 @@ export async function initializePremiumBjjAvatars() {
                   category: prod.category,
                   rarity: prod.rarity as any,
                   imageUrl: prod.imageUrl,
+                  stock: prod.stock ?? null,
                   active: true
                 }
               });
@@ -560,7 +581,7 @@ export async function initializePremiumBjjAvatars() {
             }
           }));
         }
-        console.log(`🌱 Semeadura concluída! Avatares premium carregados.`);
+        console.log(`🌱 Semeadura concluída! Avatares premium carregados no PostgreSQL.`);
       }
     } catch (err) {
       console.error("Failed to seed premium avatars to database:", err);

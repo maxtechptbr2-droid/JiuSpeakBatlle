@@ -291,7 +291,33 @@ export default function InventoryPanel({
   const equippedLegendary = items.find(it => it.isEquipped && it.product?.category === 'LEGENDARY');
 
   // Beautiful cosmetic badge styler
-  const getRarityBadgeStyle = (rarity: string) => {
+  const getRarityBadgeStyle = (rarity: string, productName?: string) => {
+    const nameLower = productName?.toLowerCase() || '';
+    if (nameLower.includes('faixa cinza') || nameLower.includes('faixa branca') || nameLower.includes('grey') || nameLower.includes('white')) {
+      return 'bg-slate-800 text-slate-350 border-slate-700';
+    }
+    if (nameLower.includes('faixa amarela') || nameLower.includes('faixa laranja') || nameLower.includes('yellow') || nameLower.includes('orange')) {
+      return 'bg-amber-600/10 text-amber-500 border-amber-500/25';
+    }
+    if (nameLower.includes('faixa verde') || nameLower.includes('faixa azul') || nameLower.includes('green') || nameLower.includes('blue')) {
+      return 'bg-blue-600/10 text-blue-400 border-blue-500/20';
+    }
+    if (nameLower.includes('faixa roxa') || nameLower.includes('faixa marrom') || nameLower.includes('purple') || nameLower.includes('brown')) {
+      return 'bg-purple-650/10 text-purple-400 border-purple-500/20';
+    }
+    if (nameLower.includes('faixa preta') || nameLower.includes('black')) {
+      return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20 animate-pulse';
+    }
+    if (nameLower.includes('faixa coral') || nameLower.includes('coral')) {
+      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 animate-pulse';
+    }
+    if (nameLower.includes('faixa vermelha e preta') || nameLower.includes('red_black')) {
+      return 'bg-gradient-to-r from-red-650/10 to-slate-900/15 text-red-500 border-red-500/25 font-bold animate-pulse';
+    }
+    if (nameLower.includes('faixa vermelha e branca') || nameLower.includes('red_white')) {
+      return 'bg-gradient-to-r from-red-600/15 to-white/10 text-rose-400 border-rose-400/35 font-extrabold animate-pulse';
+    }
+
     const r = rarity?.toUpperCase();
     switch (r) {
       case 'COMMON':
@@ -314,7 +340,21 @@ export default function InventoryPanel({
     }
   };
 
-  const getRarityLabel = (rarity: string) => {
+  const getRarityLabel = (rarity: string, productName?: string) => {
+    const nameLower = productName?.toLowerCase() || '';
+    if (nameLower.includes('faixa cinza') || nameLower.includes('grey')) return 'Comum';
+    if (nameLower.includes('faixa branca') || nameLower.includes('white')) return 'Comum';
+    if (nameLower.includes('faixa amarela') || nameLower.includes('yellow')) return 'Incomum';
+    if (nameLower.includes('faixa laranja') || nameLower.includes('orange')) return 'Incomum';
+    if (nameLower.includes('faixa verde') || nameLower.includes('green')) return 'Raro';
+    if (nameLower.includes('faixa azul') || nameLower.includes('blue')) return 'Raro';
+    if (nameLower.includes('faixa roxa') || nameLower.includes('purple')) return 'Épico';
+    if (nameLower.includes('faixa marrom') || nameLower.includes('brown')) return 'Épico';
+    if (nameLower.includes('faixa preta') || nameLower.includes('black')) return 'Lendário';
+    if (nameLower.includes('faixa coral') || nameLower.includes('coral')) return 'Mestre';
+    if (nameLower.includes('faixa vermelha e preta') || nameLower.includes('red_black')) return 'Grão-Mestre';
+    if (nameLower.includes('faixa vermelha e branca') || nameLower.includes('red_white')) return 'Mestre Supremo';
+
     const r = rarity?.toUpperCase();
     switch (r) {
       case 'COMMON':
@@ -796,8 +836,8 @@ export default function InventoryPanel({
                             </span>
 
                             {/* Rarity Star marker */}
-                            <span className={`absolute top-1.5 left-1.5 text-[8px] font-extrabold px-1.5 py-0.5 rounded border tracking-wide uppercase ${getRarityBadgeStyle(item.rarity)}`}>
-                              {getRarityLabel(item.rarity)}
+                            <span className={`absolute top-1.5 left-1.5 text-[8px] font-extrabold px-1.5 py-0.5 rounded border tracking-wide uppercase ${getRarityBadgeStyle(item.rarity, item.name)}`}>
+                              {getRarityLabel(item.rarity, item.name)}
                             </span>
 
                             {isEquipped && (
@@ -951,8 +991,8 @@ export default function InventoryPanel({
             <div className="p-6 md:p-8 space-y-6">
               
               <div className="text-center">
-                <span className={`text-[10px] font-mono tracking-widest font-black px-3 py-1 rounded-full border ${getRarityBadgeStyle(viewItemModal.rarity)} uppercase`}>
-                  🎒 COFRE DA MOCHILA — {getRarityLabel(viewItemModal.rarity)}
+                <span className={`text-[10px] font-mono tracking-widest font-black px-3 py-1 rounded-full border ${getRarityBadgeStyle(viewItemModal.rarity, viewItemModal.name)} uppercase`}>
+                  🎒 COFRE DA MOCHILA — {getRarityLabel(viewItemModal.rarity, viewItemModal.name)}
                 </span>
               </div>
 

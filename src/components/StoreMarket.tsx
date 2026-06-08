@@ -1028,7 +1028,33 @@ export default function StoreMarket({
     setTimeout(() => setPixCopiado(false), 2000);
   };
 
-  const getRarityBadgeColor = (rarity: string) => {
+  const getRarityBadgeColor = (rarity: string, productName?: string) => {
+    const nameLower = productName?.toLowerCase() || '';
+    if (nameLower.includes('faixa cinza') || nameLower.includes('faixa branca') || nameLower.includes('grey') || nameLower.includes('white')) {
+      return 'bg-slate-800 text-slate-350 border-slate-700';
+    }
+    if (nameLower.includes('faixa amarela') || nameLower.includes('faixa laranja') || nameLower.includes('yellow') || nameLower.includes('orange')) {
+      return 'bg-amber-600/10 text-amber-500 border-amber-500/25';
+    }
+    if (nameLower.includes('faixa verde') || nameLower.includes('faixa azul') || nameLower.includes('green') || nameLower.includes('blue')) {
+      return 'bg-blue-600/10 text-blue-400 border-blue-500/20';
+    }
+    if (nameLower.includes('faixa roxa') || nameLower.includes('faixa marrom') || nameLower.includes('purple') || nameLower.includes('brown')) {
+      return 'bg-purple-650/10 text-purple-400 border-purple-500/20';
+    }
+    if (nameLower.includes('faixa preta') || nameLower.includes('black')) {
+      return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20 animate-pulse';
+    }
+    if (nameLower.includes('faixa coral') || nameLower.includes('coral')) {
+      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 animate-pulse';
+    }
+    if (nameLower.includes('faixa vermelha e preta') || nameLower.includes('red_black')) {
+      return 'bg-gradient-to-r from-red-650/10 to-slate-900/15 text-red-500 border-red-500/25 font-bold animate-pulse';
+    }
+    if (nameLower.includes('faixa vermelha e branca') || nameLower.includes('red_white')) {
+      return 'bg-gradient-to-r from-red-600/15 to-white/10 text-rose-400 border-rose-400/35 font-extrabold animate-pulse';
+    }
+
     const r = rarity?.toUpperCase();
     switch (r) {
       case 'COMUM':
@@ -1051,7 +1077,21 @@ export default function StoreMarket({
     }
   };
 
-  const getRarityLabel = (rarity: string) => {
+  const getRarityLabel = (rarity: string, productName?: string) => {
+    const nameLower = productName?.toLowerCase() || '';
+    if (nameLower.includes('faixa cinza') || nameLower.includes('grey')) return 'Comum';
+    if (nameLower.includes('faixa branca') || nameLower.includes('white')) return 'Comum';
+    if (nameLower.includes('faixa amarela') || nameLower.includes('yellow')) return 'Incomum';
+    if (nameLower.includes('faixa laranja') || nameLower.includes('orange')) return 'Incomum';
+    if (nameLower.includes('faixa verde') || nameLower.includes('green')) return 'Raro';
+    if (nameLower.includes('faixa azul') || nameLower.includes('blue')) return 'Raro';
+    if (nameLower.includes('faixa roxa') || nameLower.includes('purple')) return 'Épico';
+    if (nameLower.includes('faixa marrom') || nameLower.includes('brown')) return 'Épico';
+    if (nameLower.includes('faixa preta') || nameLower.includes('black')) return 'Lendário';
+    if (nameLower.includes('faixa coral') || nameLower.includes('coral')) return 'Mestre';
+    if (nameLower.includes('faixa vermelha e preta') || nameLower.includes('red_black')) return 'Grão-Mestre';
+    if (nameLower.includes('faixa vermelha e branca') || nameLower.includes('red_white')) return 'Mestre Supremo';
+
     const r = rarity?.toUpperCase();
     switch (r) {
       case 'COMMON':
@@ -1538,9 +1578,9 @@ export default function StoreMarket({
                             </span>
 
                             {/* Rarity Star Badge */}
-                            <span className={`absolute top-2 left-2 text-[8px] font-extrabold px-2 py-0.5 rounded-full border tracking-wide uppercase ${getRarityBadgeColor(product.rarity)} flex items-center gap-1`}>
+                            <span className={`absolute top-2 left-2 text-[8px] font-extrabold px-2 py-0.5 rounded-full border tracking-wide uppercase ${getRarityBadgeColor(product.rarity, product.name)} flex items-center gap-1`}>
                               <Sparkle className="w-2.5 h-2.5 fill-current" />
-                              <span>{getRarityLabel(product.rarity)}</span>
+                              <span>{getRarityLabel(product.rarity, product.name)}</span>
                             </span>
                           </div>
 
@@ -3097,8 +3137,8 @@ export default function StoreMarket({
             <div className="p-6 md:p-8 space-y-6">
               
               <div className="text-center">
-                <span className={`text-[10px] font-mono tracking-widest font-extrabold px-3 py-1 rounded-full border ${getRarityBadgeColor(viewItemModal.rarity)} uppercase`}>
-                  🎯 DETALHES DO COSMÉTICO — {getRarityLabel(viewItemModal.rarity)}
+                <span className={`text-[10px] font-mono tracking-widest font-extrabold px-3 py-1 rounded-full border ${getRarityBadgeColor(viewItemModal.rarity, viewItemModal.name)} uppercase`}>
+                  🎯 DETALHES DO COSMÉTICO — {getRarityLabel(viewItemModal.rarity, viewItemModal.name)}
                 </span>
               </div>
 
@@ -3138,7 +3178,7 @@ export default function StoreMarket({
               <div className="grid grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-xl border border-slate-900/80 text-xs">
                 <div className="space-y-0.5">
                   <span className="block text-[9px] text-slate-500 font-mono uppercase">CLASSIFICAÇÃO</span>
-                  <span className="font-bold text-slate-200">{getRarityLabel(viewItemModal.rarity)}</span>
+                  <span className="font-bold text-slate-200">{getRarityLabel(viewItemModal.rarity, viewItemModal.name)}</span>
                 </div>
                 <div className="space-y-0.5">
                   <span className="block text-[9px] text-slate-500 font-mono uppercase">VALOR DE RESGATE</span>
