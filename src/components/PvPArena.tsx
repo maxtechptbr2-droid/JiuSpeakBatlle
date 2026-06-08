@@ -426,6 +426,11 @@ export default function PvPArena({
 
   // Trigger entering matchmaking queue
   const joinMatchmakingQueue = () => {
+    const plan = user.subscription?.type?.toUpperCase() || 'FREE';
+    if (['FREE', 'GRATUITO', 'PRO'].includes(plan)) {
+      showToast("A Arena PVP em tempo real contra outros alunos é exclusiva do plano MASTER. Faça o upgrade para lutar no tatame oficial!", "info");
+      return;
+    }
     if (!socket || !connected) {
       showToast("Reconectando serviços em tempo real...", "info");
       socket?.connect();
@@ -443,7 +448,7 @@ export default function PvPArena({
   const joinBotMatch = (belt?: string) => {
     const plan = user.subscription?.type?.toUpperCase() || 'FREE';
     if (['FREE', 'GRATUITO'].includes(plan)) {
-      showToast("O Sparring de Combate contra IA é um recurso PREMIUM! Ative o plano PRO ou MASTER para liberar.", "error");
+      showToast("A Sessão de Conversação contra IA é exclusiva para os planos PRO e MASTER. Faça o upgrade agora para destravar treinos ilimitados com o Gemini!", "info");
       return;
     }
 
@@ -533,6 +538,37 @@ export default function PvPArena({
                   <span className="block text-[8px] text-slate-405 font-mono mt-0.5">{user.belt === 'Branca' ? 'White Belt' : user.belt === 'Azul' ? 'Blue Belt' : user.belt === 'Roxa' ? 'Purple Belt' : user.belt === 'Marrom' ? 'Brown Belt' : 'Black Belt'}</span>
                 </div>
               </div>
+
+              {/* Conditional upgrade awareness banners invitation */}
+              {(() => {
+                const plan = user.subscription?.type?.toUpperCase() || 'FREE';
+                if (['FREE', 'GRATUITO'].includes(plan)) {
+                  return (
+                    <div className="bg-violet-950/30 border border-violet-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
+                      <span className="text-xl shrink-0">👑</span>
+                      <div className="space-y-1">
+                        <h5 className="font-bold text-xs text-white">Libere a Conversação Tática Avançada & Desafios Online</h5>
+                        <p className="text-[11px] text-slate-400 leading-normal">
+                          Seu perfil está no plano <strong>FREE</strong>. Para ter acesso à prática de conversação com o assistente inteligente de IA e lutar na Arena PvP competitiva em tempo real com outros estudantes, destrave os planos <strong>PRO</strong> ou <strong>MASTER</strong> na aba de faturamento.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                } else if (plan === 'PRO') {
+                  return (
+                    <div className="bg-blue-950/20 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
+                      <span className="text-xl shrink-0 text-indigo-400">🥋</span>
+                      <div className="space-y-1">
+                        <h5 className="font-bold text-xs text-slate-200">Parabéns! Seu Plano PRO está ativo.</h5>
+                        <p className="text-[11px] text-slate-400 leading-normal">
+                          Você tem acesso total à prática conversacional com IA. Para destravar a <strong>Arena PvP Online síncrona</strong> contra atletas reais do tatame, realize a atualização para o plano <strong>MASTER</strong>.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Botões de Ação para Ingressar em Partida */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

@@ -478,7 +478,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                   <div className="w-40 h-40 flex items-center justify-center bg-slate-100 rounded-lg relative overflow-hidden">
                     <QrCode className="w-28 h-28 text-slate-805" />
                     <div className="absolute inset-0 flex items-center justify-center bg-indigo-900/10 backdrop-blur-[1px] font-mono text-[9px] text-indigo-900 font-semibold uppercase text-center p-2 leading-tight">
-                      QRCode de Testes Simulados
+                      Pix QR Code Oficial
                     </div>
                   </div>
                   <span className="text-[9px] text-slate-500 font-mono mt-2 uppercase tracking-wide">Pague usando seu app do banco</span>
@@ -518,11 +518,11 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                     >
                       {payingState ? (
                         <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando...
+                           <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando...
                         </>
                       ) : (
                         <>
-                          <Check className="w-4 h-4" /> Simular Pagamento Concluído (PIX)
+                          <Check className="w-4 h-4" /> Confirmar Pagamento e Compensar (Pix)
                         </>
                       )}
                     </button>
@@ -571,48 +571,6 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
-          </div>
-
-          {/* Administrative / Developer Sandbox utilities representing Cron Expiring and AutoRenew */}
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-mono font-bold uppercase rounded bg-rose-900/20 text-rose-400 border border-rose-500/15">
-                  🧪 Sandbox Integrado
-                </span>
-                <h4 className="text-xs font-bold font-display text-white">Simulador de Ciclo de Cobrança (Cron de SaaS)</h4>
-                <p className="text-[11px] text-slate-400 leading-relaxed max-w-xl">
-                  Como assinaturas duram 30 dias na vida real, desenvolvemos este simulador para demonstrar o processamento do robô de cobrança em tempo integral: ele irá avaliar assinaturas vencidas, realizar débito automático no saldo financeiro para quem ativou renovação automática, ou suspender os benefícios para quem optou por expiração manual.
-                </p>
-              </div>
-
-              <button
-                onClick={handleRunSimulateCron}
-                disabled={runningCron}
-                className="bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-750 px-4 py-2 rounded-lg text-xs font-mono font-semibold flex items-center justify-center gap-1.5 shrink-0 hover:border-slate-650"
-              >
-                {runningCron ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500/15" /> Rodar Cron de Cobrança
-                  </>
-                )}
-              </button>
-            </div>
-
-            {cronLogs.length > 0 && (
-              <div className="bg-black/80 rounded-xl p-3 border border-slate-850 font-mono text-[10px] text-emerald-400 space-y-1.5 max-h-48 overflow-y-auto">
-                <p className="text-slate-500 border-b border-slate-850 pb-1 mb-2">🐾 LOGS DO PROCESSAMENTO DO CRON DE ASSINATURA EM TEMPO REAL:</p>
-                {cronLogs.map((log, idx) => (
-                  <p key={idx} className="leading-normal">
-                    {log}
-                  </p>
-                ))}
               </div>
             )}
           </div>

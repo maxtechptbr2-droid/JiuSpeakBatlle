@@ -684,6 +684,11 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
               <button
                 key={tab.id}
                 onClick={() => {
+                  const isFreePlan = !user.subscription || ['FREE', 'GRATUITO'].includes(user.subscription.type.toUpperCase());
+                  if (tab.tab === 'my_academy' && isFreePlan) {
+                    showToast("Acesso às academias BJJ é exclusivo para os planos PRO e MASTER. Faça o upgrade para fazer parte de equipes!", "info");
+                    return;
+                  }
                   setTopTabNav(tab.tab as any);
                   if (tab.tab === 'my_academy') {
                     // Instantly open the user's active academy
@@ -861,6 +866,11 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                       key={ac.id}
                       className={`bg-slate-900 border rounded-3xl p-5 flex flex-col justify-between hover:scale-[1.01] hover:bg-slate-900/90 transition-all duration-200 cursor-pointer shadow-xl relative overflow-hidden group ${ac.borderAccent} ${ac.hoverAccent}`}
                       onClick={() => {
+                        const isFreePlan = !user.subscription || ['FREE', 'GRATUITO'].includes(user.subscription.type.toUpperCase());
+                        if (isFreePlan) {
+                          showToast("Acesso às academias BJJ é exclusivo para os planos PRO e MASTER. Faça o upgrade para fazer parte de equipes!", "info");
+                          return;
+                        }
                         setSelectedAcademyId(ac.id);
                         setActiveSubTab('info');
                       }}

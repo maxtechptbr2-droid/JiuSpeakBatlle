@@ -57,11 +57,13 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     { id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' },
     { id: 'market', label: 'Loja JiuSpeak', icon: Store, badge: 'Loja' },
     { id: 'inventory', label: 'Mochila JiuSpeak', icon: Award, badge: 'Mochila' },
-    { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' },
     { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
     { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
     { id: 'academies', label: 'Academias BJJ', icon: Shield, badge: 'Equipes' },
     { id: 'viral', label: 'Compartilhar Viral', icon: Share2, badge: 'Canvas' },
+    ...(user.role === 'admin' ? [
+      { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' }
+    ] : []),
     ...(user.role === 'admin' || user.role === 'professor' ? [
       { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Docente' }
     ] : []),
@@ -211,7 +213,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
                 { id: 'academy_pvp', label: '🥊 Arena PVP' },
                 { id: 'academy_progress', label: '📊 Meu Progresso' },
                 { id: 'academy_certs', label: '📜 Certificados' },
-                ...((user.role === 'admin' || user.role === 'professor') ? [
+                ...(user.role === 'admin' ? [
                   { id: 'academy_admin', label: '🛠️ Academy Manager' }
                 ] : [])
               ].map((sub) => {
