@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, Course, BeltRank } from '../types';
 import { NETFLIX_ASSETS, NetflixAsset } from '../data/lessonsData';
+import * as lessonsData from '../data/lessonsData';
 
 interface LessonsProps {
   user: UserProfile;
@@ -87,6 +88,100 @@ export default function Lessons({
     return cached ? JSON.parse(cached) : ['Branca']; // Branca starts unlocked as onboarding trial
   });
 
+  const [assetsList, setAssetsList] = useState<NetflixAsset[]>(NETFLIX_ASSETS);
+
+  const getYoutubeId = (url: string | undefined): string => {
+    if (!url) return "";
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : "";
+  };
+
+  const mapBeltToBrazilian = (beltLevel: string): BeltRank => {
+    const b = beltLevel.toUpperCase();
+    if (b === 'WHITE') return 'Branca';
+    if (b === 'BLUE') return 'Azul';
+    if (b === 'PURPLE') return 'Roxa';
+    if (b === 'BROWN') return 'Marrom';
+    if (b === 'BLACK') return 'Preto';
+    return 'Branca';
+  };
+
+  useEffect(() => {
+    const fetchDynamicModules = async () => {
+      try {
+        const res = await fetch('/api/academy/modules', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+        if (data.success && data.modules) {
+          localStorage.setItem('jiuspeak_academy_modules_data', JSON.stringify(data.modules));
+          const dbVideoAssets: NetflixAsset[] = [];
+          data.modules.forEach((mod: any) => {
+            const category = mapBeltToBrazilian(mod.beltLevel);
+            if (mod.lessons) {
+              mod.lessons.forEach((les: any) => {
+                const yId = getYoutubeId(les.youtubeUrl);
+                dbVideoAssets.push({
+                  id: les.id,
+                  title: les.title,
+                  type: 'video',
+                  category: category,
+                  subcategory: 'Posições',
+                  duration: '10 min',
+                  description: les.description,
+                  imageUrl: yId 
+                    ? `https://img.youtube.com/vi/${yId}/maxresdefault.jpg` 
+                    : 'https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=600',
+                  xpReward: les.xpReward || 100,
+                  difficulty: category === 'Branca' ? 'Iniciante' : category === 'Azul' ? 'Intermediário' : category === 'Roxa' ? 'Avançado' : 'Mestre',
+                  videoUrl: les.youtubeUrl,
+                });
+              });
+            }
+          });
+          const nonVideoAssets = NETFLIX_ASSETS.filter(asset => asset.type !== 'video');
+          setAssetsList([...nonVideoAssets, ...dbVideoAssets]);
+        }
+      } catch (err) {
+        console.warn("⚠️ Falha ao carregar aulas dinâmicas em Lessons.tsx. Usando cache local se disponível.", err);
+        const cachedStr = localStorage.getItem('jiuspeak_academy_modules_data');
+        if (cachedStr) {
+          try {
+            const cachedModules = JSON.parse(cachedStr);
+            const dbVideoAssets: NetflixAsset[] = [];
+            cachedModules.forEach((mod: any) => {
+              const category = mapBeltToBrazilian(mod.beltLevel);
+              if (mod.lessons) {
+                mod.lessons.forEach((les: any) => {
+                  const yId = getYoutubeId(les.youtubeUrl);
+                  dbVideoAssets.push({
+                    id: les.id,
+                    title: les.title,
+                    type: 'video',
+                    category: category,
+                    subcategory: 'Posições',
+                    duration: '10 min',
+                    description: les.description,
+                    imageUrl: yId 
+                      ? `https://img.youtube.com/vi/${yId}/maxresdefault.jpg` 
+                      : 'https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=600',
+                    xpReward: les.xpReward || 100,
+                    difficulty: category === 'Branca' ? 'Iniciante' : category === 'Azul' ? 'Intermediário' : category === 'Roxa' ? 'Avançado' : 'Mestre',
+                    videoUrl: les.youtubeUrl,
+                  });
+                });
+              }
+            });
+            const nonVideoAssets = NETFLIX_ASSETS.filter(asset => asset.type !== 'video');
+            setAssetsList([...nonVideoAssets, ...dbVideoAssets]);
+          } catch (e) {}
+        }
+      }
+    };
+    fetchDynamicModules();
+  }, []);
+
   // --- SELECTION & OUTLET STATES ---
   const [selectedBelt, setSelectedBelt] = useState<'ALL' | BeltRank>('ALL');
   const [selectedType, setSelectedType] = useState<'ALL' | 'video' | 'audio' | 'pdf' | 'quiz' | 'exercise'>('ALL');
@@ -128,6 +223,19 @@ export default function Lessons({
   useEffect(() => {
     localStorage.setItem('js_fav_assets', JSON.stringify(favorites));
   }, [favorites]);
+
+  useEffect(() => {
+    if (activePlayAsset && activePlayAsset.type === 'video') {
+      const lesson = { ...activePlayAsset, videoUrl: activePlayAsset.videoUrl || "" };
+      const yId = getYoutubeId(lesson.videoUrl);
+      const embedUrl = yId ? `https://www.youtube.com/embed/${yId}?autoplay=1&mute=1&rel=0&modestbranding=1` : "";
+      
+      console.log("Lessons Source:", lessonsData);
+      console.log("Current Lesson:", lesson);
+      console.log("Video URL:", lesson.videoUrl);
+      console.log("Embed URL:", embedUrl);
+    }
+  }, [activePlayAsset]);
 
   useEffect(() => {
     localStorage.setItem('js_asset_progress', JSON.stringify(assetProgress));
@@ -301,18 +409,18 @@ export default function Lessons({
 
   // --- STATS CALCULATIONS ---
   const getBeltProgress = (belt: BeltRank): number => {
-    const beltAssets = NETFLIX_ASSETS.filter(x => x.category === belt);
+    const beltAssets = assetsList.filter(x => x.category === belt);
     if (beltAssets.length === 0) return 0;
     const completedCount = beltAssets.filter(x => assetProgress[x.id] === 100).length;
     return Math.round((completedCount / beltAssets.length) * 100);
   };
 
   const totalProgress = Math.round(
-    (Object.values(assetProgress).filter(v => v === 100).length / NETFLIX_ASSETS.length) * 100
+    (Object.values(assetProgress).filter(v => v === 100).length / assetsList.length) * 100
   ) || 12;
 
   const getFilteredAssets = () => {
-    return NETFLIX_ASSETS.filter(asset => {
+    return assetsList.filter(asset => {
       const matchBelt = selectedBelt === 'ALL' || asset.category === selectedBelt;
       const matchType = selectedType === 'ALL' || asset.type === selectedType;
       const matchSearch = searchQuery.trim() === '' || 
@@ -407,7 +515,7 @@ export default function Lessons({
             {/* Banner action buttons */}
             <div className="flex items-center gap-3 pt-2">
               <button 
-                onClick={() => handleOpenAsset(NETFLIX_ASSETS.find(x => x.id === 'k-vid-1') || NETFLIX_ASSETS[0])}
+                onClick={() => handleOpenAsset(assetsList.find(x => x.id === 'k-vid-1') || assetsList[0])}
                 className="p-2.5 px-6 bg-white hover:bg-zinc-200 text-black text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg cursor-pointer transform hover:scale-103 font-sans"
               >
                 <Play className="w-3.5 h-3.5 fill-black text-black" /> Começar Assistir
@@ -567,7 +675,7 @@ export default function Lessons({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {NETFLIX_ASSETS.filter(x => assetProgress[x.id] > 0 && assetProgress[x.id] < 100).map(asset => (
+              {assetsList.filter(x => assetProgress[x.id] > 0 && assetProgress[x.id] < 100).map(asset => (
                 <NetflixAssetCard 
                   key={asset.id}
                   asset={asset}
@@ -590,7 +698,7 @@ export default function Lessons({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {NETFLIX_ASSETS.filter(x => favorites.includes(x.id)).map(asset => (
+              {assetsList.filter(x => favorites.includes(x.id)).map(asset => (
                 <NetflixAssetCard 
                   key={asset.id}
                   asset={asset}
@@ -795,28 +903,40 @@ export default function Lessons({
               {/* PLAY TAB (VIDEO / AUDIO / PDF PLAYER INTERFACE) */}
               {mediaTab === 'play' && (
                 <div className="space-y-4 animate-fadeIn">
-                  
-                  {/* Text descriptions */}
-                  <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-sans">{activePlayAsset.description}</p>
-
-                  {/* 1. Video Player Custom layout styling */}
+                   {/* 1. Video Player Custom layout styling */}
                   {activePlayAsset.type === 'video' && (
                     <div className="bg-zinc-950 rounded-xl overflow-hidden border border-zinc-800 relative h-48 sm:h-72 flex flex-col justify-between p-3">
                       
                       {/* Video playback monitor screen simulation */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        {isPlayingMedia ? (
-                          <div className="flex flex-col items-center gap-2 animate-pulse text-red-500 font-mono text-xs font-semibold">
-                            <PlayCircle className="w-12 h-12 text-red-600 animate-spin" />
-                            <span>TRANSMITINDO VÍDEO COMPROMISSADO EM ALTA ALAVANCA...</span>
-                          </div>
-                        ) : (
+                      {isPlayingMedia ? (
+                        (() => {
+                          const yId = getYoutubeId(activePlayAsset.videoUrl);
+                          if (!yId) {
+                            return (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950 text-red-500 font-mono text-center p-4">
+                                <PlayCircle className="w-10 h-10 text-red-650 animate-pulse mb-2" />
+                                <span className="text-xs font-bold uppercase">Vídeo ainda não cadastrado.</span>
+                              </div>
+                            );
+                          }
+                          return (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${yId}?autoplay=1&mute=1&rel=0&modestbranding=1`}
+                              title={activePlayAsset.title}
+                              className="absolute inset-0 w-full h-full border-0 z-0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          );
+                        })()
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                           <PlayCircle className="w-16 h-16 text-zinc-650" />
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* Video play control parameters */}
-                      <div className="z-10 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-800 flex justify-between items-center text-[10px] font-mono">
+                      <div className="z-10 bg-zinc-900/60 p-2.5 rounded-lg border border-zinc-850 flex justify-between items-center text-[10px] font-mono select-none">
                         <span className="text-glow text-red-500 uppercase">Stream: Active</span>
                         <span className="text-zinc-400">SSL Criptografado TLS 1.3</span>
                       </div>

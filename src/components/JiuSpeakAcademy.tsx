@@ -40,6 +40,7 @@ import {
   Check
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import * as lessonsData from '../data/lessonsData';
 
 interface JiuSpeakAcademyProps {
   activeSubTab: string;
@@ -281,6 +282,26 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
   const activeLessonRef = React.useRef<Lesson | null>(null);
   useEffect(() => {
     activeLessonRef.current = activeLesson;
+  }, [activeLesson]);
+
+  useEffect(() => {
+    if (activeLesson) {
+      const parseYoutubeId = (url: string | undefined): string => {
+        if (!url) return "";
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : "";
+      };
+
+      const lesson = { ...activeLesson, videoUrl: activeLesson.youtubeUrl };
+      const yId = parseYoutubeId(activeLesson.youtubeUrl);
+      const embedUrl = yId ? `https://www.youtube.com/embed/${yId}?autoplay=1&mute=1&rel=0&modestbranding=1` : "";
+
+      console.log("Lessons Source:", lessonsData);
+      console.log("Current Lesson:", lesson);
+      console.log("Video URL:", lesson.videoUrl);
+      console.log("Embed URL:", embedUrl);
+    }
   }, [activeLesson]);
 
   const [currentPlayerInstance, setCurrentPlayerInstance] = useState<any>(null);
@@ -1047,11 +1068,8 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
                 </>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 p-6 text-center">
-                  <Play className="w-12 h-12 text-violet-400 mb-3 animate-pulse" />
-                  <p className="font-display font-semibold text-white">Vídeo Demonstrativo</p>
-                  <a href={activeLesson.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-300 font-mono mt-2 underline flex items-center gap-1 justify-center">
-                    Assistir direto no YouTube <ExternalLink className="w-3 h-3" />
-                  </a>
+                  <Play className="w-12 h-12 text-zinc-650 mb-3 animate-pulse" />
+                  <p className="font-display font-semibold text-white">Vídeo ainda não cadastrado.</p>
                 </div>
               )}
             </div>
@@ -3082,8 +3100,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 font-mono text-center p-6 space-y-2">
                           <Play className="w-12 h-12 text-slate-700 animate-pulse" />
-                          <p className="text-xs col-span-2">Este player de vídeo está em branco ou indisponível.</p>
-                          <p className="text-[10px] text-slate-600 max-w-xs truncate col-span-2">Insira uma URL oficial do YouTube para habilitar a visualização.</p>
+                          <p className="text-xs font-semibold text-white">Vídeo ainda não cadastrado.</p>
                         </div>
                       )}
                     </div>

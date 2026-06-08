@@ -52,6 +52,109 @@ app.use(compression());
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 
+// -------------------------------------------------------------------------
+// DYNAMIC STOREPRODUCT FIELD COMPATIBILITY SYSTEM (ANTI-DRIFT AUTOPILOT)
+// -------------------------------------------------------------------------
+export let physicalStoreProductColumns: string[] = [];
+
+export async function auditStoreProductColumns() {
+  if (isDatabaseConnected()) {
+    try {
+      const prisma = getPrisma();
+      const cols: any = await prisma.$queryRawUnsafe(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'StoreProduct'
+      `);
+      if (Array.isArray(cols)) {
+        physicalStoreProductColumns = cols.map((c: any) => c.column_name);
+        console.log("✓ [StoreProduct Audit] Colunas físicas detectadas no banco de dados:", physicalStoreProductColumns);
+      }
+    } catch (err: any) {
+      console.error("⚠️ [StoreProduct Audit Error] Falha de auditoria de colunas físicas de StoreProduct:", err.message || err);
+    }
+  }
+}
+
+export function getStoreProductSelect() {
+  if (physicalStoreProductColumns.length === 0) {
+    return undefined;
+  }
+  const selectObj: Record<string, boolean> = {};
+  const allSchemaFields = [
+    "id", "name", "description", "priceKC", "priceBRL", "category", "rarity", "imageUrl", "stock", "active", "createdAt", "updatedAt",
+    "isPromo", "promoPriceKC", "isBundle", "isSeasonal", "isExclusive", "releaseDate", "promoEndDate"
+  ];
+  for (const field of allSchemaFields) {
+    if (physicalStoreProductColumns.includes(field)) {
+      selectObj[field] = true;
+    }
+  }
+  return selectObj;
+}
+
+export function sanitizeStoreProduct(p: any) {
+  if (!p) return p;
+  const defaults: Record<string, any> = {
+    isPromo: false,
+    promoPriceKC: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false,
+    releaseDate: null,
+    promoEndDate: null
+  };
+  return {
+    ...defaults,
+    ...p
+  };
+}
+
+export function sanitizeStoreProductWriteData(data: any) {
+  if (!data || physicalStoreProductColumns.length === 0) return data;
+  const sanitized: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    if (physicalStoreProductColumns.includes(key)) {
+      sanitized[key] = data[key];
+    }
+  }
+  return sanitized;
+}
+
+export function sanitizeStoreProductWhereClause(where: any): any {
+  if (!where || physicalStoreProductColumns.length === 0) return where;
+  
+  if (Array.isArray(where)) {
+    return where.map(item => sanitizeStoreProductWhereClause(item)).filter(item => {
+      if (item && typeof item === "object" && Object.keys(item).length === 0) return false;
+      return true;
+    });
+  }
+  
+  if (typeof where === "object") {
+    const sanitized: Record<string, any> = {};
+    for (const key of Object.keys(where)) {
+      if (key === "AND" || key === "OR" || key === "NOT") {
+        const val = sanitizeStoreProductWhereClause(where[key]);
+        if (Array.isArray(val) && val.length > 0) {
+          sanitized[key] = val;
+        } else if (val && !Array.isArray(val) && Object.keys(val).length > 0) {
+          sanitized[key] = val;
+        }
+      } else {
+        if (physicalStoreProductColumns.includes(key)) {
+          sanitized[key] = where[key];
+        } else {
+          console.log(`[StoreProduct Audit] Removendo filtro de coluna não existente do where: "${key}"`);
+        }
+      }
+    }
+    return sanitized;
+  }
+  
+  return where;
+}
+
 // Security & Sandbox Hardening Middlewares with strict production constraints
 const allowedOrigins = [
   "https://www.jiuspeak.com.br",
@@ -307,13 +410,27 @@ app.get("/api/health", async (req: any, res: any) => {
     const dbOk = isDatabaseConnected();
     const { isMock } = getRedisClient();
     
+    let storeProductColumns: any[] = [];
+    if (dbOk && prisma) {
+      try {
+        storeProductColumns = await prisma.$queryRawUnsafe(`
+          SELECT column_name, data_type, is_nullable 
+          FROM information_schema.columns 
+          WHERE table_name = 'StoreProduct'
+        `);
+      } catch (err: any) {
+        storeProductColumns = [{ error: err.message }];
+      }
+    }
+    
     res.json({
       status: dbOk ? "UP" : "DOWN",
       database: dbOk ? "connected" : "offline",
       prisma: prisma ? "ready" : "not_initialized",
       redis: isMock ? "mock_active" : "real_redis_active",
       socket: globalIo ? "ready" : "offline",
-      jwt: (JWT_ACCESS_SECRET && JWT_REFRESH_SECRET) ? "configured" : "incomplete"
+      jwt: (JWT_ACCESS_SECRET && JWT_REFRESH_SECRET) ? "configured" : "incomplete",
+      storeProductColumns
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -2251,8 +2368,12 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
             id: itemId,
             inventory: { userId: sourceUserId }
           },
-          include: { product: true }
+          include: { product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true }
         });
+
+        if (item && item.product) {
+          item.product = sanitizeStoreProduct(item.product);
+        }
 
         if (!item) {
           return res.status(404).json({ error: "Item de origem não localizado no inventário do atleta de origem." });
@@ -2365,9 +2486,14 @@ app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["A
     // Capture Purchases
     const purchases = await prisma.storeSale.findMany({
       where: { buyerId: id },
-      include: { product: true },
+      include: { product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true },
       orderBy: { createdAt: "desc" }
     });
+    if (Array.isArray(purchases)) {
+      purchases.forEach((p: any) => {
+        if (p.product) p.product = sanitizeStoreProduct(p.product);
+      });
+    }
 
     // Capture Inventory (owned items)
     let inventoryItems: any[] = [];
@@ -2379,18 +2505,30 @@ app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["A
         where: { userId: id },
         include: {
           items: {
-            include: { product: true },
+            include: { product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true },
             orderBy: { acquiredAt: "desc" }
           }
         }
       });
+      if (userInventory && Array.isArray(userInventory.items)) {
+        userInventory.items.forEach((item: any) => {
+          if (item.product) item.product = sanitizeStoreProduct(item.product);
+        });
+      }
       inventoryItems = userInventory ? userInventory.items : [];
 
       marketplaceItems = await prisma.marketplaceItem.findMany({
         where: { sellerId: id },
-        include: { inventoryItem: { include: { product: true } } },
+        include: { inventoryItem: { include: { product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true } } },
         orderBy: { createdAt: "desc" }
       });
+      if (Array.isArray(marketplaceItems)) {
+        marketplaceItems.forEach((m: any) => {
+          if (m.inventoryItem && m.inventoryItem.product) {
+            m.inventoryItem.product = sanitizeStoreProduct(m.inventoryItem.product);
+          }
+        });
+      }
 
       subscriptions = await prisma.subscription.findMany({
         where: { userId: id },
@@ -3779,8 +3917,13 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
           include: { subscription: { include: { user: { select: { id: true, name: true, email: true } }, plan: true } } }
         });
         storeSales = await prisma.storeSale.findMany({
-          include: { product: true, buyer: { select: { id: true, name: true, email: true } } }
+          include: { product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true, buyer: { select: { id: true, name: true, email: true } } }
         });
+        if (Array.isArray(storeSales)) {
+          storeSales.forEach((s: any) => {
+            if (s.product) s.product = sanitizeStoreProduct(s.product);
+          });
+        }
         try {
           marketplaceSales = await prisma.marketplaceSale.findMany({
             include: { marketplaceItem: { include: { seller: { select: { id: true, name: true, email: true } }, inventoryItem: true } }, buyer: { select: { id: true, name: true, email: true } } }
@@ -5867,13 +6010,16 @@ app.get("/api/store", async (req: any, res: any) => {
     const dbConnected = isDatabaseConnected();
     if (dbConnected) {
       try {
+        const cleanWhere = sanitizeStoreProductWhereClause(whereClause);
         items = await prisma.storeProduct.findMany({
-          where: whereClause,
+          select: getStoreProductSelect(),
+          where: cleanWhere,
           orderBy: { priceKC: "asc" },
           skip,
           take: limitNum
         });
-        total = await prisma.storeProduct.count({ where: whereClause });
+        items = items.map(sanitizeStoreProduct);
+        total = await prisma.storeProduct.count({ where: cleanWhere });
       } catch (dbErr) {
         console.error("✗ PostgreSQL indisponível, recorrendo à simulação de catálogo:", dbErr);
         items = [];
@@ -5989,8 +6135,13 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
     if (dbConnected) {
       const prisma = getPrisma();
       product = await prisma.storeProduct.findUnique({
-        where: { id: productId, active: true }
+        select: getStoreProductSelect(),
+        where: { id: productId }
       });
+      if (product && !product.active) {
+        product = null;
+      }
+      product = sanitizeStoreProduct(product);
     } else {
       product = inMemoryStoreProducts.find(p => p.id === productId && p.active);
     }
@@ -6734,10 +6885,13 @@ app.get("/api/admin/store/items", authenticateToken, requireRole(["ADMIN"]), asy
           { description: { contains: search as string, mode: "insensitive" } }
         ];
       }
+      const cleanWhere = sanitizeStoreProductWhereClause(whereClause);
       items = await prisma.storeProduct.findMany({
-        where: whereClause,
+        select: getStoreProductSelect(),
+        where: cleanWhere,
         orderBy: { createdAt: "desc" }
       });
+      items = items.map(sanitizeStoreProduct);
     } else {
       items = [...inMemoryStoreProducts];
       if (category && category !== "Todos") {
@@ -6807,26 +6961,27 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
 
     if (isDatabaseConnected()) {
       const prisma = getPrisma();
+      const insertData = sanitizeStoreProductWriteData({
+        id: newItem.id,
+        name: newItem.name,
+        description: newItem.description,
+        priceKC: newItem.priceKC,
+        priceBRL: newItem.priceBRL,
+        category: newItem.category,
+        rarity: newItem.rarity,
+        imageUrl: newItem.imageUrl,
+        stock: newItem.stock,
+        active: newItem.active,
+        isPromo: newItem.isPromo,
+        promoPriceKC: newItem.promoPriceKC,
+        isBundle: newItem.isBundle,
+        isSeasonal: newItem.isSeasonal,
+        isExclusive: newItem.isExclusive,
+        releaseDate: newItem.releaseDate,
+        promoEndDate: newItem.promoEndDate
+      });
       const dbProduct = await prisma.storeProduct.create({
-        data: {
-          id: newItem.id,
-          name: newItem.name,
-          description: newItem.description,
-          priceKC: newItem.priceKC,
-          priceBRL: newItem.priceBRL,
-          category: newItem.category,
-          rarity: newItem.rarity,
-          imageUrl: newItem.imageUrl,
-          stock: newItem.stock,
-          active: newItem.active,
-          isPromo: newItem.isPromo,
-          promoPriceKC: newItem.promoPriceKC,
-          isBundle: newItem.isBundle,
-          isSeasonal: newItem.isSeasonal,
-          isExclusive: newItem.isExclusive,
-          releaseDate: newItem.releaseDate,
-          promoEndDate: newItem.promoEndDate
-        }
+        data: insertData
       });
       newItem.id = dbProduct.id;
     }
@@ -6886,27 +7041,29 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
 
     if (isDatabaseConnected()) {
       const prisma = getPrisma();
+      const updateData = sanitizeStoreProductWriteData({
+        name,
+        description: description !== undefined ? description : undefined,
+        priceKC: priceKC !== undefined ? Number(priceKC) : undefined,
+        priceBRL: priceBRL !== undefined && priceBRL !== null ? Number(priceBRL) : null,
+        category: category !== undefined ? category : undefined,
+        rarity: rarity !== undefined ? mappedRarity : undefined,
+        imageUrl: imageUrl !== undefined ? imageUrl : undefined,
+        stock: stockVal,
+        active: active !== undefined ? Boolean(active) : undefined,
+        isPromo: isPromo !== undefined ? Boolean(isPromo) : undefined,
+        promoPriceKC: promoPriceVal,
+        isBundle: isBundle !== undefined ? Boolean(isBundle) : undefined,
+        isSeasonal: isSeasonal !== undefined ? Boolean(isSeasonal) : undefined,
+        isExclusive: isExclusive !== undefined ? Boolean(isExclusive) : undefined,
+        releaseDate: releaseDateVal,
+        promoEndDate: promoEndDateVal
+      });
       updatedItem = await prisma.storeProduct.update({
         where: { id },
-        data: {
-          name,
-          description: description !== undefined ? description : undefined,
-          priceKC: priceKC !== undefined ? Number(priceKC) : undefined,
-          priceBRL: priceBRL !== undefined && priceBRL !== null ? Number(priceBRL) : null,
-          category: category !== undefined ? category : undefined,
-          rarity: rarity !== undefined ? mappedRarity : undefined,
-          imageUrl: imageUrl !== undefined ? imageUrl : undefined,
-          stock: stockVal,
-          active: active !== undefined ? Boolean(active) : undefined,
-          isPromo: isPromo !== undefined ? Boolean(isPromo) : undefined,
-          promoPriceKC: promoPriceVal,
-          isBundle: isBundle !== undefined ? Boolean(isBundle) : undefined,
-          isSeasonal: isSeasonal !== undefined ? Boolean(isSeasonal) : undefined,
-          isExclusive: isExclusive !== undefined ? Boolean(isExclusive) : undefined,
-          releaseDate: releaseDateVal,
-          promoEndDate: promoEndDateVal
-        }
+        data: updateData
       });
+      updatedItem = sanitizeStoreProduct(updatedItem);
     }
 
     // Sync in memory too
@@ -6986,7 +7143,11 @@ app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMI
 
     if (isDatabaseConnected()) {
       const prisma = getPrisma();
-      original = await prisma.storeProduct.findUnique({ where: { id } });
+      original = await prisma.storeProduct.findUnique({
+        select: getStoreProductSelect(),
+        where: { id }
+      });
+      original = sanitizeStoreProduct(original);
     }
 
     if (!original) {
@@ -7020,24 +7181,25 @@ app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMI
 
     if (isDatabaseConnected()) {
       const prisma = getPrisma();
+      const insertData = sanitizeStoreProductWriteData({
+        id: duplicatedItem.id,
+        name: duplicatedItem.name,
+        description: duplicatedItem.description,
+        priceKC: duplicatedItem.priceKC,
+        priceBRL: duplicatedItem.priceBRL,
+        category: duplicatedItem.category,
+        rarity: mapRarity(duplicatedItem.rarity),
+        imageUrl: duplicatedItem.imageUrl,
+        stock: duplicatedItem.stock,
+        active: duplicatedItem.active,
+        isPromo: duplicatedItem.isPromo,
+        promoPriceKC: duplicatedItem.promoPriceKC,
+        isBundle: duplicatedItem.isBundle,
+        isSeasonal: duplicatedItem.isSeasonal,
+        isExclusive: duplicatedItem.isExclusive
+      });
       await prisma.storeProduct.create({
-        data: {
-          id: duplicatedItem.id,
-          name: duplicatedItem.name,
-          description: duplicatedItem.description,
-          priceKC: duplicatedItem.priceKC,
-          priceBRL: duplicatedItem.priceBRL,
-          category: duplicatedItem.category,
-          rarity: mapRarity(duplicatedItem.rarity),
-          imageUrl: duplicatedItem.imageUrl,
-          stock: duplicatedItem.stock,
-          active: duplicatedItem.active,
-          isPromo: duplicatedItem.isPromo,
-          promoPriceKC: duplicatedItem.promoPriceKC,
-          isBundle: duplicatedItem.isBundle,
-          isSeasonal: duplicatedItem.isSeasonal,
-          isExclusive: duplicatedItem.isExclusive
-        }
+        data: insertData
       });
     }
 
@@ -7069,7 +7231,10 @@ app.post("/api/admin/store/:id/delete", authenticateToken, requireRole(["ADMIN"]
 
     if (isDatabaseConnected()) {
       const prisma = getPrisma();
-      const p = await prisma.storeProduct.findUnique({ where: { id } });
+      const p = await prisma.storeProduct.findUnique({
+        select: getStoreProductSelect(),
+        where: { id }
+      });
       if (p) nameLog = p.name;
 
       await prisma.storeProduct.delete({
@@ -8598,6 +8763,7 @@ async function startServer() {
   // Assert PostgreSQL connectivity immediately, non-blocking fallback if offline
   try {
     await assertDatabaseConnection();
+    await auditStoreProductColumns();
   } catch (dbErr) {
     console.error("⚠️ [DATABASE CONNECTION WARNING] Falha ao verificar banco de dados durante bootstrap:", dbErr);
   }
