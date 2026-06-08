@@ -15,6 +15,7 @@ import http from "http";
 import crypto from "crypto";
 import { Server as SocketServer } from "socket.io";
 import { authStore, simulatedSentEmails, seedInitialUsers, seedStoreProducts, patchUserObjectWithDeterministicAvatar, patchProductObjectWithBjjAvatar } from "./server/authStore";
+import { BASE_CHARACTERS, BELTS, getAvatarSvg } from "./server/avatarGenerator";
 import { AuthService, generateAccessToken, generateRefreshToken, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET } from "./server/authService";
 import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
@@ -438,6 +439,134 @@ app.get("/api/health", async (req: any, res: any) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// PREMIUM CUSTOM BJJ AVATARS RENDERING ENGINE
+app.get("/api/avatars/render/:characterId/:belt", async (req: any, res: any) => {
+  try {
+    const { characterId, belt } = req.params;
+    const svg = getAvatarSvg(characterId, belt);
+    res.setHeader("Content-Type", "image/svg+xml");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    return res.send(svg);
+  } catch (error: any) {
+    res.status(550).json({ error: "Erro gerando vetor de Jiu-Jitsu do avatar." });
+  }
+});
+
+export async function initializePremiumBjjAvatars() {
+  console.log("🎮 Inicializando Sistema de Avatares Premium JiuSpeak (288 combinações)...");
+  
+  const avatarsList: any[] = [];
+  
+  for (const c of BASE_CHARACTERS) {
+    for (const belt of BELTS) {
+      let rarity = "COMMON";
+      if (["yellow", "orange", "green", "blue"].includes(belt.key)) {
+        rarity = "RARE";
+      } else if (["purple", "brown"].includes(belt.key)) {
+        rarity = "EPIC";
+      } else if (["black", "coral", "red_black", "red_white"].includes(belt.key)) {
+        rarity = "LEGENDARY";
+      }
+      
+      let price = 400;
+      switch (belt.key) {
+        case "white": price = 400; break;
+        case "gray": price = 500; break;
+        case "yellow": price = 600; break;
+        case "orange": price = 700; break;
+        case "green": price = 800; break;
+        case "blue": price = 1000; break;
+        case "purple": price = 1500; break;
+        case "brown": price = 2000; break;
+        case "black": price = 3000; break;
+        case "coral": price = 4000; break;
+        case "red_black": price = 5000; break;
+        case "red_white": price = 6000; break;
+      }
+      
+      const prod = {
+        id: `prod_avatar_${c.id}_${belt.key}`,
+        name: `${c.name} (${belt.name})`,
+        description: `${c.description} Especialidade: Nível de faixa ${belt.name}.`,
+        priceKC: price,
+        priceBRL: null,
+        category: "AVATAR",
+        rarity: rarity,
+        imageUrl: `/api/avatars/render/${c.id}/${belt.key}`,
+        stock: null,
+        active: true,
+        isPromo: false,
+        promoPriceKC: null,
+        isBundle: false,
+        isSeasonal: false,
+        isExclusive: false
+      };
+      
+      avatarsList.push(prod);
+      
+      // Inject into inMemoryStoreProducts if not already exists
+      const exists = inMemoryStoreProducts.some(p => p.id === prod.id);
+      if (!exists) {
+        inMemoryStoreProducts.push(prod);
+      }
+    }
+  }
+  
+  console.log(`Linker: ${avatarsList.length} avatares mapeados.`);
+
+  if (isDatabaseConnected()) {
+    try {
+      const prisma = getPrisma();
+      if (prisma) {
+        console.log("🌱 Semeando os avatares premium no banco PostgreSQL de forma resiliente...");
+        const existingCount = await prisma.storeProduct.count({
+          where: { id: { startsWith: "prod_avatar_isabella_" } }
+        });
+        if (existingCount >= 12) {
+          console.log("✨ Catálogo de avatares premium já existente no PostgreSQL.");
+          return;
+        }
+        
+        // Seed concurrently in small batches to speed up boot
+        for (let i = 0; i < avatarsList.length; i += 20) {
+          const batch = avatarsList.slice(i, i + 20);
+          await Promise.all(batch.map(async (prod) => {
+            try {
+              await prisma.storeProduct.upsert({
+                where: { id: prod.id },
+                update: {
+                  name: prod.name,
+                  description: prod.description,
+                  priceKC: prod.priceKC,
+                  category: prod.category,
+                  rarity: prod.rarity as any,
+                  imageUrl: prod.imageUrl,
+                  active: true
+                },
+                create: {
+                  id: prod.id,
+                  name: prod.name,
+                  description: prod.description,
+                  priceKC: prod.priceKC,
+                  category: prod.category,
+                  rarity: prod.rarity as any,
+                  imageUrl: prod.imageUrl,
+                  active: true
+                }
+              });
+            } catch (err) {
+              // Quietly catch errors
+            }
+          }));
+        }
+        console.log(`🌱 Semeadura concluída! Avatares premium carregados.`);
+      }
+    } catch (err) {
+      console.error("Failed to seed premium avatars to database:", err);
+    }
+  }
+}
 
 const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
@@ -9113,6 +9242,11 @@ async function startServer() {
       console.error("Failed to seed store products:", err);
     }
     try {
+      await initializePremiumBjjAvatars();
+    } catch (err) {
+      console.error("Failed to seed premium avatars:", err);
+    }
+    try {
       await seedQuestionsInDb();
     } catch (err) {
       console.error("Erro ao semear perguntas no banco:", err);
@@ -9124,6 +9258,11 @@ async function startServer() {
     }
   } else {
     console.log("⚠️ Base de dados PostgreSQL não está conectada. Ignorando semeadura de tabelas e utilizando o banco de dados em memória.");
+    try {
+      await initializePremiumBjjAvatars();
+    } catch (err) {
+      console.error("Failed to populate premium avatars in memory:", err);
+    }
   }
 
   // Socket.IO Events Orchestrator

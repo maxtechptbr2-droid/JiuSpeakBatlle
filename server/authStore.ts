@@ -1501,6 +1501,8 @@ export function patchProductObjectWithBjjAvatar<T extends { id?: string; name?: 
     const key = product.id || "";
     if (bjjAvatarMap[key]) {
       product.imageUrl = bjjAvatarMap[key];
+    } else if (product.imageUrl && product.imageUrl.includes("/api/avatars/")) {
+      // Kept as-is for the premium custom avatars
     } else {
       const seed = encodeURIComponent(product.name || "bjj_avatar");
       product.imageUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}&radius=50&backgroundColor=b6e3f4`;

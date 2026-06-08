@@ -472,7 +472,7 @@ export default function StoreMarket({
       let apiCategory = 'Todos';
       if (storeCategory === '🥋 Kimonos') apiCategory = 'Itens Especiais';
       else if (storeCategory === '👕 Rash Guards') apiCategory = 'Itens Especiais';
-      else if (storeCategory === '👤 Avatares') apiCategory = 'Todos'; // we will fetch all and filter avatares
+      else if (storeCategory === '👤 Avatares') apiCategory = 'Avatares';
       else if (storeCategory === '🏆 Medalhas') apiCategory = 'Títulos';
       else if (storeCategory === '🎖️ Molduras') apiCategory = 'Molduras';
       else if (storeCategory === '🎒 Equipamentos') apiCategory = 'Itens Especiais';
