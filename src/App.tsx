@@ -787,10 +787,68 @@ export default function App() {
         {/* Mounted Views Router */}
         <React.Suspense fallback={<LoadingFallback />}>
           {(() => {
-            const subType = user.subscription?.type?.toUpperCase() || 'FREE';
-            const isAdm = user.role === 'admin';
-            const hasAcademy = ['PRO', 'MASTER'].includes(subType) || isAdm;
-            const hasConversacao = ['VIP', 'PREMIUM VIP', 'PRO', 'MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(subType) || isAdm;
+            const hasPermission = (featureKey: string): boolean => {
+              if (user.role === 'admin') return true;
+              
+              const sub = user.subscription as any;
+              if (sub?.releasedFeatures && sub.releasedFeatures[featureKey] !== undefined) {
+                return !!sub.releasedFeatures[featureKey];
+              }
+
+              const sType = user.subscription?.type?.toUpperCase() || 'FREE';
+              const defaultPermissions: Record<string, Record<string, boolean>> = {
+                FREE: {
+                  modulesAll: false,
+                  conversationalSection: false,
+                  arenaPvp: false,
+                  bjjAcademies: false,
+                  marketplace: false,
+                  jiuspeakLibrary: true,
+                  inventoryBackpack: true,
+                  jiuspeakStore: false,
+                  premiumResources: false,
+                },
+                VIP: {
+                  modulesAll: true,
+                  conversationalSection: true,
+                  arenaPvp: false,
+                  bjjAcademies: false,
+                  marketplace: true,
+                  jiuspeakLibrary: true,
+                  inventoryBackpack: true,
+                  jiuspeakStore: true,
+                  premiumResources: false,
+                },
+                PRO: {
+                  modulesAll: true,
+                  conversationalSection: true,
+                  arenaPvp: true,
+                  bjjAcademies: true,
+                  marketplace: true,
+                  jiuspeakLibrary: true,
+                  inventoryBackpack: true,
+                  jiuspeakStore: true,
+                  premiumResources: true,
+                },
+                MASTER: {
+                  modulesAll: true,
+                  conversationalSection: true,
+                  arenaPvp: true,
+                  bjjAcademies: true,
+                  marketplace: true,
+                  jiuspeakLibrary: true,
+                  inventoryBackpack: true,
+                  jiuspeakStore: true,
+                  premiumResources: true,
+                }
+              };
+
+              const planGate = defaultPermissions[sType] || defaultPermissions.FREE;
+              return !!planGate[featureKey];
+            };
+
+            const hasAcademy = hasPermission('bjjAcademies');
+            const hasConversacao = hasPermission('conversationalSection');
 
             if (currentTab.startsWith('academy')) {
               return (
@@ -822,6 +880,13 @@ export default function App() {
             }
 
             if (currentTab === 'lessons') {
+              if (!hasPermission('modulesAll')) {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. O acesso a todos os módulos do curso é restrito para o seu plano atual. Realize o upgrade de plano agora para destravar todo o conteúdo das lições!" 
+                  />
+                );
+              }
               return (
                 <Lessons 
                   user={user} 
@@ -839,7 +904,7 @@ export default function App() {
               if (!hasConversacao) {
                 return (
                   <AccessDenied403 
-                    message="403 - Acesso Negado. A Seção de Conversação com IA é exclusiva para alunos VIP, PRO e MASTER. Faça o upgrade agora para destravar treinos de diálogo ilimitados!" 
+                    message="403 - Acesso Negado. A Seção de Conversação com IA é exclusiva para planos autorizados. Faça o upgrade agora para destravar treinos de diálogo ilimitados!" 
                   />
                 );
               }
@@ -856,6 +921,13 @@ export default function App() {
             }
 
             if (currentTab === 'market') {
+              if (!hasPermission('marketplace') && !hasPermission('jiuspeakStore')) {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. A Loja e o Marketplace são exclusivos para planos VIP, PRO e MASTER. Faça o upgrade para equipar seu avatar com kimonos lendários!" 
+                  />
+                );
+              }
               return (
                 <StoreMarket 
                   user={user} 
@@ -868,6 +940,13 @@ export default function App() {
             }
 
             if (currentTab === 'inventory') {
+              if (!hasPermission('inventoryBackpack')) {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. Seu plano de assinatura atual restringe o acesso ao inventário pessoal." 
+                  />
+                );
+              }
               return (
                 <InventoryPanel 
                   user={user} 

@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Briefcase,
   Package,
-  Activity
+  Activity,
+  Landmark
 } from 'lucide-react';
 import { UserProfile, AuditLog } from '../types';
 import { AdminProvider, useAdmin } from './AdminContext';
@@ -36,6 +37,7 @@ const AuditLogsModule = lazy(() => import('./AuditLogs'));
 const SettingsModule = lazy(() => import('./Settings'));
 const EnterpriseFinanceModule = lazy(() => import('./EnterpriseFinance'));
 const HealthCenterModule = lazy(() => import('./HealthCenter'));
+const FinancialConfigsModule = lazy(() => import('./FinancialConfigs'));
 
 interface AdminEntryProps {
   user: UserProfile;
@@ -93,6 +95,8 @@ function AdminPanelShell() {
         return <SettingsModule />;
       case 'enterprise-finance':
         return <EnterpriseFinanceModule />;
+      case 'financial-configs':
+        return <FinancialConfigsModule />;
       case 'health':
         return <HealthCenterModule />;
       default:
@@ -305,6 +309,23 @@ function AdminPanelShell() {
             <span className="flex items-center gap-2.5 font-sans font-semibold">
               <Activity className="w-4 h-4 shrink-0 text-emerald-450 animate-pulse" />
               <span>Health Center</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          
+          <button
+            type="button"
+            id="admin-financial-settings-menu-tab"
+            onClick={() => setActiveTab('financial-configs')}
+            className={`w-full text-left p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+              activeTab === 'financial-configs' 
+                ? 'bg-indigo-650 text-white shadow-lg border border-indigo-500/30' 
+                : 'text-slate-400 hover:text-slate-205 hover:bg-slate-900'
+            }`}
+          >
+            <span className="flex items-center gap-2.5 font-sans font-semibold">
+              <Landmark className="w-4 h-4 shrink-0 text-fuchsia-400" />
+              <span>Configurações Financeiras</span>
             </span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>

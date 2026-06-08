@@ -4276,6 +4276,260 @@ app.post("/api/admin/finance/transaction-rates", authenticateToken, requireRole(
   }
 });
 
+import fs from "fs";
+
+const FINANCIAL_CONFIG_PATH = path.join(process.cwd(), "server", "financial_config.json");
+
+const defaultFinancialConfig = {
+  bankAccounts: [
+    {
+      id: "bank-1",
+      bankName: "Itaú Unibanco S.A.",
+      bankCode: "341",
+      agency: "0201",
+      accountNumber: "98765-4",
+      accountType: "Corrente",
+      holder: "JiuSpeak Tecnologia Ltda.",
+      cpfCnpj: "12.345.678/0001-90",
+      pixKey: "financeiro@jiuspeak.com.br",
+      pixKeyType: "E-mail",
+      isPrimary: true,
+      active: true
+    },
+    {
+      id: "bank-2",
+      bankName: "Banco Bradesco S.A.",
+      bankCode: "237",
+      agency: "4321",
+      accountNumber: "12345-6",
+      accountType: "Corrente",
+      holder: "JiuSpeak Tecnologia Ltda.",
+      cpfCnpj: "12.345.678/0001-90",
+      pixKey: "12.345.678/0001-90",
+      pixKeyType: "CNPJ",
+      isPrimary: false,
+      active: true
+    }
+  ],
+  paymentMethods: [
+    {
+      id: "pay-1",
+      name: "PIX",
+      identifier: "PIX",
+      active: true,
+      displayOrder: 1,
+      description: "Liquidação em tempo real sob conformidade Pix pelo Banco Central de forma instantânea."
+    },
+    {
+      id: "pay-2",
+      name: "Cartão de Crédito",
+      identifier: "CREDIT_CARD",
+      active: true,
+      displayOrder: 2,
+      description: "Parcelamento no tatame em até 12x com taxas competitivas."
+    },
+    {
+      id: "pay-3",
+      name: "Cartão de Débito",
+      identifier: "DEBIT_CARD",
+      active: true,
+      displayOrder: 3,
+      description: "Desconto imediato em conta digital corrente homologada."
+    },
+    {
+      id: "pay-4",
+      name: "Boleto Bancário",
+      identifier: "BOLETO",
+      active: true,
+      displayOrder: 4,
+      description: "Compensação segura em até 48 horas úteis."
+    },
+    {
+      id: "pay-5",
+      name: "Transferência Bancária",
+      identifier: "TRANSFER",
+      active: true,
+      displayOrder: 5,
+      description: "Apenas contas corporativas indicadas pelo conselho."
+    }
+  ],
+  plansMetadata: {
+    "FREE": {
+      "priceBRL": 0.00,
+      "priceYearlyBRL": 0.00,
+      "promotionalText": "Acesso básico e fóruns comuns livres no tatame digital.",
+      "badge": "Mais Simples",
+      "cardColor": "slate",
+      "displayOrder": 1,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": false,
+        "conversationalSection": false,
+        "arenaPvp": false,
+        "bjjAcademies": false,
+        "marketplace": false,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": false,
+        "premiumResources": false
+      }
+    },
+    "VIP": {
+      "priceBRL": 19.90,
+      "priceYearlyBRL": 199.00,
+      "promotionalText": "Excelente custo benefício para treinos focados com IA.",
+      "badge": "Melhor Custo",
+      "cardColor": "blue",
+      "displayOrder": 2,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": true,
+        "conversationalSection": true,
+        "arenaPvp": false,
+        "bjjAcademies": false,
+        "marketplace": true,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": true,
+        "premiumResources": false
+      }
+    },
+    "PRO": {
+      "priceBRL": 29.90,
+      "priceYearlyBRL": 299.00,
+      "promotionalText": "Acesso completo de nível profissional ao ecossistema.",
+      "badge": "Mais Popular",
+      "cardColor": "indigo",
+      "displayOrder": 3,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": true,
+        "conversationalSection": true,
+        "arenaPvp": true,
+        "bjjAcademies": true,
+        "marketplace": true,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": true,
+        "premiumResources": true
+      }
+    },
+    "MASTER": {
+      "priceBRL": 59.90,
+      "priceYearlyBRL": 599.00,
+      "promotionalText": "Acesso definitivo lendário com relatórios e pvp ilimitados.",
+      "badge": "Premium",
+      "cardColor": "purple",
+      "displayOrder": 4,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": true,
+        "conversationalSection": true,
+        "arenaPvp": true,
+        "bjjAcademies": true,
+        "marketplace": true,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": true,
+        "premiumResources": true
+      }
+    }
+  }
+};
+
+let cachedFinancialConfig: typeof defaultFinancialConfig | null = null;
+
+export function loadFinancialConfig() {
+  if (cachedFinancialConfig) return cachedFinancialConfig;
+  try {
+    if (fs.existsSync(FINANCIAL_CONFIG_PATH)) {
+      const data = fs.readFileSync(FINANCIAL_CONFIG_PATH, "utf-8");
+      cachedFinancialConfig = JSON.parse(data);
+      return cachedFinancialConfig!;
+    }
+  } catch (err) {
+    console.error("Failed to load financial config:", err);
+  }
+  cachedFinancialConfig = defaultFinancialConfig;
+  saveFinancialConfigInternal(defaultFinancialConfig);
+  return defaultFinancialConfig;
+}
+
+export function saveFinancialConfigInternal(config: any) {
+  try {
+    const parentDir = path.dirname(FINANCIAL_CONFIG_PATH);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    fs.writeFileSync(FINANCIAL_CONFIG_PATH, JSON.stringify(config, null, 2), "utf-8");
+    cachedFinancialConfig = config;
+    return true;
+  } catch (err) {
+    console.error("Failed to write financial config file:", err);
+    return false;
+  }
+}
+
+// GET/POST ADMIN ENDPOINTS FOR FINANCIAL CONFIGURATION
+app.get("/api/admin/financial-configs", authenticateToken, requireRole(["ADMIN"]), (req: any, res: any) => {
+  try {
+    const config = loadFinancialConfig();
+    res.json({ success: true, config });
+  } catch (err: any) {
+    res.status(500).json({ error: "Erro ao ler as configurações financeiras." });
+  }
+});
+
+app.post("/api/admin/financial-configs", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const newConfig = req.body;
+    if (!newConfig || !newConfig.bankAccounts || !newConfig.paymentMethods || !newConfig.plansMetadata) {
+      return res.status(400).json({ error: "Payload de configuração inválido ou incompleto." });
+    }
+    
+    // Save to server local JSON file
+    const saved = saveFinancialConfigInternal(newConfig);
+    if (!saved) {
+      return res.status(500).json({ error: "Erro ao salvar o arquivo de configuração no disco." });
+    }
+
+    // Sync PostgreSQL Plan Table if Prisma is active
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        for (const [planName, meta] of Object.entries(newConfig.plansMetadata) as any) {
+          const planDb = await prisma.plan.findUnique({ where: { name: planName } });
+          if (planDb) {
+            await prisma.plan.update({
+              where: { id: planDb.id },
+              data: {
+                priceBRL: Number(meta.priceBRL),
+                description: meta.description || planDb.description,
+                active: meta.active !== undefined ? meta.active : planDb.active,
+                features: meta.features || planDb.features || []
+              }
+            });
+          }
+        }
+        await prisma.auditLog.create({
+          data: {
+            actorId: req.user.id,
+            action: "SYSTEM_SETTING_CHANGE",
+            description: `Configurações financeiras (Bancos, Pagamentos e limites de Planos) reconfigurados pelo administrador.`
+          }
+        }).catch(() => {});
+      } catch (dbErr) {
+        console.warn("Could not sync updated plans to PG, proceeding with config JSON-only persistence:", dbErr);
+      }
+    }
+
+    res.json({ success: true, message: "Parâmetros e Configurações Financeiras atualizadas com sucesso!", config: newConfig });
+  } catch (err: any) {
+    console.error("Error setting financial config:", err);
+    res.status(500).json({ error: "Erro grave ao salvar parâmetros financeiros." });
+  }
+});
+
 // =========================================================================
 // SAAS SUBSCRIPTION CORE SERVICES & ENDPOINTS
 // =========================================================================
@@ -4351,6 +4605,8 @@ export let inMemorySubscriptionPayments: InMemorySubscriptionPayment[] = [];
 
 export async function getActiveSubscriptionForUser(userId: string) {
   const prisma = getPrisma();
+  const config = loadFinancialConfig();
+  
   if (prisma) {
     try {
       const sub = await prisma.subscription.findFirst({
@@ -4366,11 +4622,24 @@ export async function getActiveSubscriptionForUser(userId: string) {
         }
       });
       if (sub) {
+        const pName = sub.plan.name.toUpperCase();
+        const meta: any = (config.plansMetadata as any)[pName] || {};
         return {
           type: sub.plan.name as any, // FREE, PRO, MASTER
           expiresAt: sub.endDate.toISOString(),
           priceBRL: Number(sub.plan.priceBRL),
-          autoRenew: sub.canceledAt === null
+          autoRenew: sub.canceledAt === null,
+          releasedFeatures: meta.releasedFeatures || {
+            modulesAll: false,
+            conversationalSection: false,
+            arenaPvp: false,
+            bjjAcademies: false,
+            marketplace: false,
+            jiuspeakLibrary: true,
+            inventoryBackpack: true,
+            jiuspeakStore: false,
+            premiumResources: false
+          }
         };
       }
     } catch (err) {
@@ -4378,11 +4647,48 @@ export async function getActiveSubscriptionForUser(userId: string) {
     }
   }
 
+  // Fallback to memory or default FREE
+  const activeInMemorySub = inMemorySubscriptions.find(s => s.userId === userId && s.status === "ACTIVE");
+  if (activeInMemorySub) {
+    const pm = inMemoryPlans.find(plan => plan.id === activeInMemorySub.planId) || inMemoryPlans[0];
+    const pName = pm.name.toUpperCase();
+    const meta: any = (config.plansMetadata as any)[pName] || {};
+    return {
+      type: pm.name as any,
+      expiresAt: activeInMemorySub.endDate,
+      priceBRL: Number(pm.priceBRL),
+      autoRenew: activeInMemorySub.autoRenew,
+      releasedFeatures: meta.releasedFeatures || {
+        modulesAll: false,
+        conversationalSection: false,
+        arenaPvp: false,
+        bjjAcademies: false,
+        marketplace: false,
+        jiuspeakLibrary: true,
+        inventoryBackpack: true,
+        jiuspeakStore: false,
+        premiumResources: false
+      }
+    };
+  }
+
   // Default to FREE with no expiry (Strict Database Engine)
+  const freeMeta: any = (config.plansMetadata as any)["FREE"] || {};
   return {
     type: "FREE" as const,
     priceBRL: 0,
-    autoRenew: false
+    autoRenew: false,
+    releasedFeatures: freeMeta.releasedFeatures || {
+      modulesAll: false,
+      conversationalSection: false,
+      arenaPvp: false,
+      bjjAcademies: false,
+      marketplace: false,
+      jiuspeakLibrary: true,
+      inventoryBackpack: true,
+      jiuspeakStore: false,
+      premiumResources: false
+    }
   };
 }
 
@@ -4466,19 +4772,52 @@ export async function seedPlansInDb() {
 app.get("/api/subscriptions/plans", async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
-    const plans = await prisma.plan.findMany({ where: { active: true } });
-    const mapped = plans.map(p => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      priceBRL: Number(p.priceBRL),
-      interval: p.interval,
-      features: p.features,
-      active: p.active
-    }));
+    let plans: any[] = [];
+    if (prisma) {
+      try {
+        plans = await prisma.plan.findMany();
+      } catch (dbErr) {
+        plans = inMemoryPlans as any[];
+      }
+    } else {
+      plans = inMemoryPlans as any[];
+    }
+
+    const config = loadFinancialConfig();
+    const mapped = plans.map(p => {
+      const pName = p.name.toUpperCase();
+      const meta: any = (config.plansMetadata as any)[pName] || {};
+      return {
+        id: p.id,
+        name: p.name,
+        description: meta.description !== undefined ? meta.description : p.description,
+        priceBRL: meta.priceBRL !== undefined ? Number(meta.priceBRL) : Number(p.priceBRL),
+        priceYearlyBRL: meta.priceYearlyBRL !== undefined ? Number(meta.priceYearlyBRL) : Number(p.priceBRL) * 10,
+        interval: p.interval,
+        features: meta.features || p.features || [],
+        active: meta.active !== undefined ? meta.active : p.active,
+        promotionalText: meta.promotionalText || "",
+        badge: meta.badge || "",
+        cardColor: meta.cardColor || "slate",
+        displayOrder: meta.displayOrder || 1,
+        releasedFeatures: meta.releasedFeatures || {
+          modulesAll: false,
+          conversationalSection: false,
+          arenaPvp: false,
+          bjjAcademies: false,
+          marketplace: false,
+          jiuspeakLibrary: true,
+          inventoryBackpack: true,
+          jiuspeakStore: false,
+          premiumResources: false
+        }
+      };
+    });
+    // Sort plans by displayOrder
+    mapped.sort((a: any, b: any) => a.displayOrder - b.displayOrder);
     res.json({ plans: mapped });
   } catch (error) {
-    console.error("Critical database error in subscriptions plans endpoint:", error);
+    console.error("Critical error in subscriptions plans endpoint:", error);
     res.status(500).json({ error: "Erro ao carregar os planos disponíveis." });
   }
 });

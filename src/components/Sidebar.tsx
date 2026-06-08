@@ -51,11 +51,71 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     }
   };
 
-  const subscriptionType = user.subscription?.type?.toUpperCase() || 'FREE';
-  const isAdmin = user.role === 'admin';
-  const hasAcademyAccess = ['PRO', 'MASTER'].includes(subscriptionType) || isAdmin;
-  const hasConversacaoAccess = ['VIP', 'PREMIUM VIP', 'PRO', 'MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(subscriptionType) || isAdmin;
-  const hasArenaPvpAccess = ['MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(subscriptionType) || isAdmin;
+  const hasPermission = (featureKey: string): boolean => {
+    if (user.role === 'admin') return true;
+    
+    // Check if dynamic releasedFeatures list is provided by server on user profile subscription
+    const sub = user.subscription as any;
+    if (sub?.releasedFeatures && sub.releasedFeatures[featureKey] !== undefined) {
+      return !!sub.releasedFeatures[featureKey];
+    }
+
+    // Default static plan rules fallback
+    const subType = user.subscription?.type?.toUpperCase() || 'FREE';
+    const defaultPermissions: Record<string, Record<string, boolean>> = {
+      FREE: {
+        modulesAll: false,
+        conversationalSection: false,
+        arenaPvp: false,
+        bjjAcademies: false,
+        marketplace: false,
+        jiuspeakLibrary: true,
+        inventoryBackpack: true,
+        jiuspeakStore: false,
+        premiumResources: false,
+      },
+      VIP: {
+        modulesAll: true,
+        conversationalSection: true,
+        arenaPvp: false,
+        bjjAcademies: false,
+        marketplace: true,
+        jiuspeakLibrary: true,
+        inventoryBackpack: true,
+        jiuspeakStore: true,
+        premiumResources: false,
+      },
+      PRO: {
+        modulesAll: true,
+        conversationalSection: true,
+        arenaPvp: true,
+        bjjAcademies: true,
+        marketplace: true,
+        jiuspeakLibrary: true,
+        inventoryBackpack: true,
+        jiuspeakStore: true,
+        premiumResources: true,
+      },
+      MASTER: {
+        modulesAll: true,
+        conversationalSection: true,
+        arenaPvp: true,
+        bjjAcademies: true,
+        marketplace: true,
+        jiuspeakLibrary: true,
+        inventoryBackpack: true,
+        jiuspeakStore: true,
+        premiumResources: true,
+      }
+    };
+
+    const planGate = defaultPermissions[subType] || defaultPermissions.FREE;
+    return !!planGate[featureKey];
+  };
+
+  const hasAcademyAccess = hasPermission('bjjAcademies');
+  const hasConversacaoAccess = hasPermission('conversationalSection');
+  const hasArenaPvpAccess = hasPermission('arenaPvp');
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel do Aluno', icon: User, badge: null },
