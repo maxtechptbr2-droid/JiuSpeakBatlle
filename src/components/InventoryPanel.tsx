@@ -885,7 +885,7 @@ export default function InventoryPanel({
                               ) : (
                                 <>
                                   <Check className="w-3 h-3" />
-                                  <span>EQUIPAR ITEM</span>
+                                  <span>{item.product?.category?.toUpperCase() === 'AVATAR' ? 'USAR COMO FOTO DE PERFIL' : 'EQUIPAR ITEM'}</span>
                                 </>
                               )}
                             </button>
@@ -1029,7 +1029,7 @@ export default function InventoryPanel({
                     }}
                     className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-mono font-extrabold uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-violet-500/20 cursor-pointer animate-pulse"
                   >
-                    ⚡ EQUIPAR IMEDIATAMENTE
+                    {viewItemModal.product?.category?.toUpperCase() === 'AVATAR' ? '👤 USAR COMO FOTO DE PERFIL' : '⚡ EQUIPAR IMEDIATAMENTE'}
                   </button>
                 )}
 
