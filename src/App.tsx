@@ -50,6 +50,16 @@ const LoadingFallback = () => (
   </div>
 );
 
+const AccessDenied403 = ({ message }: { message: string }) => (
+  <div className="flex flex-col items-center justify-center p-12 min-h-[400px] text-center max-w-lg mx-auto" id="403-access-denied-app">
+    <div className="w-16 h-16 rounded-2xl bg-red-950/45 border border-red-500/20 flex items-center justify-center text-red-500 text-2xl mb-4 animate-bounce">
+      🛡️
+    </div>
+    <h3 className="font-display font-extrabold text-xl text-white mb-2">403 - Acesso Negado</h3>
+    <p className="text-xs text-slate-400 leading-relaxed font-sans">{message}</p>
+  </div>
+);
+
 export default function App() {
   
   // JWT & Session state hooks
@@ -776,127 +786,193 @@ export default function App() {
 
         {/* Mounted Views Router */}
         <React.Suspense fallback={<LoadingFallback />}>
-          {currentTab.startsWith('academy') && (
-            <JiuSpeakAcademy 
-              activeSubTab={currentTab}
-              setCurrentTab={setCurrentTab}
-              user={user}
-              updateUser={handleUpdateUserProfile}
-              showToast={showToast}
-            />
-          )}
+          {(() => {
+            const subType = user.subscription?.type?.toUpperCase() || 'FREE';
+            const isAdm = user.role === 'admin';
+            const hasAcademy = ['PRO', 'MASTER'].includes(subType) || isAdm;
+            const hasConversacao = ['VIP', 'PREMIUM VIP', 'PRO', 'MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(subType) || isAdm;
 
-          {currentTab === 'viral' && (
-            <ViralShare 
-              user={user} 
-            />
-          )}
+            if (currentTab.startsWith('academy')) {
+              return (
+                <JiuSpeakAcademy 
+                  activeSubTab={currentTab}
+                  setCurrentTab={setCurrentTab}
+                  user={user}
+                  updateUser={handleUpdateUserProfile}
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'dashboard' && (
-            <Dashboard 
-              user={user} 
-              achievements={achievements} 
-              updateUser={handleUpdateUserProfile} 
-              claimAchievement={claimAchievement}
-              onNavigate={setCurrentTab}
-              courses={courses}
-            />
-          )}
+            if (currentTab === 'viral') {
+              return <ViralShare user={user} />;
+            }
 
-          {currentTab === 'lessons' && (
-            <Lessons 
-              user={user} 
-              courses={courses} 
-              updateUser={handleUpdateUserProfile} 
-              onAddAuditLog={addAuditLog}
-              addXp={addXp}
-              addCoins={addCoins}
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'dashboard') {
+              return (
+                <Dashboard 
+                  user={user} 
+                  achievements={achievements} 
+                  updateUser={handleUpdateUserProfile} 
+                  claimAchievement={claimAchievement}
+                  onNavigate={setCurrentTab}
+                  courses={courses}
+                />
+              );
+            }
 
-          {currentTab === 'pvp' && (
-            <PvPArena 
-              user={user} 
-              updateUser={handleUpdateUserProfile} 
-              onAddAuditLog={addAuditLog}
-              addXp={addXp}
-              addCoins={addCoins}
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'lessons') {
+              return (
+                <Lessons 
+                  user={user} 
+                  courses={courses} 
+                  updateUser={handleUpdateUserProfile} 
+                  onAddAuditLog={addAuditLog}
+                  addXp={addXp}
+                  addCoins={addCoins}
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'market' && (
-            <StoreMarket 
-              user={user} 
-              updateUser={handleUpdateUserProfile} 
-              onAddAuditLog={addAuditLog}
-              showToast={showToast}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            if (currentTab === 'pvp') {
+              if (!hasConversacao) {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. A Seção de Conversação com IA é exclusiva para alunos VIP, PRO e MASTER. Faça o upgrade agora para destravar treinos de diálogo ilimitados!" 
+                  />
+                );
+              }
+              return (
+                <PvPArena 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  onAddAuditLog={addAuditLog}
+                  addXp={addXp}
+                  addCoins={addCoins}
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'inventory' && (
-            <InventoryPanel 
-              user={user} 
-              updateUser={handleUpdateUserProfile} 
-              onAddAuditLog={addAuditLog}
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'market') {
+              return (
+                <StoreMarket 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  onAddAuditLog={addAuditLog}
+                  showToast={showToast}
+                  setCurrentTab={setCurrentTab}
+                />
+              );
+            }
 
-          {currentTab === 'social' && (
-            <SocialFeed 
-              user={user} 
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'inventory') {
+              return (
+                <InventoryPanel 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  onAddAuditLog={addAuditLog}
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'academies' && (
-            <AcademiesCommunities 
-              user={user} 
-              updateUser={handleUpdateUserProfile} 
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'social') {
+              return (
+                <SocialFeed 
+                  user={user} 
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'finance' && (
-            <FinancePanel 
-              user={user} 
-              updateUser={handleUpdateUserProfile} 
-              onAddAuditLog={addAuditLog}
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'academies') {
+              if (!hasAcademy) {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. O acesso às Academias BJJ é exclusivo para os planos PRO e MASTER. Faça o upgrade para fazer parte de equipes virtuais e treinar com professores parceiros!" 
+                  />
+                );
+              }
+              return (
+                <AcademiesCommunities 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'subscriptions' && (
-            <SubscriptionPanel 
-              user={user} 
-              updateUser={handleUpdateUserProfile} 
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'finance') {
+              if (user.role !== 'admin') {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. Esta seção de finanças, carteira e relatórios contábeis é restrita exclusivamente a administradores do ecossistema JiuSpeak." 
+                  />
+                );
+              }
+              return (
+                <FinancePanel 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  onAddAuditLog={addAuditLog}
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'creator' && (user.role === 'admin' || user.role === 'professor') && (
-            <CreatorPanel 
-              user={user} 
-              courses={courses} 
-              updateUser={handleUpdateUserProfile} 
-              onAddNewCourse={handleAddNewCourse}
-              onAddAuditLog={addAuditLog}
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'subscriptions') {
+              return (
+                <SubscriptionPanel 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  showToast={showToast}
+                />
+              );
+            }
 
-          {currentTab === 'admin' && user.role === 'admin' && (
-            <AdminPanel 
-              user={user} 
-              auditLogs={auditLogs} 
-              updateUser={handleUpdateUserProfile} 
-              onClearLogs={clearAuditLogs}
-              showToast={showToast}
-            />
-          )}
+            if (currentTab === 'creator') {
+              if (user.role !== 'admin' && user.role !== 'professor') {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. Esta seção de criação de grade e gerenciamento de docência é de acesso restrito a professores e acadêmicos homologados." 
+                  />
+                );
+              }
+              return (
+                <CreatorPanel 
+                  user={user} 
+                  courses={courses} 
+                  updateUser={handleUpdateUserProfile} 
+                  onAddNewCourse={handleAddNewCourse}
+                  onAddAuditLog={addAuditLog}
+                  showToast={showToast}
+                />
+              );
+            }
+
+            if (currentTab === 'admin') {
+              if (user.role !== 'admin') {
+                return (
+                  <AccessDenied403 
+                    message="403 - Acesso Negado. Esta seção é restrita exclusivamente a administradores gerais do ecossistema JiuSpeak." 
+                  />
+                );
+              }
+              return (
+                <AdminPanel 
+                  user={user} 
+                  auditLogs={auditLogs} 
+                  updateUser={handleUpdateUserProfile} 
+                  onClearLogs={clearAuditLogs}
+                  showToast={showToast}
+                />
+              );
+            }
+
+            return null;
+          })()}
         </React.Suspense>
 
       </main>

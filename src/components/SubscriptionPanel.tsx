@@ -75,8 +75,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
   
   const [payingState, setPayingState] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
-  const [cronLogs, setCronLogs] = useState<string[]>([]);
-  const [runningCron, setRunningCron] = useState(false);
+
 
   // Load plans & current status
   const loadSubscriptionInfo = async () => {
@@ -163,52 +162,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
     }
   };
 
-  // Confirm PIX simulate payment
-  const handleSimulatePayment = async () => {
-    if (!checkoutData) return;
-    const token = localStorage.getItem('jiuspeak_access_token');
-    if (!token) return;
 
-    try {
-      setPayingState(true);
-      const res = await fetch('/api/subscriptions/pay', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          paymentId: checkoutData.paymentId,
-          txid: checkoutData.txid
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast(data.message, 'success');
-        
-        // Re-get user profile state to synch
-        const meRes = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const meData = await meRes.json();
-        if (meData.user) {
-          updateUser(meData.user);
-        }
-
-        setCheckoutPlan(null);
-        setCheckoutData(null);
-        loadSubscriptionInfo();
-      } else {
-        showToast(data.error || 'Erro ao compensar pagamento.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Erro ao conciliar faturamento.', 'error');
-    } finally {
-      setPayingState(false);
-    }
-  };
 
   // Cancel automatic renewal
   const handleCancelAutoRenew = async () => {
@@ -249,43 +203,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
     }
   };
 
-  // Run Cron simulation cycle
-  const handleRunSimulateCron = async () => {
-    try {
-      setRunningCron(true);
-      setCronLogs([]);
-      
-      const res = await fetch('/api/subscriptions/simulate-cron', {
-        method: 'POST'
-      });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setCronLogs(data.logs || ['Execução do faturamento retornada limpa.']);
-        showToast('Simulação do ciclo cron concluída com sucesso!', 'success');
-        
-        // Sync logged user profile in case their memory changed
-        const token = localStorage.getItem('jiuspeak_access_token');
-        if (token) {
-          const meRes = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const meData = await meRes.json();
-          if (meData.user) {
-            updateUser(meData.user);
-          }
-        }
-        loadSubscriptionInfo();
-      } else {
-        showToast(data.error || 'Erro ao rodar cron simulado.', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Erro interno ao invocar cron temporário.', 'error');
-    } finally {
-      setRunningCron(false);
-    }
-  };
 
   const handleCopyClipboardPix = () => {
     if (!checkoutData) return;
@@ -511,21 +429,13 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                       <p className="text-xl font-mono font-black text-white">R$ {checkoutData.amountBRL.toFixed(2)}</p>
                     </div>
 
-                    <button
-                      onClick={handleSimulatePayment}
-                      disabled={payingState}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-mono px-5 py-2 rounded-lg text-xs font-semibold shadow-lg shadow-emerald-500/15 flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      {payingState ? (
-                        <>
-                           <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4" /> Confirmar Pagamento e Compensar (Pix)
-                        </>
-                      )}
-                    </button>
+                    <div className="flex items-center gap-3 bg-indigo-500/10 border border-indigo-550/20 px-4 py-2.5 rounded-lg text-slate-350 max-w-sm">
+                      <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
+                      <div className="text-[10px] leading-tight">
+                        <strong className="text-white block uppercase font-mono text-[9px] text-indigo-305 tracking-wider mb-0.5">Aguardando Liquidação PIX</strong>
+                        O gateway está monitorando o Banco Central em tempo real para ativar seus privilégios SaaS.
+                      </div>
+                    </div>
                   </div>
                 </div>
 

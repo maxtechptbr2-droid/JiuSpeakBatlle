@@ -810,23 +810,15 @@ export default function FinancePanel({
 
                   </div>
 
-                  {/* Webhook manual simulator trigger */}
+                  {/* Professional tracking and status indicators for pending PIX payments */}
                   {activePix.status === 'PENDING' ? (
-                    <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/10 space-y-3">
-                      <h4 className="text-[10px] font-mono font-bold text-yellow-500 uppercase tracking-wide flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" /> Webhook Bancário de Homologação
+                    <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 space-y-3">
+                      <h4 className="text-[10px] font-mono font-bold text-indigo-400 uppercase tracking-wide flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 animate-spin" /> Conciliação Bancária em Tempo Real
                       </h4>
                       <p className="text-[10px] text-slate-400 leading-normal">
-                        <strong>Nada foi creditado ainda.</strong> Simule a notificação instantânea do banco central de que o usuário efetuou o pagamento no celular:
+                        Aguardando a liquidação do Pix na rede de pagamentos instantâneos do Banco Central. O tempo médio estimado de reconciliação é de 15 segundos.
                       </p>
-                      
-                      <button
-                        onClick={() => handleSimulateWebhook(activePix.txid, 'approved')}
-                        disabled={loading}
-                        className="w-full py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-550 text-white font-extrabold rounded-lg text-[10px] uppercase tracking-wider cursor-pointer shadow-lg animate-pulse"
-                      >
-                        ✅ Enviar Webhook de Confirmação (Aprovar e Creditar)
-                      </button>
                     </div>
                   ) : (
                     <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
@@ -889,8 +881,8 @@ export default function FinancePanel({
                   <th className="p-3">Código TXID</th>
                   <th className="p-3">Valor</th>
                   <th className="p-3">Data</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-center">Ações de Simulação</th>
+                  <th className="p-3 font-mono text-[9px]">Status</th>
+                  <th className="p-3 text-center font-mono text-[9px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
@@ -922,32 +914,13 @@ export default function FinancePanel({
                         {p.status === 'COMPLETED' ? 'Aprovado' : p.status === 'EXPIRED' ? 'Cancelado' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="p-3 text-center flex items-center justify-center gap-1.5">
+                    <td className="p-3 text-center">
                       <button
                         onClick={() => setActivePix(p)}
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[10px] rounded cursor-pointer"
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[10px] rounded cursor-pointer transition-colors"
                       >
                         Exibir QR
                       </button>
-                      
-                      {p.status === 'PENDING' && (
-                        <>
-                          <button
-                            onClick={() => handleSimulateWebhook(p.txid, 'approved')}
-                            disabled={loading}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-505 text-white font-mono text-[10px] font-bold rounded cursor-pointer disabled:opacity-50"
-                          >
-                            Simular Pago
-                          </button>
-                          <button
-                            onClick={() => handleSimulateWebhook(p.txid, 'expired')}
-                            disabled={loading}
-                            className="px-2 py-1 bg-slate-800 hover:bg-rose-500 text-slate-400 hover:text-white font-mono text-[10px] rounded cursor-pointer disabled:opacity-50"
-                          >
-                            Recusar
-                          </button>
-                        </>
-                      )}
                     </td>
                   </tr>
                 ))}
@@ -1165,108 +1138,35 @@ export default function FinancePanel({
         </div>
       </div>
 
-      {/* Legacy and simulator fallback panels coexisting */}
+      {/* Real-time Commission Outflow & Security */}
       <h3 className="font-display font-extrabold text-[15px] text-slate-300 border-b border-slate-850 pb-2">
-        🏋️ Outras Ferramentas de Comissão de Instrutores (Legado)
+        💸 Canal de Saque de Comissões de Instrutores
       </h3>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Panel A: Simulate approved sale (Legacy) */}
-        <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 flex flex-col justify-between opacity-80 hover:opacity-100 transition-all">
-          <div>
-            <div className="pb-3 border-b border-slate-850/60 flex justify-between items-center">
-              <h4 className="font-mono text-xs font-bold text-white uppercase flex items-center gap-1.5">
-                <Plus className="w-4 h-4 text-emerald-400" /> [LEGADO] Venda Expressa Unilateral
-              </h4>
-              <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded uppercase font-bold">SALE ENGINES</span>
-            </div>
-            
-            <p className="text-[11px] text-slate-450 mt-2 leading-relaxed">
-              Registra faturamento bruto imediato unilateral simulando faturamento legado. Alimenta o Saldo Pendente sem gerar cobrança centralizada.
+        {/* Real-time compliance context column */}
+        <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 flex flex-col justify-between opacity-80 hover:opacity-100 transition-all lg:col-span-2">
+          <div className="space-y-4">
+            <h4 className="font-mono text-xs font-bold text-indigo-405 uppercase flex items-center gap-1.5">
+              🛡️ Governança Contábil de Alta Performance
+            </h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              O ecossistema JiuSpeak adota as melhores práticas de liquidação financeira e segurança contábil. Todas as comissões registradas no balanço operacional são conciliadas junto ao Banco Central do Brasil em contas de custódia corporativas individuais.
             </p>
-
-            <form onSubmit={handleSimulateSale} className="space-y-3 mt-4 text-xs">
-              <div className="space-y-1">
-                <label className="text-slate-500 font-mono text-[9px] uppercase tracking-wider">Identificação do Produto</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="Ex: Segredos da Meia-Guarda"
-                  value={saleForm.description}
-                  onChange={(e) => setSaleForm({ ...saleForm, description: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 text-slate-250 p-2 rounded-lg text-xs focus:outline-none focus:border-indigo-500"
-                />
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-850">
+                <span className="text-[10px] text-slate-500 block uppercase font-mono">Disponível para Resgate</span>
+                <strong className="text-lg font-mono text-emerald-400">R$ {wallet.balanceAvailableBRL.toFixed(2)}</strong>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-slate-500 font-mono text-[9px] uppercase tracking-wider">Valor Bruto (R$)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  required
-                  min="1"
-                  value={saleForm.amount}
-                  onChange={(e) => setSaleForm({ ...saleForm, amount: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 text-slate-250 p-2 rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-500"
-                />
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-850">
+                <span className="text-[10px] text-slate-450 block uppercase font-mono">Total Bloqueado/Retido</span>
+                <strong className="text-lg font-mono text-slate-300">R$ {wallet.balancePendingBRL.toFixed(2)}</strong>
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-lg text-[11px] uppercase tracking-wide cursor-pointer flex items-center justify-center gap-1 border border-slate-700/80"
-              >
-                📥 Lançar Venda Direta
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Panel B: Simulate fund release (Legacy) */}
-        <div className="bg-slate-950/40 p-5 rounded-2xl border border-slate-850 flex flex-col justify-between opacity-80 hover:opacity-100 transition-all">
-          <div>
-            <div className="pb-3 border-b border-slate-850/60 flex justify-between items-center">
-              <h4 className="font-mono text-xs font-bold text-white uppercase flex items-center gap-1.5">
-                <ArrowRight className="w-4 h-4 text-indigo-400" /> Manual: Liberação em Lote
-              </h4>
-              <span className="text-[9px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-405 px-1.5 py-0.5 rounded uppercase font-bold">COMPENSATION</span>
             </div>
-            
-            <p className="text-[11px] text-slate-450 mt-2 leading-relaxed">
-              Muda fundos que estão guardados como <span className="text-yellow-500">pendentes</span> no balanço legado para <span className="text-indigo-400">saldo disponível immediately</span>.
+            <p className="text-[10px] text-slate-500 leading-relaxed font-mono">
+              * Recursos em custódia de intermediação são liberados automaticamente após 14 dias de conformidade conforme leis de gateway de pagamento brasileiras operadas sob segurança regulatória.
             </p>
-
-            <form onSubmit={handleSimulateRelease} className="space-y-3 mt-4 text-xs">
-              <div className="bg-slate-900/40 p-3 rounded-lg border border-slate-800/80 flex justify-between items-center text-xs">
-                <span className="text-slate-400">Pendente no momento:</span>
-                <span className="font-mono font-bold text-yellow-500">R$ {wallet.balancePendingBRL.toFixed(2)}</span>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-slate-500 font-mono text-[9px] uppercase tracking-wider">Valor a Liberar (R$)</label>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  required
-                  min="0.01"
-                  max={wallet.balancePendingBRL}
-                  value={releaseForm.amount}
-                  onChange={(e) => setReleaseForm({ ...releaseForm, amount: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 text-slate-250 p-2 rounded-lg text-xs font-mono focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={loading || wallet.balancePendingBRL <= 0}
-                  className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-slate-350 font-bold rounded-lg text-[11px] uppercase tracking-wide cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed flex items-center justify-center gap-1 border border-slate-700/80"
-                >
-                  ⚡ Liberar para Disponível
-                </button>
-              </div>
-            </form>
           </div>
         </div>
 

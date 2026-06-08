@@ -4708,112 +4708,11 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
   }
 });
 
-// 4. APPROVE/PAY FOR A SUBSCRIPTION (SIMULATING PAYMENT SETTLEMENT - THROUGH WEBHOOK SECURE WRAPPER ROUTE)
+// 4. APPROVE/PAY FOR A SUBSCRIPTION (DISABLED SIMULATION - ALL PAYMENTS THROUGH REAL GATEWAY PKI WEBHOOK ONLY)
 app.post("/api/subscriptions/pay", authenticateToken, async (req: any, res: any) => {
-  try {
-    const { paymentId, txid } = req.body;
-    const userId = req.user.id;
-    const prisma = getPrisma();
-
-    let resolvedTxid = txid;
-    let resolvedAmount = 29.90; // Default subscription rate
-
-    // Look up the actual record to get the registered TXID and amount
-    if (prisma) {
-      try {
-        const payment = await prisma.subscriptionPayment.findFirst({
-          where: {
-            OR: [
-              { id: paymentId || "nonexistent" },
-              { txid: txid || "nonexistent" }
-            ]
-          }
-        });
-        if (payment) {
-          resolvedTxid = payment.txid;
-          resolvedAmount = Number(payment.amountBRL);
-        }
-      } catch (_) {}
-    }
-
-    if (!resolvedTxid) {
-      const memPayment = inMemorySubscriptionPayments.find(p => p.id === paymentId || p.txid === txid);
-      if (memPayment) {
-        resolvedTxid = memPayment.txid;
-        resolvedAmount = Number(memPayment.amountBRL);
-      }
-    }
-
-    if (!resolvedTxid) {
-      return res.status(404).json({ error: "Ordem de pagamento de assinatura não encontrada para conciliação." });
-    }
-
-    // Force call the webhook simulation of payment received!
-    // Since this is called from the UI, we emulate the Banco central webhook request structure.
-    // This goes through 100% of the PIX webhook validations, anti-fraud checks, and logs.
-    const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
-    
-    // We emulate calling the `/api/finance/pix-webhook` logics internally on this same application
-    const webhookPayload = {
-      txid: resolvedTxid,
-      amountBRL: resolvedAmount,
-      status: "approved"
-    };
-
-    // Run the webhook flow by calling /api/finance/pix-webhook cleanly via fetch
-    try {
-      const host = req.get('host') || 'localhost:3000';
-      const response = await fetch(`http://${host}/api/finance/pix-webhook`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Forwarded-For": clientIp
-        },
-        body: JSON.stringify(webhookPayload)
-      });
-      
-      const data = await response.json();
-      if (response.ok && data.success) {
-        // Fetch newly activated subscription details to respond nicely to the frontend
-        let activeSubInfo: any = {
-          type: "VIP",
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          priceBRL: resolvedAmount,
-          autoRenew: true
-        };
-
-        if (prisma) {
-          try {
-            const currentSub = await prisma.subscription.findFirst({
-              where: { userId, status: "ACTIVE" },
-              include: { plan: true }
-            });
-            if (currentSub) {
-              activeSubInfo = {
-                type: currentSub.plan.name,
-                expiresAt: currentSub.endDate.toISOString(),
-                priceBRL: Number(currentSub.plan.priceBRL),
-                autoRenew: true
-              };
-            }
-          } catch (_) {}
-        }
-
-        return res.json({
-          success: true,
-          message: `O pagamento PIX de R$ ${resolvedAmount.toFixed(2)} foi processado e auditado automatizado! Sua assinatura está ativa.`,
-          activeSubscription: activeSubInfo
-        });
-      } else {
-        return res.status(response.status).json({ error: data.error || "A validação automatizada de webhook rejeitou este pagamento." });
-      }
-    } catch (fetchErr) {
-      return res.status(500).json({ error: "Erro na conciliação automatizada de webhook." });
-    }
-  } catch (error: any) {
-    logError("Payment subscription confirm error", error);
-    res.status(500).json({ error: "Erro ao conciliar faturamento de assinatura por webhook." });
-  }
+  return res.status(403).json({
+    error: "A homologação direta por API simuladora foi desativada no ambiente de produção. Todas as compensações financeiras são efetuadas de forma segura e auditadas unicamente via Webhook PIX oficial do Banco Central."
+  });
 });
 
 // 5. CANCEL SUBSCRIPTION (STOP AUTORENEW)
@@ -9684,7 +9583,7 @@ async function startServer() {
   let inMemoryFlashcards: Record<string, any[]> = {};
 
   // 11. QUIZZES GET & SAVE ENDPOINTS
-  app.get("/api/admin/academy/quizzes", authenticateToken, async (req: any, res: any) => {
+  app.get("/api/admin/academy/quizzes", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
     res.json({ success: true, quizzes: inMemoryQuizzes });
   });
 
@@ -9698,7 +9597,7 @@ async function startServer() {
   });
 
   // 12. FLASHCARDS GET & SAVE ENDPOINTS
-  app.get("/api/admin/academy/flashcards", authenticateToken, async (req: any, res: any) => {
+  app.get("/api/admin/academy/flashcards", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
     res.json({ success: true, flashcards: inMemoryFlashcards });
   });
 

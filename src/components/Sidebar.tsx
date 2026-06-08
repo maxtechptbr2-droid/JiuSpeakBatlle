@@ -51,15 +51,21 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     }
   };
 
+  const subscriptionType = user.subscription?.type?.toUpperCase() || 'FREE';
+  const isAdmin = user.role === 'admin';
+  const hasAcademyAccess = ['PRO', 'MASTER'].includes(subscriptionType) || isAdmin;
+  const hasConversacaoAccess = ['VIP', 'PREMIUM VIP', 'PRO', 'MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(subscriptionType) || isAdmin;
+  const hasArenaPvpAccess = ['MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(subscriptionType) || isAdmin;
+
   const menuItems = [
     { id: 'dashboard', label: 'Painel do Aluno', icon: User, badge: null },
     { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Aulas' },
-    { id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' },
+    ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' }] : []),
     { id: 'market', label: 'Loja JiuSpeak', icon: Store, badge: 'Loja' },
     { id: 'inventory', label: 'Mochila JiuSpeak', icon: Award, badge: 'Mochila' },
     { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
     { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
-    { id: 'academies', label: 'Academias BJJ', icon: Shield, badge: 'Equipes' },
+    ...(hasAcademyAccess ? [{ id: 'academies', label: 'Academias BJJ', icon: Shield, badge: 'Equipes' }] : []),
     { id: 'viral', label: 'Compartilhar Viral', icon: Share2, badge: 'Canvas' },
     ...(user.role === 'admin' ? [
       { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' }
@@ -210,7 +216,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
                 { id: 'academy_purple', label: '💜 Purple Belt Path' },
                 { id: 'academy_brown', label: '🤎 Brown Belt Path' },
                 { id: 'academy_black', label: '🖤 Black Belt Path' },
-                { id: 'academy_pvp', label: '🥊 Arena PVP' },
+                ...(hasArenaPvpAccess ? [{ id: 'academy_pvp', label: '🥊 Arena PVP' }] : []),
                 { id: 'academy_progress', label: '📊 Meu Progresso' },
                 { id: 'academy_certs', label: '📜 Certificados' },
                 ...(user.role === 'admin' ? [

@@ -1538,6 +1538,20 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
 
   // SubTab: Arena PVP VIEW
   if (activeSubTab === 'academy_pvp') {
+    const plan = user.subscription?.type?.toUpperCase() || 'FREE';
+    const isMasterOrAdmin = ['MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(plan) || user.role === 'admin';
+    if (!isMasterOrAdmin) {
+      return (
+        <div className="p-12 text-center text-amber-500 font-mono text-sm border border-amber-500/30 rounded-2xl bg-slate-900 max-w-lg mx-auto my-12" id="403-access-denied-academy-pvp">
+          <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
+          <h3 className="font-display font-extrabold text-lg text-white mb-2">Acesso Exclusivo</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            A Arena PVP é um recurso exclusivo para membros do plano <strong>MASTER</strong>. Faça o upgrade do seu plano na aba correspondente para destravar este recurso e lutar no tatame oficial!
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6" id="academy-pvp-arena">
         <div className="bg-gradient-to-tr from-violet-950/40 via-purple-950/20 to-slate-950 p-6 rounded-2xl border border-slate-900 flex justify-between items-center gap-4 flex-wrap">
@@ -1638,10 +1652,14 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
 
   // SubTab: Admin Panel for Academy Manager
   if (activeSubTab === 'academy_admin') {
-    if (user.role !== 'admin' && user.role !== 'professor') {
+    if (user.role !== 'admin') {
       return (
-        <div className="p-12 text-center text-red-400 font-mono text-sm border border-red-950/50 rounded-2xl bg-red-950/10">
-          Acesso restrito apenas a administradores homologados.
+        <div className="p-12 text-center text-red-500 font-mono text-sm border border-red-500/30 rounded-2xl bg-red-950/20 max-w-lg mx-auto my-12" id="403-access-denied-academy">
+          <Shield className="w-12 h-12 text-red-550 mx-auto mb-4 animate-bounce" />
+          <h3 className="font-display font-extrabold text-lg text-white mb-2">403 - Acesso Negado</h3>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Esta seção é restrita exclusivamente a administradores do ecossistema JiuSpeak.
+          </p>
         </div>
       );
     }

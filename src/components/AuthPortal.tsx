@@ -709,11 +709,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                     {loading ? <RefreshCw className="w-4.5 h-4.5 animate-spin" /> : <>Log In para Treinar <ArrowRight className="w-4.5 h-4.5" /></>}
                   </button>
 
-                  <div className="pt-1.5 text-center">
-                    <span className="text-[10px] text-slate-500 leading-normal block">
-                      Usar conta de teste rápida: <button type="button" onClick={() => { setEmail('maxtechptbr@gmail.com'); setPassword('98922678aA'); }} className="text-violet-400 underline cursor-pointer font-bold font-mono">maxtechptbr@gmail.com</button> (98922678aA)
-                    </span>
-                  </div>
+
                 </form>
               )}
 
