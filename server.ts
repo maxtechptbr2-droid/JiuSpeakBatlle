@@ -55,7 +55,9 @@ app.use(cookieParser());
 // -------------------------------------------------------------------------
 // DYNAMIC STOREPRODUCT FIELD COMPATIBILITY SYSTEM (ANTI-DRIFT AUTOPILOT)
 // -------------------------------------------------------------------------
-export let physicalStoreProductColumns: string[] = [];
+export let physicalStoreProductColumns: string[] = [
+  "id", "name", "description", "priceKC", "priceBRL", "category", "rarity", "imageUrl", "stock", "active", "createdAt", "updatedAt"
+];
 
 export async function auditStoreProductColumns() {
   if (isDatabaseConnected()) {
@@ -6330,7 +6332,7 @@ app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
         include: {
           items: {
             include: {
-              product: true
+              product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
             },
             orderBy: { acquiredAt: "desc" }
           }
@@ -6340,6 +6342,7 @@ app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
       const rawItems = inventory?.items || [];
       const mappedItems = rawItems.map((item: any) => {
         if (item.product) {
+          item.product = sanitizeStoreProduct(item.product);
           item.product = patchProductObjectWithBjjAvatar({
             id: item.product.id,
             name: item.product.name,
@@ -6423,9 +6426,13 @@ app.post("/api/inventory/equip", authenticateToken, async (req: any, res: any) =
           }
         },
         include: {
-          product: true
+          product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
         }
       });
+
+      if (item && item.product) {
+        item.product = sanitizeStoreProduct(item.product);
+      }
 
       if (!item) {
         return res.status(404).json({ error: "Item de inventário não encontrado ou não pertence ao seu atleta." });
@@ -6469,9 +6476,13 @@ app.post("/api/inventory/equip", authenticateToken, async (req: any, res: any) =
         where: { id: itemId },
         data: { isEquipped: true },
         include: {
-          product: true
+          product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
         }
       });
+
+      if (updatedItem && updatedItem.product) {
+        updatedItem.product = sanitizeStoreProduct(updatedItem.product);
+      }
 
       // D. IF ITEM IS AN AVATAR, UPDATE USER AVATAR IN DATABASE & LIVE SOCKETS
       const isAvatar = category?.toUpperCase() === 'AVATAR';
@@ -6613,9 +6624,13 @@ app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any)
           }
         },
         include: {
-          product: true
+          product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
         }
       });
+
+      if (item && item.product) {
+        item.product = sanitizeStoreProduct(item.product);
+      }
 
       if (!item) {
         return res.status(404).json({ error: "Item do inventário não corresponde ou não foi localizado." });
@@ -6626,9 +6641,13 @@ app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any)
         where: { id: itemId },
         data: { isEquipped: false },
         include: {
-          product: true
+          product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
         }
       });
+
+      if (updatedItem && updatedItem.product) {
+        updatedItem.product = sanitizeStoreProduct(updatedItem.product);
+      }
 
       // If item is an avatar, restore default general placeholder avatar
       const category = item.product?.category;
@@ -7463,9 +7482,17 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
             },
             include: {
               inventory: true,
-              product: true
+              product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
             }
           });
+
+          if (Array.isArray(equippedItems)) {
+            equippedItems.forEach((item: any) => {
+              if (item.product) {
+                item.product = sanitizeStoreProduct(item.product);
+              }
+            });
+          }
 
           const frameMap: Record<string, any> = {};
           equippedItems.forEach((item: any) => {
@@ -8933,10 +8960,13 @@ async function startServer() {
               }
             },
             include: {
-              product: true
+              product: getStoreProductSelect() ? { select: getStoreProductSelect() } : true
             }
           });
           if (equippedItem) {
+            if (equippedItem.product) {
+              equippedItem.product = sanitizeStoreProduct(equippedItem.product);
+            }
             equippedFrame = {
               id: equippedItem.product?.id || equippedItem.id,
               name: equippedItem.name,
