@@ -47,6 +47,7 @@ export interface UserProfile {
     description?: string;
     imageUrl?: string;
   } | null;
+  onboardingDone?: boolean;
 }
 
 export interface InventoryItem {

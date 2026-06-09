@@ -713,6 +713,31 @@ export default function Users() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500 uppercase block">Username (@):</label>
+                  <input 
+                    type="text" 
+                    value={editingUser.username || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-850 p-2 rounded text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
+                    placeholder="ex: roger_gracie"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500 uppercase block">Atleta Verificado:</label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input 
+                      type="checkbox"
+                      checked={!!editingUser.isVerified}
+                      onChange={(e) => setEditingUser({ ...editingUser, isVerified: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 bg-slate-900 border border-slate-800 rounded cursor-pointer accent-indigo-600"
+                    />
+                    <span className="text-[9px] text-slate-400 font-mono select-none">Selo Oficial (✓)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
                   <label className="text-[10px] text-slate-500 uppercase block">Função / Cargo:</label>
                   <select 
                     value={editingUser.role}

@@ -118,7 +118,8 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
   const hasArenaPvpAccess = hasPermission('arenaPvp');
 
   const menuItems = [
-    { id: 'dashboard', label: 'Painel do Aluno', icon: User, badge: null },
+    { id: 'dashboard', label: 'Painel do Aluno', icon: GraduationCap, badge: null },
+    { id: 'profile-settings', label: 'Meu Perfil', icon: User, badge: 'Ajustes' },
     { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Aulas' },
     ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' }] : []),
     { id: 'market', label: 'Loja JiuSpeak', icon: Store, badge: 'Loja' },

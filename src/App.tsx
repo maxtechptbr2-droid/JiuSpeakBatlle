@@ -41,6 +41,9 @@ const FinancePanel = React.lazy(() => import('./components/FinancePanel'));
 const SubscriptionPanel = React.lazy(() => import('./components/SubscriptionPanel'));
 const AcademiesCommunities = React.lazy(() => import('./components/AcademiesCommunities'));
 const JiuSpeakAcademy = React.lazy(() => import('./components/JiuSpeakAcademy'));
+const ProfilePanel = React.lazy(() => import('./components/ProfilePanel'));
+const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
+const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
 
 // Spinner skeleton screen for lazy-loaded route transitions 
 const LoadingFallback = () => (
@@ -139,11 +142,21 @@ export default function App() {
   // Navigation state
   const [currentTab, setCurrentTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      if (window.location.pathname === '/store') {
+      const path = window.location.pathname;
+      if (path === '/store') {
         return 'market';
       }
-      if (window.location.pathname === '/inventory') {
+      if (path === '/inventory') {
         return 'inventory';
+      }
+      if (path === '/dashboard/profile') {
+        return 'profile-settings';
+      }
+      if (path.startsWith('/profile/')) {
+        const username = path.split('/profile/')[1];
+        if (username) {
+          return `profile-public-${username}`;
+        }
       }
     }
     return 'dashboard';
@@ -172,6 +185,13 @@ export default function App() {
         setCurrentTab('market');
       } else if (path === '/inventory') {
         setCurrentTab('inventory');
+      } else if (path === '/dashboard/profile') {
+        setCurrentTab('profile-settings');
+      } else if (path.startsWith('/profile/')) {
+        const username = path.split('/profile/')[2] || path.split('/profile/')[1];
+        if (username) {
+          setCurrentTab(`profile-public-${username}`);
+        }
       } else if (path === '/') {
         setCurrentTab('dashboard');
       }
@@ -189,8 +209,22 @@ export default function App() {
       if (window.location.pathname !== '/inventory') {
         window.history.pushState(null, '', '/inventory');
       }
+    } else if (currentTab === 'profile-settings') {
+      if (window.location.pathname !== '/dashboard/profile') {
+        window.history.pushState(null, '', '/dashboard/profile');
+      }
+    } else if (currentTab.startsWith('profile-public-')) {
+      const username = currentTab.replace('profile-public-', '');
+      if (window.location.pathname !== `/profile/${username}`) {
+        window.history.pushState(null, '', `/profile/${username}`);
+      }
     } else {
-      if (window.location.pathname === '/store' || window.location.pathname === '/inventory') {
+      if (
+        window.location.pathname === '/store' || 
+        window.location.pathname === '/inventory' || 
+        window.location.pathname === '/dashboard/profile' ||
+        window.location.pathname.startsWith('/profile/')
+      ) {
         window.history.pushState(null, '', '/');
       }
     }
@@ -270,7 +304,8 @@ export default function App() {
           totalEarnedBRL: apiUser.totalEarnedBRL !== undefined ? apiUser.totalEarnedBRL : 575.00,
           totalWithdrawnBRL: apiUser.totalWithdrawnBRL !== undefined ? apiUser.totalWithdrawnBRL : 0.00,
           isEmailVerified: apiUser.isEmailVerified,
-          equippedFrame: apiUser.equippedFrame || null
+          equippedFrame: apiUser.equippedFrame || null,
+          onboardingDone: apiUser.onboardingDone
         });
         return true;
       }
@@ -650,6 +685,19 @@ export default function App() {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen relative text-slate-200 bg-[#070a13]" id="app-wrapper">
       
+      {/* 0. Onboarding Setup Flow for Initial Registrants */}
+      {user && user.onboardingDone === false && (
+        <React.Suspense fallback={<LoadingFallback />}>
+          <OnboardingWizard
+            user={user}
+            onComplete={(fields) => {
+              handleUpdateUserProfile(fields);
+            }}
+            showToast={showToast}
+          />
+        </React.Suspense>
+      )}
+      
       {/* 1. Global Custom Slide-In Toast Notification */}
       {toast && toast.visible && (
         <div className="fixed top-4 right-4 z-50 animate-bounce cursor-pointer max-w-sm w-full">
@@ -953,6 +1001,29 @@ export default function App() {
                   updateUser={handleUpdateUserProfile} 
                   onAddAuditLog={addAuditLog}
                   showToast={showToast}
+                />
+              );
+            }
+
+            if (currentTab === 'profile-settings') {
+              return (
+                <ProfilePanel 
+                  user={user} 
+                  updateUser={handleUpdateUserProfile} 
+                  showToast={showToast}
+                  onNavigate={setCurrentTab}
+                />
+              );
+            }
+
+            if (currentTab.startsWith('profile-public-')) {
+              const username = currentTab.replace('profile-public-', '');
+              return (
+                <PublicProfileView 
+                  username={username}
+                  currentUser={user}
+                  showToast={showToast}
+                  onNavigate={setCurrentTab}
                 />
               );
             }

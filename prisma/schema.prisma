@@ -141,6 +141,23 @@ model User {
   youtube           String?      @default("")
   facebook          String?      @default("")
   website           String?      @default("")
+  birthDate         DateTime?
+  phone             String?
+  englishLevel      String?
+  spanishLevel      String?
+  frenchLevel       String?
+  onboardingDone    Boolean      @default(false)
+  lastLoginAt       DateTime?
+  username          String?      @unique
+  beltRank          String?
+  favoriteTechnique String?
+  favoriteAthlete   String?
+  privacyLevel      String?      @default("public")
+  followersCount    Int          @default(0)
+  followingCount    Int          @default(0)
+  themeColor        String?
+  avatarFrame       String?
+  isVerified        Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

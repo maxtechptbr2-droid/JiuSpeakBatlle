@@ -34,6 +34,23 @@ export interface AuthUser {
   youtube?: string | null;
   facebook?: string | null;
   website?: string | null;
+  birthDate?: Date | null;
+  phone?: string | null;
+  englishLevel?: string | null;
+  spanishLevel?: string | null;
+  frenchLevel?: string | null;
+  onboardingDone?: boolean;
+  lastLoginAt?: Date | null;
+  username?: string | null;
+  beltRank?: string | null;
+  favoriteTechnique?: string | null;
+  favoriteAthlete?: string | null;
+  privacyLevel?: string | null;
+  followersCount?: number;
+  followingCount?: number;
+  themeColor?: string | null;
+  avatarFrame?: string | null;
+  isVerified?: boolean;
   verificationToken: string | null;
   resetToken: string | null;
   resetTokenExpires: Date | null;
@@ -1568,6 +1585,23 @@ export const authStore = {
           youtube: u.youtube,
           facebook: u.facebook,
           website: u.website,
+          birthDate: u.birthDate,
+          phone: u.phone,
+          englishLevel: u.englishLevel,
+          spanishLevel: u.spanishLevel,
+          frenchLevel: u.frenchLevel,
+          onboardingDone: u.onboardingDone,
+          lastLoginAt: u.lastLoginAt,
+          username: u.username,
+          beltRank: u.beltRank,
+          favoriteTechnique: u.favoriteTechnique,
+          favoriteAthlete: u.favoriteAthlete,
+          privacyLevel: u.privacyLevel,
+          followersCount: u.followersCount,
+          followingCount: u.followingCount,
+          themeColor: u.themeColor,
+          avatarFrame: u.avatarFrame,
+          isVerified: u.isVerified,
           verificationToken: u.verificationToken,
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
@@ -1637,6 +1671,23 @@ export const authStore = {
           youtube: u.youtube,
           facebook: u.facebook,
           website: u.website,
+          birthDate: u.birthDate,
+          phone: u.phone,
+          englishLevel: u.englishLevel,
+          spanishLevel: u.spanishLevel,
+          frenchLevel: u.frenchLevel,
+          onboardingDone: u.onboardingDone,
+          lastLoginAt: u.lastLoginAt,
+          username: u.username,
+          beltRank: u.beltRank,
+          favoriteTechnique: u.favoriteTechnique,
+          favoriteAthlete: u.favoriteAthlete,
+          privacyLevel: u.privacyLevel,
+          followersCount: u.followersCount,
+          followingCount: u.followingCount,
+          themeColor: u.themeColor,
+          avatarFrame: u.avatarFrame,
+          isVerified: u.isVerified,
           verificationToken: u.verificationToken,
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,

@@ -1335,7 +1335,7 @@ app.post("/api/auth/login", async (req: any, res: any) => {
     });
 
     // Simpler backwards compatibility sync
-    await authStore.updateUser(user.id!, { refreshToken });
+    await authStore.updateUser(user.id!, { refreshToken, lastLoginAt: new Date() });
 
     // Set secure, httpOnly cookies
     const isProd = process.env.NODE_ENV === "production";
@@ -1720,6 +1720,437 @@ app.get("/api/user/public-profile/:publicName", async (req: any, res: any) => {
   }
   
   return res.status(404).json({ error: "Perfil não encontrado" });
+});
+
+// ==========================================
+// EXPANDED ADVANCED STUDENT PROFILE & FOLLOW API
+// ==========================================
+
+// GET CURRENT USER PROFILE
+app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const u = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { wallet: true }
+    });
+    if (!u) return res.status(404).json({ error: "User not found" });
+    res.json({
+      profile: {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        bio: u.bio || "",
+        city: u.city || "",
+        country: u.country || "",
+        nativeLanguage: u.nativeLanguage || "",
+        learningGoal: u.learningGoal || "",
+        profilePhoto: u.profilePhoto || u.avatar || "",
+        coverPhoto: u.coverPhoto || "",
+        instagram: u.instagram || "",
+        youtube: u.youtube || "",
+        facebook: u.facebook || "",
+        website: u.website || "",
+        birthDate: u.birthDate,
+        phone: u.phone || "",
+        englishLevel: u.englishLevel || "",
+        spanishLevel: u.spanishLevel || "",
+        frenchLevel: u.frenchLevel || "",
+        onboardingDone: u.onboardingDone,
+        lastLoginAt: u.lastLoginAt,
+        username: u.username || "",
+        beltRank: u.beltRank || "",
+        favoriteTechnique: u.favoriteTechnique || "",
+        favoriteAthlete: u.favoriteAthlete || "",
+        privacyLevel: u.privacyLevel || "public",
+        followersCount: u.followersCount || 0,
+        followingCount: u.followingCount || 0,
+        themeColor: u.themeColor || "",
+        avatarFrame: u.avatarFrame || "",
+        isVerified: u.isVerified || false,
+        belt: u.belt,
+        stripes: u.stripes,
+        xp: u.xp,
+        level: u.level,
+        elo: u.elo,
+        coins: u.wallet?.balanceKC || 0,
+        balanceBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0
+      }
+    });
+  } catch (err) {
+    console.error("GET /api/profile err:", err);
+    res.status(500).json({ error: "Erro interno ao buscar perfil." });
+  }
+});
+
+// UPDATE CURRENT USER PROFILE
+app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
+  const { 
+    name, bio, city, country, nativeLanguage, learningGoal, 
+    profilePhoto, coverPhoto, instagram, youtube, facebook, website,
+    birthDate, phone, englishLevel, spanishLevel, frenchLevel,
+    onboardingDone, username, beltRank, favoriteTechnique, favoriteAthlete,
+    privacyLevel, themeColor, avatarFrame
+  } = req.body;
+  
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    if (username) {
+      const sanitizedUsername = username.trim().toLowerCase();
+      // Basic check
+      const existing = await prisma.user.findFirst({
+        where: {
+          username: sanitizedUsername,
+          NOT: { id: req.user.id }
+        }
+      });
+      if (existing) {
+        return res.status(400).json({ error: "Este nome de usuário já está em uso." });
+      }
+    }
+    
+    const updateData: any = {
+      name: name !== undefined ? name : undefined,
+      bio: bio !== undefined ? bio : undefined,
+      city: city !== undefined ? city : undefined,
+      country: country !== undefined ? country : undefined,
+      nativeLanguage: nativeLanguage !== undefined ? nativeLanguage : undefined,
+      learningGoal: learningGoal !== undefined ? learningGoal : undefined,
+      profilePhoto: profilePhoto !== undefined ? profilePhoto : undefined,
+      coverPhoto: coverPhoto !== undefined ? coverPhoto : undefined,
+      instagram: instagram !== undefined ? instagram : undefined,
+      youtube: youtube !== undefined ? youtube : undefined,
+      facebook: facebook !== undefined ? facebook : undefined,
+      website: website !== undefined ? website : undefined,
+      birthDate: birthDate !== undefined ? (birthDate ? new Date(birthDate) : null) : undefined,
+      phone: phone !== undefined ? phone : undefined,
+      englishLevel: englishLevel !== undefined ? englishLevel : undefined,
+      spanishLevel: spanishLevel !== undefined ? spanishLevel : undefined,
+      frenchLevel: frenchLevel !== undefined ? frenchLevel : undefined,
+      onboardingDone: onboardingDone !== undefined ? onboardingDone : undefined,
+      username: username !== undefined ? (username ? username.trim().toLowerCase() : null) : undefined,
+      beltRank: beltRank !== undefined ? beltRank : undefined,
+      favoriteTechnique: favoriteTechnique !== undefined ? favoriteTechnique : undefined,
+      favoriteAthlete: favoriteAthlete !== undefined ? favoriteAthlete : undefined,
+      privacyLevel: privacyLevel !== undefined ? privacyLevel : undefined,
+      themeColor: themeColor !== undefined ? themeColor : undefined,
+      avatarFrame: avatarFrame !== undefined ? avatarFrame : undefined,
+    };
+    
+    if (profilePhoto) {
+      updateData.avatar = profilePhoto;
+    }
+    
+    Object.keys(updateData).forEach(k => updateData[k] === undefined && delete updateData[k]);
+    
+    const u = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      include: { wallet: true }
+    });
+    
+    await authStore.updateUser(req.user.id, {
+      ...updateData,
+      avatar: u.avatar
+    });
+    
+    res.json({
+      success: true,
+      profile: {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        bio: u.bio,
+        city: u.city,
+        country: u.country,
+        nativeLanguage: u.nativeLanguage,
+        learningGoal: u.learningGoal,
+        profilePhoto: u.profilePhoto || u.avatar,
+        coverPhoto: u.coverPhoto,
+        instagram: u.instagram,
+        youtube: u.youtube,
+        facebook: u.facebook,
+        website: u.website,
+        birthDate: u.birthDate,
+        phone: u.phone,
+        englishLevel: u.englishLevel,
+        spanishLevel: u.spanishLevel,
+        frenchLevel: u.frenchLevel,
+        onboardingDone: u.onboardingDone,
+        lastLoginAt: u.lastLoginAt,
+        username: u.username,
+        beltRank: u.beltRank,
+        favoriteTechnique: u.favoriteTechnique,
+        favoriteAthlete: u.favoriteAthlete,
+        privacyLevel: u.privacyLevel,
+        followersCount: u.followersCount,
+        followingCount: u.followingCount,
+        themeColor: u.themeColor,
+        avatarFrame: u.avatarFrame,
+        isVerified: u.isVerified,
+        belt: u.belt,
+        stripes: u.stripes,
+        xp: u.xp,
+        level: u.level,
+        elo: u.elo
+      }
+    });
+  } catch (err: any) {
+    console.error("PUT /api/profile err:", err);
+    res.status(500).json({ error: "Erro ao salvar perfil: " + err.message });
+  }
+});
+
+// GET PROFILE BY USERNAME OR NAME
+app.get("/api/profile/:username", async (req: any, res: any) => {
+  const { username } = req.params;
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const u = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: { equals: username.trim().toLowerCase() } },
+          { name: { equals: username, mode: 'insensitive' } }
+        ]
+      },
+      include: { wallet: true }
+    });
+    
+    if (!u) {
+      return res.status(404).json({ error: "Perfil não encontrado." });
+    }
+    
+    res.json({
+      profile: {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        bio: u.bio || "",
+        city: u.city || "",
+        country: u.country || "",
+        nativeLanguage: u.nativeLanguage || "",
+        learningGoal: u.learningGoal || "",
+        profilePhoto: u.profilePhoto || u.avatar || "",
+        coverPhoto: u.coverPhoto || "",
+        instagram: u.instagram || "",
+        youtube: u.youtube || "",
+        facebook: u.facebook || "",
+        website: u.website || "",
+        birthDate: u.birthDate,
+        phone: u.phone || "",
+        englishLevel: u.englishLevel || "",
+        spanishLevel: u.spanishLevel || "",
+        frenchLevel: u.frenchLevel || "",
+        onboardingDone: u.onboardingDone,
+        lastLoginAt: u.lastLoginAt,
+        username: u.username || "",
+        beltRank: u.beltRank || "",
+        favoriteTechnique: u.favoriteTechnique || "",
+        favoriteAthlete: u.favoriteAthlete || "",
+        privacyLevel: u.privacyLevel || "public",
+        followersCount: u.followersCount || 0,
+        followingCount: u.followingCount || 0,
+        themeColor: u.themeColor || "",
+        avatarFrame: u.avatarFrame || "",
+        isVerified: u.isVerified || false,
+        belt: u.belt,
+        stripes: u.stripes,
+        xp: u.xp,
+        level: u.level,
+        elo: u.elo
+      }
+    });
+  } catch (err: any) {
+    console.error("GET /api/profile/:username err:", err);
+    res.status(500).json({ error: "Erro ao buscar perfil." });
+  }
+});
+
+// FOLLOW AN ATHLETE (With Transaction Security)
+app.post("/api/profile/follow", authenticateToken, async (req: any, res: any) => {
+  const { targetUserId } = req.body;
+  if (!targetUserId) return res.status(400).json({ error: "Faltando targetUserId" });
+  if (targetUserId === req.user.id) return res.status(400).json({ error: "Você não pode seguir a si mesmo." });
+  
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!targetUser) return res.status(404).json({ error: "Atleta não encontrado." });
+    
+    const existing = await prisma.follower.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: req.user.id,
+          followingId: targetUserId
+        }
+      }
+    });
+    
+    if (existing) {
+      return res.status(400).json({ error: "Você já segue este atleta." });
+    }
+    
+    await prisma.$transaction(async (tx) => {
+      await tx.follower.create({
+        data: {
+          followerId: req.user.id,
+          followingId: targetUserId
+        }
+      });
+      
+      await tx.user.update({
+        where: { id: req.user.id },
+        data: { followingCount: { increment: 1 } }
+      });
+      
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: { followersCount: { increment: 1 } }
+      });
+    });
+    
+    res.json({ success: true, message: "Você começou a seguir este atleta!" });
+  } catch (err) {
+    console.error("POST /api/profile/follow error:", err);
+    res.status(500).json({ error: "Erro interno ao seguir atleta." });
+  }
+});
+
+// UNFOLLOW AN ATHLETE (With Transaction Security)
+app.delete("/api/profile/follow", authenticateToken, async (req: any, res: any) => {
+  const { targetUserId } = req.body || req.query;
+  if (!targetUserId) return res.status(400).json({ error: "Faltando targetUserId" });
+  
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const existing = await prisma.follower.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: req.user.id,
+          followingId: targetUserId
+        }
+      }
+    });
+    
+    if (!existing) {
+      return res.status(400).json({ error: "Você não segue este atleta." });
+    }
+    
+    await prisma.$transaction(async (tx) => {
+      await tx.follower.delete({
+        where: {
+          followerId_followingId: {
+            followerId: req.user.id,
+            followingId: targetUserId
+          }
+        }
+      });
+      
+      await tx.user.update({
+        where: { id: req.user.id },
+        data: { followingCount: { decrement: 1 } }
+      });
+      
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: { followersCount: { decrement: 1 } }
+      });
+    });
+    
+    res.json({ success: true, message: "Você deixou de seguir este atleta." });
+  } catch (err) {
+    console.error("DELETE /api/profile/follow error:", err);
+    res.status(500).json({ error: "Erro interno ao deixar de seguir atleta." });
+  }
+});
+
+// GET LIST OF FOLLOWERS
+app.get("/api/profile/followers", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const followers = await prisma.follower.findMany({
+      where: { followingId: req.user.id },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            profilePhoto: true,
+            belt: true,
+            xp: true,
+            level: true
+          }
+        }
+      }
+    });
+    
+    res.json({
+      followers: followers.map(f => ({
+        id: f.follower.id,
+        name: f.follower.name,
+        username: f.follower.username,
+        avatar: f.follower.profilePhoto || f.follower.avatar,
+        belt: f.follower.belt,
+        level: f.follower.level
+      }))
+    });
+  } catch (err) {
+    console.error("GET /api/profile/followers error:", err);
+    res.status(500).json({ error: "Erro ao buscar seguidores." });
+  }
+});
+
+// GET LIST OF FOLLOWING
+app.get("/api/profile/following", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const following = await prisma.follower.findMany({
+      where: { followerId: req.user.id },
+      include: {
+        following: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            profilePhoto: true,
+            belt: true,
+            xp: true,
+            level: true
+          }
+        }
+      }
+    });
+    
+    res.json({
+      following: following.map(f => ({
+        id: f.following.id,
+        name: f.following.name,
+        username: f.following.username,
+        avatar: f.following.profilePhoto || f.following.avatar,
+        belt: f.following.belt,
+        level: f.following.level
+      }))
+    });
+  } catch (err) {
+    console.error("GET /api/profile/following error:", err);
+    res.status(500).json({ error: "Erro ao buscar quem você segue." });
+  }
 });
 
 // 6. EMAIL CONFIRMATION (Confirmar e-mail de registro)
@@ -2122,7 +2553,7 @@ app.get("/api/admin/dashboard-stats", authenticateToken, requireRole(["ADMIN"]),
 app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const { name, email, level, xp, belt, stripes, coins, balanceBRL, elo, role, isSuspended, isBanned } = req.body;
+    const { name, email, level, xp, belt, stripes, coins, balanceBRL, elo, role, isSuspended, isBanned, isVerified, username } = req.body;
 
     const userObj = await authStore.findById(id);
     if (!userObj) {
@@ -2141,6 +2572,8 @@ app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]
     if (role !== undefined) updatePayload.role = role;
     if (isSuspended !== undefined) updatePayload.isSuspended = Boolean(isSuspended);
     if (isBanned !== undefined) updatePayload.isBanned = Boolean(isBanned);
+    if (isVerified !== undefined) updatePayload.isVerified = Boolean(isVerified);
+    if (username !== undefined) updatePayload.username = username;
 
     // Coins & Balance are stored in wallet or local user structure
     if (coins !== undefined) {
