@@ -610,7 +610,11 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                         <div className="w-40 h-40 flex items-center justify-center bg-slate-100 rounded-lg relative overflow-hidden">
                           {checkoutData.qrCode ? (
                             <img 
-                              src={checkoutData.qrCode.startsWith('data:') ? checkoutData.qrCode : `data:image/jpeg;base64,${checkoutData.qrCode}`}
+                              src={
+                                checkoutData.qrCode.startsWith('http')
+                                  ? checkoutData.qrCode
+                                  : (checkoutData.qrCode.startsWith('data:') ? checkoutData.qrCode : `data:image/jpeg;base64,${checkoutData.qrCode}`)
+                              }
                               className="w-36 h-36 object-contain"
                               alt="Mercado Pago Pix Oficial"
                             />

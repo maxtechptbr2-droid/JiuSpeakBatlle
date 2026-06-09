@@ -5835,6 +5835,37 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
   }
 });
 
+// Helper function to generate a fully compliant PIX Copia e Cola (BR Code)
+export function generatePixPayload(key: string, amount: number, description: string = "Assinatura JiuSpeak") {
+  const cleanedKey = String(key || "admin@jiuspeak.com.br").trim();
+  const merchantName = "JiuSpeak Admin".substring(0, 25);
+  const merchantCity = "Sao Paulo".substring(0, 15);
+  
+  const strAmount = amount.toFixed(2);
+  
+  const keyLength = String(cleanedKey.length).padStart(2, '0');
+  const merchantAccountInfo = `0014br.gov.bcb.pix01${keyLength}${cleanedKey}`;
+  const accountInfoLength = String(merchantAccountInfo.length).padStart(2, '0');
+  
+  const amountPart = `54${String(strAmount.length).padStart(2, '0')}${strAmount}`;
+  
+  const namePart = `59${String(merchantName.length).padStart(2, '0')}${merchantName}`;
+  const cityPart = `60${String(merchantCity.length).padStart(2, '0')}${merchantCity}`;
+  const descPart = `62110503***`; // Minimal txid or dynamic descriptors
+  
+  const rawPayload = `00020101021226${accountInfoLength}${merchantAccountInfo}520400005303986${amountPart}5802BR${namePart}${cityPart}${descPart}6304`;
+  
+  let crc = 0xFFFF;
+  for (let i = 0; i < rawPayload.length; i++) {
+    let x = ((crc >> 8) ^ rawPayload.charCodeAt(i)) & 0xFF;
+    x ^= x >> 4;
+    crc = ((crc << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xFFFF;
+  }
+  const crcString = crc.toString(16).toUpperCase().padStart(4, '0');
+  
+  return rawPayload + crcString;
+}
+
 // =========================================================================
 // API ENDPOINTS FOR SECURE GATEWAY CHECKOUTS (MERCADO PAGO & STRIPE)
 // =========================================================================
@@ -5886,12 +5917,23 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
     } else {
       // Return high-fidelity sandbox values so the flow is testable
       const mockTxId = "mp_direct_" + Math.random().toString(36).substring(2, 12);
+      
+      // Get the administrator's active PIX key dynamically from the loaded configuration
+      const financialConfig = loadFinancialConfig();
+      const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
+                          || financialConfig?.bankAccounts?.find((b: any) => b.active)
+                          || financialConfig?.bankAccounts?.[0];
+      const adminPixKey = primaryBank?.pixKey || "admin@jiuspeak.com.br";
+      
+      // Generate a fully compliant PIX Copia e Cola payload
+      const pixPayload = generatePixPayload(adminPixKey, amount, `Assinatura JiuSpeak ${targetPlan.name}`);
+      
       resultPayment = {
         id: mockTxId,
         status: "pending",
         statusDetail: "pending_waiting_transfer",
-        qrCode: "iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAYAAAB9y7HX...",
-        qrCodeCopyPaste: `mercadopago_simulation_payment_${mockTxId}`,
+        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
+        qrCodeCopyPaste: pixPayload,
         barcode: "34191.75009 01234.567890 12345.678901 2 34560000002990",
         transactionAmount: amount,
         paymentMethodId,
@@ -6569,8 +6611,18 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
       }
     } else {
       paymentId = "mp_sim_" + Math.random().toString(36).substring(2, 12);
+      
+      // Get the administrator's active PIX key dynamically from the loaded configuration
+      const financialConfig = loadFinancialConfig();
+      const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
+                          || financialConfig?.bankAccounts?.find((b: any) => b.active)
+                          || financialConfig?.bankAccounts?.[0];
+      const adminPixKey = primaryBank?.pixKey || "admin@jiuspeak.com.br";
+      
+      const pixPayload = generatePixPayload(adminPixKey, value, description || (paymentType === "MARKETPLACE_SELL" ? "Venda de Curso BJJ" : "Recarga de Saldo via PIX"));
+      
       qrCode = "";
-      qrCodeCopyPaste = `mercadopago_simulation_payment_${paymentId}`;
+      qrCodeCopyPaste = pixPayload;
     }
 
     const qrcodeImg = qrCode 
