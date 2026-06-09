@@ -1000,32 +1000,17 @@ export default function StoreMarket({
   };
 
   const confirmSubscriptionPix = () => {
-    if (!subscribingTier) return;
-    
-    // Simulate activation
-    updateUser({
-      subscription: {
-        type: subscribingTier.type,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        priceBRL: subscribingTier.price
-      }
-    });
-
-    onAddAuditLog(
-      'pix_deposit',
-      `Assinatura SaaS: Atleta contratou plano "${subscribingTier.type}" via PIX. Conta premium estendida por 30 dias.`,
-      subscribingTier.price
-    );
-
-    setCheckoutStep('success');
-    showToast(`Sua assinatura "${subscribingTier.type}" está ativa de forma simulada!`, 'success');
+    if (setCurrentTab) {
+      setCurrentTab('subscriptions');
+      setSubscribingTier(null);
+    } else {
+      showToast('Por favor, navegue até a aba de Assinaturas para obter cobrança real via Mercado Pago.', 'info');
+      setSubscribingTier(null);
+    }
   };
 
   const copyPixCode = () => {
-    setPixCopiado(true);
-    navigator.clipboard.writeText("00020126580014BR.GOV.BCB.PIX0136e0886bd6-8aab-4bef-811c-a1c2293816jiuspeakqrcodepixprod520400005303986540549.905802BR5925JiuSpeak%20Saas%2520Gamificado6009SAO%20PAULO62070503***6304ED24");
-    showToast("Código Copiado! Use no leitor de testes.", "info");
-    setTimeout(() => setPixCopiado(false), 2000);
+    showToast('Processamento exclusivo via aba de Assinaturas.', 'info');
   };
 
   const getRarityBadgeColor = (rarity: string, productName?: string) => {
@@ -2742,72 +2727,44 @@ export default function StoreMarket({
             
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-[9px] font-mono text-yellow-500 uppercase tracking-wider font-black block">Simulador Assinatura</span>
-                <h5 className="font-display font-extrabold text-base text-white"> Checkout do Plano</h5>
+                <span className="text-[9px] font-mono text-violet-400 uppercase tracking-wider font-black block">Central Jiuspeak Battle</span>
+                <h5 className="font-display font-extrabold text-base text-white">Adquirir Plano {subscribingTier.type}</h5>
               </div>
               <button 
                 onClick={() => setSubscribingTier(null)}
                 className="text-slate-500 hover:text-slate-200 text-xs cursor-pointer"
               >
-                ✕ Cancelar
+                ✕ Fechar
               </button>
             </div>
 
-            {checkoutStep === 'details' ? (
-              <div className="space-y-4 text-center">
-                <p className="text-xs text-slate-400">
-                  Para ativar o plano virtual de {subscribingTier.type}, escaneie o PIX abaixo:
-                </p>
-
-                <div className="bg-white p-3.5 rounded-xl inline-block mx-auto">
-                  <QrCode className="w-28 h-28 text-slate-950" />
-                </div>
-
-                <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-850 flex items-center justify-between gap-3 text-left">
-                  <code className="text-[9px] text-indigo-405 font-mono select-all truncate flex-1">
-                    00020126580014BR.GOV.BCB.PIX0136e0886bd6-8aab-4bef-811c-a1c2293816jiuspeakqrcodepixprod520400005303986540549.905802BR5925JiuSpeak%20Saas6009
-                  </code>
-                  <button
-                    onClick={copyPixCode}
-                    className="p-1 text-slate-350 bg-slate-900 border border-slate-800 rounded hover:text-violet-405 cursor-pointer"
-                    title="Copiar PIX"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="pt-2 flex justify-between font-bold text-xs text-slate-202 border-t border-slate-805">
-                  <span>Plano de Adesão:</span>
-                  <span className="text-yellow-505">R$ {subscribingTier.price.toFixed(2)}</span>
-                </div>
-
-                <button
-                  onClick={confirmSubscriptionPix}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition-all shadow shadow-emerald-550/15 cursor-pointer"
-                >
-                  Simular Pagamento Pix ✔
-                </button>
+            <div className="space-y-4 text-center">
+              <div className="w-12 h-12 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-full flex items-center justify-center text-xl mx-auto float-effect">
+                🔒
               </div>
-            ) : (
-              <div className="text-center py-4 space-y-4">
-                <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500 text-emerald-400 rounded-full flex items-center justify-center text-2xl mx-auto float-effect">
-                  👑
-                </div>
-                <div>
-                  <h6 className="font-display font-bold text-xs text-slate-101">Assinatura Ativada!</h6>
-                  <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
-                    Seu perfil recebeu status <strong>{subscribingTier.type}</strong>. Ative cheats ou jogue na arena para desfrutar do sitema virtual de recompensas.
-                  </p>
-                </div>
+              
+              <p className="text-xs text-slate-400 leading-relaxed">
+                As assinaturas do JiuSpeak são processadas de forma segura e oficial utilizando faturamento direto via <strong>Mercado Pago</strong> (PIX, Cartão de Crédito ou Boleto).
+              </p>
 
-                <button
-                  onClick={() => setSubscribingTier(null)}
-                  className="px-6 py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs rounded-lg transition-all"
-                >
-                  Retornar ao Mercado
-                </button>
+              <div className="p-3 bg-slate-950 rounded-xl text-left border border-slate-850">
+                <span className="text-[8px] font-mono text-slate-505 uppercase block">Plano Selecionado</span>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs font-bold text-white">{subscribingTier.type}</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400">R$ {subscribingTier.price.toFixed(2)} / mês</span>
+                </div>
               </div>
-            )}
+
+              <button
+                onClick={() => {
+                  setSubscribingTier(null);
+                  if (setCurrentTab) setCurrentTab('subscriptions');
+                }}
+                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition-all shadow shadow-violet-500/10 cursor-pointer"
+              >
+                Ir para o Painel de Assinaturas 🥋
+              </button>
+            </div>
 
           </div>
         </div>

@@ -5877,7 +5877,7 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
         status: "pending",
         statusDetail: "pending_waiting_transfer",
         qrCode: "iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAYAAAB9y7HX...",
-        qrCodeCopyPaste: `00020101021226830014br.gov.bcb.pix2561api.mercadopago.com/v2/mp_sim_${mockTxId}`,
+        qrCodeCopyPaste: `mercadopago_simulation_payment_${mockTxId}`,
         barcode: "34191.75009 01234.567890 12345.678901 2 34560000002990",
         transactionAmount: amount,
         paymentMethodId,
@@ -5928,10 +5928,10 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
     return res.json({
       success: true,
       paymentId: resultPayment.id,
+      qrCodeBase64: resultPayment.qrCode,
+      pixCopiaECola: resultPayment.qrCodeCopyPaste,
       status: resultPayment.status,
       statusDetail: resultPayment.statusDetail,
-      qrCode: resultPayment.qrCode,
-      qrCodeCopyPaste: resultPayment.qrCodeCopyPaste,
       barcode: resultPayment.barcode,
       amount: resultPayment.transactionAmount,
       paymentMethodId: resultPayment.paymentMethodId
@@ -6519,21 +6519,6 @@ app.get("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
   }
 });
 
-// HELPER FUNCTION: GENERATE CENTRAL PIX COPY & PASTE (REQUIRES CONFIGURATION AND FORWARDS VALUE ONLY TO CENTRAL PIX KEY OF CENTRAL ADMINISTRATOR)
-function generatePixCopyPaste(txid: string, amount: number): { qrCodeCopyPaste: string; qrcodeBase64: string } {
-  const key = process.env.MASTER_PIX_KEY || "admin@jiuspeak.com.br";
-  const name = process.env.MASTER_PIX_NAME || "Mestres do Jiu-Jitsu LTDA";
-  const bank = process.env.MASTER_BANK || "Banco do Brasil S.A.";
-
-  const cleanKey = key.replace(/[^a-zA-Z0-9@.-]/g, "");
-  const cleanName = encodeURIComponent(name.slice(0, 25));
-
-  const qrCodeCopyPaste = `00020101021226${cleanKey.length + 18}0014br.gov.bcb.pix25${cleanKey.length + 2}${cleanKey}5204000053039865405${amount.toFixed(2).replace('.', '')}5802BR59${cleanName.length.toString().padStart(2, '0')}${cleanName}6009SAO%20PAULO62070503${txid.slice(0, 10)}6304`;
-  const qrcodeBase64 = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeCopyPaste)}`;
-  
-  return { qrCodeCopyPaste, qrcodeBase64 };
-}
-
 // 2. CREATE a new PIX payment
 app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
   try {
@@ -6548,14 +6533,41 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
     const user = await authStore.findById(req.user.id);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
-    const txid = `TXIDPIX${Math.random().toString(36).substring(2, 11).toUpperCase()}${Date.now().toString().slice(-4)}`;
-    const { qrCodeCopyPaste, qrcodeBase64 } = generatePixCopyPaste(txid, value);
+    let qrCode = "";
+    let qrCodeCopyPaste = "";
+    let paymentId = "";
+
+    if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      try {
+        const resultPayment = await createDirectPayment({
+          transactionAmount: value,
+          description: description || (paymentType === "MARKETPLACE_SELL" ? "Venda de Curso BJJ" : "Recarga de Saldo via PIX"),
+          paymentMethodId: "pix",
+          payerEmail: user.email,
+          metadata: { userId: user.id, txType: paymentType }
+        });
+        paymentId = String(resultPayment.id);
+        qrCode = resultPayment.qrCode;
+        qrCodeCopyPaste = resultPayment.qrCodeCopyPaste;
+      } catch (mpErr: any) {
+        console.error("Failed to generate direct PIX via Mercado Pago API:", mpErr);
+        return res.status(500).json({ error: "Erro ao gerar PIX com o Mercado Pago: " + (mpErr.message || mpErr) });
+      }
+    } else {
+      paymentId = "mp_sim_" + Math.random().toString(36).substring(2, 12);
+      qrCode = "";
+      qrCodeCopyPaste = `mercadopago_simulation_payment_${paymentId}`;
+    }
+
+    const qrcodeImg = qrCode 
+      ? `data:image/jpeg;base64,${qrCode}` 
+      : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeCopyPaste)}`;
 
     const responsePayload = {
-      txid,
+      txid: paymentId,
       amountBRL: value,
       status: "PENDING",
-      qrCode: qrcodeBase64,
+      qrCode: qrcodeImg,
       qrCodeCopyPaste: qrCodeCopyPaste,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
@@ -6593,7 +6605,7 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
             type: paymentType === "MARKETPLACE_SELL" ? "MARKETPLACE_SELL" : "DEPOSIT",
             status: "PENDING",
             description: responsePayload.description,
-            referenceId: txid
+            referenceId: paymentId
           }
         });
 
@@ -6602,7 +6614,7 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
             transactionId: trans.id,
             qrCode: responsePayload.qrCode,
             qrCodeCopyPaste: responsePayload.qrCodeCopyPaste,
-            txid: txid,
+            txid: paymentId,
             amountBRL: value,
             status: "PENDING",
             expiresAt: new Date(responsePayload.expiresAt)
@@ -6622,7 +6634,7 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
       }
     }
 
-    logPayment("PIX_INIT", value, user.id, { txid, type: paymentType, description: responsePayload.description });
+    logPayment("PIX_INIT", value, user.id, { txid: paymentId, type: paymentType, description: responsePayload.description });
 
     res.json({
       message: "Cobrança profissional PIX gerada com sucesso!",
