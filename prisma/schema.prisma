@@ -130,6 +130,17 @@ model User {
   xp                Int          @default(0)
   level             Int          @default(1)
   elo               Int          @default(1000)
+  bio               String?      @default("")
+  city              String?      @default("")
+  country           String?      @default("")
+  nativeLanguage    String?      @default("")
+  learningGoal      String?      @default("")
+  profilePhoto      String?      @default("")
+  coverPhoto        String?      @default("")
+  instagram         String?      @default("")
+  youtube           String?      @default("")
+  facebook          String?      @default("")
+  website           String?      @default("")
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 

@@ -1562,25 +1562,44 @@ const inMemoryUserProfiles = new Map<string, any>();
 // 5. GET ME (Perfil logado)
 app.get("/api/auth/me", authenticateToken, (req: any, res: any) => {
   const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
-  
-  // Merge in-memory custom onboarding and profile selections
-  const customProfile = inMemoryUserProfiles.get(req.user.id);
-  const userMerged = {
-    ...safeUser,
-    ...(customProfile ? {
-      name: customProfile.publicName ? `${customProfile.publicName}` : safeUser.name,
-      academy: customProfile.academy || safeUser.academy,
-      avatar: customProfile.realPhoto || safeUser.avatar,
-    } : {})
-  };
-  
-  res.json({ user: userMerged });
+  res.json({ user: safeUser });
 });
 
 // 5.1 GET PROFILE (Custom metadata)
-app.get("/api/user/profile", authenticateToken, (req: any, res: any) => {
-  const profile = inMemoryUserProfiles.get(req.user.id) || null;
-  res.json({ profile });
+app.get("/api/user/profile", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (prisma) {
+      const u = await prisma.user.findUnique({
+        where: { id: req.user.id }
+      });
+      if (u) {
+        return res.json({
+          profile: {
+            publicName: u.name,
+            name: u.name,
+            email: u.email,
+            bio: u.bio || "",
+            city: u.city || "",
+            country: u.country || "",
+            nativeLanguage: u.nativeLanguage || "",
+            learningGoal: u.learningGoal || "",
+            profilePhoto: u.profilePhoto || u.avatar || "",
+            coverPhoto: u.coverPhoto || "",
+            instagram: u.instagram || "",
+            youtube: u.youtube || "",
+            facebook: u.facebook || "",
+            website: u.website || "",
+            belt: u.belt,
+            stripes: u.stripes
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error("GET /api/user/profile error:", err);
+  }
+  res.json({ profile: null });
 });
 
 // 5.2 POST PROFILE (Custom metadata update)
@@ -1588,28 +1607,60 @@ app.post("/api/user/profile", authenticateToken, async (req: any, res: any) => {
   const { profile } = req.body;
   if (!profile) return res.status(400).json({ error: "Missing profile payload" });
   
-  inMemoryUserProfiles.set(req.user.id, profile);
-  
-  // If database supports update of user name or avatar, try executing it as well
   try {
     const prisma = getPrisma();
     if (prisma) {
-      const updateData: any = {};
-      if (profile.publicName) {
-        updateData.name = profile.publicName;
+      const updateData: any = {
+        name: profile.name || profile.publicName || undefined,
+        bio: profile.bio !== undefined ? profile.bio : undefined,
+        city: profile.city !== undefined ? profile.city : undefined,
+        country: profile.country !== undefined ? profile.country : undefined,
+        nativeLanguage: profile.nativeLanguage !== undefined ? profile.nativeLanguage : undefined,
+        learningGoal: profile.learningGoal !== undefined ? profile.learningGoal : undefined,
+        profilePhoto: profile.profilePhoto !== undefined ? profile.profilePhoto : undefined,
+        coverPhoto: profile.coverPhoto !== undefined ? profile.coverPhoto : undefined,
+        instagram: profile.instagram !== undefined ? profile.instagram : undefined,
+        youtube: profile.youtube !== undefined ? profile.youtube : undefined,
+        facebook: profile.facebook !== undefined ? profile.facebook : undefined,
+        website: profile.website !== undefined ? profile.website : undefined,
+      };
+      
+      if (profile.email) {
+        updateData.email = profile.email;
       }
-      if (profile.realPhoto) {
-        updateData.avatar = profile.realPhoto;
+      if (profile.profilePhoto || profile.realPhoto) {
+        updateData.avatar = profile.profilePhoto || profile.realPhoto;
       }
-      if (Object.keys(updateData).length > 0) {
-        await prisma.user.update({
-          where: { id: req.user.id },
-          data: updateData
-        });
-      }
+      
+      // Clean undefined keys
+      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+      
+      const updatedUser = await prisma.user.update({
+        where: { id: req.user.id },
+        data: updateData
+      });
+      
+      // Update our cache memory fallbacks
+      await authStore.updateUser(req.user.id, {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        bio: updatedUser.bio,
+        city: updatedUser.city,
+        country: updatedUser.country,
+        nativeLanguage: updatedUser.nativeLanguage,
+        learningGoal: updatedUser.learningGoal,
+        profilePhoto: updatedUser.profilePhoto,
+        coverPhoto: updatedUser.coverPhoto,
+        instagram: updatedUser.instagram,
+        youtube: updatedUser.youtube,
+        facebook: updatedUser.facebook,
+        website: updatedUser.website,
+        avatar: updatedUser.avatar,
+      });
     }
   } catch (err) {
-    console.warn("Soft db profile update failed; falling back gracefully.");
+    console.error("POST /api/user/profile error:", err);
+    return res.status(500).json({ error: "Erro crítico ao salvar perfil no PostgreSQL." });
   }
   
   res.json({ success: true, profile });
@@ -1618,25 +1669,17 @@ app.post("/api/user/profile", authenticateToken, async (req: any, res: any) => {
 // 5.3 PUBLIC PROFILE VIEW
 app.get("/api/user/public-profile/:publicName", async (req: any, res: any) => {
   const { publicName } = req.params;
-  const nameToSearch = publicName.toLowerCase();
-  
-  // Find in memory or search in Prisma
-  let foundProfile: any = null;
-  let userId: string | null = null;
-  
-  for (const [uid, prof] of inMemoryUserProfiles.entries()) {
-    if (prof.publicName && prof.publicName.toLowerCase() === nameToSearch) {
-      foundProfile = prof;
-      userId = uid;
-      break;
-    }
-  }
   
   try {
     const prisma = getPrisma();
     if (prisma) {
-      const u = foundProfile ? await prisma.user.findUnique({ where: { id: userId! } }) : await prisma.user.findFirst({
-        where: { name: { contains: publicName, mode: 'insensitive' } }
+      const u = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { name: { equals: publicName, mode: 'insensitive' } },
+            { email: { equals: publicName, mode: 'insensitive' } }
+          ]
+        }
       });
       
       if (u) {
@@ -1644,29 +1687,36 @@ app.get("/api/user/public-profile/:publicName", async (req: any, res: any) => {
           user: {
             id: u.id,
             name: u.name,
-            avatar: u.avatar,
+            email: u.email,
+            avatar: u.avatar || u.profilePhoto,
             belt: u.belt,
             stripes: u.stripes,
             level: u.level,
             xp: u.xp,
             elo: u.elo
           },
-          profile: foundProfile || {
-            surname: "",
+          profile: {
             publicName: u.name,
-            country: "Brasil",
-            city: "São Paulo",
-            nativeLanguage: "Português",
-            targetLanguage: "Inglês",
-            bio: "Estudante de Inglês do JiuSpeak para Tatame Internacional.",
-            academy: "Atama Virtual Team",
-            goalsBjj: "Evoluir constantemente"
+            email: u.email,
+            bio: u.bio || "",
+            city: u.city || "",
+            country: u.country || "",
+            nativeLanguage: u.nativeLanguage || "",
+            learningGoal: u.learningGoal || "",
+            profilePhoto: u.profilePhoto || u.avatar || "",
+            coverPhoto: u.coverPhoto || "",
+            instagram: u.instagram || "",
+            youtube: u.youtube || "",
+            facebook: u.facebook || "",
+            website: u.website || "",
+            belt: u.belt,
+            stripes: u.stripes
           }
         });
       }
     }
   } catch (err) {
-    console.error("Public profile lookup failed");
+    console.error("Public profile lookup failed", err);
   }
   
   return res.status(404).json({ error: "Perfil não encontrado" });
@@ -1855,10 +1905,16 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           role: true,
           belt: true,
           stripes: true,
+          xp: true,
           level: true,
           elo: true,
           isEmailVerified: true,
+          isSuspended: true,
+          isBanned: true,
+          isAdminApproved: true,
           createdAt: true,
+          avatar: true,
+          wallet: true,
         }
       });
       list.forEach((u: any) => {
@@ -1869,11 +1925,17 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           role: u.role,
           belt: u.belt,
           stripes: u.stripes,
+          xp: u.xp,
           level: u.level,
           elo: u.elo,
           isEmailVerified: u.isEmailVerified,
+          isSuspended: u.isSuspended,
+          isBanned: u.isBanned,
+          isAdminApproved: u.isAdminApproved,
           createdAt: u.createdAt,
-          avatar: null
+          avatar: u.avatar,
+          coins: u.wallet?.balanceKC || 0,
+          balanceAvailableBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0.00,
         }));
       });
     } catch (err) {

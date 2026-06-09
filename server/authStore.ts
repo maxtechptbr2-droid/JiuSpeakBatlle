@@ -23,6 +23,17 @@ export interface AuthUser {
   isEmailVerified: boolean;
   isSuspended?: boolean;
   isBanned?: boolean;
+  bio?: string | null;
+  city?: string | null;
+  country?: string | null;
+  nativeLanguage?: string | null;
+  learningGoal?: string | null;
+  profilePhoto?: string | null;
+  coverPhoto?: string | null;
+  instagram?: string | null;
+  youtube?: string | null;
+  facebook?: string | null;
+  website?: string | null;
   verificationToken: string | null;
   resetToken: string | null;
   resetTokenExpires: Date | null;
@@ -1544,6 +1555,19 @@ export const authStore = {
           totalEarnedBRL: u.wallet?.totalEarned ? Number(u.wallet.totalEarned) : 0.00,
           totalWithdrawnBRL: u.wallet?.totalWithdrawn ? Number(u.wallet.totalWithdrawn) : 0.00,
           isEmailVerified: u.isEmailVerified,
+          isSuspended: u.isSuspended,
+          isBanned: u.isBanned,
+          bio: u.bio,
+          city: u.city,
+          country: u.country,
+          nativeLanguage: u.nativeLanguage,
+          learningGoal: u.learningGoal,
+          profilePhoto: u.profilePhoto,
+          coverPhoto: u.coverPhoto,
+          instagram: u.instagram,
+          youtube: u.youtube,
+          facebook: u.facebook,
+          website: u.website,
           verificationToken: u.verificationToken,
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
@@ -1600,6 +1624,19 @@ export const authStore = {
           totalEarnedBRL: u.wallet?.totalEarned ? Number(u.wallet.totalEarned) : 0.00,
           totalWithdrawnBRL: u.wallet?.totalWithdrawn ? Number(u.wallet.totalWithdrawn) : 0.00,
           isEmailVerified: u.isEmailVerified,
+          isSuspended: u.isSuspended,
+          isBanned: u.isBanned,
+          bio: u.bio,
+          city: u.city,
+          country: u.country,
+          nativeLanguage: u.nativeLanguage,
+          learningGoal: u.learningGoal,
+          profilePhoto: u.profilePhoto,
+          coverPhoto: u.coverPhoto,
+          instagram: u.instagram,
+          youtube: u.youtube,
+          facebook: u.facebook,
+          website: u.website,
           verificationToken: u.verificationToken,
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
@@ -1744,6 +1781,17 @@ export const authStore = {
       if (fields.isEmailVerified !== undefined) prismaData.isEmailVerified = fields.isEmailVerified;
       if (fields.isSuspended !== undefined) prismaData.isSuspended = fields.isSuspended;
       if (fields.isBanned !== undefined) prismaData.isBanned = fields.isBanned;
+      if (fields.bio !== undefined) prismaData.bio = fields.bio;
+      if (fields.city !== undefined) prismaData.city = fields.city;
+      if (fields.country !== undefined) prismaData.country = fields.country;
+      if (fields.nativeLanguage !== undefined) prismaData.nativeLanguage = fields.nativeLanguage;
+      if (fields.learningGoal !== undefined) prismaData.learningGoal = fields.learningGoal;
+      if (fields.profilePhoto !== undefined) prismaData.profilePhoto = fields.profilePhoto;
+      if (fields.coverPhoto !== undefined) prismaData.coverPhoto = fields.coverPhoto;
+      if (fields.instagram !== undefined) prismaData.instagram = fields.instagram;
+      if (fields.youtube !== undefined) prismaData.youtube = fields.youtube;
+      if (fields.facebook !== undefined) prismaData.facebook = fields.facebook;
+      if (fields.website !== undefined) prismaData.website = fields.website;
       if (fields.verificationToken !== undefined) prismaData.verificationToken = fields.verificationToken;
       if (fields.resetToken !== undefined) prismaData.resetToken = fields.resetToken;
       if (fields.resetTokenExpires !== undefined) prismaData.resetTokenExpires = fields.resetTokenExpires;
@@ -1804,14 +1852,74 @@ export const authStore = {
       if (!prisma) {
         throw new Error("Prisma client is missing.");
       }
-      // Delete any dependent records if database connection is active
-      try {
-        await prisma.wallet.deleteMany({ where: { userId: id } });
-      } catch (e) {}
-      await prisma.user.delete({ where: { id } });
+      
+      await prisma.$transaction(async (tx) => {
+        // 1. Academy progress
+        await tx.academyProgress.deleteMany({ where: { userId: id } });
+        
+        // 2. Notifications, RefreshTokens
+        await tx.notification.deleteMany({ where: { userId: id } });
+        await tx.refreshToken.deleteMany({ where: { userId: id } });
+        
+        // 3. Followers and following relationships
+        await tx.follower.deleteMany({
+          where: {
+            OR: [
+              { followerId: id },
+              { followingId: id }
+            ]
+          }
+        });
+        
+        // 4. Social Interactions (Posts, Comments, Likes)
+        await tx.like.deleteMany({ where: { userId: id } });
+        await tx.comment.deleteMany({ where: { authorId: id } });
+        await tx.socialPost.deleteMany({ where: { authorId: id } });
+        
+        // 5. Game and Arena elements (UserAchievement, Rank)
+        await tx.userAchievement.deleteMany({ where: { userId: id } });
+        await tx.rank.deleteMany({ where: { userId: id } });
+        
+        // 6. PvP elements – challenge matches, defender matches, and answers
+        await tx.pvpAnswer.deleteMany({ where: { userId: id } });
+        await tx.pvpMatch.deleteMany({
+          where: {
+            OR: [
+              { challengerId: id },
+              { defenderId: id }
+            ]
+          }
+        });
+        
+        // 7. Store, Marketplace, and Inventory dependents
+        await tx.marketplaceSale.deleteMany({ where: { buyerId: id } });
+        await tx.marketplaceItem.deleteMany({ where: { sellerId: id } });
+        await tx.storeSale.deleteMany({ where: { buyerId: id } });
+        
+        const userInventory = await tx.inventory.findUnique({ where: { userId: id } });
+        if (userInventory) {
+          await tx.inventoryItem.deleteMany({ where: { inventoryId: userInventory.id } });
+          await tx.inventory.delete({ where: { id: userInventory.id } });
+        }
+        
+        // 8. Bank accounts, Wallet, and transaction dependents
+        await tx.bankAccount.deleteMany({ where: { userId: id } });
+        const userWallet = await tx.wallet.findUnique({ where: { userId: id } });
+        if (userWallet) {
+          await tx.transaction.deleteMany({ where: { walletId: userWallet.id } });
+          await tx.wallet.delete({ where: { id: userWallet.id } });
+        }
+        
+        // 9. Audit logs referencing the user as actor
+        await tx.auditLog.deleteMany({ where: { actorId: id } });
+        
+        // 10. Finally delete the user
+        await tx.user.delete({ where: { id } });
+      });
+
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL deleteUser falhou. Executado com fallback em memória:", dbErr);
+      console.error("✗ PostgreSQL deleteUser transaction falhou. fallback para memória:", dbErr);
       return deletedFromMemory;
     }
   },
