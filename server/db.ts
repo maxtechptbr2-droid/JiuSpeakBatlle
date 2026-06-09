@@ -1,74 +1,28 @@
-// @ts-ignore
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 
 let prisma: PrismaClient | null = null;
-let mockPrisma: any = null;
-
 let dbConnected = false;
 
 export function isDatabaseConnected(): boolean {
   return dbConnected;
 }
 
-function createMockPrismaProxy(): any {
-  if (!mockPrisma) {
-    const handler: ProxyHandler<any> = {
-      get(target, prop) {
-        if (prop === "then") return undefined;
-        if (
-          typeof prop === "string" &&
-          [
-            "findMany",
-            "findUnique",
-            "findFirst",
-            "count",
-            "create",
-            "update",
-            "delete",
-            "updateMany",
-            "deleteMany",
-            "upsert",
-            "$queryRaw",
-            "$executeRaw",
-            "$transaction",
-            "$connect",
-            "$disconnect"
-          ].includes(prop)
-        ) {
-          return async (...args: any[]) => {
-            console.warn(`⚠️ [MOCK PRISMA PROXY] Intercepted mock query: ${prop}`);
-            if (prop === "findMany" || prop === "$queryRaw") return [];
-            if (prop === "count") return 0;
-            return null;
-          };
-        }
-        return new Proxy(() => {}, handler);
-      },
-      apply(target, thisArg, argumentsList) {
-        return new Proxy(() => {}, handler);
-      }
-    };
-    mockPrisma = new Proxy(() => {}, handler);
-  }
-  return mockPrisma;
-}
-
-// Enforce strict initialization. No silent fallback to null or bypass if PostgreSQL is mandatory.
+// Enforce strict initialization of PostgreSQL PrismaClient.
 export function getPrisma(): PrismaClient {
   if (!prisma) {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
-      console.warn(JSON.stringify({
-        warning: "DATABASE_URL_MISSING",
+      console.error(JSON.stringify({
+        error: "DATABASE_URL_MISSING",
         message: "A variável de ambiente DATABASE_URL está ausente ou vazia.",
-        advice: "A plataforma JiuSpeak continuará usando o fallback de simulação em memória.",
+         सलाह: "O banco de dados PostgreSQL real precisa estar configurado para operação segura.",
         timestamp: new Date().toISOString()
       }, null, 2));
-      return createMockPrismaProxy() as any;
+      throw new Error("DATABASE_URL is missing or empty. Real database connection is required.");
     }
+
     try {
-      // Configure specific pool limits for high concurrency (connection_limit=20, pool_timeout=15)
       let finalDbUrl = dbUrl;
       const parsedUrl = new URL(dbUrl);
       if (!parsedUrl.searchParams.has("connection_limit")) {
@@ -89,23 +43,24 @@ export function getPrisma(): PrismaClient {
     } catch (e: any) {
       console.error(JSON.stringify({
         error: "FATAL_DATABASE_ERROR",
-        message: "Falha crítica ao instanciar o PrismaClient do Postgres. Continuando sem DB.",
+        message: "Falha crítica ao instanciar o PrismaClient do Postgres.",
         exception: e.message || e,
         timestamp: new Date().toISOString()
       }, null, 2));
-      return createMockPrismaProxy() as any;
+      throw e;
     }
   }
   return prisma;
 }
 
-// Assert database readiness, preventing application boot if postgres connection fails
+// Assert database readiness, logging connection health and status
 export async function assertDatabaseConnection(): Promise<void> {
-  const client = getPrisma();
-  // If we got the mock client, we consider the database down but continue healthy
-  if (!client || client === mockPrisma) {
+  let client: PrismaClient;
+  try {
+    client = getPrisma();
+  } catch (err: any) {
     dbConnected = false;
-    console.warn("⚠️ DATABASE_URL não configurada ou inválida. Ativando banco de dados em memória.");
+    console.error("✗ Falha inicial ao carregar o Prisma:</n>", err.message || err);
     return;
   }
 
@@ -128,18 +83,17 @@ export async function assertDatabaseConnection(): Promise<void> {
 
       // Attempt a basic check query to active postgres
       await client.$queryRaw`SELECT 1`;
-      console.log("✓ PostgreSQL conectado");
+      console.log("✓ PostgreSQL conectado com sucesso");
       dbConnected = true;
       return;
     } catch (e: any) {
       retries--;
       if (retries === 0) {
         dbConnected = false;
-        console.error("✗ PostgreSQL indisponível. Rodando em modo de simulação em memória.");
+        console.error("✗ Falha ao conectar-se ao PostgreSQL. O sistema operará com erros reais de banco de dados.");
         return;
       }
       console.warn(`Tentativa de conexão com banco de dados falhou. Retentando em 1.5s (${retries} restantes)...`);
-      // Wait 1.5 seconds before next connection retry
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }
   }

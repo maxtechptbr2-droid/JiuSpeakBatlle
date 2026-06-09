@@ -165,6 +165,7 @@ model User {
   wallet                    Wallet?
   bankAccounts              BankAccount[]
   subscriptions             Subscription[]
+  payments                  Payment[]
   userAchievements          UserAchievement[]
   inventory                 Inventory?
   storeSales                StoreSale[]
@@ -306,15 +307,19 @@ model WithdrawalAudit {
 }
 
 model Subscription {
-  id          String             @id @default(uuid())
-  userId      String
-  planId      String
-  status      SubscriptionStatus @default(ACTIVE)
-  startDate   DateTime           @default(now())
-  endDate     DateTime
-  canceledAt  DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id              String             @id @default(uuid())
+  userId          String
+  planId          String
+  planType        String?            // PRO, MASTER, etc.
+  provider        String?            // STRIPE, MERCADOPAGO, FREE
+  externalId      String?            // Stripe subscription ID or checkout session ID
+  amount          Decimal?           @db.Decimal(12, 2)
+  status          SubscriptionStatus @default(ACTIVE)
+  startDate       DateTime           @default(now())
+  endDate         DateTime
+  canceledAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   // Relationships
   user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -325,6 +330,24 @@ model Subscription {
   @@index([planId])
   @@index([userId, status])
   @@index([status, endDate])
+}
+
+model Payment {
+  id             String   @id @default(uuid())
+  userId         String
+  subscriptionId String
+  provider       String
+  status         String
+  amount         Decimal  @db.Decimal(12, 2)
+  currency       String
+  transactionId  String   @unique
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([subscriptionId])
+  @@index([transactionId])
 }
 
 model Plan {

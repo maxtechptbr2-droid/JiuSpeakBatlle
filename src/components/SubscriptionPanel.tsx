@@ -113,6 +113,8 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
   }, [user.subscription.type]);
 
   // Initiate checkout
+  const [selectedProvider, setSelectedProvider] = useState<'stripe' | 'mercadopago'>('stripe');
+
   const handleInitiateCheckout = async (plan: Plan) => {
     const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) {
@@ -130,7 +132,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ planId: plan.id })
+        body: JSON.stringify({ planId: plan.id, provider: selectedProvider })
       });
 
       const data = await res.json();
@@ -147,9 +149,14 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
           }
           setCheckoutPlan(null);
           loadSubscriptionInfo();
+        } else if (data.checkoutUrl) {
+          showToast(`Redirecionando para faturamento seguro via ${selectedProvider.toUpperCase()}...`, 'success');
+          setTimeout(() => {
+            window.location.href = data.checkoutUrl;
+          }, 1000);
         } else {
           setCheckoutData(data);
-          showToast(`Chave de cobrança para ${plan.name} gerada via PIX!`, 'info');
+          showToast(`Chave de cobrança para ${plan.name} gerada!`, 'info');
         }
       } else {
         showToast(data.error || 'Erro ao processar checkout.', 'error');
@@ -293,6 +300,35 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
         <>
           {/* Comparison Cards Grid */}
           <div>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-805">
+              <div>
+                <span className="text-slate-400 font-mono text-[10px] uppercase tracking-wider block mb-1">Escolha seu Gateway Altamente Seguro</span>
+                <span className="text-xs text-slate-500">Garante conexões certificadas SSL e de alta fidelidade para renovação.</span>
+              </div>
+              <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 self-start sm:self-center">
+                <button
+                  onClick={() => setSelectedProvider('stripe')}
+                  className={`px-3.5 py-1.5 rounded-md text-[11px] font-mono font-bold uppercase transition-all ${
+                    selectedProvider === 'stripe'
+                      ? 'bg-violet-700 text-white shadow-md shadow-violet-500/15'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  💳 Stripe
+                </button>
+                <button
+                  onClick={() => setSelectedProvider('mercadopago')}
+                  className={`px-3.5 py-1.5 rounded-md text-[11px] font-mono font-bold uppercase transition-all ${
+                    selectedProvider === 'mercadopago'
+                      ? 'bg-violet-700 text-white shadow-md shadow-violet-500/15'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  🥋 Mercado Pago
+                </button>
+              </div>
+            </div>
+
             <div className="mb-4">
               <h3 className="text-sm font-mono font-bold text-slate-300 uppercase tracking-wider">Planos Disponíveis</h3>
               <p className="text-xs text-slate-500">Mude de faixa a qualquer momento! Selecione o ideal para a sua rotina de treinamento.</p>
