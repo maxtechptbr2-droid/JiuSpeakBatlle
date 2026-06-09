@@ -27,6 +27,8 @@ import { getRedisClient } from "./server/pvp/redis";
 import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
 import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
+import { createPreference, createDirectPayment } from "./server/services/mercadopago";
+
 
 // -------------------------------------------------------------------------
 // PRO-LEVEL PROCESS LISTENERS & ERROR DETECTION ENGINE (ANTI-502 CRASH LOOPS)
@@ -5396,20 +5398,20 @@ export let inMemoryPlans: InMemoryPlan[] = [
   },
   {
     id: "plan-pro-id",
-    name: "PRO",
-    description: "Para atletas dedicados! Tenha acesso completo a lições avançadas, geradores inteligentes de treinos e ferramentas completas de carteira.",
+    name: "VIP",
+    description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
     priceBRL: 29.90,
     interval: "monthly",
-    features: ["Todas as lições completas", "Gerador Inteligente de Treinos (Gemini AI)", "Histórico financeiro profissional", "Suporte prioritário via tatame", "Selo Pro de destaque"],
+    features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
     active: true
   },
   {
     id: "plan-master-id",
     name: "MASTER",
-    description: "O nível definitivo do Mestre! Tenha todas as vantagens do PRO e libere a Arena PvP inteligente de perguntas sem limites, simulações ilimitadas e cosméticos raros.",
-    priceBRL: 59.90,
+    description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
+    priceBRL: 49.90,
     interval: "monthly",
-    features: ["Tudo incluído do plano PRO", "Arena PvP ilimitada 🥋", "Simulador ilimitado de Pix", "Insígnias lendárias personalizadas", "Relatório de desempenho em tempo-real"],
+    features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
     active: true
   }
 ];
@@ -5510,9 +5512,6 @@ export async function seedPlansInDb() {
   const prisma = getPrisma();
   if (!prisma) return;
   try {
-    const count = await prisma.plan.count();
-    if (count > 0) return;
-
     await prisma.plan.upsert({
       where: { id: "plan-free-id" },
       update: {
@@ -5537,20 +5536,20 @@ export async function seedPlansInDb() {
     await prisma.plan.upsert({
       where: { id: "plan-pro-id" },
       update: {
-        name: "PRO",
-        description: "Acesso completo a lições avançadas, geradores inteligentes de treinos e carteira.",
+        name: "VIP",
+        description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: ["Todas as lições completas", "Gerador Inteligente de Treinos (Gemini AI)", "Histórico financeiro profissional", "Suporte prioritário via tatame", "Selo Pro de destaque"],
+        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
         active: true
       },
       create: {
         id: "plan-pro-id",
-        name: "PRO",
-        description: "Acesso completo a lições avançadas, geradores inteligentes de treinos e carteira.",
+        name: "VIP",
+        description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: ["Todas as lições completas", "Gerador Inteligente de Treinos (Gemini AI)", "Histórico financeiro profissional", "Suporte prioritário via tatame", "Selo Pro de destaque"],
+        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
         active: true
       }
     });
@@ -5559,19 +5558,19 @@ export async function seedPlansInDb() {
       where: { id: "plan-master-id" },
       update: {
         name: "MASTER",
-        description: "Todas as vantagens do PRO, Arena PvP sem limites e simuladores avançados.",
-        priceBRL: 59.90,
+        description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
+        priceBRL: 49.90,
         interval: "monthly",
-        features: ["Tudo incluído do plano PRO", "Arena PvP ilimitada 🥋", "Simulador ilimitado de Pix", "Insígnias lendárias personalizadas", "Relatório de desempenho em tempo-real"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       },
       create: {
         id: "plan-master-id",
         name: "MASTER",
-        description: "Todas as vantagens do PRO, Arena PvP sem limites e simuladores avançados.",
-        priceBRL: 59.90,
+        description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
+        priceBRL: 49.90,
         interval: "monthly",
-        features: ["Tudo incluído do plano PRO", "Arena PvP ilimitada 🥋", "Simulador ilimitado de Pix", "Insígnias lendárias personalizadas", "Relatório de desempenho em tempo-real"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       }
     });
@@ -5758,157 +5757,63 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
       return res.json({ activated: true, message: "Plano grátis (FREE) ativado na memória!" });
     }
 
-    const appUrl = process.env.APP_URL || "https://ais-dev-y3fyxde6ysihfudono4igw-220383928631.us-east1.run.app";
+    const appUrl = process.env.APP_URL || "";
 
-    // 1. STRIPE PROVIDER LOOP
-    if (String(provider).toLowerCase() === "stripe") {
-      let sessionUrl = "";
-      let transactionId = "";
-      
-      try {
-        const stripeModule = await import('stripe');
-        const StripeClass = stripeModule.default;
-        const key = process.env.STRIPE_SECRET_KEY;
-        
-        if (key) {
-          const stripe = new StripeClass(key, { apiVersion: '2023-10-18' as any });
-          const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card', 'pix'],
-            line_items: [{
-              price_data: {
-                currency: 'brl',
-                product_data: {
-                  name: `Assinatura JiuSpeak ${targetPlan.name}`,
-                  description: targetPlan.description || "Acesso de alta performance ao JiuSpeak",
-                },
-                unit_amount: Math.round(price * 100),
-              },
-              quantity: 1,
-            }],
-            mode: 'payment',
-            success_url: `${appUrl}/dashboard/profile?success=true`,
-            cancel_url: `${appUrl}/dashboard/profile?success=false`,
-            metadata: { userId, planId: targetPlan.id, planType: targetPlan.name }
-          });
-          sessionUrl = session.url || "";
-          transactionId = session.id;
-        }
-      } catch (stripeErr: any) {
-        console.error("Failed to initialize or call Stripe API:", stripeErr.message || stripeErr);
-      }
+    let initPoint = "";
+    let transactionId = "";
 
-      if (!sessionUrl) {
-        // Fallback to local compliant Stripe Simulator
-        transactionId = "stripe_sim_" + Math.random().toString(36).substring(2, 12);
-        sessionUrl = `/api/payments/simulator?provider=stripe&sessionId=${transactionId}&amount=${price}&planType=${targetPlan.name}&userId=${userId}`;
-      }
-
-      if (prisma) {
-        const dbSub = await prisma.subscription.create({
-          data: {
-            userId,
-            planId: targetPlan.id,
-            planType: targetPlan.name,
-            provider: "STRIPE",
-            externalId: transactionId,
-            amount: price,
-            status: "PAST_DUE",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          }
+    try {
+      if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
+        const pref = await createPreference({
+          itemId: targetPlan.id,
+          title: `Assinatura JiuSpeak ${targetPlan.name}`,
+          amount: price,
+          email: req.user.email,
+          metadata: { userId, planId: targetPlan.id, planType: targetPlan.name }
         });
-
-        await prisma.payment.create({
-          data: {
-            userId,
-            subscriptionId: dbSub.id,
-            provider: "STRIPE",
-            status: "PENDING",
-            amount: price,
-            currency: "BRL",
-            transactionId
-          }
-        });
+        initPoint = pref.initPoint || "";
+        transactionId = pref.id || "";
       }
-
-      return res.json({ activated: false, checkoutUrl: sessionUrl });
-    } 
-    
-    // 2. MERCADO PAGO PROVIDER LOOP
-    else {
-      let initPoint = "";
-      let transactionId = "";
-
-      try {
-        const mpModule = await import('mercadopago');
-        const { MercadoPagoConfig, Preference } = mpModule;
-        const key = process.env.MERCADOPAGO_ACCESS_TOKEN;
-
-        if (key) {
-          const client = new MercadoPagoConfig({ accessToken: key });
-          const preference = new Preference(client);
-          const response = await preference.create({
-            body: {
-              items: [{
-                id: targetPlan.id,
-                title: `Assinatura JiuSpeak ${targetPlan.name}`,
-                quantity: 1,
-                unit_price: price,
-                currency_id: 'BRL'
-              }],
-              back_urls: {
-                success: `${appUrl}/dashboard/profile?success=true`,
-                failure: `${appUrl}/dashboard/profile?success=false`,
-                pending: `${appUrl}/dashboard/profile?success=pending`
-              },
-              auto_return: 'approved',
-              notification_url: `${appUrl}/api/payments/mercadopago/webhook`,
-              external_reference: `${userId}::${targetPlan.id}`
-            }
-          });
-          initPoint = response.init_point || "";
-          transactionId = response.id || "";
-        }
-      } catch (mpErr: any) {
-        console.error("Failed to initialize or call Mercado Pago API:", mpErr.message || mpErr);
-      }
-
-      if (!initPoint) {
-        // Fallback to local compliant Mercado Pago Simulator
-        transactionId = "mp_sim_" + Math.random().toString(36).substring(2, 12);
-        initPoint = `/api/payments/simulator?provider=mercadopago&sessionId=${transactionId}&amount=${price}&planType=${targetPlan.name}&userId=${userId}`;
-      }
-
-      if (prisma) {
-        const dbSub = await prisma.subscription.create({
-          data: {
-            userId,
-            planId: targetPlan.id,
-            planType: targetPlan.name,
-            provider: "MERCADOPAGO",
-            externalId: transactionId,
-            amount: price,
-            status: "PAST_DUE",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          }
-        });
-
-        await prisma.payment.create({
-          data: {
-            userId,
-            subscriptionId: dbSub.id,
-            provider: "MERCADOPAGO",
-            status: "PENDING",
-            amount: price,
-            currency: "BRL",
-            transactionId
-          }
-        });
-      }
-
-      return res.json({ activated: false, checkoutUrl: initPoint });
+    } catch (mpErr: any) {
+      console.error("Failed to call Mercado Pago service:", mpErr.message || mpErr);
     }
+
+    if (!initPoint) {
+      // Fallback to local compliant Mercado Pago Simulator
+      transactionId = "mp_sim_" + Math.random().toString(36).substring(2, 12);
+      initPoint = `/api/payments/simulator?provider=mercadopago&sessionId=${transactionId}&amount=${price}&planType=${targetPlan.name}&userId=${userId}`;
+    }
+
+    if (prisma) {
+      const dbSub = await prisma.subscription.create({
+        data: {
+          userId,
+          planId: targetPlan.id,
+          planType: targetPlan.name,
+          provider: "MERCADOPAGO",
+          externalId: transactionId,
+          amount: price,
+          status: "PAST_DUE",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        }
+      });
+
+      await prisma.payment.create({
+        data: {
+          userId,
+          subscriptionId: dbSub.id,
+          provider: "MERCADOPAGO",
+          status: "PENDING",
+          amount: price,
+          currency: "BRL",
+          transactionId
+        }
+      });
+    }
+
+    return res.json({ activated: false, checkoutUrl: initPoint });
+
 
   } catch (error: any) {
     console.error("Error in subscriptions checkout endpoint:", error);
@@ -5916,95 +5821,229 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
   }
 });
 
-// 4. STRIPE WEBHOOK
-app.post("/api/payments/stripe/webhook", express.json(), async (req: any, res: any) => {
-  const sig = req.headers['stripe-signature'];
-  const prisma = getPrisma();
-  let event: any;
+// =========================================================================
+// API ENDPOINTS FOR SECURE GATEWAY CHECKOUTS (MERCADO PAGO & STRIPE)
+// =========================================================================
 
+app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (req: any, res: any) => {
   try {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (key && sig) {
-      const stripeModule = await import('stripe');
-      const StripeClass = stripeModule.default;
-      const stripe = new StripeClass(key, { apiVersion: '2023-10-18' as any });
-      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
+    const { 
+      planId, 
+      paymentMethodId = "pix", 
+      token, 
+      installments, 
+      email, 
+      firstName, 
+      lastName, 
+      identificationType, 
+      identificationNumber 
+    } = req.body;
+
+    const userId = req.user.id;
+    const prisma = getPrisma();
+
+    // Find requested Plan
+    let targetPlan: any = prisma ? await prisma.plan.findUnique({ where: { id: planId } }) : null;
+    if (!targetPlan) {
+      targetPlan = inMemoryPlans.find(p => p.id === planId);
+    }
+    if (!targetPlan) {
+      return res.status(404).json({ error: "Plano não encontrado." });
+    }
+
+    const amount = Number(targetPlan.priceBRL);
+    let resultPayment: any;
+
+    if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      // Call official transparent payment
+      resultPayment = await createDirectPayment({
+        transactionAmount: amount,
+        token,
+        description: `Assinatura JiuSpeak ${targetPlan.name}`,
+        installments,
+        paymentMethodId,
+        payerEmail: email || req.user.email,
+        payerFirstName: firstName,
+        payerLastName: lastName,
+        identificationType,
+        identificationNumber,
+        metadata: { userId, planId: targetPlan.id, planType: targetPlan.name }
+      });
     } else {
-      event = req.body;
+      // Return high-fidelity sandbox values so the flow is testable
+      const mockTxId = "mp_direct_" + Math.random().toString(36).substring(2, 12);
+      resultPayment = {
+        id: mockTxId,
+        status: "pending",
+        statusDetail: "pending_waiting_transfer",
+        qrCode: "iVBORw0KGgoAAAANSUhEUgAAAJQAAACUCAYAAAB9y7HX...",
+        qrCodeCopyPaste: `00020101021226830014br.gov.bcb.pix2561api.mercadopago.com/v2/mp_sim_${mockTxId}`,
+        barcode: "34191.75009 01234.567890 12345.678901 2 34560000002990",
+        transactionAmount: amount,
+        paymentMethodId,
+      };
     }
-  } catch (err: any) {
-    console.error("Stripe webhook construct warning:", err.message);
-    event = req.body; // fallback to body if no strict webhook secret configured for simple testing
-  }
 
-  try {
-    if (event.type === 'checkout.session.completed' || event.type === 'payment_intent.succeeded') {
-      const session = event.data.object;
-      const transactionId = session.id;
-      
-      if (prisma) {
-        const payment = await prisma.payment.findUnique({ where: { transactionId } });
-        if (payment) {
-          await prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: "COMPLETED" }
-          });
-
-          const sub = await prisma.subscription.update({
-            where: { id: payment.subscriptionId },
-            data: { 
-              status: "ACTIVE",
-              startDate: new Date(),
-              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            }
-          });
-
-          await prisma.user.update({
-            where: { id: payment.userId },
-            data: {
-              xp: { increment: 200 },
-              isVerified: true
-            }
-          });
-
-          await prisma.auditLog.create({
-            data: {
-              actorId: payment.userId,
-              action: "PIX_DEPOSIT",
-              description: `Assinatura ${sub.planType} paga via Stripe Checkout.`
-            }
-          });
-          console.log(`✓ Stripe subscription payment finalized for Transaction ID: ${transactionId}`);
+    // Record dynamic Subscription and Payment to DB
+    if (prisma) {
+      const dbSub = await prisma.subscription.create({
+        data: {
+          userId,
+          planId: targetPlan.id,
+          planType: targetPlan.name,
+          provider: "MERCADOPAGO",
+          externalId: String(resultPayment.id),
+          amount,
+          status: "PAST_DUE",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
         }
-      }
+      });
+
+      await prisma.payment.create({
+        data: {
+          userId,
+          subscriptionId: dbSub.id,
+          provider: "MERCADOPAGO",
+          status: resultPayment.status === "approved" ? "COMPLETED" : "PENDING",
+          amount,
+          currency: "BRL",
+          transactionId: String(resultPayment.id)
+        }
+      });
+
+      // Maintain SubscriptionPayment to ensure listing sync
+      await prisma.subscriptionPayment.create({
+        data: {
+          subscriptionId: dbSub.id,
+          amountBRL: amount,
+          status: resultPayment.status === "approved" ? "COMPLETED" : "PENDING",
+          txid: String(resultPayment.id),
+          qrCode: resultPayment.qrCode,
+          qrCodeCopyPaste: resultPayment.qrCodeCopyPaste
+        }
+      });
     }
-    res.json({ received: true });
-  } catch (e: any) {
-    console.error("Stripe webhook processing error:", e);
-    res.status(500).json({ error: e.message });
+
+    return res.json({
+      success: true,
+      paymentId: resultPayment.id,
+      status: resultPayment.status,
+      statusDetail: resultPayment.statusDetail,
+      qrCode: resultPayment.qrCode,
+      qrCodeCopyPaste: resultPayment.qrCodeCopyPaste,
+      barcode: resultPayment.barcode,
+      amount: resultPayment.transactionAmount,
+      paymentMethodId: resultPayment.paymentMethodId
+    });
+
+  } catch (error: any) {
+    console.error("Error in Mercado Pago payment creation:", error);
+    res.status(500).json({ error: error.message || "Erro ao processar pagamento com Mercado Pago." });
   }
 });
 
-// 5. MERCADO PAGO WEBHOOK
+// 5. MERCADO PAGO SECURE WEBHOOK (ONLY EXCLUSIVE PAYMENT GATEWAY)
 app.post("/api/payments/mercadopago/webhook", async (req: any, res: any) => {
   const prisma = getPrisma();
   try {
     const { action, data, type } = req.body;
-    console.log("Mercado Pago webhook triggered:", req.body);
+    console.log("[Mercado Pago Webhook] Received body:", JSON.stringify(req.body));
 
-    if (action === 'payment.created' || type === 'payment' || action === 'payment.updated') {
-      const paymentId = data?.id || req.query.id;
-      if (paymentId && prisma) {
-        const payment = await prisma.payment.findFirst({
-          where: { transactionId: String(paymentId) }
+    const paymentId = data?.id || req.body?.data?.id || req.query?.id;
+    if (!paymentId) {
+      console.warn("[Mercado Pago Webhook] Skipping: No payment ID found in request.");
+      return res.status(200).json({ received: true, message: "No payment ID found" });
+    }
+
+    // Secure Webhook Log to DB
+    if (prisma) {
+      try {
+        await prisma.webhookLog.create({
+          data: {
+            provider: "MERCADOPAGO",
+            transactionId: String(paymentId),
+            status: type || action || "unknown",
+            payload: JSON.stringify(req.body)
+          }
         });
+      } catch (logErr: any) {
+        console.error("[Mercado Pago Webhook] Failed to write WebhookLog:", logErr.message || logErr);
+      }
+    }
 
-        if (payment) {
+    // Fetch official state from Mercado Pago API to avoid client-side spoofing
+    let paymentStatus = "pending";
+    let paymentAmount = 29.90;
+    let payerEmail = "";
+    let payerName = "";
+    let userId = "";
+    let planId = "";
+    let planType = "";
+
+    const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    if (mpToken) {
+      try {
+        const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+          headers: {
+            'Authorization': `Bearer ${mpToken}`
+          }
+        });
+        if (mpRes.ok) {
+          const mpData = await mpRes.json();
+          paymentStatus = mpData.status;
+          paymentAmount = Number(mpData.transaction_amount || 0);
+          payerEmail = mpData.payer?.email || "";
+          payerName = `${mpData.payer?.first_name || ""} ${mpData.payer?.last_name || ""}`.trim();
+          userId = mpData.metadata?.user_id || mpData.metadata?.userId || "";
+          planId = mpData.metadata?.plan_id || mpData.metadata?.planId || "";
+          planType = mpData.metadata?.plan_type || mpData.metadata?.planType || "";
+        } else {
+          console.error(`[Mercado Pago Webhook] Failed to retrieve authentic payment detail from Mercado Pago. Code: ${mpRes.status}`);
+        }
+      } catch (err: any) {
+        console.error("[Mercado Pago Webhook] Error fetching payment details from MP API:", err);
+      }
+    } else {
+      // Bypassed MP API fetch in simulator/mock sandbox sessions
+      paymentStatus = "approved"; // Default to approved on safe sandbox simulation
+      userId = req.body?.metadata?.userId || req.query?.userId || "";
+      planId = req.body?.metadata?.planId || req.query?.planId || "";
+      planType = req.body?.metadata?.planType || req.query?.planType || "VIP";
+      paymentAmount = planType === "MASTER" ? 49.90 : 29.90;
+    }
+
+    // Process payment success / status validation
+    if (prisma) {
+      const payment = await prisma.payment.findFirst({
+        where: { transactionId: String(paymentId) }
+      });
+
+      if (payment) {
+        if ((paymentStatus === "approved" || paymentStatus === "completed") && payment.status !== "COMPLETED") {
+          // Double-processing check: update status to COMPLETED
           await prisma.payment.update({
             where: { id: payment.id },
-            data: { status: "COMPLETED" }
+            data: { 
+              status: "COMPLETED",
+              payerEmail: payerEmail || payment.payerEmail,
+              payerName: payerName || payment.payerName
+            }
           });
 
+          // Write PaymentLog
+          await prisma.paymentLog.create({
+            data: {
+              provider: "MERCADOPAGO",
+              transactionId: String(paymentId),
+              status: "COMPLETED",
+              amount: payment.amount,
+              payerEmail: payerEmail || payment.payerEmail,
+              payerName: payerName || payment.payerName
+            }
+          });
+
+          // Update Subscription state
           const sub = await prisma.subscription.update({
             where: { id: payment.subscriptionId },
             data: { 
@@ -6014,35 +6053,167 @@ app.post("/api/payments/mercadopago/webhook", async (req: any, res: any) => {
             }
           });
 
+          // Update SubscriptionPayment
+          await prisma.subscriptionPayment.updateMany({
+            where: { subscriptionId: sub.id, txid: String(paymentId) },
+            data: {
+              status: "COMPLETED",
+              paidAt: new Date()
+            }
+          });
+
+          const isVip = sub.planType === "VIP" || planType === "VIP";
+          const isMaster = sub.planType === "MASTER" || planType === "MASTER";
+
+          // Activate privileges automatically
+          const updateData: any = {
+            isVerified: true,
+            vipActive: isVip,
+            masterActive: isMaster,
+            subscriptionType: sub.planType,
+            subscriptionUntil: sub.endDate
+          };
+
+          if (isMaster) {
+            updateData.coins = { increment: 2000 };
+            updateData.xp = { increment: 500 };
+          } else {
+            updateData.xp = { increment: 200 };
+          }
+
           await prisma.user.update({
             where: { id: payment.userId },
-            data: {
-              xp: { increment: 200 },
-              isVerified: true
-            }
+            data: updateData
           });
 
           await prisma.auditLog.create({
             data: {
               actorId: payment.userId,
               action: "PIX_DEPOSIT",
-              description: `Assinatura ${sub.planType} paga de forma segura via Mercado Pago.`
+              description: `Assinatura ${sub.planType} paga com sucesso e ativada de forma segura via Mercado Pago (ID: ${paymentId}).`
             }
           });
-          console.log(`✓ Mercado Pago subscription payment finalized for Transaction ID: ${paymentId}`);
+
+          console.log(`[Mercado Pago Webhook] Success fully updated subscription benefits for User: ${payment.userId}`);
+        }
+      } else {
+        // Reconcile and create subscription dynamically if missing but metadata contains userId
+        if (userId && (paymentStatus === "approved" || paymentStatus === "completed")) {
+          const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+          if (dbUser) {
+            const isVip = planType === "VIP";
+            const isMaster = planType === "MASTER";
+
+            const sub = await prisma.subscription.create({
+              data: {
+                userId,
+                planId: planId || (isMaster ? "plan-master-id" : "plan-pro-id"),
+                planType: planType || (isMaster ? "MASTER" : "VIP"),
+                provider: "MERCADOPAGO",
+                externalId: String(paymentId),
+                amount: paymentAmount,
+                status: "ACTIVE",
+                startDate: new Date(),
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+              }
+            });
+
+            await prisma.payment.create({
+              data: {
+                userId,
+                subscriptionId: sub.id,
+                provider: "MERCADOPAGO",
+                status: "COMPLETED",
+                amount: paymentAmount,
+                currency: "BRL",
+                transactionId: String(paymentId),
+                payerEmail,
+                payerName
+              }
+            });
+
+            await prisma.paymentLog.create({
+              data: {
+                provider: "MERCADOPAGO",
+                transactionId: String(paymentId),
+                status: "COMPLETED",
+                amount: paymentAmount,
+                payerEmail,
+                payerName
+              }
+            });
+
+            await prisma.subscriptionPayment.create({
+              data: {
+                subscriptionId: sub.id,
+                amountBRL: paymentAmount,
+                status: "COMPLETED",
+                txid: String(paymentId),
+                paidAt: new Date()
+              }
+            });
+
+            const updateData: any = {
+              isVerified: true,
+              vipActive: isVip,
+              masterActive: isMaster,
+              subscriptionType: planType,
+              subscriptionUntil: sub.endDate
+            };
+
+            if (isMaster) {
+              updateData.coins = { increment: 2000 };
+              updateData.xp = { increment: 500 };
+            } else {
+              updateData.xp = { increment: 200 };
+            }
+
+            await prisma.user.update({
+              where: { id: userId },
+              data: updateData
+            });
+
+            await prisma.auditLog.create({
+              data: {
+                actorId: userId,
+                action: "PIX_DEPOSIT",
+                description: `Assinatura ${planType} reconciliada e ativada automaticamente via Mercado Pago (ID: ${paymentId}).`
+              }
+            });
+            console.log(`[Mercado Pago Webhook] Success fully reconciled and activated subscription ${planType} for brand-new checkout user ${userId}`);
+          }
         }
       }
     }
-    res.json({ received: true });
+
+    // Sync state to memory store fallback
+    if (userId) {
+      const isVip = planType === "VIP";
+      const isMaster = planType === "MASTER";
+
+      const targetUser = Array.from((await import("./server/authStore")).inMemoryUsers.values()).find(u => u.id === userId);
+      if (targetUser) {
+        await authStore.updateUser(userId, {
+          vipActive: isVip,
+          masterActive: isMaster,
+          subscriptionType: planType,
+          subscriptionUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          xp: targetUser.xp + (isMaster ? 500 : 200),
+          coins: targetUser.coins + (isMaster ? 2000 : 0)
+        });
+      }
+    }
+
+    return res.status(200).json({ received: true });
   } catch (e: any) {
-    console.error("Mercado Pago Webhook error:", e);
-    res.status(500).json({ error: e.message });
+    console.error("[Mercado Pago Webhook error]:", e);
+    res.status(500).json({ error: e.message || "Webhook processing error" });
   }
 });
 
-// 6. PORTAL DE SIMULAÇÃO DE PAGAMENTOS HOMOLOGADO (STRIPE / MERCADO PAGO SANDBOX)
+// 6. PORTAL DE SIMULAÇÃO DE PAGAMENTOS HOMOLOGADO (MERCADO PAGO EXCLUSIVO SANDBOX)
 app.get("/api/payments/simulator", (req: any, res: any) => {
-  const { provider, sessionId, amount, planType, userId } = req.query;
+  const { provider, sessionId, amount, planType, userId, planId } = req.query;
   
   res.send(`
     <!DOCTYPE html>
@@ -6055,46 +6226,46 @@ app.get("/api/payments/simulator", (req: any, res: any) => {
     </head>
     <body class="bg-slate-950 text-slate-200 font-sans flex items-center justify-center min-h-screen p-4">
       <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl text-center relative overflow-hidden">
-        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-500 to-indigo-500"></div>
-        <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl mx-auto shadow-inner animate-pulse">
-          🥋
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-teal-500 to-emerald-500"></div>
+        <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl mx-auto shadow-inner">
+          🤝
         </div>
         <div>
-          <h2 class="text-xl font-extrabold text-white uppercase tracking-wider">Checkout de Assinatura</h2>
-          <p class="text-[10px] text-slate-500 mt-1 uppercase font-mono">Conector Oficial de Faturamento</p>
+          <h2 class="text-xl font-extrabold text-white uppercase tracking-wider">Checkout Seguro</h2>
+          <p class="text-[10px] text-slate-500 mt-1 uppercase font-mono">Processamento via Mercado Pago</p>
         </div>
         
         <div class="bg-slate-950/80 p-5 rounded-2xl border border-slate-850 text-left space-y-3.5 text-xs">
           <div class="flex justify-between items-center">
-            <span class="text-slate-500 font-mono">Gateway:</span>
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">${provider}</span>
+            <span class="text-slate-500 font-mono">Gateway de Pagamento:</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest">MERCADO PAGO</span>
           </div>
           <div class="flex justify-between items-center border-t border-slate-800/40 pt-2.5">
-            <span class="text-slate-500 font-mono">ID de Sessão:</span>
+            <span class="text-slate-500 font-mono">Transação MP ID:</span>
             <span class="text-slate-400 font-mono text-[9px] truncate max-w-[180px]" title="${sessionId}">${sessionId}</span>
           </div>
           <div class="flex justify-between items-center border-t border-slate-800/40 pt-2.5">
-            <span class="text-slate-500 font-mono">Plano Contratado:</span>
+            <span class="text-slate-500 font-mono">Plano de Assinatura:</span>
             <span class="text-slate-200 font-bold uppercase tracking-wider">JiuSpeak ${planType}</span>
           </div>
           <div class="flex justify-between items-center border-t border-slate-800 pt-2.5">
-            <span class="text-slate-400 font-bold font-mono">Valor Total:</span>
+            <span class="text-slate-400 font-bold font-mono">Valor Cobrado:</span>
             <span class="text-emerald-400 font-mono font-black text-base">R$ ${Number(amount).toFixed(2)}</span>
           </div>
         </div>
 
         <div class="space-y-3 pt-2">
           <button onclick="simulatePayment('success')" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase rounded-xl transition-all shadow-md active:scale-[0.98]">
-            ✓ Pagar em Ambiente de Homologação
+            ✓ Confirmar Pagamento Seguro (Mercado Pago)
           </button>
           
           <button onclick="simulatePayment('fail')" class="w-full py-3 bg-slate-950 hover:bg-slate-850 text-slate-400 font-bold text-xs uppercase rounded-xl transition-all border border-slate-800">
-            Cancelamento / Desistir
+            Cancelar Operação
           </button>
         </div>
 
-        <div class="text-[9px] text-slate-505 leading-relaxed font-mono">
-          Este ambiente simula em tempo de execução real uma operação de sandbox para testes seguros do SaaS do JiuSpeak Battle.
+        <div class="text-[9px] text-slate-550 leading-relaxed font-mono">
+          Ambiente de simulação local para testes funcionais do gateway integrado Mercado Pago em ambiente de homologação.
         </div>
       </div>
 
@@ -6106,43 +6277,33 @@ app.get("/api/payments/simulator", (req: any, res: any) => {
           }
 
           try {
-            const provider = "${provider}";
-            const endpoint = provider === 'stripe' ? '/api/payments/stripe/webhook' : '/api/payments/mercadopago/webhook';
-            
-            const payload = provider === 'stripe' ? {
-              type: 'checkout.session.completed',
-              data: {
-                object: {
-                  id: "${sessionId}",
-                  amount_total: ${Number(amount) * 100},
-                  currency: 'brl',
-                  payment_status: 'paid'
-                }
-              }
-            } : {
-              action: 'payment.created',
-              data: {
-                id: "${sessionId}"
-              }
-            };
-
-            const res = await fetch(endpoint, {
+            const res = await fetch('/api/payments/mercadopago/webhook?userId=${userId}&planType=${planType}&planId=${planId}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify(payload)
+              body: JSON.stringify({
+                action: 'payment.created',
+                data: {
+                  id: "${sessionId}"
+                },
+                metadata: {
+                  userId: "${userId}",
+                  planId: "${planId}",
+                  planType: "${planType}"
+                }
+              })
             });
 
             if (res.ok) {
-              alert('Fatura compensada com sucesso na rede local! Retornando ao JiuSpeak Battle...');
+              alert('Pagamento processado com sucesso! Redirecionando para as suas credenciais ativas...');
               window.location.href = '/dashboard/profile?success=true';
             } else {
-              alert('Erro na resposta do webhook do gateway.');
+              alert('Erro no processamento do webhook do Mercado Pago.');
             }
           } catch (e) {
             console.error(e);
-            alert('Falha crítica de comunicação com o servidor back-end.');
+            alert('Erro de comunicação com o webhook local.');
           }
         }
       </script>

@@ -112,8 +112,8 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
     loadSubscriptionInfo();
   }, [user.subscription.type]);
 
-  // Initiate checkout
-  const [selectedProvider, setSelectedProvider] = useState<'stripe' | 'mercadopago'>('stripe');
+  // Initiate checkout (Exclusively Mercado Pago)
+  const [selectedMethod, setSelectedMethod] = useState<'pix' | 'credit_card' | 'debit_card' | 'boleto'>('pix');
 
   const handleInitiateCheckout = async (plan: Plan) => {
     const token = localStorage.getItem('jiuspeak_access_token');
@@ -121,6 +121,8 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       showToast('Autentique-se novamente para prosseguir.', 'error');
       return;
     }
+
+    const provider = 'mercadopago';
 
     try {
       setCheckoutPlan(plan);
@@ -132,7 +134,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ planId: plan.id, provider: selectedProvider })
+        body: JSON.stringify({ planId: plan.id, provider })
       });
 
       const data = await res.json();
@@ -150,7 +152,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
           setCheckoutPlan(null);
           loadSubscriptionInfo();
         } else if (data.checkoutUrl) {
-          showToast(`Redirecionando para faturamento seguro via ${selectedProvider.toUpperCase()}...`, 'success');
+          showToast(`Redirecionando para faturamento seguro via ${provider.toUpperCase()}...`, 'success');
           setTimeout(() => {
             window.location.href = data.checkoutUrl;
           }, 1000);
@@ -300,32 +302,49 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
         <>
           {/* Comparison Cards Grid */}
           <div>
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-805">
-              <div>
-                <span className="text-slate-400 font-mono text-[10px] uppercase tracking-wider block mb-1">Escolha seu Gateway Altamente Seguro</span>
-                <span className="text-xs text-slate-500">Garante conexões certificadas SSL e de alta fidelidade para renovação.</span>
+            <div className="mb-6 bg-slate-900/40 p-5 rounded-2xl border border-slate-800 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-800 pb-3">
+                <div>
+                  <span className="text-slate-200 font-mono text-[11px] uppercase tracking-wider block font-bold text-violet-400">⚡ Selecione seu Método de Pagamento Preferido</span>
+                  <p className="text-xs text-slate-400">Garantia de transações criptografadas com proteção total antifraude.</p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase rounded-lg">
+                    🔒 Pagamento Seguro
+                  </span>
+                </div>
               </div>
-              <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 self-start sm:self-center">
-                <button
-                  onClick={() => setSelectedProvider('stripe')}
-                  className={`px-3.5 py-1.5 rounded-md text-[11px] font-mono font-bold uppercase transition-all ${
-                    selectedProvider === 'stripe'
-                      ? 'bg-violet-700 text-white shadow-md shadow-violet-500/15'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  💳 Stripe
-                </button>
-                <button
-                  onClick={() => setSelectedProvider('mercadopago')}
-                  className={`px-3.5 py-1.5 rounded-md text-[11px] font-mono font-bold uppercase transition-all ${
-                    selectedProvider === 'mercadopago'
-                      ? 'bg-violet-700 text-white shadow-md shadow-violet-500/15'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  🥋 Mercado Pago
-                </button>
+
+              {/* 4 Grid Payment Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  { id: 'pix', label: 'PIX Imediato ⚡', desc: 'QR Code dinâmico nacional', provider: 'Mercado Pago' },
+                  { id: 'credit_card', label: 'Cartão de Crédito 💳', desc: 'Visa, Master, Elo até 12x', provider: 'Mercado Pago' },
+                  { id: 'debit_card', label: 'Cartão de Débito 💳', desc: 'Pagamento com débito online/cartão', provider: 'Mercado Pago' },
+                  { id: 'boleto', label: 'Boleto Bancário 📄', desc: 'Compensação em até 48 horas', provider: 'Mercado Pago' },
+                ].map((item) => {
+                  const isSelected = selectedMethod === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedMethod(item.id as any)}
+                      className={`text-left p-3.5 rounded-xl border transition-all flex flex-col justify-between h-20 ${
+                        isSelected
+                          ? 'bg-violet-950/40 border-violet-500 shadow-md shadow-violet-550/10 ring-1 ring-violet-500/50'
+                          : 'bg-slate-950/80 border-slate-850 hover:border-slate-800 hover:bg-slate-950'
+                      }`}
+                    >
+                      <span className="font-sans font-bold text-[11.5px] text-slate-100 block">{item.label}</span>
+                      <span className="text-[9.5px] text-slate-500 font-mono tracking-tight leading-tight uppercase block mt-1">
+                        Via {item.provider}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="text-center pt-2 text-[10.5px] font-mono text-slate-500 uppercase tracking-widest leading-none">
+                🔒 Powered by <span className="text-violet-400 font-bold">Mercado Pago</span>
               </div>
             </div>
 

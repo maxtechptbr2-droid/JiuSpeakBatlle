@@ -67,6 +67,25 @@ export async function assertDatabaseConnection(): Promise<void> {
   // Attempt to apply migrations automatically on boot to avoid schema drift
   if (process.env.DATABASE_URL) {
     try {
+      console.log("⚙️  [DATABASE BOOTSTRAP] Garantindo que o serviço PostgreSQL local está ativo...");
+      try {
+        // Try starting postgresql service using standard service or init.d command
+        execSync("service postgresql start || /etc/init.d/postgresql start", { stdio: "inherit" });
+        console.log("✓ [DATABASE BOOTSTRAP] Comando de inicialização do PostgreSQL enviado.");
+      } catch (e: any) {
+        console.warn("⚠️ Não foi possível iniciar o postgresql por init.d/service:", e.message || e);
+        try {
+          execSync("pg_ctlcluster 16 main start || pg_ctlcluster 15 main start || pg_ctlcluster 14 main start", { stdio: "inherit" });
+          console.log("✓ [DATABASE BOOTSTRAP] Cluster de PostgreSQL inicializado via pg_ctlcluster.");
+        } catch (clusterErr: any) {
+          console.warn("⚠️ Não foi possível iniciar cluster do PostgreSQL:", clusterErr.message || clusterErr);
+        }
+      }
+    } catch (startErr: any) {
+      console.warn("⚠️ Não foi possível garantir ativação do PostgreSQL:", startErr.message || startErr);
+    }
+
+    try {
       console.log("⚙️  [DATABASE BOOTSTRAP] Verificando e aplicando migrações pendentes...");
       execSync("npx prisma migrate deploy", { stdio: "inherit" });
       console.log("✓ [DATABASE BOOTSTRAP] Migrações aplicadas ou verificadas com sucesso!");

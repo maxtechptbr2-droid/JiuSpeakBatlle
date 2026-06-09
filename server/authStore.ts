@@ -51,6 +51,10 @@ export interface AuthUser {
   themeColor?: string | null;
   avatarFrame?: string | null;
   isVerified?: boolean;
+  vipActive?: boolean;
+  masterActive?: boolean;
+  subscriptionType?: string | null;
+  subscriptionUntil?: string | null;
   verificationToken: string | null;
   resetToken: string | null;
   resetTokenExpires: Date | null;
