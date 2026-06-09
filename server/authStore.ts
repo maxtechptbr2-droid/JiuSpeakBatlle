@@ -1638,7 +1638,7 @@ export const authStore = {
           role: role as any,
           isAdminApproved: approved,
           verificationToken: data.verificationToken,
-          isEmailVerified: false,
+          isEmailVerified: true,
           wallet: {
             create: {
               balanceKC: 200,
@@ -1667,7 +1667,7 @@ export const authStore = {
         xp: 0,
         level: 1,
         elo: 1000,
-        isEmailVerified: false,
+        isEmailVerified: true,
         verificationToken: data.verificationToken,
         resetToken: null,
         resetTokenExpires: null,

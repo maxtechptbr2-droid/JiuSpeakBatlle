@@ -31,6 +31,7 @@ import {
   Check,
   ChevronDown
 } from 'lucide-react';
+import { avatarMappingList } from '../avatarMapping';
 
 interface AuthPortalProps {
   onLoginSuccess: (session: { accessToken: string; refreshToken: string; user: any }) => void;
@@ -56,6 +57,36 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'ATHLETE' | 'ADMIN'>('ATHLETE');
+
+  // Onboarding Wizard States
+  const [registerStep, setRegisterStep] = useState(1);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [publicName, setPublicName] = useState('');
+  const [country, setCountry] = useState('Brasil');
+  const [city, setCity] = useState('São Paulo');
+  const [nativeLanguage, setNativeLanguage] = useState('Português');
+  const [targetLanguage, setTargetLanguage] = useState('Inglês');
+  const [mainGoal, setMainGoal] = useState('Competir internacionalmente e entender seminários de BJJ gringos.');
+
+  // BJJ Profile (Step 3)
+  const [bjjBelt, setBjjBelt] = useState<any>('Branca');
+  const [bjjAcademy, setBjjAcademy] = useState('');
+  const [bjjProfessor, setBjjProfessor] = useState('');
+  const [bjjTrainingTime, setBjjTrainingTime] = useState('');
+  const [bjjObjective, setBjjObjective] = useState('');
+
+  // Choose Initial Avatar (Step 4)
+  const [selectedInitialAvatar, setSelectedInitialAvatar] = useState(
+    avatarMappingList && avatarMappingList[0] ? avatarMappingList[0].image : ''
+  );
+
+  // Language Diagnosis Mini-Quiz (Step 5)
+  const [diagQ1, setDiagQ1] = useState<string | null>(null);
+  const [diagQ2, setDiagQ2] = useState<string | null>(null);
+  const [diagQ3, setDiagQ3] = useState<string | null>(null);
+  const [scoreDiagnostico, setScoreDiagnostico] = useState<number | null>(null);
+  const [cefrLevel, setCefrLevel] = useState<string>('A1');
   
   // Password Recovery / Verification fields
   const [token, setToken] = useState('');
@@ -157,7 +188,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !name || !password) {
-      setErrorMsg('Por favor, preencha todos os campos obrigatórios.');
+      setErrorMsg('Por favor, preencha todos os campos obrigatórios para se registrar.');
       return;
     }
     
@@ -166,6 +197,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     setSuccessMsg('');
 
     try {
+      // 1. Register account
       const res = await fetchWithCsrf('/api/auth/register', {
         method: 'POST',
         body: JSON.stringify({ email, name, password, role }),
@@ -176,16 +208,70 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
         throw new Error(data.error || 'Erro ao realizar cadastro.');
       }
 
-      setSuccessMsg(data.message || 'Cadastro concluído! Por favor, verifique o seu e-mail.');
-      showToast('Conta criada com sucesso! Verifique seu e-mail simulado.', 'success');
+      // 2. Automate login to retrieve JWT tokens and bypass verification
+      const loginRes = await fetchWithCsrf('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      const loginData = await loginRes.json();
+      if (!loginRes.ok) {
+        throw new Error(loginData.error || 'Falha na autenticação do novo atleta.');
+      }
+
+      // 3. Post full multi-stage custom profile info to backend
+      const rawProfileObj = {
+        surname: "",
+        publicName: publicName || name.toLowerCase().replace(/\s+/g, '-'),
+        country,
+        city,
+        nativeLanguage,
+        targetLanguage,
+        bio: mainGoal,
+        academy: bjjAcademy || "Atama Virtual Team",
+        professor: bjjProfessor || "Nenhum",
+        belt: bjjBelt,
+        stripes: 0,
+        trainingTime: bjjTrainingTime || "Iniciante",
+        goalsBjj: bjjObjective || "Aprender as técnicas em inglês",
+        realPhoto: selectedInitialAvatar || "",
+        cefrLevel: cefrLevel || "A1",
+        diagnosticScore: scoreDiagnostico || 0,
+        achievements: ["first_armlock_onboarding"]
+      };
+
+      // Set profile endpoint with credentials active
+      const profileOptions = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${loginData.accessToken}`
+        },
+        body: JSON.stringify({ profile: rawProfileObj }),
+      };
+
+      await fetch('/api/user/profile', profileOptions);
+
+      showToast(`Bem-vindo oficial à academia JiuSpeak, ${name}!`, 'success');
       
-      // Auto transition to verify view or login
-      setView('verify');
-      setEmail('');
-      setPassword('');
-      fetchSimulatedEmails();
+      // Save profile metadata locally for instant sync
+      localStorage.setItem(`jiuspeak_profile_${loginData.user.id}`, JSON.stringify(rawProfileObj));
+
+      // Successfully sign in user!
+      onLoginSuccess({
+        accessToken: loginData.accessToken,
+        refreshToken: loginData.refreshToken,
+        user: {
+          ...loginData.user,
+          avatar: selectedInitialAvatar || loginData.user.avatar,
+          belt: bjjBelt.toUpperCase() === 'BRANCA' ? 'WHITE' : 
+                bjjBelt.toUpperCase() === 'AZUL' ? 'BLUE' :
+                bjjBelt.toUpperCase() === 'ROXA' ? 'PURPLE' :
+                bjjBelt.toUpperCase() === 'MARROM' ? 'BROWN' : 'BLACK',
+          isEmailVerified: true
+        }
+      });
     } catch (err: any) {
-      setErrorMsg(err.message || 'Houve um erro de conexão com o servidor.');
+      setErrorMsg(err.message || 'Houve um erro ao processar o cadastro.');
       showToast(err.message || 'Erro no registro.', 'error');
     } finally {
       setLoading(false);
@@ -713,81 +799,600 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                 </form>
               )}
 
-              {/* VIEW 2: REGISTER */}
+              {/* VIEW 2: REGISTER (5-STAGE PREMIUM ONBOARDING WIZARD) */}
               {view === 'register' && (
-                <form onSubmit={handleRegister} className="space-y-3.5">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nome de Atleta</label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        placeholder="Ex: Pedro 'Armlock' Silva"
-                        className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-4 py-2.5 text-xs text-white focus:outline-none transition-all placeholder:text-slate-650"
-                        required
-                      />
+                <div className="space-y-5" id="onboarding-wizard-container">
+                  {/* Progress tracker */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400 uppercase">
+                      <span>Etapa {registerStep} de 5</span>
+                      <span className="text-violet-400 font-extrabold">
+                        {registerStep === 1 && "Criar Conta Mestra"}
+                        {registerStep === 2 && "Perfil de Estudante"}
+                        {registerStep === 3 && "Identidade de Jiu-Jitsu"}
+                        {registerStep === 4 && "Escolha o seu Avatar"}
+                        {registerStep === 5 && "Diagnóstico de Idioma"}
+                      </span>
+                    </div>
+                    {/* Visual Segmented Progress Bar */}
+                    <div className="grid grid-cols-5 gap-1.5 h-1.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <div
+                          key={s}
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            s <= registerStep ? 'bg-violet-500 shadow-sm shadow-violet-500/20' : 'bg-slate-900'
+                          }`}
+                        />
+                      ))}
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Endereço de E-mail</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="lutador@jiuspeak.com"
-                        className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-4 py-2.5 text-xs text-white focus:outline-none transition-all placeholder:text-slate-650"
-                        required
-                      />
-                    </div>
-                  </div>
+                  {/* STEP 1: CREATE ACCOUNT */}
+                  {registerStep === 1 && (
+                    <div className="space-y-4 animate-fadeIn" id="step-1-account">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nome Completo</label>
+                        <div className="relative">
+                          <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                          <input
+                            type="text"
+                            value={name}
+                            onChange={e => {
+                              setName(e.target.value);
+                              // Auto sync initial publicName
+                              setPublicName(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                            }}
+                            placeholder="Ex: Pedro Silva Gracie"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-4 py-2.5 text-xs text-white focus:outline-none placeholder:text-slate-600 font-medium"
+                          />
+                        </div>
+                      </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Definir Senha</label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        placeholder="Mínimo de 6 caracteres"
-                        className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-10 py-2.5 text-xs text-white focus:outline-none transition-all placeholder:text-slate-650"
-                        required
-                      />
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Endereço de E-mail</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            placeholder="exemplo@jiuspeak.com"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-4 py-2.5 text-xs text-white focus:outline-none placeholder:text-slate-600 font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sua Senha</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="Mínimo de 6 caracteres"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-10 py-2.5 text-xs text-white focus:outline-none placeholder:text-slate-650 font-medium"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 cursor-pointer"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+
+                        {/* REACTIVE STRENGTH INDICATOR */}
+                        {password.length > 0 && (
+                          <div className="mt-2 space-y-1.5 animate-fadeIn">
+                            <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                              <span>Segurança da Senha:</span>
+                              <span className={`font-black uppercase tracking-wider ${
+                                password.length < 6 ? 'text-rose-400' :
+                                password.length < 9 ? 'text-amber-405' : 'text-emerald-450'
+                              }`}>
+                                {password.length < 6 ? 'Fraca (Muito Curta)' :
+                                 password.length < 9 ? 'Média (Aceitável)' : 'Forte (Excelente)'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-1 h-1">
+                              <div className={`h-full rounded-full ${password.length >= 1 ? 'bg-rose-500' : 'bg-slate-900'}`} />
+                              <div className={`h-full rounded-full ${password.length >= 6 ? 'bg-amber-400' : 'bg-slate-900'}`} />
+                              <div className={`h-full rounded-full ${password.length >= 9 ? 'bg-emerald-400' : 'bg-slate-900'}`} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Confirmar Senha</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                          <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            placeholder="Repita sua senha exatamente"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-10.5 pr-4 py-2.5 text-xs text-white focus:outline-none placeholder:text-slate-600 font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Terms check */}
+                      <label className="flex items-start gap-2.5 pt-1.5 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={acceptTerms}
+                          onChange={e => setAcceptTerms(e.target.checked)}
+                          className="mt-0.5 rounded accent-violet-600 focus:ring-0 cursor-pointer"
+                        />
+                        <span className="text-[11px] text-slate-400 leading-tight group-hover:text-slate-350 transition-colors">
+                          Aceito todas as diretrizes de etiqueta do tatame e concordo com os Termos de Uso e Política de Privacidade do JiuSpeak.
+                        </span>
+                      </label>
+
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350"
+                        onClick={() => {
+                          if (!name || name.trim().length < 3) {
+                            showToast("Por favor, digite seu nome completo.", "error");
+                            return;
+                          }
+                          if (!email || !email.includes("@")) {
+                            showToast("E-mail em formato inválido.", "error");
+                            return;
+                          }
+                          if (password.length < 6) {
+                            showToast("A senha deve ter no mínimo 6 caracteres.", "error");
+                            return;
+                          }
+                          if (password !== confirmPassword) {
+                            showToast("As senhas digitadas não coincidem.", "error");
+                            return;
+                          }
+                          if (!acceptTerms) {
+                            showToast("Você precisa aceitar os termos da academia para avançar.", "error");
+                            return;
+                          }
+                          setRegisterStep(2);
+                        }}
+                        className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-violet-500/15"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        Próxima Etapa <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
+                  )}
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Perfil</label>
-                    <select
-                      value={role}
-                      onChange={e => setRole(e.target.value as 'ATHLETE' | 'ADMIN')}
-                      className="w-full bg-[#0a0f1d] border border-slate-800 text-xs text-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-violet-500 transition-all cursor-pointer font-sans"
+                  {/* STEP 2: STUDENT PROFILE */}
+                  {registerStep === 2 && (
+                    <div className="space-y-4 animate-fadeIn" id="step-2-student">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nome de Perfil Público (URL única)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 py-2 text-xs text-slate-500 font-mono">/profile/</span>
+                          <input
+                            type="text"
+                            value={publicName}
+                            onChange={e => setPublicName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                            placeholder="pedro-silva"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl pl-20 pr-4 py-2.5 text-xs text-white focus:outline-none font-mono"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-mono mt-1">Este identificador será o seu link público no dojo jiuspeak.com.</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">País</label>
+                          <input
+                            type="text"
+                            value={country}
+                            onChange={e => setCountry(e.target.value)}
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-3.5 py-2.5 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Cidade</label>
+                          <input
+                            type="text"
+                            value={city}
+                            onChange={e => setCity(e.target.value)}
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-3.5 py-2.5 text-xs text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Idioma Nativo</label>
+                          <input
+                            type="text"
+                            value={nativeLanguage}
+                            onChange={e => setNativeLanguage(e.target.value)}
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-3.5 py-2.5 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Idioma para Praticar</label>
+                          <select
+                            value={targetLanguage}
+                            onChange={e => setTargetLanguage(e.target.value)}
+                            className="w-full bg-[#0a0f1d] border border-slate-800 text-xs text-white rounded-xl px-3.5 py-2.5 focus:outline-none cursor-pointer"
+                          >
+                            <option value="Inglês">Inglês (Conexão IBJJF & USA)</option>
+                            <option value="Espanhol">Espanhol (Campeonatos Americanos)</option>
+                            <option value="Japonês">Japonês (Dojo Raiz do Jiu-Jitsu)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Seu Perfil / Bio Curta (Resumo Acadêmico)</label>
+                        <textarea
+                          rows={2}
+                          value={mainGoal}
+                          onChange={e => setMainGoal(e.target.value)}
+                          placeholder="Qual o seu objetivo conectando esportes e novos idiomas?"
+                          className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl p-3 text-xs text-white focus:outline-none placeholder:text-slate-600"
+                        />
+                      </div>
+
+                      <div className="flex gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterStep(1)}
+                          className="py-2.5 px-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!publicName) {
+                              showToast("Escolha um identificador público de perfil.", "error");
+                              return;
+                            }
+                            setRegisterStep(3);
+                          }}
+                          className="flex-1 py-2.5 bg-violet-650 hover:bg-violet-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          Avançar para Jiu-Jitsu <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: JIU-JITSU PROFILE */}
+                  {registerStep === 3 && (
+                    <div className="space-y-4 animate-fadeIn" id="step-3-jiujitsu">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Sua Faixa Atual (Jiu-Jitsu Belt)</label>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {['Branca', 'Azul', 'Roxa', 'Marrom', 'Preta'].map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => setBjjBelt(f)}
+                              className={`py-2 rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center border ${
+                                bjjBelt === f
+                                  ? 'bg-violet-950/40 border-violet-500 text-violet-300 ring-1 ring-violet-500/20'
+                                  : 'bg-slate-950/70 border-slate-900 text-slate-400 hover:border-slate-800'
+                              }`}
+                            >
+                              <span className="text-sm">
+                                {f === 'Branca' && '⚪'}
+                                {f === 'Azul' && '🔵'}
+                                {f === 'Roxa' && '🟣'}
+                                {f === 'Marrom' && '🟤'}
+                                {f === 'Preta' && '⚫'}
+                              </span>
+                              <span className="mt-1 block scale-90">{f}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Academia / Dojo</label>
+                          <input
+                            type="text"
+                            value={bjjAcademy}
+                            onChange={e => setBjjAcademy(e.target.value)}
+                            placeholder="Alliance, Gracie Barra..."
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Professor Responsável</label>
+                          <input
+                            type="text"
+                            value={bjjProfessor}
+                            onChange={e => setBjjProfessor(e.target.value)}
+                            placeholder="Mestre / Sensei"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tempo de Prática</label>
+                          <input
+                            type="text"
+                            value={bjjTrainingTime}
+                            onChange={e => setBjjTrainingTime(e.target.value)}
+                            placeholder="Ex: 3 anos"
+                            className="w-full bg-[#0a0f1d] border border-slate-800 focus:border-violet-500 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-slate-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Estilo Desejado</label>
+                          <select
+                            value={bjjObjective}
+                            onChange={e => setBjjObjective(e.target.value)}
+                            className="w-full bg-[#0a0f1d] border border-slate-800 text-xs text-slate-300 rounded-xl px-3.5 py-2.5 focus:outline-none cursor-pointer"
+                          >
+                            <option value="Guardião Flexível">Guardião (Guarda Fechada, Berimbolo)</option>
+                            <option value="Passador de Pressão">Passador (Passagem de Pressão, Cruzada)</option>
+                            <option value="Quedas & Wrestling">Quedas (Judô, Wrestling)</option>
+                            <option value="Completo e Defensivo">Completo / Híbrido</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterStep(2)}
+                          className="py-2.5 px-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterStep(4)}
+                          className="flex-1 py-2.5 bg-violet-650 hover:bg-violet-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          Escolher Avatar <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 4: CHOOSE INITIAL AVATAR */}
+                  {registerStep === 4 && (
+                    <div className="space-y-4 animate-fadeIn" id="step-4-avatar">
+                      <div className="text-center space-y-1">
+                        <span className="text-[10px] uppercase font-mono font-black text-violet-400 tracking-wider block">Selecione o seu Avatar Inicial</span>
+                        <p className="text-[11px] text-slate-400">Escolha o visual que ilustrará sua jornada nos rankings e no chat.</p>
+                      </div>
+
+                      {/* Unified selection grid displaying avatars */}
+                      <div className="bg-[#040810] border border-slate-900 rounded-2xl p-3">
+                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 max-h-56 overflow-y-auto pr-1">
+                          {avatarMappingList && avatarMappingList.map((av, index) => {
+                            const isSelected = selectedInitialAvatar === av.image;
+                            return (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => setSelectedInitialAvatar(av.image)}
+                                className={`aspect-square p-1 rounded-xl transition-all relative flex flex-col items-center justify-center cursor-pointer border ${
+                                  isSelected 
+                                    ? 'bg-violet-950/50 border-violet-500 shadow-md shadow-violet-500/20 scale-105' 
+                                    : 'bg-slate-900/30 border-slate-850 hover:border-slate-800'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <span className="absolute -top-1.5 -right-1 text-[11px] animate-bounce">🛡️</span>
+                                )}
+                                <img
+                                  src={av.image}
+                                  alt={av.name}
+                                  referrerPolicy="no-referrer"
+                                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover select-none"
+                                />
+                                <span className="text-[8px] mt-1 text-slate-400 truncate max-w-full block text-center font-mono">{av.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Preview selected avatar info */}
+                      {selectedInitialAvatar && (
+                        <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-violet-950/25 border border-violet-500/15 animate-fadeIn">
+                          <img
+                            src={selectedInitialAvatar}
+                            alt="Visual"
+                            referrerPolicy="no-referrer"
+                            className="w-11 h-11 rounded-full object-cover ring-2 ring-violet-500/30"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-white block">Equipamento Selecionado</span>
+                            <span className="text-[10px] text-violet-400 font-mono">Este avatar será ativado imediatamente após o diagnóstico de nível.</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterStep(3)}
+                          className="py-2.5 px-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRegisterStep(5)}
+                          className="flex-1 py-2.5 bg-violet-650 hover:bg-violet-600 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          Ir para Nivelamento <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 5: LANGUAGE DIAGNOSIS */}
+                  {registerStep === 5 && (
+                    <div className="space-y-4 animate-fadeIn" id="step-5-diagnosis">
+                      <div className="text-center space-y-1 bg-violet-950/20 border border-violet-900/30 rounded-2xl p-3">
+                        <span className="text-[10px] uppercase font-mono font-black text-violet-400 tracking-wider block">📋 Diagnóstico de Inglês para Tatame</span>
+                        <h4 className="text-xs font-bold text-white">Descubra sua classificação no padrão internacional CEFR</h4>
+                        <p className="text-[10px] text-slate-400 leading-normal">
+                          Responda a este teste rápido de vocabulário técnico aplicados em torneios gringos.
+                        </p>
+                      </div>
+
+                      {/* Diagnóstico Questions */}
+                      <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+                        {/* Q1 */}
+                        <div className="space-y-2 border-b border-slate-900 pb-3">
+                          <p className="text-[11px] font-bold text-slate-300">
+                            Q1: Como você diz "Bater em desistência" para sua segurança no exterior?
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['Tap Out / I tap', 'Pull guard', 'Sweep them', 'Stack pass'].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setDiagQ1(opt)}
+                                className={`p-2 rounded-lg text-[10px] text-left transition-all font-sans cursor-pointer ${
+                                  diagQ1 === opt
+                                    ? 'bg-violet-900/40 border border-violet-500 text-violet-300 font-semibold'
+                                    : 'bg-slate-950/50 border border-slate-900 text-slate-400 hover:border-slate-800'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Q2 */}
+                        <div className="space-y-2 border-b border-slate-900 pb-3">
+                          <p className="text-[11px] font-bold text-slate-300">
+                            Q2: O que "Underhook" representa durante uma aula internacional?
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['Fuga de quadril', 'Pegada esgrimando o braço', 'Chave de calcanhar', 'Montada lateral'].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setDiagQ2(opt)}
+                                className={`p-2 rounded-lg text-[10px] text-left transition-all font-sans cursor-pointer ${
+                                  diagQ2 === opt
+                                    ? 'bg-violet-900/40 border border-violet-500 text-violet-300 font-semibold'
+                                    : 'bg-slate-950/50 border border-slate-900 text-slate-400 hover:border-slate-800'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Q3 */}
+                        <div className="space-y-2 pb-1">
+                          <p className="text-[11px] font-bold text-slate-300">
+                            Q3: Qual a correspondência perfeita de "Pull Guard"?
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['Passar a guarda', 'Chispar das pernas', 'Puxar para a guarda', 'Fazer pegada nas costas'].map((opt) => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => setDiagQ3(opt)}
+                                className={`p-2 rounded-lg text-[10px] text-left transition-all font-sans cursor-pointer ${
+                                  diagQ3 === opt
+                                    ? 'bg-violet-900/40 border border-violet-500 text-violet-300 font-semibold'
+                                    : 'bg-slate-950/50 border border-slate-900 text-slate-400 hover:border-slate-800'
+                                }`}
+                              >
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Display Computed Score and CEFR Level */}
+                      {diagQ1 && diagQ2 && diagQ3 && (
+                        <div className="p-3 bg-emerald-950/20 border border-emerald-500/35 rounded-2xl animate-scaleUp text-center space-y-1">
+                          <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest block">🎯 Classificação Técnica Computada</span>
+                          <h5 className="text-lg font-black text-white">
+                            {(() => {
+                              let count = 0;
+                              if (diagQ1 === 'Tap Out / I tap') count++;
+                              if (diagQ2 === 'Pegada esgrimando o braço') count++;
+                              if (diagQ3 === 'Puxar para a guarda') count++;
+                              
+                              let bjjCefr = 'A1';
+                              let bjjExp = 'White Belt do Inglês (Básico)';
+                              if (count === 3) {
+                                bjjCefr = 'C1';
+                                bjjExp = 'Black Belt do Inglês (Avançado)';
+                              } else if (count >= 1) {
+                                bjjCefr = 'B1';
+                                bjjExp = 'Purple Belt do Inglês (Intermediário)';
+                              }
+                              
+                              if (cefrLevel !== bjjCefr) {
+                                setCefrLevel(bjjCefr);
+                                setScoreDiagnostico(count);
+                              }
+                              return (
+                                <span className="flex flex-col items-center gap-1">
+                                  <span className="text-2xl tracking-widest text-[#10b981] font-black">{bjjCefr}</span>
+                                  <span className="text-xs font-semibold text-slate-300 italic">"{bjjExp}"</span>
+                                </span>
+                              );
+                            })()}
+                          </h5>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setRegisterStep(4)}
+                          className="py-2.5 px-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Voltar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRegister}
+                          disabled={loading || !diagQ1 || !diagQ2 || !diagQ3}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-555 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                        >
+                          {loading ? (
+                            <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                          ) : (
+                            <>Ativar Aluno & Entrar no Dojô ⚡</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Switch to login */}
+                  <div className="text-center pt-2.5 border-t border-slate-900/60">
+                    <span className="text-xs text-slate-400">Já possui uma conta de atleta? </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setView('login');
+                        clearFormMessages();
+                      }}
+                      className="text-xs font-bold text-violet-400 hover:text-violet-300 ml-1 transition-all"
                     >
-                      <option value="ATHLETE">Atleta Praticante (Acesso Instantâneo)</option>
-                      <option value="ADMIN">Professor Administrador (Requer Aprovação Geral)</option>
-                    </select>
+                      Login
+                    </button>
                   </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {loading ? <RefreshCw className="w-4.5 h-4.5 animate-spin" /> : <>{role === 'ADMIN' ? 'Solicitar Acesso Professor' : 'Criar Conta de Aluno'} <Key className="w-4.5 h-4.5" /></>}
-                  </button>
-                </form>
+                </div>
               )}
 
               {/* VIEW 3: FORGOT PASSWORD */}

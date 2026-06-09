@@ -1557,10 +1557,119 @@ app.post("/api/auth/sessions/:id/revoke", authenticateToken, async (req: any, re
   }
 });
 
+const inMemoryUserProfiles = new Map<string, any>();
+
 // 5. GET ME (Perfil logado)
 app.get("/api/auth/me", authenticateToken, (req: any, res: any) => {
   const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
-  res.json({ user: safeUser });
+  
+  // Merge in-memory custom onboarding and profile selections
+  const customProfile = inMemoryUserProfiles.get(req.user.id);
+  const userMerged = {
+    ...safeUser,
+    ...(customProfile ? {
+      name: customProfile.publicName ? `${customProfile.publicName}` : safeUser.name,
+      academy: customProfile.academy || safeUser.academy,
+      avatar: customProfile.realPhoto || safeUser.avatar,
+    } : {})
+  };
+  
+  res.json({ user: userMerged });
+});
+
+// 5.1 GET PROFILE (Custom metadata)
+app.get("/api/user/profile", authenticateToken, (req: any, res: any) => {
+  const profile = inMemoryUserProfiles.get(req.user.id) || null;
+  res.json({ profile });
+});
+
+// 5.2 POST PROFILE (Custom metadata update)
+app.post("/api/user/profile", authenticateToken, async (req: any, res: any) => {
+  const { profile } = req.body;
+  if (!profile) return res.status(400).json({ error: "Missing profile payload" });
+  
+  inMemoryUserProfiles.set(req.user.id, profile);
+  
+  // If database supports update of user name or avatar, try executing it as well
+  try {
+    const prisma = getPrisma();
+    if (prisma) {
+      const updateData: any = {};
+      if (profile.publicName) {
+        updateData.name = profile.publicName;
+      }
+      if (profile.realPhoto) {
+        updateData.avatar = profile.realPhoto;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await prisma.user.update({
+          where: { id: req.user.id },
+          data: updateData
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Soft db profile update failed; falling back gracefully.");
+  }
+  
+  res.json({ success: true, profile });
+});
+
+// 5.3 PUBLIC PROFILE VIEW
+app.get("/api/user/public-profile/:publicName", async (req: any, res: any) => {
+  const { publicName } = req.params;
+  const nameToSearch = publicName.toLowerCase();
+  
+  // Find in memory or search in Prisma
+  let foundProfile: any = null;
+  let userId: string | null = null;
+  
+  for (const [uid, prof] of inMemoryUserProfiles.entries()) {
+    if (prof.publicName && prof.publicName.toLowerCase() === nameToSearch) {
+      foundProfile = prof;
+      userId = uid;
+      break;
+    }
+  }
+  
+  try {
+    const prisma = getPrisma();
+    if (prisma) {
+      const u = foundProfile ? await prisma.user.findUnique({ where: { id: userId! } }) : await prisma.user.findFirst({
+        where: { name: { contains: publicName, mode: 'insensitive' } }
+      });
+      
+      if (u) {
+        return res.json({
+          user: {
+            id: u.id,
+            name: u.name,
+            avatar: u.avatar,
+            belt: u.belt,
+            stripes: u.stripes,
+            level: u.level,
+            xp: u.xp,
+            elo: u.elo
+          },
+          profile: foundProfile || {
+            surname: "",
+            publicName: u.name,
+            country: "Brasil",
+            city: "São Paulo",
+            nativeLanguage: "Português",
+            targetLanguage: "Inglês",
+            bio: "Estudante de Inglês do JiuSpeak para Tatame Internacional.",
+            academy: "Atama Virtual Team",
+            goalsBjj: "Evoluir constantemente"
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Public profile lookup failed");
+  }
+  
+  return res.status(404).json({ error: "Perfil não encontrado" });
 });
 
 // 6. EMAIL CONFIRMATION (Confirmar e-mail de registro)
