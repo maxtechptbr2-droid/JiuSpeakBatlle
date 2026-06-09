@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { authFetch } from '../utils/authFetch';
 import { 
   Search, 
   RefreshCcw, 
@@ -82,13 +83,11 @@ export default function Users() {
 
   const callAdminAction = async (endpoint: string, method = 'POST', body?: any) => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
       const targetUrl = endpoint.startsWith('/') ? endpoint : `/api/admin/users/${endpoint}`;
-      const res = await fetch(targetUrl, {
+      const res = await authFetch(targetUrl, {
         method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: body ? JSON.stringify(body) : undefined
       });

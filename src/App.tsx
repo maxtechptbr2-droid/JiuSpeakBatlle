@@ -63,57 +63,52 @@ const AccessDenied403 = ({ message }: { message: string }) => (
   </div>
 );
 
-export default function App() {
-  
-  // JWT & Session state hooks
-  const [session, setSession] = useState<{ accessToken: string; refreshToken: string } | null>(() => {
-    const accessToken = localStorage.getItem('jiuspeak_access_token');
-    const refreshToken = localStorage.getItem('jiuspeak_refresh_token');
-    if (accessToken && refreshToken) {
-      return { accessToken, refreshToken };
-    }
-    return null;
-  });
+import { useAuth } from './hooks/useAuth';
 
-  // 1. Initial State Loaders (Offline-First / Local Storage cache synchronization)
-  const [user, setUser] = useState<UserProfile & { isEmailVerified?: boolean }>(() => {
-    const cached = localStorage.getItem('jiuspeak_user_profile_v2');
-    if (cached) {
-      try { return JSON.parse(cached); } catch (e) { /* fallback */ }
+export default function App() {
+  const { user: authUser, authReady, login, logout, updateUser } = useAuth();
+
+  const user = authUser || {
+    id: 'atleta_73392',
+    name: 'Mestre Carlos 9 (ADMIN)',
+    email: 'maxtechptbr9@gmail.com',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+    level: 35,
+    xp: 3000,
+    xpNextLevel: 5000,
+    belt: 'Preto',
+    stripes: 4,
+    coins: 6000,
+    elo: 2300,
+    winCount: 154,
+    lossCount: 22,
+    streak: 45,
+    lastActiveDate: new Date().toISOString(),
+    academy: 'Atama Virtual Team',
+    category: 'Absoluto',
+    guardsPreference: 'Guarda de Lapela Controlada',
+    submitsPreference: 'Chave de Calcanhar',
+    inventory: [],
+    enrolledCourses: ['course_fundamentals'],
+    unlockedAchievements: [],
+    subscription: { type: 'Premium VIP', priceBRL: 149.90 },
+    role: 'admin',
+    balanceBRL: 2500.00,
+    balanceAvailableBRL: 2500.00,
+    balancePendingBRL: 500.00,
+    totalEarnedBRL: 3000.00,
+    totalWithdrawnBRL: 0.00,
+    isEmailVerified: true
+  } as any;
+
+  const setUser = (updater: any) => {
+    if (typeof updater === 'function') {
+      const updated = updater(user);
+      updateUser(updated);
+    } else {
+      updateUser(updater);
     }
-    return {
-      id: 'atleta_73392',
-      name: 'Mestre Carlos 9 (ADMIN)',
-      email: 'maxtechptbr9@gmail.com',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
-      level: 35,
-      xp: 3000,
-      xpNextLevel: 5000,
-      belt: 'Preto',
-      stripes: 4,
-      coins: 6000,
-      elo: 2300,
-      winCount: 154,
-      lossCount: 22,
-      streak: 45,
-      lastActiveDate: new Date().toISOString(),
-      academy: 'Atama Virtual Team',
-      category: 'Absoluto',
-      guardsPreference: 'Guarda de Lapela Controlada',
-      submitsPreference: 'Chave de Calcanhar',
-      inventory: [],
-      enrolledCourses: ['course_fundamentals'],
-      unlockedAchievements: [],
-      subscription: { type: 'Premium VIP', priceBRL: 149.90 },
-      role: 'admin',
-      balanceBRL: 2500.00,
-      balanceAvailableBRL: 2500.00,
-      balancePendingBRL: 500.00,
-      totalEarnedBRL: 3000.00,
-      totalWithdrawnBRL: 0.00,
-      isEmailVerified: true
-    };
-  });
+  };
 
   const [courses, setCourses] = useState<Course[]>(() => {
     const cached = localStorage.getItem('jiuspeak_courses');
@@ -315,70 +310,15 @@ export default function App() {
     return false;
   };
 
-  // JWT refresh token rotation cycle
   const handleLogout = async () => {
-    const rToken = localStorage.getItem('jiuspeak_refresh_token');
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: rToken })
-      });
-    } catch (e) {
-      console.error(e);
-    }
-    localStorage.removeItem('jiuspeak_access_token');
-    localStorage.removeItem('jiuspeak_refresh_token');
-    localStorage.removeItem('jiuspeak_user_profile_v2');
-    localStorage.removeItem('token');
-    localStorage.removeItem('accessToken');
-    setSession(null);
+    await logout();
     showToast("Dispositivo desconectado do sistema.", "info");
   };
 
   const handleLoginSuccess = (data: { accessToken: string; refreshToken: string; user: any }) => {
-    localStorage.setItem('jiuspeak_access_token', data.accessToken);
-    localStorage.setItem('jiuspeak_refresh_token', data.refreshToken);
-    localStorage.setItem('token', data.accessToken);
-    localStorage.setItem('accessToken', data.accessToken);
-    setSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-    syncMe(data.accessToken);
+    login(data);
+    showToast("Autenticado com sucesso!", "success");
   };
-
-  useEffect(() => {
-    const initAuth = async () => {
-      const access = localStorage.getItem('jiuspeak_access_token');
-      const refresh = localStorage.getItem('jiuspeak_refresh_token');
-      if (!access || !refresh) return;
-
-      const success = await syncMe(access);
-      if (!success) {
-        try {
-          const res = await fetch('/api/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: refresh })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            localStorage.setItem('jiuspeak_access_token', data.accessToken);
-            localStorage.setItem('token', data.accessToken);
-            localStorage.setItem('accessToken', data.accessToken);
-            setSession({ accessToken: data.accessToken, refreshToken: refresh });
-            await syncMe(data.accessToken);
-          } else {
-            handleLogout();
-          }
-        } catch (err) {
-          console.error("Refresh token failure", err);
-        }
-      } else {
-        localStorage.setItem('token', access);
-        localStorage.setItem('accessToken', access);
-      }
-    };
-    initAuth();
-  }, [session?.accessToken]);
 
   // Toast notifier triggers
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -658,7 +598,11 @@ export default function App() {
     );
   }
 
-  if (!session) {
+  if (!authReady) {
+    return <LoadingFallback />;
+  }
+
+  if (!authUser) {
     return (
       <div className="min-h-screen text-slate-200 bg-[#070a13] flex flex-col items-stretch w-full overflow-x-hidden" id="app-wrapper">
         {toast && toast.visible && (

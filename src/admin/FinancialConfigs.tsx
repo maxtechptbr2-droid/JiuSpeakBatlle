@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/authFetch';
 import { 
   Landmark, 
   Plus, 
@@ -120,12 +121,7 @@ export default function FinancialConfigs() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/financial-configs', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const res = await authFetch('/api/admin/financial-configs');
       if (!res.ok) {
         if (res.status === 403) {
           throw new Error('403 - Acesso Negado. Privilégios insuficientes.');
@@ -153,12 +149,10 @@ export default function FinancialConfigs() {
   const saveConfigToServer = async (updatedConfig: FinancialConfig) => {
     setSaveLoading(true);
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/financial-configs', {
+      const res = await authFetch('/api/admin/financial-configs', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updatedConfig)
       });

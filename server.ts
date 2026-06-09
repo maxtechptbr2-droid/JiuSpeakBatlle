@@ -1209,7 +1209,21 @@ app.post("/api/auth/register", async (req: any, res: any) => {
 
     // Allow selected roles: ATHLETE (auto-approved) or ADMIN (requires admin approval)
     const selectedRole: "ATHLETE" | "ADMIN" = (role === "ADMIN") ? "ADMIN" : "ATHLETE";
-    const isAdminApproved = (selectedRole !== "ADMIN");
+    let isAdminApproved = (selectedRole !== "ADMIN");
+    if (selectedRole === "ADMIN") {
+      try {
+        const prisma = getPrisma();
+        const adminCount = await prisma.user.count({
+          where: { role: "ADMIN" }
+        });
+        if (adminCount === 0) {
+          isAdminApproved = true;
+          console.log(`[Auto Approved Admin] First admin registered and approved automatically: ${email}`);
+        }
+      } catch (countErr) {
+        console.error("Error reading adminCount for auto-approval: ", countErr);
+      }
+    }
 
     // Hash password using secure bcrypt configuration
     const passwordHash = await bcrypt.hash(password, 10);

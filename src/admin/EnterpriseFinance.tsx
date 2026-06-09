@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/authFetch';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -180,18 +181,7 @@ export default function EnterpriseFinance() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) {
-        setError("Não autenticado. Faça login como administrador.");
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch('/api/admin/finance/corporate-stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const res = await authFetch('/api/admin/finance/corporate-stats');
 
       if (res.ok) {
         const data = await res.json();
@@ -228,12 +218,10 @@ export default function EnterpriseFinance() {
     e.preventDefault();
     setIsUpdatingRates(true);
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/finance/transaction-rates', {
+      const res = await authFetch('/api/admin/finance/transaction-rates', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(editingRates)
       });

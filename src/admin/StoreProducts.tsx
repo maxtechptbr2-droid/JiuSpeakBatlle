@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '../utils/authFetch';
 import { 
   Package, 
   Plus, 
@@ -104,11 +105,8 @@ export default function StoreProducts() {
   const loadAdminProducts = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
       const url = `/api/admin/store/items?search=${encodeURIComponent(searchText)}&category=${selectedCategoryFilter === "Todos" ? "Todos" : selectedCategoryFilter}`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token || ''}` }
-      });
+      const res = await authFetch(url);
       const data = await res.json();
       if (data && data.success) {
         setProducts(data.items || []);
@@ -216,13 +214,11 @@ export default function StoreProducts() {
     };
 
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
       const url = editingId ? `/api/admin/store/${editingId}/update` : `/api/admin/store/create`;
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: "POST",
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       });
@@ -243,12 +239,8 @@ export default function StoreProducts() {
   // Duplicate product
   const handleDuplicate = async (id: string, name: string) => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/store/${id}/duplicate`, {
-        method: "POST",
-        headers: { 
-          'Authorization': `Bearer ${token || ''}`
-        }
+      const res = await authFetch(`/api/admin/store/${id}/duplicate`, {
+        method: "POST"
       });
       const data = await res.json();
       if (data && data.success) {
@@ -267,12 +259,10 @@ export default function StoreProducts() {
   const handleToggleActive = async (prod: any) => {
     const nextVal = !prod.active;
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/store/${prod.id}/update`, {
+      const res = await authFetch(`/api/admin/store/${prod.id}/update`, {
         method: "POST",
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ active: nextVal })
       });
@@ -293,12 +283,8 @@ export default function StoreProducts() {
   // Delete product definitely
   const handleDeleteDefinitive = async (id: string) => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/store/${id}/delete`, {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token || ''}`
-        }
+      const res = await authFetch(`/api/admin/store/${id}/delete`, {
+        method: "POST"
       });
       const data = await res.json();
       if (data && data.success) {
@@ -325,12 +311,10 @@ export default function StoreProducts() {
     }
 
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/store/${id}/update`, {
+      const res = await authFetch(`/api/admin/store/${id}/update`, {
         method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ priceKC: nextVal })
       });
@@ -359,12 +343,10 @@ export default function StoreProducts() {
     }
 
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/store/${id}/update`, {
+      const res = await authFetch(`/api/admin/store/${id}/update`, {
         method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ stock: nextVal })
       });

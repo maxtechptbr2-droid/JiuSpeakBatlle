@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, AuditLog } from '../types';
+import { authFetch } from '../utils/authFetch';
 
 export interface AdminContextType {
   user: UserProfile;
@@ -139,17 +140,17 @@ export function AdminProvider({
   const fetchDashboardStats = async () => {
     setIsLoading(prev => ({ ...prev, stats: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/dashboard-stats', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/dashboard-stats');
       if (res.ok) {
         const data = await res.json();
         setDashboardStats(data.stats);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.error || `Erro ${res.status} ao obter dados analíticos.`, 'error');
       }
     } catch (err) {
       console.error("Stats fetching failed", err);
+      showToast("Falha de comunicação ao ler dados de desempenho do servidor.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, stats: false }));
     }
@@ -161,17 +162,17 @@ export function AdminProvider({
   const fetchUsers = async () => {
     setIsLoading(prev => ({ ...prev, users: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/users');
       if (res.ok) {
         const data = await res.json();
         setRegisteredUsers(data.users || []);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.error || `Erro ${res.status} ao carregar lista de atletas.`, 'error');
       }
     } catch (err) {
       console.error("Users fetching failed", err);
+      showToast("Não foi possível estabelecer contato com a listagem de usuários.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, users: false }));
     }
@@ -180,13 +181,9 @@ export function AdminProvider({
   const handleChangeRole = async (targetId: string, currentRole: string) => {
     const newRole = currentRole === 'ADMIN' ? 'ATHLETE' : 'ADMIN';
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/change-role', {
+      const res = await authFetch('/api/admin/change-role', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: targetId, newRole })
       });
       const data = await res.json();
@@ -207,13 +204,9 @@ export function AdminProvider({
     if (!editingUser) return;
 
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/users/${editingUser.id}/update`, {
+      const res = await authFetch(`/api/admin/users/${editingUser.id}/update`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingUser)
       });
       const data = await res.json();
@@ -238,13 +231,9 @@ export function AdminProvider({
 
   const handleApproveUser = async (targetId: string) => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/approve-user', {
+      const res = await authFetch('/api/admin/approve-user', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: targetId })
       });
       const data = await res.json();
@@ -266,17 +255,17 @@ export function AdminProvider({
   const fetchSubscriptions = async () => {
     setIsLoading(prev => ({ ...prev, subs: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/subscriptions', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/subscriptions');
       if (res.ok) {
         const data = await res.json();
         setSubscriptionsList(data.subscriptions || []);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.error || `Erro ${res.status} ao carregar assinaturas.`, 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast("Falha de comunicação ao carregar lista de assinantes.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, subs: false }));
     }
@@ -284,13 +273,9 @@ export function AdminProvider({
 
   const handleSubscriptionAction = async (subId: string, action: 'CANCEL' | 'REACTIVATE') => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/subscriptions/${subId}/action`, {
+      const res = await authFetch(`/api/admin/subscriptions/${subId}/action`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
       });
       const data = await res.json();
@@ -308,7 +293,7 @@ export function AdminProvider({
 
   const handleForceCronSimulate = async () => {
     try {
-      const res = await fetch('/api/subscriptions/simulate-cron', {
+      const res = await authFetch('/api/subscriptions/simulate-cron', {
         method: 'POST'
       });
       const data = await res.json();
@@ -330,17 +315,17 @@ export function AdminProvider({
   const fetchPixPayments = async () => {
     setIsLoading(prev => ({ ...prev, pix: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/pix', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/pix');
       if (res.ok) {
         const data = await res.json();
         setPixPaymentsList(data.pixPayments || []);
+      } else {
+        const errorMsg = await res.json().catch(() => ({}));
+        showToast(errorMsg.error || `Erro ${res.status} ao listar faturamento PIX.`, 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast("Erro ao obter cobranças Pix integradas do servidor.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, pix: false }));
     }
@@ -348,13 +333,9 @@ export function AdminProvider({
 
   const handlePixAction = async (pixId: string, action: 'APPROVE' | 'EXPIRE') => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/pix/${pixId}/action`, {
+      const res = await authFetch(`/api/admin/pix/${pixId}/action`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
       });
       const data = await res.json();
@@ -376,17 +357,17 @@ export function AdminProvider({
   const fetchWithdrawals = async () => {
     setIsLoading(prev => ({ ...prev, withdrawals: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/withdrawals', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/withdrawals');
       if (res.ok) {
         const data = await res.json();
         setWithdrawalsList(data.withdrawals || []);
+      } else {
+        const errorMsg = await res.json().catch(() => ({}));
+        showToast(errorMsg.error || `Erro ${res.status} ao obter listagem de saques.`, 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast("Dificuldade de tráfego de dados ao listar recebíveis.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, withdrawals: false }));
     }
@@ -394,10 +375,7 @@ export function AdminProvider({
 
   const fetchWithdrawalAudits = async (wId: string) => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/withdrawals/${wId}/audits`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch(`/api/admin/withdrawals/${wId}/audits`);
       if (res.ok) {
         const data = await res.json();
         setWithdrawalAudits(data.audits || []);
@@ -413,13 +391,9 @@ export function AdminProvider({
 
     const { id, action } = reviewingWithdrawal;
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/withdrawals/${id}/review`, {
+      const res = await authFetch(`/api/admin/withdrawals/${id}/review`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, notes: reviewNotes })
       });
       const data = await res.json();
@@ -443,17 +417,17 @@ export function AdminProvider({
   const fetchMarketplace = async () => {
     setIsLoading(prev => ({ ...prev, marketplace: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/marketplace', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/marketplace');
       if (res.ok) {
         const data = await res.json();
         setMarketplaceList(data.marketplace || []);
+      } else {
+        const errorMsg = await res.json().catch(() => ({}));
+        showToast(errorMsg.error || `Verificação de mercado obteve status ${res.status}.`, 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast("Falha de rede ao listar ofertas de terceiros.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, marketplace: false }));
     }
@@ -462,10 +436,8 @@ export function AdminProvider({
   const handleSuspendListing = async (listingId: string) => {
     if (!window.confirm("Deseja realmente retirar este anúncio do ar? O item será devolvido ao vendedor com um alerta administrativo.")) return;
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/marketplace/${listingId}/action`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await authFetch(`/api/admin/marketplace/${listingId}/action`, {
+        method: 'POST'
       });
       const data = await res.json();
       if (res.ok) {
@@ -486,17 +458,17 @@ export function AdminProvider({
   const fetchAuditLogs = async () => {
     setIsLoading(prev => ({ ...prev, audit: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/audit-logs', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/audit-logs');
       if (res.ok) {
         const data = await res.json();
         setGeneralLogs(data.logs || []);
+      } else {
+        const errorMsg = await res.json().catch(() => ({}));
+        showToast(errorMsg.error || "Falha ao obter logs gerais.", 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast("Canal de auditoria indisponível por erro técnico de rede.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, audit: false }));
     }
@@ -512,13 +484,9 @@ export function AdminProvider({
     if (isNaN(newElo)) return showToast("Valor numérico inválido.", "error");
 
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/rankings/${userId}/score`, {
+      const res = await authFetch(`/api/admin/rankings/${userId}/score`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ elo: newElo, wins: 15, losses: 5 })
       });
       const data = await res.json();
@@ -539,17 +507,17 @@ export function AdminProvider({
   const fetchReports = async () => {
     setIsLoading(prev => ({ ...prev, reports: true }));
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      if (!token) return;
-      const res = await fetch('/api/admin/reports', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/admin/reports');
       if (res.ok) {
         const data = await res.json();
         setReportsList(data.reports || []);
+      } else {
+        const errorMsg = await res.json().catch(() => ({}));
+        showToast(errorMsg.error || "Erro ao consultar feeds moderados.", 'error');
       }
     } catch (err) {
       console.error(err);
+      showToast("Não foi possível baixar relatórios de infração.", 'error');
     } finally {
       setIsLoading(prev => ({ ...prev, reports: false }));
     }
@@ -563,13 +531,9 @@ export function AdminProvider({
     if (!window.confirm(confirmation)) return;
 
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/reports/${reportId}/action`, {
+      const res = await authFetch(`/api/admin/reports/${reportId}/action`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision })
       });
       const data = await res.json();
@@ -587,13 +551,9 @@ export function AdminProvider({
 
   const handleCreateUser = async (payload: any): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/users/create', {
+      const res = await authFetch('/api/admin/users/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -614,10 +574,8 @@ export function AdminProvider({
 
   const handleDeleteUser = async (userId: string): Promise<void> => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/users/${userId}/delete`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await authFetch(`/api/admin/users/${userId}/delete`, {
+        method: 'POST'
       });
       const data = await res.json();
       if (res.ok) {
@@ -634,13 +592,9 @@ export function AdminProvider({
 
   const handleResetPassword = async (userId: string, newPass: string): Promise<void> => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+      const res = await authFetch(`/api/admin/users/${userId}/reset-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword: newPass })
       });
       const data = await res.json();
@@ -656,10 +610,7 @@ export function AdminProvider({
 
   const fetchAdvancedInfo = async (userId: string): Promise<any> => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch(`/api/admin/users/${userId}/advanced-info`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch(`/api/admin/users/${userId}/advanced-info`);
       if (res.ok) {
         const data = await res.json();
         return data;

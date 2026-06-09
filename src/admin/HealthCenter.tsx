@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from '../utils/authFetch';
 import { 
   Activity, 
   Database, 
@@ -57,10 +58,7 @@ export default function HealthCenter() {
 
   const fetchHealthStatus = async () => {
     try {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const res = await fetch('/api/admin/health-status', {
-        headers: { 'Authorization': `Bearer ${token || ''}` }
-      });
+      const res = await authFetch('/api/admin/health-status');
       const data = await res.json();
       if (data && data.success) {
         setItems(data.items);
