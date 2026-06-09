@@ -2198,28 +2198,30 @@ app.post("/api/admin/users/:id/delete", authenticateToken, requireRole(["ADMIN"]
     if (id === req.user.id) {
       return res.status(400).json({ error: "Não é permitido excluir sua própria conta de administrador." });
     }
-    const prisma = getPrisma();
-    const userToDelete = await prisma.user.findUnique({ where: { id } });
+    const userToDelete = await authStore.findById(id);
     if (!userToDelete) {
-      return res.status(404).json({ error: "Lutador não localizado no banco." });
+      return res.status(404).json({ error: "Lutador não localizado no banco ou memória." });
     }
 
-    await prisma.user.delete({ where: { id } });
+    await authStore.deleteUser(id);
 
-    // Write audit log
-    await prisma.auditLog.create({
-      data: {
-        actorId: req.user.id,
-        action: "SYSTEM_SETTING_CHANGE",
-        description: `ADMINISTRADOR excluiu permanentemente o cadastro do lutador ${userToDelete.name} (${userToDelete.email}).`,
-        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
-        userAgent: req.headers["user-agent"]
-      }
-    }).catch(() => {});
+    // Write audit log if database is connected
+    const prisma = getPrisma();
+    if (prisma) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `ADMINISTRADOR excluiu permanentemente o cadastro do lutador ${userToDelete.name} (${userToDelete.email}).`,
+          ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+          userAgent: req.headers["user-agent"]
+        }
+      }).catch(() => {});
+    }
 
-    res.json({ success: true, message: `O lutador ${userToDelete.name} foi removido integralmente do banco de dados.` });
+    res.json({ success: true, message: `O lutador ${userToDelete.name} foi removido integralmente.` });
   } catch (error: any) {
-    res.status(500).json({ error: "Erro ao remover lutador do banco: " + (error.message || error) });
+    res.status(500).json({ error: "Erro ao remover lutador: " + (error.message || error) });
   }
 });
 

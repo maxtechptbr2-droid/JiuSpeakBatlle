@@ -1797,6 +1797,25 @@ export const authStore = {
     }
   },
 
+  async deleteUser(id: string): Promise<boolean> {
+    const deletedFromMemory = inMemoryUsers.delete(id);
+    try {
+      const prisma = getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client is missing.");
+      }
+      // Delete any dependent records if database connection is active
+      try {
+        await prisma.wallet.deleteMany({ where: { userId: id } });
+      } catch (e) {}
+      await prisma.user.delete({ where: { id } });
+      return true;
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL deleteUser falhou. Executado com fallback em memória:", dbErr);
+      return deletedFromMemory;
+    }
+  },
+
   logSentEmail(to: string, subject: string, body: string, token: string) {
     const logItem = {
       id: `email_${Date.now()}_${Math.floor(Math.random() * 1000)}`,

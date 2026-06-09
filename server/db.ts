@@ -1,5 +1,6 @@
 // @ts-ignore
 import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
 
 let prisma: PrismaClient | null = null;
 let mockPrisma: any = null;
@@ -112,7 +113,6 @@ export async function assertDatabaseConnection(): Promise<void> {
   if (process.env.DATABASE_URL) {
     try {
       console.log("⚙️  [DATABASE BOOTSTRAP] Verificando e aplicando migrações pendentes...");
-      const { execSync } = require("child_process");
       execSync("npx prisma migrate deploy", { stdio: "inherit" });
       console.log("✓ [DATABASE BOOTSTRAP] Migrações aplicadas ou verificadas com sucesso!");
     } catch (migError: any) {
