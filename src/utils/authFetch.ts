@@ -56,8 +56,8 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 
   const response = await fetch(url, { ...options, headers });
 
-  if (response.status === 401) {
-    console.warn(`[authFetch] 401 detected on ${url}. Attempting auto-retry and refresh...`);
+  if (response.status === 401 || response.status === 403) {
+    console.warn(`[authFetch] ${response.status} detected on ${url}. Attempting auto-retry and refresh...`);
     if (!refreshPromise) {
       refreshPromise = performRefresh().finally(() => {
         refreshPromise = null;

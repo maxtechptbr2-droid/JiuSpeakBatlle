@@ -1123,7 +1123,7 @@ export const authenticateToken = (req: any, res: any, next: any) => {
       if (err.name === "TokenExpiredError") {
         return res.status(401).json({ error: "Token expirado" });
       }
-      return res.status(403).json({ error: "Token expirado ou inválido" });
+      return res.status(401).json({ error: "Token expirado ou inválido" });
     }
 
     try {
