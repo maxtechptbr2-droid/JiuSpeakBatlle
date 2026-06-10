@@ -1922,7 +1922,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
               <span className="text-sm font-extrabold text-white">JiuSpeak</span>
               <p className="text-[10px] text-slate-450">English Training Solution for Brazilian Jiu-Jitsu Fighters. © 2026</p>
             </div>
-            <p className="text-[10px] font-mono text-slate-600">
+            <p className="text-xs font-mono font-bold text-violet-400 tracking-wide">
                Flavio Martins - Desenvolvedor & Faixa preta de Jiu-Jitsu
             </p>
           </div>
