@@ -242,8 +242,15 @@ function csrfProtection(req: any, res: any, next: any) {
     return next();
   }
   
-  // Bypass CSRF protection for official and custom Mercado Pago webhook endpoints
-  if (req.path === "/api/payments/mercadopago/webhook" || req.path === "/webhook/mercadopago") {
+  // Bypass CSRF protection for official and custom Mercado Pago & PIX webhook endpoints
+  const cleanPath = String(req.path || "").toLowerCase().trim().replace(/\/$/, "");
+  if (
+    cleanPath === "/webhook/mercadopago" ||
+    cleanPath === "/api/payments/mercadopago/webhook" ||
+    cleanPath === "/api/finance/pix-webhook" ||
+    cleanPath.includes("/webhook") ||
+    cleanPath.endsWith("/mercadopago")
+  ) {
     return next();
   }
   
