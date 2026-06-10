@@ -11,6 +11,13 @@ generator client {
 // ENUMS FOR GAMIFIED BJJ PLATFORM
 // ==========================================
 
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
 
 
 
@@ -393,7 +400,7 @@ model InventoryItem {
   productId   String?  // References official catalog product, nullable if custom listing/drop
   name        String
   description String?  
-  rarity      String   @default("COMMON")
+  rarity      Rarity   @default(COMMON)
   imageUrl    String?
   isEquipped  Boolean  @default(false)
   acquiredAt  DateTime @default(now())
@@ -415,7 +422,7 @@ model StoreProduct {
   priceKC     Int
   priceBRL    Decimal?  // Optional fiat pricing for premium cosmetics
   category    String   // GI, BELT_STRIPE, AVATAR, TITLE_TAG
-  rarity      String   @default("COMMON")
+  rarity      Rarity   @default(COMMON)
   imageUrl    String?
   stock       Int?     // Null means infinite stock
   active      Boolean  @default(true)

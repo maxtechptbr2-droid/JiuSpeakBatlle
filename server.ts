@@ -5618,7 +5618,7 @@ export async function seedPlansInDb() {
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
         priceBRL: 0.00,
         interval: "monthly",
-        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"] as any,
+        features: JSON.stringify(["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"]),
         active: true
       },
       create: {
@@ -5627,7 +5627,7 @@ export async function seedPlansInDb() {
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
         priceBRL: 0.00,
         interval: "monthly",
-        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"] as any,
+        features: JSON.stringify(["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"]),
         active: true
       }
     });
@@ -5639,7 +5639,7 @@ export async function seedPlansInDb() {
         description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"] as any,
+        features: JSON.stringify(["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"]),
         active: true
       },
       create: {
@@ -5648,7 +5648,7 @@ export async function seedPlansInDb() {
         description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"] as any,
+        features: JSON.stringify(["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"]),
         active: true
       }
     });
@@ -5660,7 +5660,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"] as any,
+        features: JSON.stringify(["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"]),
         active: true
       },
       create: {
@@ -5669,7 +5669,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"] as any,
+        features: JSON.stringify(["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"]),
         active: true
       }
     });
