@@ -1,26 +1,27 @@
 module.exports = {
   apps: [
     {
-      name: "jiuspeak-tatame",
+      name: "jiuspeak-bjj-production",
       script: "./dist/server.cjs",
       instances: "max",
       exec_mode: "cluster",
       watch: false,
       max_memory_restart: "1G",
-      autorestart: true,
       env: {
         NODE_ENV: "production",
         PORT: 3000
       },
-      env_development: {
-        NODE_ENV: "development",
-        PORT: 3000
-      },
-      // Redirect PM2 console outputs to consolidate with our professional Winston setup
       error_file: "./logs/pm2-error.log",
-      out_file: "./logs/pm2-app.log",
+      out_file: "./logs/pm2-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      combine_logs: true,
       merge_logs: true,
-      log_date_format: "YYYY-MM-DD HH:mm:ss"
+      listen_timeout: 8000,
+      kill_timeout: 4000,
+      wait_ready: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 2000
     }
   ]
 };
