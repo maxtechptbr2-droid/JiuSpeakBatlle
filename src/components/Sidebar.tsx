@@ -154,14 +154,6 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
             <span className="text-[10px] text-slate-400 font-mono block">Inglês para Jiu-Jitsu</span>
           </div>
         </div>
-        
-        <button 
-          onClick={onOpenCheatModal}
-          className="text-[11px] p-1.5 rounded bg-slate-800/80 hover:bg-violet-900/40 border border-slate-700 hover:border-violet-600 font-mono text-slate-400 hover:text-violet-300 transition-all cursor-pointer"
-          title="Abrir Cheat Codes e Utilitários de Teste"
-        >
-          ⚡ CHEAT
-        </button>
       </div>
 
       {/* User Quick Info */}
