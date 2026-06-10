@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { getPrisma, isDatabaseConnected } from './db';
+import { prisma, getPrisma, isDatabaseConnected } from './db';
 
 // Unified type representation for authentication states
 export interface AuthUser {

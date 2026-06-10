@@ -16,6 +16,7 @@ enum Rarity {
   RARE
   EPIC
   LEGENDARY
+  MYTHIC
 }
 
 
@@ -319,7 +320,7 @@ model Plan {
   description String?  
   priceBRL    Decimal  
   interval    String   // monthly, yearly
-  features    String   @default("[]") // JSON-encoded features array
+  features    String[]
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 

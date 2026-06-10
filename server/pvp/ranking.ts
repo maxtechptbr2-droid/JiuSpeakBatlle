@@ -1,5 +1,5 @@
 import { authStore, patchUserObjectWithDeterministicAvatar } from "../authStore";
-import { getPrisma } from "../db";
+import { prisma } from "../db";
 
 // Belt Priority Map (BLACK -> BROWN -> PURPLE -> BLUE -> WHITE)
 // RED is mapped higher than BLACK just in case it appears.
@@ -152,9 +152,7 @@ export class RankingService {
 
     // Audit logs entry if Prisma exists
     try {
-      const prisma = getPrisma();
-      if (prisma) {
-        await prisma.auditLog.create({
+      await prisma.auditLog.create({
           data: {
             actorId: playerAId,
             action: "PVP_MATCH_COMPLETE",
@@ -168,7 +166,6 @@ export class RankingService {
             description: `Partida PVP concluída. ELO: ${oldEloB} -> ${newEloB}. Ganhou: ${coinsB} moedas e ${xpB} XP.`
           }
         });
-      }
     } catch (err) {
       console.warn("Audit logs creation skipped or Prisma connection offline.", err);
     }
@@ -189,11 +186,6 @@ export class RankingService {
     skip: number = 0,
     take: number = 50
   ): Promise<{ list: any[]; totalCount: number }> {
-    const prisma = getPrisma();
-    if (!prisma) {
-      return { list: [], totalCount: 0 };
-    }
-
     try {
       // 1. Fetch active users (with select optimization)
       const rawUsers = await prisma.user.findMany({

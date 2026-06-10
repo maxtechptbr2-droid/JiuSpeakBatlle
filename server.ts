@@ -22,7 +22,8 @@ import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { RankingService } from "./server/pvp/ranking";
-import { getPrisma, assertDatabaseConnection, isDatabaseConnected } from "./server/db";
+import { prisma, getPrisma, assertDatabaseConnection, isDatabaseConnected } from "./server/db";
+import { Rarity } from "@prisma/client";
 import { getRedisClient } from "./server/pvp/redis";
 import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
@@ -5618,7 +5619,7 @@ export async function seedPlansInDb() {
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
         priceBRL: 0.00,
         interval: "monthly",
-        features: JSON.stringify(["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"]),
+        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"],
         active: true
       },
       create: {
@@ -5627,7 +5628,7 @@ export async function seedPlansInDb() {
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
         priceBRL: 0.00,
         interval: "monthly",
-        features: JSON.stringify(["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"]),
+        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"],
         active: true
       }
     });
@@ -5639,7 +5640,7 @@ export async function seedPlansInDb() {
         description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: JSON.stringify(["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"]),
+        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
         active: true
       },
       create: {
@@ -5648,7 +5649,7 @@ export async function seedPlansInDb() {
         description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: JSON.stringify(["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"]),
+        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
         active: true
       }
     });
@@ -5660,7 +5661,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: JSON.stringify(["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"]),
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       },
       create: {
@@ -5669,7 +5670,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: JSON.stringify(["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"]),
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       }
     });
@@ -8549,13 +8550,14 @@ app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any)
 // ADMINISTRATIVE STORE MANAGEMENT ENDPOINTS (FULL CRUD OPERATIONS)
 // =========================================================================
 
-const mapRarity = (rarity: string): "COMMON" | "RARE" | "EPIC" | "LEGENDARY" => {
+const mapRarity = (rarity: string): Rarity => {
   const r = String(rarity).toUpperCase();
-  if (r === "COMMON" || r === "COMUM") return "COMMON";
-  if (r === "RARE" || r === "RARO") return "RARE";
-  if (r === "EPIC" || r === "ÉPICO" || r === "EPICO") return "EPIC";
-  if (r === "LEGENDARY" || r === "LENDÁRIO" || r === "LENDARIO") return "LEGENDARY";
-  return "COMMON";
+  if (r === "COMMON" || r === "COMUM") return Rarity.COMMON;
+  if (r === "RARE" || r === "RARO") return Rarity.RARE;
+  if (r === "EPIC" || r === "ÉPICO" || r === "EPICO") return Rarity.EPIC;
+  if (r === "LEGENDARY" || r === "LENDÁRIO" || r === "LENDARIO") return Rarity.LEGENDARY;
+  if (r === "MYTHIC" || r === "MÍTICO" || r === "MITICO") return Rarity.MYTHIC;
+  return Rarity.COMMON;
 };
 
 // ==========================================

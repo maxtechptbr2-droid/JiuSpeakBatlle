@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { getPrisma } from './db';
+import { prisma } from './db';
 export type AuditActionType = string;
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -62,7 +62,6 @@ export const AuthService = {
     expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
     try {
-      const prisma = getPrisma();
       await prisma.refreshToken.create({
         data: {
           token: params.token,
@@ -85,8 +84,6 @@ export const AuthService = {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<{ accessToken: string; refreshToken: string }> {
-    const prisma = getPrisma();
-
     let decoded: any;
     try {
       decoded = jwt.verify(params.refreshToken, JWT_REFRESH_SECRET);
@@ -177,7 +174,6 @@ export const AuthService = {
    * Invalidates a single session during user logout.
    */
   async invalidateSession(token: string): Promise<boolean> {
-    const prisma = getPrisma();
     try {
       const record = await prisma.refreshToken.findUnique({
         where: { token },
@@ -200,7 +196,6 @@ export const AuthService = {
    * Revokes all active sessions / refresh tokens for a given user.
    */
   async revokeAllSessions(userId: string): Promise<void> {
-    const prisma = getPrisma();
     await prisma.refreshToken.updateMany({
       where: { userId },
       data: { isRevoked: true },
@@ -211,7 +206,6 @@ export const AuthService = {
    * Returns active sessions for a user (allowing session auditing and revocation in UI)
    */
   async getUserSessions(userId: string) {
-    const prisma = getPrisma();
     return prisma.refreshToken.findMany({
       where: {
         userId,
@@ -239,7 +233,6 @@ export const AuthService = {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<void> {
-    const prisma = getPrisma();
     try {
       await prisma.auditLog.create({
         data: {
@@ -263,7 +256,6 @@ export const AuthService = {
     ipAddress?: string;
     success: boolean;
   }): Promise<void> {
-    const prisma = getPrisma();
     try {
       await prisma.loginAttempt.create({
         data: {
@@ -285,7 +277,6 @@ export const AuthService = {
     email: string;
     ipAddress?: string;
   }): Promise<{ isBlocked: boolean; remainingMinutes?: number }> {
-    const prisma = getPrisma();
     const email = params.email.toLowerCase().trim();
     const timeframeLimit = new Date(Date.now() - 15 * 60 * 1000); // 15 minutes lookback
 
