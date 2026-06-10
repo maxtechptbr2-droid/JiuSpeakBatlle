@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../utils/authFetch';
+import { useAuth } from '../hooks/useAuth';
 import { 
   Activity, 
   Database, 
@@ -38,6 +39,7 @@ interface HealthItem {
 
 export default function HealthCenter() {
   const { showToast } = useAdmin();
+  const { accessToken } = useAuth();
   const [items, setItems] = useState<HealthItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -83,7 +85,7 @@ export default function HealthCenter() {
     const oscRAM = Math.max(20, Math.min(95, 62 + (Math.floor(Math.random() * 3) - 1)));
     const oscDisk = Math.max(30, Math.min(90, 48 + (Math.floor(Math.random() * 2) - 1)));
     
-    const dbToken = localStorage.getItem('jiuspeak_access_token') ? 'Online' : 'Atenção';
+    const dbToken = accessToken ? 'Online' : 'Atenção';
 
     const mockItems: HealthItem[] = [
       { name: "PostgreSQL", status: "Online", details: "Banco local emulando persistência na memória.", type: "database" },

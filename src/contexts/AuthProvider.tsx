@@ -8,10 +8,13 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   role: 'athlete' | 'professor' | 'admin';
+  accessToken: string | null;
+  refreshToken: string | null;
   login: (data: { accessToken: string; refreshToken: string; user: any }) => Promise<void>;
   logout: () => Promise<void>;
   syncMe: () => Promise<boolean>;
   updateUser: (fields: Partial<UserProfile>) => void;
+  refreshSession: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +22,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [accessToken, setAccessTokenState] = useState<string | null>(() => localStorage.getItem('jiuspeak_access_token'));
+  const [refreshToken, setRefreshTokenState] = useState<string | null>(() => localStorage.getItem('jiuspeak_refresh_token'));
+
+  // Sync token state changes with localStorage
+  const setAccessToken = (val: string | null) => {
+    if (val) {
+      localStorage.setItem('jiuspeak_access_token', val);
+      localStorage.setItem('token', val);
+      localStorage.setItem('accessToken', val);
+    } else {
+      localStorage.removeItem('jiuspeak_access_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('accessToken');
+    }
+    setAccessTokenState(val);
+  };
+
+  const setRefreshToken = (val: string | null) => {
+    if (val) {
+      localStorage.setItem('jiuspeak_refresh_token', val);
+    } else {
+      localStorage.removeItem('jiuspeak_refresh_token');
+    }
+    setRefreshTokenState(val);
+  };
 
   const mapApiUserToUserProfile = (apiUser: any): UserProfile => {
     let mappedRole: 'athlete' | 'professor' | 'admin' = 'athlete';
@@ -71,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const syncMe = async (): Promise<boolean> => {
-    const token = localStorage.getItem('jiuspeak_access_token');
+    const token = localStorage.getItem('jiuspeak_access_token') || accessToken;
     if (!token) return false;
 
     try {
@@ -92,10 +120,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (data: { accessToken: string; refreshToken: string; user: any }) => {
-    localStorage.setItem('jiuspeak_access_token', data.accessToken);
-    localStorage.setItem('jiuspeak_refresh_token', data.refreshToken);
-    localStorage.setItem('token', data.accessToken);
-    localStorage.setItem('accessToken', data.accessToken);
+    setAccessToken(data.accessToken);
+    setRefreshToken(data.refreshToken);
     
     const profile = mapApiUserToUserProfile(data.user);
     setUser(profile);
@@ -103,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    const rToken = localStorage.getItem('jiuspeak_refresh_token');
+    const rToken = localStorage.getItem('jiuspeak_refresh_token') || refreshToken;
     if (rToken) {
       try {
         await fetch('/api/auth/logout', {
@@ -115,12 +141,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("[AuthProvider] Logout request failed:", e);
       }
     }
-    localStorage.removeItem('jiuspeak_access_token');
-    localStorage.removeItem('jiuspeak_refresh_token');
-    localStorage.removeItem('token');
-    localStorage.removeItem('accessToken');
+    setAccessToken(null);
+    setRefreshToken(null);
     localStorage.removeItem('jiuspeak_user_profile_v2');
     setUser(null);
+  };
+
+  const refreshSession = async (): Promise<boolean> => {
+    const rToken = localStorage.getItem('jiuspeak_refresh_token') || refreshToken;
+    if (!rToken) {
+      await logout();
+      return false;
+    }
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rToken })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.accessToken) {
+          setAccessToken(data.accessToken);
+          if (data.refreshToken) {
+            setRefreshToken(data.refreshToken);
+          }
+          await syncMe();
+          return true;
+        }
+      }
+    } catch (err) {
+      console.error("[AuthProvider] refreshSession failed:", err);
+    }
+    await logout();
+    return false;
   };
 
   const updateUser = (fields: Partial<UserProfile>) => {
@@ -135,39 +189,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Run initial session check
   useEffect(() => {
     const initSession = async () => {
-      const token = localStorage.getItem('jiuspeak_access_token');
-      const refresh = localStorage.getItem('jiuspeak_refresh_token');
+      const token = localStorage.getItem('jiuspeak_access_token') || accessToken;
+      const rToken = localStorage.getItem('jiuspeak_refresh_token') || refreshToken;
 
-      if (token && refresh) {
+      if (token && rToken) {
         const success = await syncMe();
         if (!success) {
-          // If token fails, attempt manual upfront refresh once
-          try {
-            const res = await fetch('/api/auth/refresh', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refreshToken: refresh })
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.accessToken) {
-                localStorage.setItem('jiuspeak_access_token', data.accessToken);
-                localStorage.setItem('token', data.accessToken);
-                localStorage.setItem('accessToken', data.accessToken);
-                if (data.refreshToken) {
-                  localStorage.setItem('jiuspeak_refresh_token', data.refreshToken);
-                }
-                await syncMe();
-              } else {
-                await logout();
-              }
-            } else {
-              await logout();
-            }
-          } catch (err) {
-            console.error("[AuthProvider] Initial refresh failed:", err);
-            await logout();
-          }
+          await refreshSession();
         }
       }
       setAuthReady(true);
@@ -177,6 +205,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen to global logout requests from authFetch failure
     const handleLogoutGlobal = () => {
+      setAccessToken(null);
+      setRefreshToken(null);
       setUser(null);
     };
     window.addEventListener('auth-logout-required', handleLogoutGlobal);
@@ -196,10 +226,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated,
       isAdmin,
       role,
+      accessToken,
+      refreshToken,
       login,
       logout,
       syncMe,
-      updateUser
+      updateUser,
+      refreshSession
     }}>
       {children}
     </AuthContext.Provider>

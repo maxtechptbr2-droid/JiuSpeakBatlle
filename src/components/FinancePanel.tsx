@@ -25,6 +25,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 interface FinancePanelProps {
   user: UserProfile;
@@ -53,6 +54,7 @@ export default function FinancePanel({
   showToast,
   onAddAuditLog 
 }: FinancePanelProps) {
+  const { accessToken: token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
   
@@ -94,7 +96,6 @@ export default function FinancePanel({
   const [reviewLoading, setReviewLoading] = useState(false);
 
   const fetchWithdrawals = async () => {
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
     try {
       const isAdmin = user.role === 'admin';
@@ -112,7 +113,6 @@ export default function FinancePanel({
   };
 
   const fetchAuditsForWithdrawal = async (id: string) => {
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
     try {
       const res = await fetch(`/api/admin/withdrawals/${id}/audits`, {
@@ -129,7 +129,6 @@ export default function FinancePanel({
 
   const handleReviewWithdrawal = async (action: 'APPROVE' | 'REJECT') => {
     if (!selectedWithdrawal) return;
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
     
     try {
@@ -161,7 +160,6 @@ export default function FinancePanel({
 
   // Sync state with backend on mount
   const fetchWalletState = async () => {
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
 
     try {
@@ -188,11 +186,13 @@ export default function FinancePanel({
   };
 
   const fetchPixPayments = async () => {
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
     try {
-      const res = await fetch('/api/finance/pix', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`/api/finance/pix?nocache=${Date.now()}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
+        }
       });
       if (res.ok) {
         const data = await res.json();
@@ -245,14 +245,14 @@ export default function FinancePanel({
       return;
     }
 
-    const token = localStorage.getItem('jiuspeak_access_token');
     try {
       setLoading(true);
       const res = await fetch('/api/finance/pix', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         },
         body: JSON.stringify({
           amount: val,
@@ -263,7 +263,18 @@ export default function FinancePanel({
 
       const data = await res.json();
       if (res.ok) {
-        setActivePix(data.payment);
+        const payment = data.payment;
+        const qr = payment?.qrCodeBase64 || payment?.qrCode || '';
+        if (!qr) {
+          showToast("Erro: QR Code nulo retornado do servidor. Tentando regenerar automaticamente...", "error");
+          setTimeout(() => {
+            const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+            handleCreatePixPayment(mockEvent);
+          }, 1500);
+          return;
+        }
+
+        setActivePix(payment);
         showToast(data.message, "success");
         fetchPixPayments();
         if (onAddAuditLog) {
@@ -338,7 +349,6 @@ export default function FinancePanel({
       return;
     }
 
-    const token = localStorage.getItem('jiuspeak_access_token');
     try {
       setLoading(true);
       const res = await fetch('/api/finance/sale', {
@@ -388,7 +398,6 @@ export default function FinancePanel({
       return;
     }
 
-    const token = localStorage.getItem('jiuspeak_access_token');
     try {
       setLoading(true);
       const res = await fetch('/api/finance/release', {
@@ -440,7 +449,6 @@ export default function FinancePanel({
       return;
     }
 
-    const token = localStorage.getItem('jiuspeak_access_token');
     try {
       setLoading(true);
       const res = await fetch('/api/finance/withdraw', {
@@ -736,12 +744,22 @@ export default function FinancePanel({
                 {/* QR Code Presentation Box */}
                 <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col items-center justify-center text-center space-y-4">
                   <div className="bg-white p-3 rounded-xl shadow-lg relative overflow-hidden group">
-                    <img 
-                      src={activePix.qrCode} 
-                      alt="PIX QR Code" 
-                      className="w-40 h-40 object-contain referrer-policy"
-                      referrerPolicy="no-referrer"
-                    />
+                    {activePix.qrCode ? (
+                      <img 
+                        src={
+                          activePix.qrCode.startsWith('http')
+                            ? `${activePix.qrCode}${activePix.qrCode.includes('?') ? '&' : '?'}nocache=${Date.now()}`
+                            : (activePix.qrCode.startsWith('data:') ? activePix.qrCode : `data:image/jpeg;base64,${activePix.qrCode}`)
+                        } 
+                        alt="PIX QR Code" 
+                        className="w-40 h-40 object-contain referrer-policy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center w-40 h-40 font-mono text-[10px] text-rose-500 font-bold">
+                        Carregando...
+                      </div>
+                    )}
                     {activePix.status === 'COMPLETED' && (
                       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center space-y-2">
                         <div className="bg-emerald-500 p-2 rounded-full text-slate-950">

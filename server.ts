@@ -1211,17 +1211,29 @@ app.post("/api/auth/register", async (req: any, res: any) => {
     const selectedRole: "ATHLETE" | "ADMIN" = (role === "ADMIN") ? "ADMIN" : "ATHLETE";
     let isAdminApproved = (selectedRole !== "ADMIN");
     if (selectedRole === "ADMIN") {
+      let adminCount = 0;
       try {
         const prisma = getPrisma();
-        const adminCount = await prisma.user.count({
-          where: { role: "ADMIN" }
-        });
-        if (adminCount === 0) {
-          isAdminApproved = true;
-          console.log(`[Auto Approved Admin] First admin registered and approved automatically: ${email}`);
+        if (prisma) {
+          adminCount = await prisma.user.count({
+            where: { role: "ADMIN" }
+          });
+        } else {
+          const inMemoryUsers = (await import("./server/authStore")).inMemoryUsers;
+          adminCount = Array.from(inMemoryUsers.values()).filter((u: any) => u.role === "ADMIN" || u.role === "admin").length;
         }
       } catch (countErr) {
         console.error("Error reading adminCount for auto-approval: ", countErr);
+        try {
+          const inMemoryUsers = (await import("./server/authStore")).inMemoryUsers;
+          adminCount = Array.from(inMemoryUsers.values()).filter((u: any) => u.role === "ADMIN" || u.role === "admin").length;
+        } catch (inMemErr) {
+          console.error("Error reading in memory users count for auto-approval: ", inMemErr);
+        }
+      }
+      if (adminCount === 0) {
+        isAdminApproved = true;
+        console.log(`[Auto Approved Admin] First admin registered and approved automatically: ${email}`);
       }
     }
 
@@ -5799,6 +5811,31 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
     }
 
     if (prisma) {
+      try {
+        const pendingSubs = await prisma.subscriptionPayment.findMany({
+          where: {
+            status: "PENDING",
+            subscription: { userId }
+          }
+        });
+        if (pendingSubs.length > 0) {
+          await prisma.subscriptionPayment.updateMany({
+            where: { id: { in: pendingSubs.map(s => s.id) } },
+            data: { status: "EXPIRED" }
+          });
+        }
+        await prisma.payment.updateMany({
+          where: { userId, status: "PENDING" },
+          data: { status: "EXPIRED" }
+        });
+        await prisma.subscription.updateMany({
+          where: { userId, status: "PAST_DUE" },
+          data: { status: "CANCELED" }
+        });
+      } catch (dbErr) {
+        console.warn("Could not expire older subscription payments inside checkout:", dbErr);
+      }
+
       const dbSub = await prisma.subscription.create({
         data: {
           userId,
@@ -5897,6 +5934,49 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
     }
 
     const amount = Number(targetPlan.priceBRL);
+
+    if (prisma && (paymentMethodId === "pix" || String(paymentMethodId).includes("pix"))) {
+      try {
+        // Expire older pending subscription payments for this user
+        const pendingSubs = await prisma.subscriptionPayment.findMany({
+          where: {
+            status: "PENDING",
+            subscription: { userId }
+          }
+        });
+        if (pendingSubs.length > 0) {
+          const pendingSubIds = pendingSubs.map(s => s.id);
+          await prisma.subscriptionPayment.updateMany({
+            where: { id: { in: pendingSubIds } },
+            data: { status: "EXPIRED" }
+          });
+        }
+        
+        // Expire generic payments of status PENDING for this user
+        await prisma.payment.updateMany({
+          where: {
+            userId,
+            status: "PENDING"
+          },
+          data: {
+            status: "EXPIRED"
+          }
+        });
+
+        // Expire any active PAST_DUE subscriptions for this user
+        await prisma.subscription.updateMany({
+          where: {
+            userId,
+            status: "PAST_DUE"
+          },
+          data: {
+            status: "CANCELED"
+          }
+        });
+      } catch (dbErr) {
+        console.warn("Could not expire older subscription payments:", dbErr);
+      }
+    }
     let resultPayment: any;
 
     if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
@@ -5916,7 +5996,7 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
       });
     } else {
       // Return high-fidelity sandbox values so the flow is testable
-      const mockTxId = "mp_direct_" + Math.random().toString(36).substring(2, 12);
+      const mockTxId = "mp_direct_" + crypto.randomUUID();
       
       // Get the administrator's active PIX key dynamically from the loaded configuration
       const financialConfig = loadFinancialConfig();
@@ -5981,6 +6061,8 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
       });
     }
 
+    const expiresAtDate = new Date(Date.now() + 15 * 60 * 1000); // 15 mins expiration
+
     return res.json({
       success: true,
       paymentId: resultPayment.id,
@@ -5990,7 +6072,11 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
       statusDetail: resultPayment.statusDetail,
       barcode: resultPayment.barcode,
       amount: resultPayment.transactionAmount,
-      paymentMethodId: resultPayment.paymentMethodId
+      paymentMethodId: resultPayment.paymentMethodId,
+      
+      txid: resultPayment.id,
+      copiaECola: resultPayment.qrCodeCopyPaste,
+      expiresAt: expiresAtDate.toISOString()
     });
 
   } catch (error: any) {
@@ -6589,6 +6675,40 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
     const user = await authStore.findById(req.user.id);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
 
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        // Expire older pending pix payments and transactions BEFORE generating a new one
+        const wallets = await prisma.wallet.findMany({ where: { userId: user.id } });
+        if (wallets.length > 0) {
+          const walletIds = wallets.map(w => w.id);
+          const pendingTransactions = await prisma.transaction.findMany({
+            where: {
+              walletId: { in: walletIds },
+              status: "PENDING"
+            }
+          });
+          if (pendingTransactions.length > 0) {
+            const transIds = pendingTransactions.map(t => t.id);
+            await prisma.transaction.updateMany({
+              where: { id: { in: transIds } },
+              data: { status: "CANCELLED" }
+            });
+            // Update corresponding pixPayments
+            await prisma.pixPayment.updateMany({
+              where: {
+                transactionId: { in: transIds },
+                status: "PENDING"
+              },
+              data: { status: "EXPIRED" }
+            });
+          }
+        }
+      } catch (dbErr) {
+        console.warn("Could not expire older generic PIX transactions:", dbErr);
+      }
+    }
+
     let qrCode = "";
     let qrCodeCopyPaste = "";
     let paymentId = "";
@@ -6610,7 +6730,7 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
         return res.status(500).json({ error: "Erro ao gerar PIX com o Mercado Pago: " + (mpErr.message || mpErr) });
       }
     } else {
-      paymentId = "mp_sim_" + Math.random().toString(36).substring(2, 12);
+      paymentId = "mp_sim_" + crypto.randomUUID();
       
       // Get the administrator's active PIX key dynamically from the loaded configuration
       const financialConfig = loadFinancialConfig();
@@ -6634,7 +6754,10 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
       amountBRL: value,
       status: "PENDING",
       qrCode: qrcodeImg,
+      qrCodeBase64: qrcodeImg,
       qrCodeCopyPaste: qrCodeCopyPaste,
+      copiaECola: qrCodeCopyPaste,
+      pixCopiaECola: qrCodeCopyPaste,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       paidAt: null,
@@ -6646,7 +6769,6 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
     inMemoryPixPayments.unshift({ ...responsePayload, userId: user.id });
 
     // Persist to Database if available
-    const prisma = getPrisma();
     if (prisma) {
       try {
         let wallet = await prisma.wallet.findUnique({ where: { userId: user.id } });

@@ -18,6 +18,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { useAuth } from '../hooks/useAuth';
+import { authFetch } from '../utils/authFetch';
 
 interface SubscriptionPanelProps {
   user: UserProfile;
@@ -59,6 +61,7 @@ interface SubscriptionPayment {
 }
 
 export default function SubscriptionPanel({ user, updateUser, showToast }: SubscriptionPanelProps) {
+  const { accessToken: token } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentSub, setCurrentSub] = useState<CurrentSubscription | null>(null);
   const [payments, setPayments] = useState<SubscriptionPayment[]>([]);
@@ -86,23 +89,28 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
 
   // Load plans & current status
   const loadSubscriptionInfo = async () => {
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
 
     try {
       setLoading(true);
-      // Get plans
-      const plansRes = await fetch('/api/subscriptions/plans', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      // Get plans with no-cache prevention
+      const plansRes = await fetch(`/api/subscriptions/plans?nocache=${Date.now()}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
+        }
       });
       const plansData = await plansRes.json();
       if (plansData.plans) {
         setPlans(plansData.plans);
       }
 
-      // Get current sub
-      const currentRes = await fetch('/api/subscriptions/current', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      // Get current sub with no-cache prevention
+      const currentRes = await fetch(`/api/subscriptions/current?nocache=${Date.now()}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
+        }
       });
       const currentData = await currentRes.json();
       setCurrentSub(currentData.subscription);
@@ -123,7 +131,6 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
   const [selectedMethod, setSelectedMethod] = useState<'pix' | 'credit_card' | 'debit_card' | 'boleto'>('pix');
 
   const handleInitiateCheckout = async (plan: Plan) => {
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) {
       showToast('Autentique-se novamente para prosseguir.', 'error');
       return;
@@ -171,7 +178,6 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       return;
     }
 
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) {
       showToast('Autentique-se novamente para prosseguir.', 'error');
       return;
@@ -183,7 +189,8 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-store'
         },
         body: JSON.stringify({
           planId: checkoutPlan?.id,
@@ -200,12 +207,22 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
 
       const data = await res.json();
       if (res.ok && data.success) {
+        const qrCode = data.qrCodeBase64 || data.qrCode || '';
+        
+        if (!qrCode && selectedMethod === 'pix') {
+          showToast('Erro: QR Code PIX nulo retornado. Regenerando pagamento automaticamente...', 'error');
+          setTimeout(() => {
+            handleProcessPayment();
+          }, 1500);
+          return;
+        }
+
         setCheckoutData({
           subscriptionId: '',
-          paymentId: data.paymentId,
-          txid: data.paymentId,
-          qrCode: data.qrCodeBase64 || '',
-          qrCodeCopyPaste: data.pixCopiaECola || '',
+          paymentId: data.paymentId || data.txid,
+          txid: data.txid || data.paymentId,
+          qrCode: qrCode,
+          qrCodeCopyPaste: data.copiaECola || data.pixCopiaECola || '',
           amountBRL: data.amount || checkoutPlan!.priceBRL
         });
         showToast('Transação registrada no Mercado Pago com sucesso!', 'success');
@@ -228,7 +245,6 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       return;
     }
 
-    const token = localStorage.getItem('jiuspeak_access_token');
     if (!token) return;
 
     try {
@@ -612,15 +628,16 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                             <img 
                               src={
                                 checkoutData.qrCode.startsWith('http')
-                                  ? checkoutData.qrCode
+                                  ? `${checkoutData.qrCode}${checkoutData.qrCode.includes('?') ? '&' : '?'}nocache=${Date.now()}`
                                   : (checkoutData.qrCode.startsWith('data:') ? checkoutData.qrCode : `data:image/jpeg;base64,${checkoutData.qrCode}`)
                               }
+                              referrerPolicy="no-referrer"
                               className="w-36 h-36 object-contain"
                               alt="Mercado Pago Pix Oficial"
                             />
                           ) : (
-                            <div className="text-center text-slate-500 p-2 font-mono text-[10px]">
-                              Real QR Code
+                            <div className="text-center text-rose-500 font-bold p-2 font-mono text-[10px]">
+                              Nulo! Regenerando...
                             </div>
                           )}
                         </div>
@@ -725,9 +742,8 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                             setCheckoutData(null);
                             loadSubscriptionInfo();
                             // Refresh page token sync
-                            const token = localStorage.getItem('jiuspeak_access_token');
                             if (token) {
-                              fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
+                              authFetch('/api/auth/me')
                                 .then(r => r.json())
                                 .then(d => { if (d.user) updateUser(d.user); });
                             }

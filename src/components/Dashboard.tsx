@@ -30,6 +30,7 @@ import {
   ListOrdered
 } from 'lucide-react';
 import { UserProfile, Achievement, BeltRank, Course } from '../types';
+import { authFetch } from '../utils/authFetch';
 
 interface DashboardProps {
   user: UserProfile;
@@ -238,12 +239,7 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
     setIsLoadingSessions(true);
     setSessionError(null);
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      if (!token) throw new Error('Autenticação necessária.');
-
-      const res = await fetch('/api/auth/sessions', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('/api/auth/sessions');
       if (!res.ok) throw new Error('Não foi possível carregar as sessões do PostgreSQL.');
       const data = await res.json();
       setSessions(data.sessions || []);
@@ -256,12 +252,8 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
 
   const handleRevokeAllOtherSessions = async () => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      if (!token) return;
-
-      const res = await fetch('/api/auth/sessions/revoke-all', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await authFetch('/api/auth/sessions/revoke-all', {
+        method: 'POST'
       });
       if (res.ok) {
         await loadSessions();
@@ -273,12 +265,8 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
 
   const handleRevokeSpecificSession = async (id: string) => {
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-      if (!token) return;
-
-      const res = await fetch(`/api/auth/sessions/${id}/revoke`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await authFetch(`/api/auth/sessions/${id}/revoke`, {
+        method: 'POST'
       });
       if (res.ok) {
         await loadSessions();
