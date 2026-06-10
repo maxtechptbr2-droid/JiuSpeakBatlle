@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
+import path from 'path';
 
 let prismaRaw: PrismaClient | null = null;
 let prisma: any = null;
@@ -12,10 +13,15 @@ export function isDatabaseConnected(): boolean {
 // Enforce strict initialization of SQLite PrismaClient with Client Extension.
 export function getPrisma(): PrismaClient {
   if (!prisma) {
-    let finalDbUrl = "file:./prisma/dev.db";
+    // Ensure we use an absolute path for SQLite to prevent path resolution and "Unable to open the database file" errors
+    let finalDbUrl = `file:${path.resolve(process.cwd(), 'prisma/dev.db')}`;
     const dbUrl = process.env.DATABASE_URL;
     if (dbUrl && dbUrl.startsWith("file:")) {
       finalDbUrl = dbUrl;
+    } else if (dbUrl && !dbUrl.startsWith("file:")) {
+      // If DATABASE_URL is set but is not a file URL (e.g. postgresql://), and our provider is SQLite,
+      // we must delete it from process.env to prevent Prisma from picking it up automatically.
+      delete process.env.DATABASE_URL;
     }
 
     try {
