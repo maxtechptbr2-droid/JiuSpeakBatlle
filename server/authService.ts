@@ -7,25 +7,11 @@ import dotenv from 'dotenv';
 // Load variables early with override support
 dotenv.config({ override: true });
 
-const rawSecret = process.env.JWT_SECRET || '';
-const rawRefreshSecret = process.env.JWT_REFRESH_SECRET || '';
+const rawSecret = process.env.JWT_SECRET || 'jiuspeak_super_secret_access_key_default_64_characters_long_for_security_fixed_fallback';
+const rawRefreshSecret = process.env.JWT_REFRESH_SECRET || 'jiuspeak_super_secret_refresh_key_default_64_characters_long_for_security_fixed_fallback';
 
-let processedSecret = rawSecret;
-let processedRefreshSecret = rawRefreshSecret;
-
-if (!rawSecret || rawSecret.length < 64) {
-  console.warn(`⚠️  [WARNING] JWT_SECRET está ausente ou possui comprimento insuficiente (comprimento atual: ${rawSecret.length || 0}). Gerando chave estática segura de alta entropia para prevenir falhas de bootstrap.`);
-  // Generate a consistent pseudo-random 64-char key if missing or weak, using a persistent signature salt or random bytes
-  processedSecret = rawSecret.length >= 32 ? rawSecret.padEnd(64, 'a') : crypto.randomBytes(32).toString('hex');
-}
-
-if (!rawRefreshSecret || rawRefreshSecret.length < 64) {
-  console.warn(`⚠️  [WARNING] JWT_REFRESH_SECRET está ausente ou possui comprimento insuficiente (comprimento atual: ${rawRefreshSecret.length || 0}). Gerando chave estática segura de alta entropia para prevenir falhas de bootstrap.`);
-  processedRefreshSecret = rawRefreshSecret.length >= 32 ? rawRefreshSecret.padEnd(64, 'b') : crypto.randomBytes(32).toString('hex');
-}
-
-export const JWT_ACCESS_SECRET = processedSecret;
-export const JWT_REFRESH_SECRET = processedRefreshSecret;
+export const JWT_ACCESS_SECRET = rawSecret.length >= 64 ? rawSecret : rawSecret.padEnd(64, 'a');
+export const JWT_REFRESH_SECRET = rawRefreshSecret.length >= 64 ? rawRefreshSecret : rawRefreshSecret.padEnd(64, 'b');
 
 // Expiration definitions in ms or strings as per jsonwebtoken standards
 const ACCESS_TOKEN_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '15m'; // enterprise normal default: 15 mins

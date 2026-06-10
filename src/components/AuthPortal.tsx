@@ -533,7 +533,6 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
           <a href="#como-funciona" className="hover:text-violet-400 transition-colors">Como Funciona</a>
           <a href="#o-que-aprender" className="hover:text-violet-400 transition-colors">O que você vai aprender</a>
           <a href="#depoimentos" className="hover:text-violet-400 transition-colors">Depoimentos</a>
-          <a href="#planos" className="hover:text-violet-400 transition-colors">Planos</a>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1912,108 +1911,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
         </div>
       </section>
 
-      {/* PLANOS SECTION (CORES INTEGRATION & RETENTION) */}
-      <section className="py-20 px-6 md:px-12 bg-slate-950" id="planos">
-        <div className="max-w-5xl mx-auto space-y-12">
-          
-          <div className="text-center space-y-2">
-            <span className="text-xs font-mono text-violet-400 uppercase tracking-widest font-black">
-              Tabela De Matrículas Do Tatame
-            </span>
-            <h2 className="text-3xl md:text-5xl font-display font-black text-white tracking-tight">
-              Planos Amigáveis
-            </h2>
-            <p className="text-slate-405 text-xs md:text-sm max-w-lg mx-auto">
-              Selecione o plano ideal para decolar a sua carreira no universo do Jiu-Jítsu internacional.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch max-w-4xl mx-auto">
-            
-            {/* Gratuito */}
-            <div className="bg-slate-900/60 border border-slate-850 rounded-3xl p-6 md:p-8 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <span className="text-[10px] uppercase font-mono font-bold tracking-widest bg-slate-950 px-2 py-0.5 rounded text-slate-400">
-                  Acesso Inicial
-                </span>
-                <h3 className="text-xl font-display font-extrabold text-white">Plano Gratuito</h3>
-                <div className="flex items-baseline gap-1 text-white">
-                  <span className="text-3xl font-black">R$ 0</span>
-                  <span className="text-xs text-slate-500 font-mono">/ mensal</span>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Aprenda as saudações básicas de etiqueta e comandos essenciais de treino.
-                </p>
-                <div className="space-y-2 pt-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-350">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Língua de Faixa Branca desbloqueada</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-350">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Experiências interativas de vocabulário</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-350">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Painel do Atleta e registro básico</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={scrollToRegister}
-                className="w-full py-2.5 bg-slate-950 hover:bg-slate-850 text-white rounded-xl text-xs font-bold font-mono transition-all border border-slate-800 cursor-pointer"
-              >
-                Matricular Grátis
-              </button>
-            </div>
-
-            {/* Premium VIP */}
-            <div className="bg-[#090e24] border border-violet-500/35 rounded-3xl p-6 md:p-8 flex flex-col justify-between space-y-6 relative shadow-lg shadow-violet-500/5">
-              <div className="absolute top-4 right-4 bg-violet-600 text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
-                RECOMENDADO ⭐
-              </div>
-              <div className="space-y-4">
-                <span className="text-[10px] uppercase font-mono font-bold tracking-widest bg-violet-950 text-violet-300 px-2 py-0.5 rounded">
-                  Acesso Total Ilimitado
-                </span>
-                <h3 className="text-xl font-display font-extrabold text-white">JiuSpeak VIP Premium</h3>
-                <div className="flex items-baseline gap-1 text-white">
-                  <span className="text-3xl font-black">R$ 49,90</span>
-                  <span className="text-xs text-violet-450 font-mono">/ pagamento único via Pix</span>
-                </div>
-                <p className="text-xs text-slate-350 font-medium">
-                  Desbloqueie todo o material de estudo das faixas Azul, Roxa, Marrom e Preta com pontuações de regras reais de arbitragem.
-                </p>
-                <div className="space-y-2 pt-4">
-                  <div className="flex items-center gap-3 text-xs text-white">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span className="font-semibold">Desbloqueio de TODAS as 5 faixas</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-white">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Gravações e avaliações de pronúncia por voz</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-white">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Arena PvP de testes marciais com moedas de ouro</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-white">
-                    <Check className="w-4 h-4 text-emerald-400" />
-                    <span>Certificado de Proficiência e Auditoria</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={scrollToRegister}
-                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-violet-500/20 cursor-pointer"
-              >
-                Adquirir Passe VIP Agora
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </section>
+      {/* SECTION REMOVED */}
 
       {/* DYNAMIC DEV OUTBOX INBOX PREVIEW LOGS (RODAPÉ) */}
       <footer className="bg-[#03050a] border-t border-slate-900 py-12 px-6 md:px-12 text-slate-500 text-xs">
@@ -2025,52 +1923,11 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
               <p className="text-[10px] text-slate-450">English Training Solution for Brazilian Jiu-Jitsu Fighters. © 2026</p>
             </div>
             <p className="text-[10px] font-mono text-slate-600">
-               PostgreSQL & JWT Sessions • Sandbox Mode Active
+               Flavio Martins - Desenvolvedor & Faixa preta de Jiu-Jitsu
             </p>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-950 border border-slate-900 space-y-4">
-            <div className="flex justify-between items-center">
-              <h4 className="text-[10px] font-mono font-bold text-slate-450 uppercase tracking-widest flex items-center gap-1.5">
-                <Inbox className="w-4 h-4 text-violet-500" /> Outbox de E-mail de Desenvolvimento (Fictício)
-              </h4>
-              {simulatedEmails.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearInbox}
-                  className="text-[9px] font-mono text-slate-500 hover:text-red-400 cursor-pointer"
-                >
-                  Limpar Caixa
-                </button>
-              )}
-            </div>
-
-            {simulatedEmails.length === 0 ? (
-              <p className="text-slate-600 text-[10px] py-1">
-                E-mails mockados aparecem aqui em tempo real durante cadastro ou esquecimento de senha.
-              </p>
-            ) : (
-              <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
-                {simulatedEmails.map(sim => (
-                  <div
-                    key={sim.id}
-                    onClick={() => handleApplySimulatedEmail(sim)}
-                    className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-violet-500/50 hover:bg-slate-900 cursor-pointer transition-all text-xs font-mono space-y-1 relative group"
-                  >
-                    <div className="flex justify-between items-center text-[10px]">
-                      <span className="text-violet-400 font-bold">Para: {sim.to}</span>
-                      <span className="text-slate-500">{new Date(sim.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                    <p className="text-slate-200 font-semibold text-[11px]">{sim.subject}</p>
-                    <p className="text-slate-400 text-[10px] line-clamp-1">{sim.body}</p>
-                    <div className="text-[9px] bg-[#0c1122] border border-violet-950/40 p-1 px-2.5 rounded text-violet-300 font-bold block mt-1 break-all truncate font-mono">
-                      Clique para auto-preencher Token: <span className="text-white underline">{sim.token}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* OUTBOX REMOVED FROM SCREEN */}
 
         </div>
       </footer>

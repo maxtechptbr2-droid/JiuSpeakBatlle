@@ -1175,7 +1175,22 @@ export const authenticateToken = (req: any, res: any, next: any) => {
 // Middleware to authorize specific Roles
 export const requireRole = (allowedRoles: string[]) => {
   return (req: any, res: any, next: any) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
+    if (!req.user || !req.user.role) {
+      return res.status(403).json({
+        error: "Forbidden. Higher privilege role needed to execute this action.",
+      });
+    }
+    const userRole = String(req.user.role).toUpperCase();
+    const authorized = allowedRoles.some(role => {
+      const target = String(role).toUpperCase();
+      // Match general ADMIN roles
+      if (target === "ADMIN" && (userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DEVELOPER")) {
+        return true;
+      }
+      return target === userRole;
+    });
+
+    if (!authorized) {
       return res.status(403).json({
         error: "Forbidden. Higher privilege role needed to execute this action.",
       });
@@ -2383,16 +2398,20 @@ app.post("/api/auth/reset-password", async (req: any, res: any) => {
   }
 });
 
-// 9. OUTBOX MONITOR (For Sandbox UX Testing - Disabled in Production for Security)
-app.get("/api/dev/emails", (req: any, res: any) => {
-  if (process.env.NODE_ENV === "production") {
+// 9. OUTBOX MONITOR (For Sandbox UX Testing - Accessible to administrators even in production for verification)
+app.get("/api/dev/emails", authenticateToken, (req: any, res: any) => {
+  const userRole = req.user && String(req.user.role).toUpperCase();
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DEVELOPER";
+  if (process.env.NODE_ENV === "production" && !isAdmin) {
     return res.status(403).json({ error: "Funcionalidade desativada em ambiente de produção por motivos de segurança." });
   }
   res.json({ emails: simulatedSentEmails });
 });
 
-app.post("/api/dev/emails/clear", (req: any, res: any) => {
-  if (process.env.NODE_ENV === "production") {
+app.post("/api/dev/emails/clear", authenticateToken, (req: any, res: any) => {
+  const userRole = req.user && String(req.user.role).toUpperCase();
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DEVELOPER";
+  if (process.env.NODE_ENV === "production" && !isAdmin) {
     return res.status(403).json({ error: "Funcionalidade desativada em ambiente de produção por motivos de segurança." });
   }
   simulatedSentEmails.length = 0;
