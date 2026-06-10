@@ -446,13 +446,13 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
               {/* File Upload & Link Pasting Column */}
               <div className="space-y-4">
                 <p className="text-xs text-slate-400">
-                  Lutador, fique à vontade para customizar sua imagem. Escolha seu método preferido: suba um arquivo de foto pessoal, cole um link de imagem externo ou selecione um preset rápido.
+                  Lutador, fique à vontade para customizar sua imagem de perfil. Escolha seu método preferido: suba um arquivo de foto pessoal, cole um link de imagem externo ou selecione um preset rápido.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Upload do computador */}
                   <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Enviar Arquivo Local</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Enviar Imagem Local</span>
                     <label className="flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-violet-500/10 cursor-pointer w-full text-center">
                       <Camera className="w-4 h-4" />
                       <span>Escolher Imagem</span>
@@ -463,20 +463,20 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                         className="hidden" 
                       />
                     </label>
-                    <span className="text-[9px] text-slate-500 font-mono block">Suporta JPG, PNG, WEBP</span>
+                    <span className="text-[9px] text-slate-500 font-mono block">JPEG, PNG, WEBP</span>
                   </div>
 
                   {/* URL customizada de imagem */}
                   <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-center space-y-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Inserir Link Direto (URL)</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Link de Imagem (URL)</span>
                     <input 
                       type="text" 
                       value={profile.profilePhoto} 
                       onChange={(e) => setProfile(p => ({ ...p, profilePhoto: e.target.value }))}
                       placeholder="https://exemplo.com/sua-foto.png"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl p-2.5 text-[11px] text-slate-200 focus:outline-none placeholder:text-slate-700" 
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl p-2 text-[11px] text-slate-200 focus:outline-none placeholder:text-slate-700 font-mono" 
                     />
-                    <span className="text-[9px] text-slate-500 font-mono block">Paste any photo URL from Web, Discord, Google, etc.</span>
+                    <span className="text-[9px] text-slate-500 font-mono block">Suporta qualquer URL de imagem da web.</span>
                   </div>
                 </div>
               </div>
@@ -514,11 +514,102 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                         <img 
                           src={presetUrl} 
                           alt={preset.name} 
-                          className="w-10 h-10 rounded-full object-cover bg-slate-900" 
+                          className="w-10 h-10 rounded-full object-cover bg-slate-900 animate-fadeIn" 
                         />
                         <span className="text-[9px] font-bold text-slate-400 truncate max-w-full block select-none">{preset.name}</span>
                         {isSelected && (
                           <span className="absolute -top-1 -right-1 bg-emerald-500 rounded-full p-0.5 border border-slate-950">
+                            <Check className="w-2.5 h-2.5 text-white" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* IMAGEM DE CAPA & BANNER SELECTION COMPONENT */}
+          <div className="border-b border-slate-800/80 pb-6 space-y-4">
+            <h4 className="text-xs font-mono font-bold text-violet-400 uppercase tracking-widest flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-violet-500" /> IMAGEM DE CAPA & BANNER PERSONALIZADO
+            </h4>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-[#060812] p-5 rounded-2xl border border-slate-800/65">
+              {/* File Upload & Link Pasting Column */}
+              <div className="space-y-4">
+                <p className="text-xs text-slate-400">
+                  Defina a imagem de fundo do cabeçalho do seu perfil. Você pode carregar um arquivo de banner pessoal, colar uma URL direta ou escolher um de nossos presets exclusivos temáticos de Jiu-Jitsu.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Upload do computador */}
+                  <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Enviar Capa Local</span>
+                    <label className="flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-violet-500/10 cursor-pointer w-full text-center">
+                      <Camera className="w-4 h-4" />
+                      <span>Escolher Capa</span>
+                      <input 
+                        type="file" 
+                        accept=".jpg,.jpeg,.png,.webp" 
+                        onChange={(e) => handleImageFileChange(e, 'cover')} 
+                        className="hidden" 
+                      />
+                    </label>
+                    <span className="text-[9px] text-slate-500 font-mono block">JPEG, PNG, WEBP (Máx. 10MB)</span>
+                  </div>
+
+                  {/* URL customizada de imagem de capa */}
+                  <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 flex flex-col justify-center space-y-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Link da Capa (URL)</span>
+                    <input 
+                      type="text" 
+                      value={profile.coverPhoto} 
+                      onChange={(e) => setProfile(p => ({ ...p, coverPhoto: e.target.value }))}
+                      placeholder="https://exemplo.com/banner-esportes.jpg"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-violet-500 rounded-xl p-2.5 text-[11px] text-slate-200 focus:outline-none placeholder:text-slate-700 font-mono" 
+                    />
+                    <span className="text-[9px] text-slate-500 font-mono block">Cole link de imagem para aplicar instantaneamente.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Presets Temáticos Tatame de Jiu-Jitsu */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Banners de Treino e Combate</span>
+                <p className="text-[11px] text-slate-400">Selecione uma atmosfera de tatame profissional em alta definição para decorar seu fundo:</p>
+                
+                <div className="grid grid-cols-2 gap-2 bg-slate-900/30 p-2 rounded-xl border border-slate-800/80 max-h-[140px] overflow-y-auto">
+                  {[
+                    { name: "Tatame Dojo 🥋", url: "https://images.unsplash.com/photo-1549417229-aa67d3263c09?auto=format&fit=crop&q=80&w=800" },
+                    { name: "Arena Combat 🔥", url: "https://images.unsplash.com/photo-1517438476312-10d79c0ae2f2?auto=format&fit=crop&q=80&w=800" },
+                    { name: "Cyber Shogun ⚡", url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=800" },
+                    { name: "Zen Absolute 🍂", url: "https://images.unsplash.com/photo-1507608869274-d3177c8bb4c7?auto=format&fit=crop&q=80&w=800" },
+                  ].map((presetBanner) => {
+                    const isSelected = profile.coverPhoto === presetBanner.url;
+                    return (
+                      <button
+                        key={presetBanner.url}
+                        type="button"
+                        onClick={() => {
+                          setProfile(p => ({ ...p, coverPhoto: presetBanner.url }));
+                          showToast(`Capa ${presetBanner.name} carregada no preview!`, "info");
+                        }}
+                        className={`p-1 rounded-lg border transition-all text-left overflow-hidden relative cursor-pointer group h-14 ${
+                          isSelected ? 'border-violet-500 ring-2 ring-violet-500/20 bg-slate-900' : 'border-slate-800 bg-slate-950/50'
+                        }`}
+                      >
+                        <img 
+                          src={presetBanner.url} 
+                          alt={presetBanner.name} 
+                          className="w-full h-full object-cover rounded opacity-40 group-hover:opacity-75 transition-all" 
+                        />
+                        <span className="absolute bottom-1 left-2 text-[9px] font-bold text-white uppercase tracking-wider bg-slate-950/80 px-1 rounded-sm z-10 block select-none">
+                          {presetBanner.name}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute top-1 right-1 bg-emerald-500 rounded-full p-0.5 border border-slate-950 z-15">
                             <Check className="w-2.5 h-2.5 text-white" />
                           </span>
                         )}

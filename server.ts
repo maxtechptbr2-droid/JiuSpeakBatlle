@@ -53,7 +53,8 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use(compression());
 
 // Parse JSON request bodies early so subsequent middlewares (like input sanitization) can preview request data
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
 // -------------------------------------------------------------------------
@@ -1848,6 +1849,36 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
   }
 });
 
+// Helper to automatically convert and save Base64 strings as filesystem uploads
+async function saveBase64Image(userId: string, base64Data: string, prefix: "profile" | "cover"): Promise<string> {
+  if (!base64Data || !base64Data.startsWith("data:image/")) {
+    return base64Data; // Already is a standard URL or preset
+  }
+  try {
+    const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return base64Data;
+    }
+    const type = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    const extension = type.split('/')[1] || 'png';
+    const safeFilename = `${prefix}_user_${userId}_${Date.now()}.${extension}`;
+
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    const fs = await import('fs');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const filepath = path.join(uploadsDir, safeFilename);
+    fs.writeFileSync(filepath, buffer);
+    return `/uploads/${safeFilename}`;
+  } catch (err) {
+    console.error(`Error saving base64 ${prefix} image:`, err);
+    return base64Data;
+  }
+}
+
 // UPDATE CURRENT USER PROFILE
 app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
   const { 
@@ -1861,6 +1892,17 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "DB offline" });
+
+    // Handle base64 to file conversion for profilePhoto and coverPhoto automatically!
+    let savedProfilePhoto = profilePhoto;
+    if (profilePhoto && profilePhoto.startsWith("data:image/")) {
+      savedProfilePhoto = await saveBase64Image(req.user.id, profilePhoto, "profile");
+    }
+
+    let savedCoverPhoto = coverPhoto;
+    if (coverPhoto && coverPhoto.startsWith("data:image/")) {
+      savedCoverPhoto = await saveBase64Image(req.user.id, coverPhoto, "cover");
+    }
     
     if (username) {
       const sanitizedUsername = username.trim().toLowerCase();
@@ -1883,8 +1925,8 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
       country: country !== undefined ? country : undefined,
       nativeLanguage: nativeLanguage !== undefined ? nativeLanguage : undefined,
       learningGoal: learningGoal !== undefined ? learningGoal : undefined,
-      profilePhoto: profilePhoto !== undefined ? profilePhoto : undefined,
-      coverPhoto: coverPhoto !== undefined ? coverPhoto : undefined,
+      profilePhoto: savedProfilePhoto !== undefined ? savedProfilePhoto : undefined,
+      coverPhoto: savedCoverPhoto !== undefined ? savedCoverPhoto : undefined,
       instagram: instagram !== undefined ? instagram : undefined,
       youtube: youtube !== undefined ? youtube : undefined,
       facebook: facebook !== undefined ? facebook : undefined,
@@ -1904,8 +1946,8 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
       avatarFrame: avatarFrame !== undefined ? avatarFrame : undefined,
     };
     
-    if (profilePhoto) {
-      updateData.avatar = profilePhoto;
+    if (savedProfilePhoto) {
+      updateData.avatar = savedProfilePhoto;
     }
     
     Object.keys(updateData).forEach(k => updateData[k] === undefined && delete updateData[k]);
