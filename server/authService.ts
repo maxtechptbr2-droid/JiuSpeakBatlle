@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { getPrisma } from './db';
-import { AuditActionType } from '@prisma/client';
+export type AuditActionType = string;
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 

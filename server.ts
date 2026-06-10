@@ -1741,8 +1741,8 @@ app.get("/api/user/public-profile/:publicName", async (req: any, res: any) => {
       const u = await prisma.user.findFirst({
         where: {
           OR: [
-            { name: { equals: publicName, mode: 'insensitive' } },
-            { email: { equals: publicName, mode: 'insensitive' } }
+            { name: { equals: publicName } },
+            { email: { equals: publicName } }
           ]
         }
       });
@@ -2058,7 +2058,7 @@ app.get("/api/profile/:username", async (req: any, res: any) => {
       where: {
         OR: [
           { username: { equals: username.trim().toLowerCase() } },
-          { name: { equals: username, mode: 'insensitive' } }
+          { name: { equals: username } }
         ]
       },
       include: { wallet: true }
@@ -3157,7 +3157,7 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
         data: { belt: "WHITE", stripes: 0 }
       });
       
-      await authStore.updateUser(targetUserId, { belt: currentBelt, stripes: currentStripes });
+      await authStore.updateUser(targetUserId, { belt: currentBelt as any, stripes: currentStripes });
       await authStore.updateUser(sourceUserId, { belt: "WHITE", stripes: 0 });
 
       auditMsg = `ADMINISTRADOR TRANSFERIU FAIXA: ${currentBelt} (${currentStripes} graus) do atleta ${sourceUser.name} para ${targetUser.name}.`;
@@ -5606,7 +5606,7 @@ export async function seedPlansInDb() {
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
         priceBRL: 0.00,
         interval: "monthly",
-        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"],
+        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"] as any,
         active: true
       },
       create: {
@@ -5615,7 +5615,7 @@ export async function seedPlansInDb() {
         description: "Acesso a conteúdos básicos de Jiu-Jitsu, fórum comum e testes elementares.",
         priceBRL: 0.00,
         interval: "monthly",
-        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"],
+        features: ["Acesso a conteúdos básicos", "Fórum comum", "Perfil básico de jiu-jitsu"] as any,
         active: true
       }
     });
@@ -5627,7 +5627,7 @@ export async function seedPlansInDb() {
         description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
+        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"] as any,
         active: true
       },
       create: {
@@ -5636,7 +5636,7 @@ export async function seedPlansInDb() {
         description: "VIP Club Pass! Tenha acesso premium de alto nível para acelerar o seu aprendizado.",
         priceBRL: 29.90,
         interval: "monthly",
-        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"],
+        features: ["2x XP multiplicador em pvp e lições", "Selo VIP de Atleta Verificado", "Cursos VIP exclusivos", "Mentor Inteligente IA (Gemini API)"] as any,
         active: true
       }
     });
@@ -5648,7 +5648,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"] as any,
         active: true
       },
       create: {
@@ -5657,7 +5657,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"] as any,
         active: true
       }
     });

@@ -1,52 +1,79 @@
 import { PrismaClient } from '@prisma/client';
 import { execSync } from 'child_process';
 
-let prisma: PrismaClient | null = null;
+let prismaRaw: PrismaClient | null = null;
+let prisma: any = null;
 let dbConnected = false;
 
 export function isDatabaseConnected(): boolean {
   return dbConnected;
 }
 
-// Enforce strict initialization of PostgreSQL PrismaClient.
+// Enforce strict initialization of SQLite PrismaClient with Client Extension.
 export function getPrisma(): PrismaClient {
   if (!prisma) {
+    let finalDbUrl = "file:./prisma/dev.db";
     const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) {
-      console.error(JSON.stringify({
-        error: "DATABASE_URL_MISSING",
-        message: "A variável de ambiente DATABASE_URL está ausente ou vazia.",
-         सलाह: "O banco de dados PostgreSQL real precisa estar configurado para operação segura.",
-        timestamp: new Date().toISOString()
-      }, null, 2));
-      throw new Error("DATABASE_URL is missing or empty. Real database connection is required.");
+    if (dbUrl && dbUrl.startsWith("file:")) {
+      finalDbUrl = dbUrl;
     }
 
     try {
-      let finalDbUrl = dbUrl;
-      const parsedUrl = new URL(dbUrl);
-      if (!parsedUrl.searchParams.has("connection_limit")) {
-        parsedUrl.searchParams.set("connection_limit", "20");
-      }
-      if (!parsedUrl.searchParams.has("pool_timeout")) {
-        parsedUrl.searchParams.set("pool_timeout", "15");
-      }
-      finalDbUrl = parsedUrl.toString();
-
-      prisma = new PrismaClient({
+      prismaRaw = new PrismaClient({
         datasources: {
           db: {
             url: finalDbUrl,
           },
         },
       });
+
+      // Extend Prisma Client to handle serialization/deserialization of plan features list transparently for SQLite
+      prisma = prismaRaw.$extends({
+        result: {
+          plan: {
+            features: {
+              needs: { features: true },
+              compute(plan: any) {
+                try {
+                  return JSON.parse(plan.features) as string[];
+                } catch {
+                  if (typeof plan.features === "string") {
+                    return plan.features.split(",").map((f: string) => f.trim()).filter(Boolean);
+                  }
+                  return [];
+                }
+              },
+            },
+          },
+        },
+        model: {
+          plan: {
+            async create(args: any) {
+              if (args.data && Array.isArray(args.data.features)) {
+                args.data.features = JSON.stringify(args.data.features);
+              }
+              return (prismaRaw!.plan as any).create(args);
+            },
+            async update(args: any) {
+              if (args.data && Array.isArray(args.data.features)) {
+                args.data.features = JSON.stringify(args.data.features);
+              }
+              return (prismaRaw!.plan as any).update(args);
+            },
+            async upsert(args: any) {
+              if (args.create && Array.isArray(args.create.features)) {
+                args.create.features = JSON.stringify(args.create.features);
+              }
+              if (args.update && Array.isArray(args.update.features)) {
+                args.update.features = JSON.stringify(args.update.features);
+              }
+              return (prismaRaw!.plan as any).upsert(args);
+            },
+          },
+        },
+      }) as any;
     } catch (e: any) {
-      console.error(JSON.stringify({
-        error: "FATAL_DATABASE_ERROR",
-        message: "Falha crítica ao instanciar o PrismaClient do Postgres.",
-        exception: e.message || e,
-        timestamp: new Date().toISOString()
-      }, null, 2));
+      console.error("FATAL_DATABASE_ERROR: Falha ao instanciar PrismaClient do SQLite:", e.message || e);
       throw e;
     }
   }
@@ -60,60 +87,20 @@ export async function assertDatabaseConnection(): Promise<void> {
     client = getPrisma();
   } catch (err: any) {
     dbConnected = false;
-    console.error("✗ Falha inicial ao carregar o Prisma:</n>", err.message || err);
+    console.error("✗ Falha inicial ao carregar o Prisma:", err.message || err);
     return;
   }
 
-  // Attempt to apply migrations automatically on boot to avoid schema drift
-  if (process.env.DATABASE_URL) {
-    try {
-      console.log("⚙️  [DATABASE BOOTSTRAP] Garantindo que o serviço PostgreSQL local está ativo...");
-      try {
-        // Try starting postgresql service using standard service or init.d command
-        execSync("service postgresql start || /etc/init.d/postgresql start", { stdio: "inherit" });
-        console.log("✓ [DATABASE BOOTSTRAP] Comando de inicialização do PostgreSQL enviado.");
-      } catch (e: any) {
-        console.warn("⚠️ Não foi possível iniciar o postgresql por init.d/service:", e.message || e);
-        try {
-          execSync("pg_ctlcluster 16 main start || pg_ctlcluster 15 main start || pg_ctlcluster 14 main start", { stdio: "inherit" });
-          console.log("✓ [DATABASE BOOTSTRAP] Cluster de PostgreSQL inicializado via pg_ctlcluster.");
-        } catch (clusterErr: any) {
-          console.warn("⚠️ Não foi possível iniciar cluster do PostgreSQL:", clusterErr.message || clusterErr);
-        }
-      }
-    } catch (startErr: any) {
-      console.warn("⚠️ Não foi possível garantir ativação do PostgreSQL:", startErr.message || startErr);
-    }
-
-    try {
-      console.log("⚙️  [DATABASE BOOTSTRAP] Verificando e aplicando migrações pendentes...");
-      execSync("npx prisma migrate deploy", { stdio: "inherit" });
-      console.log("✓ [DATABASE BOOTSTRAP] Migrações aplicadas ou verificadas com sucesso!");
-    } catch (migError: any) {
-      console.warn("⚠️ [DATABASE BOOTSTRAP FAILURE] Não foi possível rodar migrations automáticas:", migError.message || migError);
-    }
-  }
-
-  let retries = 5;
-  while (retries > 0) {
-    try {
-      // Attempt connection
-      await client.$connect();
-
-      // Attempt a basic check query to active postgres
-      await client.$queryRaw`SELECT 1`;
-      console.log("✓ PostgreSQL conectado com sucesso");
-      dbConnected = true;
-      return;
-    } catch (e: any) {
-      retries--;
-      if (retries === 0) {
-        dbConnected = false;
-        console.error("✗ Falha ao conectar-se ao PostgreSQL. O sistema operará com erros reais de banco de dados.");
-        return;
-      }
-      console.warn(`Tentativa de conexão com banco de dados falhou. Retentando em 1.5s (${retries} restantes)...`);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    }
+  try {
+    console.log("⚙️  [DATABASE BOOTSTRAP] Verificando conexão do banco de dados SQLite local...");
+    await (client as any).$connect();
+    
+    // Attempt schema connection validation
+    await (client as any).$queryRaw`SELECT 1`;
+    console.log("✓ SQLite conectado com sucesso");
+    dbConnected = true;
+  } catch (e: any) {
+    dbConnected = false;
+    console.error("✗ Falha ao conectar-se ao SQLite:", e.message || e);
   }
 }
