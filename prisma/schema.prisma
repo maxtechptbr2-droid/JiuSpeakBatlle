@@ -312,7 +312,7 @@ model Plan {
   description String?  
   priceBRL    Decimal  
   interval    String   // monthly, yearly
-  features    String   @default("[]") // JSON-encoded features array for SQLite
+  features    String   @default("[]") // JSON-encoded features array
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
 
