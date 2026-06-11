@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { prisma, getPrisma, isDatabaseConnected } from './db';
+import { Rarity } from '@prisma/client';
 
 // Unified type representation for authentication states
 export interface AuthUser {
@@ -1362,7 +1363,13 @@ export const seedStoreProducts = async () => {
 
     for (const prod of seedProducts) {
       const patchedProd = patchProductObjectWithBjjAvatar(prod);
-      const dbRarity = patchedProd.rarity === "MYTHIC" ? "LEGENDARY" : patchedProd.rarity;
+      const dbRarityStr = patchedProd.rarity === "MYTHIC" ? "LEGENDARY" : patchedProd.rarity;
+      let rarityEnum: Rarity = Rarity.COMMON;
+      if (dbRarityStr === "RARE") rarityEnum = Rarity.RARE;
+      else if (dbRarityStr === "EPIC") rarityEnum = Rarity.EPIC;
+      else if (dbRarityStr === "LEGENDARY") rarityEnum = Rarity.LEGENDARY;
+      else if (dbRarityStr === "MYTHIC") rarityEnum = Rarity.MYTHIC;
+      
       await prisma.storeProduct.upsert({
         where: { id: patchedProd.id },
         update: {
@@ -1370,7 +1377,7 @@ export const seedStoreProducts = async () => {
           description: patchedProd.description,
           priceJT: patchedProd.priceJT,
           category: patchedProd.category,
-          rarity: dbRarity as any,
+          rarity: rarityEnum,
           imageUrl: patchedProd.imageUrl,
           active: true
         },
@@ -1380,7 +1387,7 @@ export const seedStoreProducts = async () => {
           description: patchedProd.description,
           priceJT: patchedProd.priceJT,
           category: patchedProd.category,
-          rarity: dbRarity as any,
+          rarity: rarityEnum,
           imageUrl: patchedProd.imageUrl,
           active: true
         }

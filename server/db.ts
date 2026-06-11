@@ -24,6 +24,10 @@ export function isDatabaseConnected(): boolean {
   return dbConnected;
 }
 
+export function setDatabaseConnected(connected: boolean) {
+  dbConnected = connected;
+}
+
 export async function assertDatabaseConnection(): Promise<boolean> {
   try {
     await prisma.$connect();

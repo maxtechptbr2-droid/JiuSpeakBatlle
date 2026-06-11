@@ -22,7 +22,7 @@ import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { RankingService } from "./server/pvp/ranking";
-import { prisma, getPrisma, assertDatabaseConnection, isDatabaseConnected } from "./server/db";
+import { prisma, getPrisma, assertDatabaseConnection, isDatabaseConnected, setDatabaseConnected } from "./server/db";
 import { Rarity } from "@prisma/client";
 import { getRedisClient } from "./server/pvp/redis";
 import { getCached, invalidateCache } from "./server/cache";
@@ -329,13 +329,23 @@ app.get("/health", async (req: any, res: any) => {
 
   let hasFailures = false;
 
-  // 1. Check Database connection readiness state (dbConnected)
+  // 1. Check Database connection readiness state dynamically via SELECT 1 query
   try {
-    const connected = isDatabaseConnected();
-    health.database.connected = connected;
-    health.database.status = connected ? "UP" : "DOWN";
-    if (!connected) hasFailures = true;
+    const prisma = getPrisma();
+    if (prisma) {
+      await prisma.$queryRaw`SELECT 1`;
+      setDatabaseConnected(true);
+      health.database.connected = true;
+      health.database.status = "UP";
+    } else {
+      setDatabaseConnected(false);
+      health.database.connected = false;
+      health.database.status = "DOWN";
+      hasFailures = true;
+    }
   } catch (err: any) {
+    setDatabaseConnected(false);
+    health.database.connected = false;
     health.database.status = "DOWN";
     health.database.error = err.message;
     hasFailures = true;
@@ -346,7 +356,6 @@ app.get("/health", async (req: any, res: any) => {
     const prisma = getPrisma();
     if (prisma) {
       const start = Date.now();
-      // Fast database query verification
       await prisma.$queryRaw`SELECT 1`;
       health.prisma.status = "UP";
       health.prisma.latencyMs = Date.now() - start;
@@ -369,7 +378,6 @@ app.get("/health", async (req: any, res: any) => {
     if (isMock) {
       health.redis.status = "UP_MOCKED";
     } else if (client) {
-      // Check status from ioredis or perform a quick PING
       const pingResult = await client.ping().catch(() => null);
       if (pingResult === "PONG" || client.status === "ready" || client.status === "connecting" || client.status === "connect") {
         health.redis.status = "UP";
@@ -391,7 +399,6 @@ app.get("/health", async (req: any, res: any) => {
   try {
     if (globalIo) {
       health.socket.status = "UP";
-      // Fetch number of connected clients
       health.socket.activeConnections = globalIo.engine.clientsCount || 0;
     } else {
       health.socket.status = "INITIALIZING";
@@ -427,7 +434,19 @@ app.get("/health", async (req: any, res: any) => {
 app.get("/api/health", async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
-    const dbOk = isDatabaseConnected();
+    let dbOk = false;
+    
+    if (prisma) {
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        dbOk = true;
+        setDatabaseConnected(true);
+      } catch (e) {
+        dbOk = false;
+        setDatabaseConnected(false);
+      }
+    }
+    
     const { isMock } = getRedisClient();
     
     let storeProductColumns: any[] = [];
@@ -445,7 +464,7 @@ app.get("/api/health", async (req: any, res: any) => {
     
     res.json({
       status: dbOk ? "UP" : "DOWN",
-      database: dbOk ? "connected" : "offline",
+      database: dbOk ? "online" : "offline",
       prisma: prisma ? "ready" : "not_initialized",
       redis: isMock ? "mock_active" : "real_redis_active",
       socket: globalIo ? "ready" : "offline",
@@ -589,6 +608,16 @@ export async function initializePremiumBjjAvatars(withDb: boolean = false) {
       if (prisma) {
         console.log("🌱 Semeando os avatares premium no banco PostgreSQL de forma resiliente...");
         
+        const getRarityEnum = (rStr: string): Rarity => {
+          const uState = String(rStr).toUpperCase();
+          if (uState === "COMMON" || uState === "COMUM") return Rarity.COMMON;
+          if (uState === "RARE" || uState === "RARO") return Rarity.RARE;
+          if (uState === "EPIC" || uState === "ÉPICO" || uState === "EPICO") return Rarity.EPIC;
+          if (uState === "LEGENDARY" || uState === "LENDÁRIO" || uState === "LENDARIO") return Rarity.LEGENDARY;
+          if (uState === "MYTHIC" || uState === "MÍTICO" || uState === "MITICO") return Rarity.MYTHIC;
+          return Rarity.COMMON;
+        };
+
         // Seed concurrently in batches to speed up boot
         for (let i = 0; i < avatarsList.length; i += 20) {
           const batch = avatarsList.slice(i, i + 20);
@@ -601,7 +630,7 @@ export async function initializePremiumBjjAvatars(withDb: boolean = false) {
                   description: prod.description,
                   priceJT: prod.priceJT,
                   category: prod.category,
-                  rarity: prod.rarity as any,
+                  rarity: getRarityEnum(prod.rarity),
                   imageUrl: prod.imageUrl,
                   stock: prod.stock ?? null,
                   active: true
@@ -612,7 +641,7 @@ export async function initializePremiumBjjAvatars(withDb: boolean = false) {
                   description: prod.description,
                   priceJT: prod.priceJT,
                   category: prod.category,
-                  rarity: prod.rarity as any,
+                  rarity: getRarityEnum(prod.rarity),
                   imageUrl: prod.imageUrl,
                   stock: prod.stock ?? null,
                   active: true

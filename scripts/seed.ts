@@ -1,6 +1,7 @@
 import { prisma, assertDatabaseConnection } from "../server/db";
 import { seedInitialUsers, seedStoreProducts } from "../server/authStore";
 import { seedQuestionsInDb } from "../server/pvp/questions";
+import { Rarity } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -198,13 +199,13 @@ async function runSeed() {
       ];
       for (const c of BASE_CHARACTERS) {
         for (const belt of BELTS) {
-          let rarity = "COMMON";
+          let rarityEnum: Rarity = Rarity.COMMON;
           if (["yellow", "orange", "green", "blue"].includes(belt.key)) {
-            rarity = "RARE";
+            rarityEnum = Rarity.RARE;
           } else if (["purple", "brown"].includes(belt.key)) {
-            rarity = "EPIC";
+            rarityEnum = Rarity.EPIC;
           } else if (["black", "coral", "red_black", "red_white"].includes(belt.key)) {
-            rarity = "LEGENDARY";
+            rarityEnum = Rarity.LEGENDARY;
           }
 
           let price = 400;
@@ -230,7 +231,7 @@ async function runSeed() {
               description: `${c.description} Especialidade: Nível de faixa ${belt.name}.`,
               priceJT: price,
               category: "AVATAR",
-              rarity: rarity as any,
+              rarity: rarityEnum,
               imageUrl: `/api/avatars/render/${c.id}/${belt.key}`,
               active: true
             },
@@ -240,7 +241,7 @@ async function runSeed() {
               description: `${c.description} Especialidade: Nível de faixa ${belt.name}.`,
               priceJT: price,
               category: "AVATAR",
-              rarity: rarity as any,
+              rarity: rarityEnum,
               imageUrl: `/api/avatars/render/${c.id}/${belt.key}`,
               active: true
             }
