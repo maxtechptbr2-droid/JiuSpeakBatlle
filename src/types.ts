@@ -15,7 +15,7 @@ export interface UserProfile {
   xpNextLevel: number;
   belt: BeltRank;
   stripes: number; // 0 to 4
-  coins: number; // Jiutickets (JT)
+  coins: number; // JiuTickets (JT)
   elo: number; // PVP Arena Ranking
   winCount: number;
   lossCount: number;

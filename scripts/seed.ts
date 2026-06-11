@@ -158,7 +158,7 @@ async function runSeed() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 JiuTickets de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       },
       create: {
@@ -167,7 +167,7 @@ async function runSeed() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 JiuTickets de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       }
     });

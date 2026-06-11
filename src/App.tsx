@@ -436,7 +436,7 @@ export default function App() {
       found.coinReward
     );
 
-    showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP e +${found.coinReward} Jiutickets salvos!`, 'success');
+    showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP e +${found.coinReward} JiuTickets salvos!`, 'success');
 
     // Trigger automatic viral share congratulations overlay
     setTimeout(() => {
@@ -1097,8 +1097,8 @@ export default function App() {
                 onClick={() => {
                   const val = user.coins + 1500;
                   setUser(prev => ({ ...prev, coins: val }));
-                  showToast("+1500 Jiutickets injetados!", "success");
-                  addAuditLog('lesson_completed', `Cheat: Developer injetou +1500 Jiutickets.`, undefined, 1500);
+                  showToast("+1500 JiuTickets injetados!", "success");
+                  addAuditLog('lesson_completed', `Cheat: Developer injetou +1500 JiuTickets.`, undefined, 1500);
                 }}
                 className="p-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-350 hover:text-white rounded-lg transition-all cursor-pointer font-bold"
               >

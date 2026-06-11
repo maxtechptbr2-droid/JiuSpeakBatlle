@@ -144,7 +144,7 @@ export default function Settings() {
                 <span className="text-[9px] bg-yellow-500/10 p-0.5 px-2 rounded border border-yellow-500/20 text-yellow-400 font-bold">FAST CHEATS</span>
               </div>
               <p className="text-[10px] text-slate-500">
-                Adicione Kimono Coins (KC) locais ou suba níveis e patentes de forma instantânea para fins de validação em homologação.
+                Adicione JiuTickets (JT) locais ou suba níveis e patentes de forma instantânea para fins de validação em homologação.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -152,7 +152,7 @@ export default function Settings() {
                   onClick={handleQuickInfieldCoins}
                   className="py-1.5 bg-yellow-600/10 hover:bg-yellow-600/20 text-yellow-500 border border-yellow-500/20 text-[10px] font-bold rounded-lg cursor-pointer text-center transition-all"
                 >
-                  +2.000 KC (Coins)
+                  +2.000 JT (Coins)
                 </button>
                 <button
                   type="button"

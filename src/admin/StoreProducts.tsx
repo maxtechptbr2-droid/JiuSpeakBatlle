@@ -201,7 +201,7 @@ export default function StoreProducts() {
       return;
     }
     if (formData.priceKC < 0) {
-      showToast("O preço em Kimono Coins não pode ser negativo.", "error");
+      showToast("O preço em JiuTickets não pode ser negativo.", "error");
       return;
     }
 
@@ -302,7 +302,7 @@ export default function StoreProducts() {
 
   // Direct fast-edit price
   const handleQuickPriceChange = async (id: string, currentVal: number) => {
-    const rawVal = window.prompt("Digite o novo valor em Kimono Coins (KC):", String(currentVal));
+    const rawVal = window.prompt("Digite o novo valor em JiuTickets (JT):", String(currentVal));
     if (rawVal === null) return;
     const nextVal = Number(rawVal);
     if (isNaN(nextVal) || nextVal < 0) {
@@ -472,7 +472,7 @@ export default function StoreProducts() {
                 <th className="p-3">Categoria</th>
                 <th className="p-3">Raridade</th>
                 <th className="p-3">Estoque</th>
-                <th className="p-3 text-right">Preço (KC)</th>
+                <th className="p-3 text-right">Preço (JT)</th>
                 <th className="p-3 w-28 text-center">Status</th>
                 <th className="p-3 w-32 text-center">Ações</th>
               </tr>
@@ -556,20 +556,20 @@ export default function StoreProducts() {
                       </button>
                     </td>
 
-                    {/* Price in KC */}
+                    {/* Price in JT */}
                     <td className="p-3 text-right">
                       <div className="space-y-0.5">
                         <button
                           type="button"
                           onClick={() => handleQuickPriceChange(prod.id, prod.priceKC)}
                           className="font-bold text-slate-101 hover:text-indigo-400 hover:underline cursor-pointer text-xs"
-                          title="Clique para alterar preço em KC"
+                          title="Clique para alterar preço em JT"
                         >
-                          {prod.priceKC.toLocaleString()} KC
+                          {prod.priceKC.toLocaleString()} JT
                         </button>
                         {isPromoActive && prod.promoPriceKC !== null && (
                           <p className="text-[9.5px] text-rose-450 font-bold line-through ml-auto block">
-                            De {prod.priceKC} KC
+                            De {prod.priceKC} JT
                           </p>
                         )}
                       </div>
@@ -737,10 +737,10 @@ export default function StoreProducts() {
                 />
               </div>
 
-              {/* Preço KC, Estoque Limite, Raridade row */}
+              {/* Preço JT, Estoque Limite, Raridade row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-mono text-slate-450 uppercase block">Preço Padrão (Coins KC) *</label>
+                  <label className="text-[10px] font-mono text-slate-450 uppercase block">Preço Padrão (Coins JT) *</label>
                   <div className="relative">
                     <input
                       type="number"
@@ -861,7 +861,7 @@ export default function StoreProducts() {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-mono text-slate-450 uppercase block">Preço Promocional (KC) *</label>
+                        <label className="text-[10px] font-mono text-slate-450 uppercase block">Preço Promocional (JT) *</label>
                         <input
                           type="number"
                           required

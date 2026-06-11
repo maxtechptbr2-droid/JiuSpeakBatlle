@@ -657,7 +657,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
             Comunidade de Academias
           </h2>
           <p className="text-xs text-slate-400 max-w-xl">
-            Lute, jogue e estude vestindo a camisa do seu tatame! Publique em murais da equipe, dispute torneios internos, realize seminários de regras e desafie equipes rivais por honra e Kimono Coins.
+            Lute, jogue e estude vestindo a camisa do seu tatame! Publique em murais da equipe, dispute torneios internos, realize seminários de regras e desafie equipes rivais por honra e JiuTickets.
           </p>
         </div>
 
@@ -1091,7 +1091,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                           A filiação à {activeAcademy.name} permite que você junte suas forças técnicas de jiu-jitsu com o estudo internacional linguístico necessário para dar palestras, seminar, lutar no exterior ou arbitrar eventos de ponta.
                         </p>
                         <p>
-                          Nesta equipe, você treina com colegas do mesmo fardamento que oferecem sparring de conversação diários, organizam chamadas de vídeo temáticas com áudio em alta definição e competem por recompensas em Kimono Coins patrocinadas pelas lojas afiliadas.
+                          Nesta equipe, você treina com colegas do mesmo fardamento que oferecem sparring de conversação diários, organizam chamadas de vídeo temáticas com áudio em alta definição e competem por recompensas em JiuTickets patrocinadas pelas lojas afiliadas.
                         </p>
                       </div>
 
@@ -1512,7 +1512,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                 <div className="space-y-4 text-left">
                   
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Torneios e Copas de chaves estruturadas internas para ganhar KC:</span>
+                    <span className="text-xs text-slate-400">Torneios e Copas de chaves estruturadas internas para ganhar JT:</span>
                     <button
                       onClick={() => setShowTournamentForm(!showTournamentForm)}
                       className="px-4 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-1 cursor-pointer"
@@ -1560,7 +1560,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[8.5px] uppercase text-slate-500 font-mono block">Premiação (KC)</label>
+                            <label className="text-[8.5px] uppercase text-slate-500 font-mono block">Premiação (JT)</label>
                             <input 
                               type="number" 
                               value={tourPrize}
@@ -1592,7 +1592,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                           <div>
                             <h4 className="font-display font-black text-xs text-white uppercase">{tr.name}</h4>
                             <p className="text-[9px] text-slate-400 mt-1 font-mono">
-                              Restrição: {tr.beltRestriction} • 🏅 {tr.prizePoolKC} KC de prêmio
+                              Restrição: {tr.beltRestriction} • 🏅 {tr.prizePoolKC} JT de prêmio
                             </p>
                           </div>
 
@@ -1729,7 +1729,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[8.5px] uppercase text-slate-500 font-mono block">Bilhete / Aposta (KC)</label>
+                            <label className="text-[8.5px] uppercase text-slate-500 font-mono block">Bilhete / Aposta (JT)</label>
                             <input 
                               type="number" 
                               value={challPrizeKC} 
@@ -1770,7 +1770,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                               Modalidade: <strong>{ch.discipline}</strong> • Nível: <strong>{ch.beltRestriction}</strong>
                             </p>
                             <p className="text-[9px] text-indigo-400 font-mono select-none">
-                              📅 Luta agendada: {ch.date} • Aposta: 🪙 {ch.prizeKC} KC
+                              📅 Luta agendada: {ch.date} • Aposta: 🪙 {ch.prizeKC} JT
                             </p>
                           </div>
 

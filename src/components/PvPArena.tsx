@@ -528,7 +528,7 @@ export default function PvPArena({
                     Arena de Conversação & Vocabulário 🗣️
                   </h3>
                   <p className="text-xs text-slate-400 mt-1.5 max-w-xl">
-                    Pratique seu inglês sob o contexto real do tatame. Teste seus reflexos de vocabulário e tomadas de decisão estruturadas de forma dinâmica! Cada acerto consolida seus pontos de proficiência (ELO), concede Jiutickets escolares e acelera sua progressão de faixa.
+                    Pratique seu inglês sob o contexto real do tatame. Teste seus reflexos de vocabulário e tomadas de decisão estruturadas de forma dinâmica! Cada acerto consolida seus pontos de proficiência (ELO), concede JiuTickets escolares e acelera sua progressão de faixa.
                   </p>
                 </div>
                 

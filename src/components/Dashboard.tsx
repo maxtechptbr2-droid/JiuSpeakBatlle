@@ -444,7 +444,7 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                 <span className="text-indigo-400 font-bold text-xs">{formatStudyTime(studySeconds)}</span>
               </div>
               <span className="text-[10px] text-slate-500 font-mono italic">
-                Aulas assistidas geram Kimono Coins de recompensa automaticamente.
+                Aulas assistidas geram JiuTickets de recompensa automaticamente.
               </span>
             </div>
           </div>
@@ -460,7 +460,7 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                     <Target className="w-5 h-5 text-indigo-400" />
                     <div>
                       <h4 className="font-display font-bold text-sm text-slate-200">Missões Diárias</h4>
-                      <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Fature XP + Kimono Coins</p>
+                      <p className="text-[9px] text-slate-500 font-mono uppercase tracking-wider">Fature XP + JiuTickets</p>
                     </div>
                   </div>
                   <span className="bg-[#0f1d32] text-indigo-400 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-500/20 font-mono">
@@ -498,7 +498,7 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                     </div>
                     <div className="text-right flex flex-col gap-0.5 whitespace-nowrap text-[8.5px] font-mono">
                       <span className="text-orange-400 font-black">+100 XP</span>
-                      <span className="text-violet-400 font-black">+10 KC</span>
+                      <span className="text-violet-400 font-black">+10 JT</span>
                     </div>
                   </div>
 
@@ -527,7 +527,7 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                     </div>
                     <div className="text-right flex flex-col gap-0.5 whitespace-nowrap text-[8.5px] font-mono">
                       <span className="text-orange-400 font-black">+150 XP</span>
-                      <span className="text-violet-400 font-black">+15 KC</span>
+                      <span className="text-violet-400 font-black">+15 JT</span>
                     </div>
                   </div>
                 </div>
@@ -1066,7 +1066,7 @@ export default function Dashboard({ user, achievements, updateUser, claimAchieve
                           +{ach.xpReward} XP
                         </span>
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20 block mt-1">
-                          +{ach.coinReward} KC
+                          +{ach.coinReward} JT
                         </span>
                       </div>
                     </div>

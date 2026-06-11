@@ -999,7 +999,7 @@ export let inMemoryStoreProducts: any[] = [
   {
     id: "prod_bundle_black_belt1",
     name: "Pacote VIP: Legado Faixa Preta",
-    description: "Uma caixa colecionadora contendo 1 avatar exclusivo, o título 'Imortal' e 1000 Jiutickets.",
+    description: "Uma caixa colecionadora contendo 1 avatar exclusivo, o título 'Imortal' e 1000 JiuTickets.",
     priceJT: 6000,
     priceBRL: 49.90,
     category: "Pacotes VIP",
@@ -1032,11 +1032,11 @@ export let inMemoryStoreProducts: any[] = [
   },
   {
     id: "prod_pack_1000_coins1",
-    name: "Jiutickets: Maleta de JT (+200 Bônus)",
-    description: "Adicione instantaneamente 1.200 Jiutickets ao seu saldo para resgates velozes.",
+    name: "JiuTickets: Maleta de JT (+200 Bônus)",
+    description: "Adicione instantaneamente 1.200 JiuTickets ao seu saldo para resgates velozes.",
     priceJT: 0,
     priceBRL: 19.90,
-    category: "Jiutickets",
+    category: "JiuTickets",
     rarity: "RARE",
     imageUrl: "https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=200",
     stock: null,
@@ -3287,7 +3287,7 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
         await authStore.updateUser(targetUserId, { coins: newTargetCoins });
       }
 
-      auditMsg = `ADMINISTRADOR TRANSFERIU Jiutickets: ${actualTransfer} JT do atleta ${sourceUser.name} para ${targetUser.name}.`;
+      auditMsg = `ADMINISTRADOR TRANSFERIU JiuTickets: ${actualTransfer} JT do atleta ${sourceUser.name} para ${targetUser.name}.`;
     }
     else if (type === "ITEM" || type === "ITENS") {
       const itemId = value;
@@ -5526,7 +5526,7 @@ export let inMemoryPlans: InMemoryPlan[] = [
     description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
     priceBRL: 49.90,
     interval: "monthly",
-    features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+    features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 JiuTickets de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
     active: true
   }
 ];
@@ -5741,7 +5741,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 JiuTickets de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       },
       create: {
@@ -5750,7 +5750,7 @@ export async function seedPlansInDb() {
         description: "Mestre Gracie Club! O nível supremo da arte suave para obter a faixa vermelha.",
         priceBRL: 49.90,
         interval: "monthly",
-        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 Kimon Coins de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
+        features: ["Todos os cursos Premium liberados", "Kimono Imperial Digital Raro", "2000 JiuTickets de bônus imediato", "Canal exclusivo e relatórios de métricas avançadas"],
         active: true
       }
     });
@@ -7645,7 +7645,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     if (nowMs - velocity.lastTime < 60000) {
       if (velocity.count >= 3) {
         return res.status(429).json({ 
-          error: "Bloqueio Velocidade Antifraude: Suspeita de script bot ou evasão de Jiutickets. Aguarde 60 segundos antes de efetuar novas transações." 
+          error: "Bloqueio Velocidade Antifraude: Suspeita de script bot ou evasão de JiuTickets. Aguarde 60 segundos antes de efetuar novas transações." 
         });
       }
       velocity.count += 1;
@@ -7895,7 +7895,7 @@ app.get("/api/store", async (req: any, res: any) => {
         "Títulos": "Títulos",
         "Pacotes VIP": "Pacotes VIP",
         "XP Boost": "XP Boost",
-        "Jiutickets": "Jiutickets",
+        "JiuTickets": "JiuTickets",
         "Itens Especiais": "Itens Especiais"
       };
       const targetCategory = categoryMap[category as string] || (category as string);
@@ -7962,7 +7962,7 @@ app.get("/api/store", async (req: any, res: any) => {
           "Títulos": "Títulos",
           "Pacotes VIP": "Pacotes VIP",
           "XP Boost": "XP Boost",
-          "Jiutickets": "Jiutickets",
+          "JiuTickets": "JiuTickets",
           "Itens Especiais": "Itens Especiais"
         };
         const targetCategory = categoryMap[category as string] || (category as string);

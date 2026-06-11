@@ -220,7 +220,7 @@ export default function Users() {
     
     let csvContent = "data:text/csv;charset=utf-8,";
     // Header row
-    csvContent += "ID,Nome,Email,Cargo,Faixa,Graus,Nivel,XP,ELO,Moedas KC,Saldo BRL,Suspenso,Banido\n";
+    csvContent += "ID,Nome,Email,Cargo,Faixa,Graus,Nivel,XP,ELO,Moedas JT,Saldo BRL,Suspenso,Banido\n";
     
     filteredUsers.forEach(u => {
       csvContent += `"${u.id}","${u.name}","${u.email}","${u.role}","${u.belt}",${u.stripes || 0},${u.level || 1},${u.xp || 0},${u.elo || 1000},${u.coins || 0},${(u.balanceBRL || 0).toFixed(2)},${u.isSuspended ? "Sim" : "Não"},${u.isBanned ? "Sim" : "Não"}\n`;
@@ -241,7 +241,7 @@ export default function Users() {
     if (filteredUsers.length === 0) return showToast("Sem registros para exportação.", "info");
 
     let tableHtml = "<table><thead><tr>";
-    tableHtml += "<th>ID</th><th>Nome</th><th>Email</th><th>Cargo</th><th>Faixa</th><th>Graus</th><th>Nivel</th><th>XP</th><th>ELO</th><th>Moedas (KC)</th><th>Saldo (BRL)</th><th>Suspenso</th><th>Banido</th>";
+    tableHtml += "<th>ID</th><th>Nome</th><th>Email</th><th>Cargo</th><th>Faixa</th><th>Graus</th><th>Nivel</th><th>XP</th><th>ELO</th><th>Moedas (JT)</th><th>Saldo (BRL)</th><th>Suspenso</th><th>Banido</th>";
     tableHtml += "</tr></thead><tbody>";
 
     filteredUsers.forEach(u => {
@@ -277,7 +277,7 @@ export default function Users() {
         <td style="padding: 8px;">${u.belt} (${u.stripes || 0} G)</td>
         <td style="padding: 8px;">Lvl ${u.level || 1}</td>
         <td style="padding: 8px;">${u.elo || 1000} Rating</td>
-        <td style="padding: 8px;">${u.coins || 0} KC</td>
+        <td style="padding: 8px;">${u.coins || 0} JT</td>
         <td style="padding: 8px; font-weight: bold; color:green;">R$ ${(u.balanceBRL || 0).toFixed(2)}</td>
         <td style="padding: 8px;">${u.isSuspended ? 'SUSPENSO' : u.isBanned ? 'BANIDO' : 'ATIVO'}</td>
       </tr>
@@ -308,7 +308,7 @@ export default function Users() {
                 <th>Graduação</th>
                 <th>Nível</th>
                 <th>ELO</th>
-                <th>Coins (KC)</th>
+                <th>Coins (JT)</th>
                 <th>Disponível</th>
                 <th>Estatuto</th>
               </tr>
@@ -485,7 +485,7 @@ export default function Users() {
                     </td>
                     <td className="py-3 px-3 text-xs">
                       <div className="space-y-0.5 font-mono text-[10.5px]">
-                        <p className="text-yellow-500 font-semibold">{regUser.coins || 0} KC</p>
+                        <p className="text-yellow-500 font-semibold">{regUser.coins || 0} JT</p>
                         <p className="text-emerald-400 font-medium">R$ {(regUser.balanceBRL || 0).toFixed(2)}</p>
                       </div>
                     </td>
@@ -815,7 +815,7 @@ export default function Users() {
                 </div>
 
                 <div className="space-y-1 col-span-1">
-                  <label className="text-[10px] text-slate-500 uppercase block">Coins (KC):</label>
+                  <label className="text-[10px] text-slate-500 uppercase block">Coins (JT):</label>
                   <input 
                     type="number" 
                     value={editingUser.coins}
@@ -987,8 +987,8 @@ export default function Users() {
                     <p className="font-bold text-indigo-400 text-xs">{advancedInfo.user.elo || 1000} ELO / Lvl {advancedInfo.user.level || 1}</p>
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[9px] text-slate-500 uppercase">Kimono Coins</p>
-                    <p className="font-bold text-yellow-500 text-xs">{advancedInfo.user.coins || 0} KC</p>
+                    <p className="text-[9px] text-slate-500 uppercase">JiuTickets</p>
+                    <p className="font-bold text-yellow-500 text-xs">{advancedInfo.user.coins || 0} JT</p>
                   </div>
                   <div className="space-y-0.5">
                     <p className="text-[9px] text-slate-500 uppercase">Estatuto Geral</p>
@@ -1203,7 +1203,7 @@ export default function Users() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-yellow-500 font-mono">{m.priceKC} KC</p>
+                                <p className="font-bold text-yellow-500 font-mono">{m.priceKC} JT</p>
                                 <span className={`text-[8.5px] uppercase font-bold rounded px-1.5 ${
                                   m.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
                                 }`}>
@@ -1316,7 +1316,7 @@ export default function Users() {
                                   <span className={`font-bold ${tx.amountBRL > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>R$ {tx.amountBRL.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-[8px] text-slate-500">
-                                  <span>Saldo virtual: {tx.amountKC || 0} KC</span>
+                                  <span>Saldo virtual: {tx.amountKC || 0} JT</span>
                                   <span>{new Date(tx.createdAt).toLocaleString()}</span>
                                 </div>
                               </div>
@@ -1403,7 +1403,7 @@ export default function Users() {
                                 <p className="text-[8.5px] text-slate-500">ID Cupom: <span className="text-slate-400 font-mono">{pc.id}</span></p>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-yellow-500">{pc.pricePaidKC || pc.product?.priceKC || 0} KC</p>
+                                <p className="font-bold text-yellow-500">{pc.pricePaidKC || pc.product?.priceKC || 0} JT</p>
                                 <p className="text-[8px] text-slate-500">{new Date(pc.createdAt).toLocaleString()}</p>
                               </div>
                             </div>
@@ -1434,7 +1434,7 @@ export default function Users() {
                                 <span className="text-slate-500 text-[8.5px]">{new Date(log.createdAt).toLocaleString()}</span>
                               </div>
                               <p className="text-slate-350 text-[9.5px] leading-relaxed font-sans">{log.description}</p>
-                              {log.amountKC && <p className="text-[8.5px] text-yellow-500 font-sans">XP/Moedas recebidas: +{log.amountKC} KC</p>}
+                              {log.amountKC && <p className="text-[8.5px] text-yellow-500 font-sans">XP/Moedas recebidas: +{log.amountKC} JT</p>}
                             </div>
                           ))
                         ) : (
@@ -1483,7 +1483,7 @@ export default function Users() {
                               onChange={(e) => setTransferPayload({ ...transferPayload, assetType: e.target.value as any, value: '' })}
                               className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-[10px] text-slate-200 focus:outline-none"
                             >
-                              <option value="COINS">Kimono Coins (KC)</option>
+                              <option value="COINS">JiuTickets (JT)</option>
                               <option value="XP">Estudos XP (Pontos)</option>
                               <option value="ELO">ELO Rating (Pontos)</option>
                               <option value="BELT">Graduação (Faixa Atual)</option>

@@ -478,7 +478,7 @@ export default function StoreMarket({
       else if (storeCategory === '🎒 Equipamentos') apiCategory = 'Itens Especiais';
       else if (storeCategory === '💎 Itens Premium') apiCategory = 'Pacotes VIP';
       else if (storeCategory === '🔥 Boosters XP') apiCategory = 'XP Boost';
-      else if (storeCategory === '⭐ Colecionáveis') apiCategory = 'Jiutickets';
+      else if (storeCategory === '⭐ Colecionáveis') apiCategory = 'JiuTickets';
       else if (storeCategory === '🎨 Temas de Perfil') apiCategory = 'Títulos';
 
       let apiRarity = storeRarity;
@@ -550,7 +550,7 @@ export default function StoreMarket({
   // Direct buy handler utilizing Express Secure Transaction Layer
   const handlePurchaseProduct = async (product: any) => {
     if (user.coins < product.priceJT) {
-      showToast(`Jiutickets insuficientes! Você possui ${user.coins} JT e este item custa ${product.priceJT} JT. Complete tarefas ou use cheats se necessário.`, "error");
+      showToast(`JiuTickets insuficientes! Você possui ${user.coins} JT e este item custa ${product.priceJT} JT. Complete tarefas ou use cheats se necessário.`, "error");
       return;
     }
 
@@ -729,7 +729,7 @@ export default function StoreMarket({
   // Handle Purchase of official Loja item
   const buyLojaItem = (item: InventoryItem) => {
     if (user.coins < item.price) {
-      showToast(`Jiutickets insuficientes! Você tem ${user.coins} JT e precisa de ${item.price} JT. Participe de lições ou altere cheat codes para testar.`, "error");
+      showToast(`JiuTickets insuficientes! Você tem ${user.coins} JT e precisa de ${item.price} JT. Participe de lições ou altere cheat codes para testar.`, "error");
       return;
     }
 
@@ -865,7 +865,7 @@ export default function StoreMarket({
   // Buy Peer-to-Peer marketplace item using BACKEND secure validation & anti-fraud limits
   const buyMarketplaceItem = async (item: any) => {
     if (user.coins < item.price) {
-      showToast(`Jiutickets insuficientes! Você precisa de ${item.price} JT e possui ${user.coins} JT.`, "error");
+      showToast(`JiuTickets insuficientes! Você precisa de ${item.price} JT e possui ${user.coins} JT.`, "error");
       return;
     }
 
@@ -1107,7 +1107,7 @@ export default function StoreMarket({
             <span>Loja JiuSpeak</span>
           </h3>
           <p className="text-xs text-slate-430 mt-1 max-w-2xl leading-normal">
-            Adquira kimonos de elite, rash guards personalizadas, avatares lendários, boosters de XP, medalhas lendárias e efeitos de perfil com seus Jiutickets (JT).
+            Adquira kimonos de elite, rash guards personalizadas, avatares lendários, boosters de XP, medalhas lendárias e efeitos de perfil com seus JiuTickets (JT).
           </p>
         </div>
 
@@ -1887,7 +1887,7 @@ export default function StoreMarket({
             </div>
           ) : unlockedItems.length === 0 && user.inventory.length === 0 ? (
             <div className="py-12 border border-dashed border-slate-800 rounded-2xl text-center text-slate-500 text-xs">
-              Sua biblioteca de materiais está vazia! Participe das lições e da arena prática para acumular Jiutickets e desbloquear materiais na loja virtual.
+              Sua biblioteca de materiais está vazia! Participe das lições e da arena prática para acumular JiuTickets e desbloquear materiais na loja virtual.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="inventory-grid">
@@ -2017,7 +2017,7 @@ export default function StoreMarket({
                 <ul className="text-left text-[11px] text-slate-400 space-y-2 pt-3 font-normal border-t border-slate-900">
                   <li className="flex items-center gap-1.5">💎 Liberação TOTAL de todos os cursos Premium</li>
                   <li className="flex items-center gap-1.5">🥋 Kimono Imperial Dourado Grátis no inventário</li>
-                  <li className="flex items-center gap-1.5">🏅 +2.000 Jiutickets de saldo inicial imediato</li>
+                  <li className="flex items-center gap-1.5">🏅 +2.000 JiuTickets de saldo inicial imediato</li>
                   <li className="flex items-center gap-1.5">💬 Canal de áudio exclusivo no Discord</li>
                 </ul>
               </div>
@@ -2457,7 +2457,7 @@ export default function StoreMarket({
                       <Percent className="w-3.5 h-3.5 text-red-400" />
                       <span>Item promocional ativa</span>
                     </label>
-                    <span className="text-[9.5px] text-slate-500 font-normal">Aplicar redução temporária em Jiutickets.</span>
+                    <span className="text-[9.5px] text-slate-500 font-normal">Aplicar redução temporária em JiuTickets.</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {adminForm.isPromo && (
@@ -2804,7 +2804,7 @@ export default function StoreMarket({
                   Compra Concluída!
                 </h3>
                 <p className="text-[11px] text-slate-450 max-w-xs mx-auto leading-normal font-sans">
-                  Seus Jiutickets (JT) foram computados com sucesso e o item cosmético já está na sua biblioteca portátil de conquistas.
+                  Seus JiuTickets (JT) foram computados com sucesso e o item cosmético já está na sua biblioteca portátil de conquistas.
                 </p>
               </div>
 

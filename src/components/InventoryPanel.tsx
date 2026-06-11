@@ -774,7 +774,7 @@ export default function InventoryPanel({
               <div className="space-y-1">
                 <p className="text-sm font-bold text-slate-300">Nenhum recurso encontrado nesta categoria.</p>
                 <p className="text-xs text-slate-505 max-w-sm mx-auto leading-normal">
-                  Visite a **Loja JiuSpeak** para desbloquear avatares personalizados, títulos e efeitos especiais usando seus Jiutickets.
+                  Visite a **Loja JiuSpeak** para desbloquear avatares personalizados, títulos e efeitos especiais usando seus JiuTickets.
                 </p>
               </div>
             </div>

@@ -624,7 +624,7 @@ export function AdminProvider({
   const handleQuickInfieldCoins = () => {
     const updated = user.coins + 2000;
     updateUser({ coins: updated });
-    showToast("Cheat: +2.000 KC creditados no saldo local!", "success");
+    showToast("Cheat: +2.000 JT creditados no saldo local!", "success");
   };
 
   const handleQuickInfieldXp = () => {

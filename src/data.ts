@@ -617,7 +617,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'millionaire',
     title: 'Passador Rico',
-    description: 'Acumule mais de 2.000 Jiutickets simultaneamente em seu inventário.',
+    description: 'Acumule mais de 2.000 JiuTickets simultaneamente em seu inventário.',
     icon: 'Coins',
     xpReward: 300,
     coinReward: 250,
@@ -643,7 +643,7 @@ export const INITIAL_AUDIT_LOGS: AuditLog[] = [
     userId: 'user_4593',
     userName: 'Guilherme Faixa Azul',
     type: 'pix_deposit',
-    description: 'Recarga de 1000 Jiutickets aprovada via PIX Simulador.',
+    description: 'Recarga de 1000 JiuTickets aprovada via PIX Simulador.',
     amountBRL: 19.90,
     status: 'Aprovado',
     timestamp: '2026-06-02T11:24:00Z'

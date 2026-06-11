@@ -279,7 +279,7 @@ export default function EnterpriseFinance() {
       });
       filename = "relatorio_loja_ecommerce.csv";
     } else if (type === 'market') {
-      csvContent += "ID,Item,Vendedor,Email Vendedor,Comprador,Email Comprador,Valor KC,Taxa Retida KC,Valor Equivalente BRL,Taxa Retida BRL,Data\n";
+      csvContent += "ID,Item,Vendedor,Email Vendedor,Comprador,Email Comprador,Valor JT,Taxa Retida JT,Valor Equivalente BRL,Taxa Retida BRL,Data\n";
       marketplaceSales.forEach(m => {
         csvContent += `"${m.id}","${m.itemName}","${m.sellerName}","${m.sellerEmail}","${m.buyerName}","${m.buyerEmail}","${m.pricePaidKC}","${m.feePaidKC}","${m.amountBRL.toFixed(2)}","${m.feeBRL.toFixed(2)}","${new Date(m.createdAt).toLocaleString()}"\n`;
       });
@@ -850,11 +850,11 @@ export default function EnterpriseFinance() {
                       </td>
                       <td className="p-3">
                         <span className="font-mono text-white block">R$ {m.amountBRL.toFixed(2)}</span>
-                        <span className="font-mono text-slate-500 text-[10px] block">{m.pricePaidKC} KC</span>
+                        <span className="font-mono text-slate-500 text-[10px] block">{m.pricePaidKC} JT</span>
                       </td>
                       <td className="p-3">
                         <span className="font-mono text-emerald-450 block">+ R$ {m.feeBRL.toFixed(2)}</span>
-                        <span className="font-mono text-slate-500 text-[10px] block">{m.feePaidKC} KC ({rates.marketplaceCommissionRate*100}%)</span>
+                        <span className="font-mono text-slate-500 text-[10px] block">{m.feePaidKC} JT ({rates.marketplaceCommissionRate*100}%)</span>
                       </td>
                       <td className="p-3 font-mono text-slate-450">{new Date(m.createdAt).toLocaleString()}</td>
                     </tr>
@@ -894,7 +894,7 @@ export default function EnterpriseFinance() {
                     <th className="p-3">Catálogo Produto</th>
                     <th className="p-3">Categoria</th>
                     <th className="p-3">Valor Pago (Fiat BRL)</th>
-                    <th className="p-3">Valor Pago (Virtual KC)</th>
+                    <th className="p-3">Valor Pago (Virtual JT)</th>
                     <th className="p-3">Data Aquisição</th>
                   </tr>
                 </thead>
@@ -913,7 +913,7 @@ export default function EnterpriseFinance() {
                         </span>
                       </td>
                       <td className="p-3 font-mono font-bold text-emerald-400">R$ {s.pricePaidBRL.toFixed(2)}</td>
-                      <td className="p-3 font-mono text-slate-450">{s.pricePaidKC} KC</td>
+                      <td className="p-3 font-mono text-slate-450">{s.pricePaidKC} JT</td>
                       <td className="p-3 font-mono text-slate-500">{new Date(s.createdAt).toLocaleString()}</td>
                     </tr>
                   ))}

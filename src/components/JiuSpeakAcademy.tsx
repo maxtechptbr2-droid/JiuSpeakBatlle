@@ -594,7 +594,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
         showToast(`🥋 Aula concluída com sucesso! Ganhou +${data.xpReward} XP!`, "success");
         updateUser({
           xp: user.xp + data.xpReward,
-          coins: user.coins + 20 // award bonus Jiutickets too!
+          coins: user.coins + 20 // award bonus JiuTickets too!
         });
         
         // Refresh local progress state
@@ -1442,14 +1442,14 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
             </div>
           </div>
 
-          {/* Card: Jiutickets */}
+          {/* Card: JiuTickets */}
           <div className="bg-slate-900 border border-slate-850 p-5 rounded-2xl flex items-center justify-between">
             <div className="space-y-1">
               <span className="text-[10px] font-mono text-slate-400 block uppercase">CARTEIRA JT</span>
               <span className="text-2xl font-black text-amber-500 font-mono flex items-center gap-1">
                 <Coins className="w-6 h-6 text-amber-500 fill-amber-500/10" /> {user.coins} JT
               </span>
-              <p className="text-[10px] text-slate-450 font-sans">Jiutickets para compras extras na loja.</p>
+              <p className="text-[10px] text-slate-450 font-sans">JiuTickets para compras extras na loja.</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
               <Coins className="w-6 h-6 text-amber-500" />
