@@ -19,111 +19,89 @@ enum Rarity {
   MYTHIC
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // ==========================================
 // CORE DOMAIN MODELS
 // ==========================================
 
 model User {
-  id                String       @id @default(uuid())
-  email             String       @unique
+  id                String    @id @default(uuid())
+  email             String    @unique
   name              String
   password          String
-  isEmailVerified   Boolean      @default(false)
+  isEmailVerified   Boolean   @default(false)
   verificationToken String?
   resetToken        String?
   resetTokenExpires DateTime?
   refreshToken      String?
   avatar            String?
-  role              String     @default("ATHLETE")
-  isAdminApproved   Boolean      @default(true)
-  isSuspended       Boolean      @default(false)
-  isBanned          Boolean      @default(false)
-  belt              String     @default("WHITE")
-  stripes           Int          @default(0)
-  xp                Int          @default(0)
-  level             Int          @default(1)
-  elo               Int          @default(1000)
-  bio               String?      @default("")
-  city              String?      @default("")
-  country           String?      @default("")
-  nativeLanguage    String?      @default("")
-  learningGoal      String?      @default("")
-  profilePhoto      String?      @default("")
-  coverPhoto        String?      @default("")
-  instagram         String?      @default("")
-  youtube           String?      @default("")
-  facebook          String?      @default("")
-  website           String?      @default("")
+  role              String    @default("ATHLETE")
+  isAdminApproved   Boolean   @default(true)
+  isSuspended       Boolean   @default(false)
+  isBanned          Boolean   @default(false)
+  belt              String    @default("WHITE")
+  stripes           Int       @default(0)
+  xp                Int       @default(0)
+  level             Int       @default(1)
+  elo               Int       @default(1000)
+  bio               String?   @default("")
+  city              String?   @default("")
+  country           String?   @default("")
+  nativeLanguage    String?   @default("")
+  learningGoal      String?   @default("")
+  profilePhoto      String?   @default("")
+  coverPhoto        String?   @default("")
+  instagram         String?   @default("")
+  youtube           String?   @default("")
+  facebook          String?   @default("")
+  website           String?   @default("")
   birthDate         DateTime?
   phone             String?
   englishLevel      String?
   spanishLevel      String?
   frenchLevel       String?
-  onboardingDone    Boolean      @default(false)
+  onboardingDone    Boolean   @default(false)
   lastLoginAt       DateTime?
-  username          String?      @unique
+  username          String?   @unique
   beltRank          String?
   favoriteTechnique String?
   favoriteAthlete   String?
-  privacyLevel      String?      @default("public")
-  followersCount    Int          @default(0)
-  followingCount    Int          @default(0)
+  privacyLevel      String?   @default("public")
+  followersCount    Int       @default(0)
+  followingCount    Int       @default(0)
   themeColor        String?
   avatarFrame       String?
-  isVerified        Boolean      @default(false)
-  vipActive         Boolean      @default(false)
-  masterActive      Boolean      @default(false)
-  subscriptionType  String?      @default("FREE")
+  isVerified        Boolean   @default(false)
+  vipActive         Boolean   @default(false)
+  masterActive      Boolean   @default(false)
+  subscriptionType  String?   @default("FREE")
   subscriptionUntil DateTime?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relationships
-  wallet                    Wallet?
-  bankAccounts              BankAccount[]
-  subscriptions             Subscription[]
-  payments                  Payment[]
-  userAchievements          UserAchievement[]
-  inventory                 Inventory?
-  storeSales                StoreSale[]
-  marketplaceSalesAsBuyer   MarketplaceSale[]
-  marketplaceItemsForSale   MarketplaceItem[]
-  pvpMatchesAsChallenger    PvpMatch[]            @relation("ChallengerMatches")
-  pvpMatchesAsDefender      PvpMatch[]            @relation("DefenderMatches")
-  pvpMatchesAsWinner        PvpMatch[]            @relation("WinnerMatches")
-  pvpAnswers                PvpAnswer[]
-  rank                      Rank?
-  notifications             Notification[]
-  auditLogs                 AuditLog[]
-  socialPosts               SocialPost[]
-  comments                  Comment[]
-  likes                     Like[]
-  followers                 Follower[]            @relation("UserFollowers")
-  following                 Follower[]            @relation("UserFollowing")
-  refreshTokens             RefreshToken[]
-  academyProgress           AcademyProgress[]
+  wallet                  Wallet?
+  bankAccounts            BankAccount[]
+  subscriptions           Subscription[]
+  payments                Payment[]
+  userAchievements        UserAchievement[]
+  inventory               Inventory?
+  storeSales              StoreSale[]
+  marketplaceSalesAsBuyer MarketplaceSale[]
+  marketplaceItemsForSale MarketplaceItem[]
+  pvpMatchesAsChallenger  PvpMatch[]        @relation("ChallengerMatches")
+  pvpMatchesAsDefender    PvpMatch[]        @relation("DefenderMatches")
+  pvpMatchesAsWinner      PvpMatch[]        @relation("WinnerMatches")
+  pvpAnswers              PvpAnswer[]
+  rank                    Rank?
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  socialPosts             SocialPost[]
+  comments                Comment[]
+  likes                   Like[]
+  followers               Follower[]        @relation("UserFollowers")
+  following               Follower[]        @relation("UserFollowing")
+  refreshTokens           RefreshToken[]
+  academyProgress         AcademyProgress[]
 
   @@index([belt])
   @@index([level])
@@ -134,11 +112,11 @@ model Wallet {
   id               String   @id @default(uuid())
   userId           String   @unique
   balanceJT        Int      @default(0) // JiuTickets (Platform virtual coin)
-  balanceBRL       Decimal  @default(0.00)  // Instructor/Saas real monetary balance
-  balanceAvailable Decimal  @default(0.00)  // Saldo disponível para saque
-  balancePending   Decimal  @default(0.00)  // Saldo pendente (vendas aprovadas)
-  totalEarned      Decimal  @default(0.00)  // Total ganho acumulado
-  totalWithdrawn   Decimal  @default(0.00)  // Total sacado acumulado
+  balanceBRL       Decimal  @default(0.00) // Instructor/Saas real monetary balance
+  balanceAvailable Decimal  @default(0.00) // Saldo disponível para saque
+  balancePending   Decimal  @default(0.00) // Saldo pendente (vendas aprovadas)
+  totalEarned      Decimal  @default(0.00) // Total ganho acumulado
+  totalWithdrawn   Decimal  @default(0.00) // Total sacado acumulado
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -149,15 +127,15 @@ model Wallet {
 }
 
 model Transaction {
-  id          String            @id @default(uuid())
+  id          String   @id @default(uuid())
   walletId    String
   amountJT    Int?
-  amountBRL   Decimal?          
+  amountBRL   Decimal?
   type        String
-  status      String @default("PENDING")
+  status      String   @default("PENDING")
   description String?
-  referenceId String?           // Tracking code linked to Purchases (StoreSale, P2PSale ID)
-  createdAt   DateTime          @default(now())
+  referenceId String? // Tracking code linked to Purchases (StoreSale, P2PSale ID)
+  createdAt   DateTime @default(now())
 
   // Relationships
   wallet     Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
@@ -170,14 +148,14 @@ model Transaction {
 }
 
 model PixPayment {
-  id              String        @id @default(uuid())
-  transactionId   String        @unique
-  qrCode          String        
-  qrCodeCopyPaste String        
-  txid            String        @unique
-  amountBRL       Decimal       
-  status          String @default("PENDING")
-  createdAt       DateTime      @default(now())
+  id              String    @id @default(uuid())
+  transactionId   String    @unique
+  qrCode          String
+  qrCodeCopyPaste String
+  txid            String    @unique
+  amountBRL       Decimal
+  status          String    @default("PENDING")
+  createdAt       DateTime  @default(now())
   expiresAt       DateTime
   paidAt          DateTime?
 
@@ -193,7 +171,7 @@ model BankAccount {
   bankName      String
   agency        String
   accountNumber String
-  accountType   String   // Corrente, Poupança, etc.
+  accountType   String // Corrente, Poupança, etc.
   pixKey        String?
   pixKeyType    String?
   isPrimary     Boolean  @default(false)
@@ -208,16 +186,16 @@ model BankAccount {
 }
 
 model Withdrawal {
-  id            String           @id @default(uuid())
+  id            String   @id @default(uuid())
   walletId      String
   bankAccountId String
-  amountBRL     Decimal          
-  status        String @default("PENDING")
+  amountBRL     Decimal
+  status        String   @default("PENDING")
   pixKey        String
   pixKeyType    String
-  notes         String?          
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relationships
   wallet      Wallet      @relation(fields: [walletId], references: [id], onDelete: Cascade)
@@ -233,10 +211,10 @@ model Withdrawal {
 model WithdrawalAudit {
   id           String   @id @default(uuid())
   withdrawalId String
-  action       String   // REQUEST, BLOCKED_BALANCE, ADMIN_APPROVE, PIX_DISPATCHED, ADMIN_REJECT, RESTORED_BALANCE
+  action       String // REQUEST, BLOCKED_BALANCE, ADMIN_APPROVE, PIX_DISPATCHED, ADMIN_REJECT, RESTORED_BALANCE
   actorId      String?
   actorName    String?
-  details      String   
+  details      String
   ipAddress    String?
   createdAt    DateTime @default(now())
 
@@ -246,19 +224,19 @@ model WithdrawalAudit {
 }
 
 model Subscription {
-  id              String             @id @default(uuid())
-  userId          String
-  planId          String
-  planType        String?            // PRO, MASTER, etc.
-  provider        String?            // STRIPE, MERCADOPAGO, FREE
-  externalId      String?            // Stripe subscription ID or checkout session ID
-  amount          Decimal?           
-  status          String @default("ACTIVE")
-  startDate       DateTime           @default(now())
-  endDate         DateTime
-  canceledAt      DateTime?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id         String    @id @default(uuid())
+  userId     String
+  planId     String
+  planType   String? // PRO, MASTER, etc.
+  provider   String? // STRIPE, MERCADOPAGO, FREE
+  externalId String? // Stripe subscription ID or checkout session ID
+  amount     Decimal?
+  status     String    @default("ACTIVE")
+  startDate  DateTime  @default(now())
+  endDate    DateTime
+  canceledAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // Relationships
   user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -277,7 +255,7 @@ model Payment {
   subscriptionId String
   provider       String
   status         String
-  amount         Decimal  
+  amount         Decimal
   currency       String
   transactionId  String   @unique
   payerEmail     String?
@@ -296,7 +274,7 @@ model PaymentLog {
   provider      String?
   transactionId String?
   status        String?
-  amount        Decimal? 
+  amount        Decimal?
   payerEmail    String?
   payerName     String?
   createdAt     DateTime @default(now())
@@ -307,19 +285,19 @@ model WebhookLog {
   provider      String?
   transactionId String?
   status        String?
-  amount        Decimal? 
+  amount        Decimal?
   payerEmail    String?
   payerName     String?
-  payload       String?  
+  payload       String?
   createdAt     DateTime @default(now())
 }
 
 model Plan {
   id          String   @id @default(uuid())
   name        String   @unique
-  description String?  
-  priceBRL    Decimal  
-  interval    String   // monthly, yearly
+  description String?
+  priceBRL    Decimal
+  interval    String // monthly, yearly
   features    String[]
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -331,16 +309,16 @@ model Plan {
 }
 
 model SubscriptionPayment {
-  id              String        @id @default(uuid())
+  id              String    @id @default(uuid())
   subscriptionId  String
-  amountBRL       Decimal       
-  status          String @default("PENDING")
-  txid            String?       @unique
-  qrCode          String?       
-  qrCodeCopyPaste String?       
+  amountBRL       Decimal
+  status          String    @default("PENDING")
+  txid            String?   @unique
+  qrCode          String?
+  qrCodeCopyPaste String?
   paidAt          DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relationships
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -353,11 +331,11 @@ model SubscriptionPayment {
 model Achievement {
   id              String   @id @default(uuid())
   title           String   @unique
-  description     String   
+  description     String
   xpReward        Int
   coinReward      Int
   requirementCode String   @unique // Internal programmatic check name (e.g., 'LessonsCompleted')
-  targetValue     Int      // Numerical threshold to lock/unlock
+  targetValue     Int // Numerical threshold to lock/unlock
   imageUrl        String?
   createdAt       DateTime @default(now())
 
@@ -398,9 +376,9 @@ model Inventory {
 model InventoryItem {
   id          String   @id @default(uuid())
   inventoryId String
-  productId   String?  // References official catalog product, nullable if custom listing/drop
+  productId   String? // References official catalog product, nullable if custom listing/drop
   name        String
-  description String?  
+  description String?
   rarity      Rarity   @default(COMMON)
   imageUrl    String?
   isEquipped  Boolean  @default(false)
@@ -417,25 +395,25 @@ model InventoryItem {
 }
 
 model StoreProduct {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String   
-  priceJT     Int
-  priceBRL    Decimal?  // Optional fiat pricing for premium cosmetics
-  category    String   // GI, BELT_STRIPE, AVATAR, TITLE_TAG
-  rarity      Rarity   @default(COMMON)
-  imageUrl    String?
-  stock       Int?     // Null means infinite stock
-  active      Boolean  @default(true)
-  isPromo     Boolean  @default(false)
+  id           String    @id @default(uuid())
+  name         String    @unique
+  description  String
+  priceJT      Int
+  priceBRL     Decimal? // Optional fiat pricing for premium cosmetics
+  category     String // GI, BELT_STRIPE, AVATAR, TITLE_TAG
+  rarity       Rarity    @default(COMMON)
+  imageUrl     String?
+  stock        Int? // Null means infinite stock
+  active       Boolean   @default(true)
+  isPromo      Boolean   @default(false)
   promoPriceJT Int?
-  isBundle    Boolean  @default(false)
-  isSeasonal  Boolean  @default(false)
-  isExclusive Boolean  @default(false)
+  isBundle     Boolean   @default(false)
+  isSeasonal   Boolean   @default(false)
+  isExclusive  Boolean   @default(false)
   releaseDate  DateTime? // Programmed launch date/time
   promoEndDate DateTime? // Programmed promotion end date/time
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Relationships
   storeSales     StoreSale[]
@@ -446,12 +424,12 @@ model StoreProduct {
 }
 
 model StoreSale {
-  id          String   @id @default(uuid())
-  productId   String
-  buyerId     String
-  pricePaidJT Int?
-  pricePaidBRL Decimal? 
-  createdAt   DateTime @default(now())
+  id           String   @id @default(uuid())
+  productId    String
+  buyerId      String
+  pricePaidJT  Int?
+  pricePaidBRL Decimal?
+  createdAt    DateTime @default(now())
 
   // Relationships
   product StoreProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -486,7 +464,7 @@ model MarketplaceSale {
   marketplaceItemId String   @unique
   buyerId           String
   pricePaidJT       Int
-  feePaidJT         Int      // Platform fee collected from transit
+  feePaidJT         Int // Platform fee collected from transit
   createdAt         DateTime @default(now())
 
   // Relationships
@@ -497,19 +475,19 @@ model MarketplaceSale {
 }
 
 model PvpMatch {
-  id                  String         @id @default(uuid())
+  id                  String   @id @default(uuid())
   challengerId        String
   defenderId          String
   winnerId            String?
-  challengerScore     Int            @default(0)
-  defenderScore       Int            @default(0)
-  xpReward            Int            @default(0)
-  coinReward          Int            @default(0)
+  challengerScore     Int      @default(0)
+  defenderScore       Int      @default(0)
+  xpReward            Int      @default(0)
+  coinReward          Int      @default(0)
   eloChangeChallenger Int?
   eloChangeDefender   Int?
-  status              String @default("PENDING")
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  status              String   @default("PENDING")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // Relationships
   challenger User       @relation("ChallengerMatches", fields: [challengerId], references: [id], onDelete: Cascade)
@@ -541,21 +519,21 @@ model PvpRound {
 
 model PvpQuestion {
   id            String   @id @default(uuid())
-  text          String   
+  text          String
   category      String
   difficulty    String
   optionA       String
   optionB       String
   optionC       String
   optionD       String
-  correctOption String   // "A", "B", "C" or "D"
-  explanation   String?  
+  correctOption String // "A", "B", "C" or "D"
+  explanation   String?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
 
   // Relationships
-  pvpRounds   PvpRound[]
-  pvpAnswers  PvpAnswer[]
+  pvpRounds  PvpRound[]
+  pvpAnswers PvpAnswer[]
 
   @@index([category])
   @@index([category, isActive])
@@ -597,14 +575,14 @@ model Rank {
 }
 
 model Notification {
-  id        String           @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    String
   title     String
-  content   String           
-  type      String @default("SYSTEM")
-  isRead    Boolean          @default(false)
-  linkTo    String?          // Redirection link within the platform
-  createdAt DateTime         @default(now())
+  content   String
+  type      String   @default("SYSTEM")
+  isRead    Boolean  @default(false)
+  linkTo    String? // Redirection link within the platform
+  createdAt DateTime @default(now())
 
   // Relationships
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -614,15 +592,15 @@ model Notification {
 }
 
 model AuditLog {
-  id          String          @id @default(uuid())
+  id          String   @id @default(uuid())
   actorId     String?
   action      String
-  description String          
+  description String
   ipAddress   String?
   userAgent   String?
-  amountBRL   Decimal?        
+  amountBRL   Decimal?
   amountJT    Int?
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime @default(now())
 
   // Relationships
   actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
@@ -635,8 +613,8 @@ model AuditLog {
 model SocialPost {
   id           String   @id @default(uuid())
   authorId     String
-  content      String   
-  category     String   // "#treinos", "#duvidas-posicoes", "#memes-tatame", "#campeonatos"
+  content      String
+  category     String // "#treinos", "#duvidas-posicoes", "#memes-tatame", "#campeonatos"
   imageUrl     String?
   upvotesCount Int      @default(0)
   createdAt    DateTime @default(now())
@@ -657,7 +635,7 @@ model Comment {
   id        String   @id @default(uuid())
   postId    String
   authorId  String
-  content   String   
+  content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -707,7 +685,7 @@ model RefreshToken {
   isRevoked  Boolean  @default(false)
   ipAddress  String?
   userAgent  String?
-  replacedBy String?  // Stores the newer token in the rotation chain
+  replacedBy String? // Stores the newer token in the rotation chain
 
   @@index([userId])
 }
@@ -725,22 +703,22 @@ model LoginAttempt {
 }
 
 model AcademyModule {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   description String
   beltLevel   String
   orderIndex  Int
-  active      Boolean  @default(true)
+  active      Boolean         @default(true)
   lessons     AcademyLesson[]
 }
 
 model AcademyLesson {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   moduleId    String
   title       String
   description String
   youtubeUrl  String
-  xpReward    Int      @default(100)
+  xpReward    Int    @default(100)
   orderIndex  Int
 
   module AcademyModule @relation(fields: [moduleId], references: [id])
@@ -755,5 +733,3 @@ model AcademyProgress {
 
   user User @relation(fields: [userId], references: [id])
 }
-
-
