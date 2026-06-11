@@ -83,7 +83,7 @@ interface AcademyTournament {
   academyId: string;
   name: string;
   beltRestriction: string;
-  prizePoolKC: number;
+  prizePoolJT: number;
   status: 'Inscrições Abertas' | 'Em Andamento' | 'Concluído';
   competitorsCount: number;
   matches: { round: string; p1: string; p2: string; winner?: string }[];
@@ -97,7 +97,7 @@ interface AcademyChallenge {
   targetName: string;
   discipline: string;
   beltRestriction: string;
-  prizeKC: number;
+  prizeJT: number;
   status: 'Pendente' | 'Aceito' | 'Concluído';
   date: string;
   winnerName?: string;
@@ -302,7 +302,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         academyId: 'atama_team',
         name: 'Taça de Outono de Fluência Atama',
         beltRestriction: 'Todas as Faixas',
-        prizePoolKC: 1500,
+        prizePoolJT: 1500,
         status: 'Inscrições Abertas',
         competitorsCount: 16,
         matches: [
@@ -316,7 +316,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         academyId: 'atama_team',
         name: 'Desafio Interno de Guarda Fechada ("Closed Guard")',
         beltRestriction: 'Iniciantes (Branca e Azul)',
-        prizePoolKC: 800,
+        prizePoolJT: 800,
         status: 'Em Andamento',
         competitorsCount: 8,
         matches: [
@@ -341,7 +341,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         targetName: 'Atama Virtual Team',
         discipline: 'Vocabulário Ativo e Regras',
         beltRestriction: 'Faixa Azul e Roxa',
-        prizeKC: 1000,
+        prizeJT: 1000,
         status: 'Pendente',
         date: 'Próxima Quinta, 20h'
       },
@@ -353,7 +353,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         targetName: 'Checkmat',
         discipline: 'Sparring de Áudio AI Real',
         beltRestriction: 'Sem Limites (Absoluto)',
-        prizeKC: 1500,
+        prizeJT: 1500,
         status: 'Aceito',
         date: 'Próxima Sexta, 21h'
       }
@@ -408,7 +408,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
   const [challTargetId, setChallTargetId] = useState<string>('');
   const [challDiscipline, setChallDiscipline] = useState<string>('Sparring de Áudio AI Real');
   const [challBeltLimit, setChallBeltLimit] = useState<string>('Todas as Faixas');
-  const [challPrizeKC, setChallPrizeKC] = useState<number>(300);
+  const [challPrizeJT, setChallPrizeKC] = useState<number>(300);
 
   // 5. Get current selected academy
   const activeAcademy = academies.find(ac => ac.id === selectedAcademyId);
@@ -537,7 +537,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
       academyId: selectedAcademyId,
       name: tourName,
       beltRestriction: tourBeltRest,
-      prizePoolKC: tourPrize,
+      prizePoolJT: tourPrize,
       status: 'Inscrições Abertas',
       competitorsCount: 6,
       matches: [
@@ -580,7 +580,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
       targetName: targetAc.name,
       discipline: challDiscipline,
       beltRestriction: challBeltLimit,
-      prizeKC: challPrizeKC,
+      prizeJT: challPrizeJT,
       status: 'Pendente',
       date: 'Neste final de semana, às 18h'
     };
@@ -1592,7 +1592,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                           <div>
                             <h4 className="font-display font-black text-xs text-white uppercase">{tr.name}</h4>
                             <p className="text-[9px] text-slate-400 mt-1 font-mono">
-                              Restrição: {tr.beltRestriction} • 🏅 {tr.prizePoolKC} JT de prêmio
+                              Restrição: {tr.beltRestriction} • 🏅 {tr.prizePoolJT} JT de prêmio
                             </p>
                           </div>
 
@@ -1732,7 +1732,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                             <label className="text-[8.5px] uppercase text-slate-500 font-mono block">Bilhete / Aposta (JT)</label>
                             <input 
                               type="number" 
-                              value={challPrizeKC} 
+                              value={challPrizeJT} 
                               onChange={(e) => setChallPrizeKC(parseInt(e.target.value || '100'))}
                               className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-xs text-slate-300"
                               required
@@ -1770,7 +1770,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                               Modalidade: <strong>{ch.discipline}</strong> • Nível: <strong>{ch.beltRestriction}</strong>
                             </p>
                             <p className="text-[9px] text-indigo-400 font-mono select-none">
-                              📅 Luta agendada: {ch.date} • Aposta: 🪙 {ch.prizeKC} JT
+                              📅 Luta agendada: {ch.date} • Aposta: 🪙 {ch.prizeJT} JT
                             </p>
                           </div>
 

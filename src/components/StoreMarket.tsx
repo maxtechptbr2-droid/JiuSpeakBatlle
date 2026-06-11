@@ -129,7 +129,7 @@ export function ConfettiRain() {
 interface StoreMarketProps {
   user: UserProfile;
   updateUser: (newUser: Partial<UserProfile>) => void;
-  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtKC?: number) => void;
+  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtJT?: number) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
   setCurrentTab?: (tab: string) => void;
 }

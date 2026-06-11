@@ -77,7 +77,7 @@ interface StoreSaleItem {
   productId: string;
   buyerId: string;
   pricePaidBRL: number;
-  pricePaidKC: number;
+  pricePaidJT: number;
   createdAt: string;
   productName: string;
   buyerName: string;
@@ -92,8 +92,8 @@ interface MarketplaceSaleItem {
   sellerEmail: string;
   buyerName: string;
   buyerEmail: string;
-  pricePaidKC: number;
-  feePaidKC: number;
+  pricePaidJT: number;
+  feePaidJT: number;
   amountBRL: number;
   feeBRL: number;
   createdAt: string;
@@ -275,13 +275,13 @@ export default function EnterpriseFinance() {
     } else if (type === 'store') {
       csvContent += "ID,Comprador,Email,Produto,Categoria,Pago BRL,Pago KimonoCoins,Data de Compra\n";
       storeSales.forEach(s => {
-        csvContent += `"${s.id}","${s.buyerName}","${s.buyerEmail}","${s.productName}","${s.category}","${s.pricePaidBRL.toFixed(2)}","${s.pricePaidKC}","${new Date(s.createdAt).toLocaleString()}"\n`;
+        csvContent += `"${s.id}","${s.buyerName}","${s.buyerEmail}","${s.productName}","${s.category}","${s.pricePaidBRL.toFixed(2)}","${s.pricePaidJT}","${new Date(s.createdAt).toLocaleString()}"\n`;
       });
       filename = "relatorio_loja_ecommerce.csv";
     } else if (type === 'market') {
       csvContent += "ID,Item,Vendedor,Email Vendedor,Comprador,Email Comprador,Valor JT,Taxa Retida JT,Valor Equivalente BRL,Taxa Retida BRL,Data\n";
       marketplaceSales.forEach(m => {
-        csvContent += `"${m.id}","${m.itemName}","${m.sellerName}","${m.sellerEmail}","${m.buyerName}","${m.buyerEmail}","${m.pricePaidKC}","${m.feePaidKC}","${m.amountBRL.toFixed(2)}","${m.feeBRL.toFixed(2)}","${new Date(m.createdAt).toLocaleString()}"\n`;
+        csvContent += `"${m.id}","${m.itemName}","${m.sellerName}","${m.sellerEmail}","${m.buyerName}","${m.buyerEmail}","${m.pricePaidJT}","${m.feePaidJT}","${m.amountBRL.toFixed(2)}","${m.feeBRL.toFixed(2)}","${new Date(m.createdAt).toLocaleString()}"\n`;
       });
       filename = "relatorio_marketplace_atividades.csv";
     } else if (type === 'pix') {
@@ -850,11 +850,11 @@ export default function EnterpriseFinance() {
                       </td>
                       <td className="p-3">
                         <span className="font-mono text-white block">R$ {m.amountBRL.toFixed(2)}</span>
-                        <span className="font-mono text-slate-500 text-[10px] block">{m.pricePaidKC} JT</span>
+                        <span className="font-mono text-slate-500 text-[10px] block">{m.pricePaidJT} JT</span>
                       </td>
                       <td className="p-3">
                         <span className="font-mono text-emerald-450 block">+ R$ {m.feeBRL.toFixed(2)}</span>
-                        <span className="font-mono text-slate-500 text-[10px] block">{m.feePaidKC} JT ({rates.marketplaceCommissionRate*100}%)</span>
+                        <span className="font-mono text-slate-500 text-[10px] block">{m.feePaidJT} JT ({rates.marketplaceCommissionRate*100}%)</span>
                       </td>
                       <td className="p-3 font-mono text-slate-450">{new Date(m.createdAt).toLocaleString()}</td>
                     </tr>
@@ -913,7 +913,7 @@ export default function EnterpriseFinance() {
                         </span>
                       </td>
                       <td className="p-3 font-mono font-bold text-emerald-400">R$ {s.pricePaidBRL.toFixed(2)}</td>
-                      <td className="p-3 font-mono text-slate-450">{s.pricePaidKC} JT</td>
+                      <td className="p-3 font-mono text-slate-450">{s.pricePaidJT} JT</td>
                       <td className="p-3 font-mono text-slate-500">{new Date(s.createdAt).toLocaleString()}</td>
                     </tr>
                   ))}

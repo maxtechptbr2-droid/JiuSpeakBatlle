@@ -4909,8 +4909,8 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
     const safeMarketplaceSales = marketplaceSales.map(m => {
       const kc = m.pricePaidJT || 0;
       const amountBRL = kc * 0.10; 
-      const feeKC = m.feePaidJT || 0;
-      const feeBRL = feeKC * 0.10;
+      const feeJT = m.feePaidJT || 0;
+      const feeBRL = feeJT * 0.10;
 
       const sellerName = m.marketplaceItem?.seller?.name || "Vendedor Local";
       const sellerEmail = m.marketplaceItem?.seller?.email || "seller@market.com";
@@ -4926,7 +4926,7 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
         buyerName,
         buyerEmail,
         pricePaidJT: kc,
-        feePaidJT: feeKC,
+        feePaidJT: feeJT,
         amountBRL,
         feeBRL,
         createdAt: m.createdAt
@@ -7675,7 +7675,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     // Platform takes 10% commission on P2P trading activity
     const commissionRate = 0.10;
     const feePaidJT = Math.ceil(priceJT * commissionRate);
-    const sellerNetKC = priceJT - feePaidJT;
+    const sellerNetJT = priceJT - feePaidJT;
 
     // E. ASSESS RISK SCORE & COLLUSION ENGINE (RISK METRICS)
     let riskScore = 15;
@@ -7697,7 +7697,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     await authStore.updateUser(buyerId, { coins: updatedBuyerCoins });
 
     if (sellerObj) {
-      const updatedSellerCoins = (sellerObj.coins ?? 0) + sellerNetKC;
+      const updatedSellerCoins = (sellerObj.coins ?? 0) + sellerNetJT;
       await authStore.updateUser(sellerId, { coins: updatedSellerCoins });
     }
 
@@ -7730,7 +7730,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     inMemoryMarketplaceSales.unshift(newSale);
 
     // H. AUDITING AND LOGGING DISPATCH
-    const auditText = `Mercado P2P: Atleta "${buyerName}" adquiriu "${itemDetails.name}" de "${sellerName}" por ${priceJT} JT. Comissão de 10% cobrada: ${feePaidJT} JT (Plataforma). Vended net: ${sellerNetKC} JT. Risco: ${riskScore}% (${saleStatus}).`;
+    const auditText = `Mercado P2P: Atleta "${buyerName}" adquiriu "${itemDetails.name}" de "${sellerName}" por ${priceJT} JT. Comissão de 10% cobrada: ${feePaidJT} JT (Plataforma). Vended net: ${sellerNetJT} JT. Risco: ${riskScore}% (${saleStatus}).`;
     
     if (prisma) {
       try {
@@ -7761,9 +7761,9 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       success: true,
       message: `Negócio fechado! O item "${itemDetails.name}" foi transferido sob a supervisão do motor antifraude.`,
       commission: {
-        paidKC: feePaidJT,
+        paidJT: feePaidJT,
         rate: "10%",
-        sellerReceived: sellerNetKC
+        sellerReceived: sellerNetJT
       },
       sale: newSale
     });

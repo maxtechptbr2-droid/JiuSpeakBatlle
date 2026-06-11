@@ -35,7 +35,7 @@ interface StoreItemPayload {
   id?: string;
   name: string;
   description: string;
-  priceKC: number;
+  priceJT: number;
   priceBRL: number | null;
   category: string;
   rarity: string;
@@ -43,7 +43,7 @@ interface StoreItemPayload {
   stock: number | null;
   active: boolean;
   isPromo: boolean;
-  promoPriceKC: number | null;
+  promoPriceJT: number | null;
   releaseDate: string | null;
   promoEndDate: string | null;
 }
@@ -81,7 +81,7 @@ export default function StoreProducts() {
   const [formData, setFormData] = useState<StoreItemPayload>({
     name: "",
     description: "",
-    priceKC: 1000,
+    priceJT: 1000,
     priceBRL: null,
     category: "Itens Especiais",
     rarity: "COMMON",
@@ -89,7 +89,7 @@ export default function StoreProducts() {
     stock: null,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     releaseDate: null,
     promoEndDate: null
   });
@@ -131,7 +131,7 @@ export default function StoreProducts() {
     setFormData({
       name: "",
       description: "",
-      priceKC: 1000,
+      priceJT: 1000,
       priceBRL: null,
       category: "AVATAR",
       rarity: "COMMON",
@@ -139,7 +139,7 @@ export default function StoreProducts() {
       stock: null,
       active: true,
       isPromo: false,
-      promoPriceKC: null,
+      promoPriceJT: null,
       releaseDate: null,
       promoEndDate: null
     });
@@ -156,7 +156,7 @@ export default function StoreProducts() {
     setFormData({
       name: prod.name,
       description: prod.description || "",
-      priceKC: prod.priceKC,
+      priceJT: prod.priceJT,
       priceBRL: prod.priceBRL !== null && prod.priceBRL !== undefined ? Number(prod.priceBRL) : null,
       category: prod.category,
       rarity: prod.rarity,
@@ -164,7 +164,7 @@ export default function StoreProducts() {
       stock: prod.stock !== null && prod.stock !== undefined ? Number(prod.stock) : null,
       active: prod.active !== undefined ? Boolean(prod.active) : true,
       isPromo: prod.isPromo !== undefined ? Boolean(prod.isPromo) : false,
-      promoPriceKC: prod.promoPriceKC !== null && prod.promoPriceKC !== undefined ? Number(prod.promoPriceKC) : null,
+      promoPriceJT: prod.promoPriceJT !== null && prod.promoPriceJT !== undefined ? Number(prod.promoPriceJT) : null,
       releaseDate: prod.releaseDate || null,
       promoEndDate: prod.promoEndDate || null
     });
@@ -200,7 +200,7 @@ export default function StoreProducts() {
       showToast("O nome do item é obrigatório.", "error");
       return;
     }
-    if (formData.priceKC < 0) {
+    if (formData.priceJT < 0) {
       showToast("O preço em JiuTickets não pode ser negativo.", "error");
       return;
     }
@@ -210,7 +210,7 @@ export default function StoreProducts() {
       ...formData,
       releaseDate: dateFieldUseRelease && releaseDateString ? new Date(releaseDateString).toISOString() : null,
       promoEndDate: dateFieldUsePromoEnd && promoEndDateString ? new Date(promoEndDateString).toISOString() : null,
-      promoPriceKC: formData.isPromo ? (formData.promoPriceKC !== null ? Number(formData.promoPriceKC) : null) : null
+      promoPriceJT: formData.isPromo ? (formData.promoPriceJT !== null ? Number(formData.promoPriceJT) : null) : null
     };
 
     try {
@@ -316,12 +316,12 @@ export default function StoreProducts() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ priceKC: nextVal })
+        body: JSON.stringify({ priceJT: nextVal })
       });
       const data = await res.json();
       if (data && data.success) {
         showToast("Preço atualizado com sucesso!", "success");
-        setProducts(prev => prev.map(p => p.id === id ? { ...p, priceKC: nextVal } : p));
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, priceJT: nextVal } : p));
       }
     } catch (E) {
       showToast("Erro ao atualizar preço diretamente.", "error");
@@ -561,15 +561,15 @@ export default function StoreProducts() {
                       <div className="space-y-0.5">
                         <button
                           type="button"
-                          onClick={() => handleQuickPriceChange(prod.id, prod.priceKC)}
+                          onClick={() => handleQuickPriceChange(prod.id, prod.priceJT)}
                           className="font-bold text-slate-101 hover:text-indigo-400 hover:underline cursor-pointer text-xs"
                           title="Clique para alterar preço em JT"
                         >
-                          {prod.priceKC.toLocaleString()} JT
+                          {prod.priceJT.toLocaleString()} JT
                         </button>
-                        {isPromoActive && prod.promoPriceKC !== null && (
+                        {isPromoActive && prod.promoPriceJT !== null && (
                           <p className="text-[9.5px] text-rose-450 font-bold line-through ml-auto block">
-                            De {prod.priceKC} JT
+                            De {prod.priceJT} JT
                           </p>
                         )}
                       </div>
@@ -746,8 +746,8 @@ export default function StoreProducts() {
                       type="number"
                       required
                       min={0}
-                      value={formData.priceKC}
-                      onChange={(e) => setFormData(prev => ({ ...prev, priceKC: Number(e.target.value) }))}
+                      value={formData.priceJT}
+                      onChange={(e) => setFormData(prev => ({ ...prev, priceJT: Number(e.target.value) }))}
                       className="w-full bg-slate-950 border border-slate-850 p-2.5 pl-8.5 rounded-lg text-slate-101 focus:outline-none focus:border-indigo-500 text-xs font-mono text-slate-100"
                     />
                     <Coins className="w-3.5 h-3.5 text-amber-500 absolute left-3 top-3" />
@@ -867,10 +867,10 @@ export default function StoreProducts() {
                           required
                           min={0}
                           placeholder="Valor de desconto"
-                          value={formData.promoPriceKC === null ? "" : formData.promoPriceKC}
+                          value={formData.promoPriceJT === null ? "" : formData.promoPriceJT}
                           onChange={(e) => {
                             const valStr = e.target.value;
-                            setFormData(prev => ({ ...prev, promoPriceKC: valStr === "" ? null : Number(valStr) }));
+                            setFormData(prev => ({ ...prev, promoPriceJT: valStr === "" ? null : Number(valStr) }));
                           }}
                           className="w-full bg-slate-900 border border-slate-800 p-2 rounded text-slate-100 font-mono text-xs focus:outline-none focus:border-rose-500"
                         />

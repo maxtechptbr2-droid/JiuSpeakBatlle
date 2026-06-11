@@ -1203,7 +1203,7 @@ export default function Users() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-yellow-500 font-mono">{m.priceKC} JT</p>
+                                <p className="font-bold text-yellow-500 font-mono">{m.priceJT} JT</p>
                                 <span className={`text-[8.5px] uppercase font-bold rounded px-1.5 ${
                                   m.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
                                 }`}>
@@ -1316,7 +1316,7 @@ export default function Users() {
                                   <span className={`font-bold ${tx.amountBRL > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>R$ {tx.amountBRL.toFixed(2)}</span>
                                 </div>
                                 <div className="flex justify-between text-[8px] text-slate-500">
-                                  <span>Saldo virtual: {tx.amountKC || 0} JT</span>
+                                  <span>Saldo virtual: {tx.amountJT || 0} JT</span>
                                   <span>{new Date(tx.createdAt).toLocaleString()}</span>
                                 </div>
                               </div>
@@ -1403,7 +1403,7 @@ export default function Users() {
                                 <p className="text-[8.5px] text-slate-500">ID Cupom: <span className="text-slate-400 font-mono">{pc.id}</span></p>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-yellow-500">{pc.pricePaidKC || pc.product?.priceKC || 0} JT</p>
+                                <p className="font-bold text-yellow-500">{pc.pricePaidJT || pc.product?.priceJT || 0} JT</p>
                                 <p className="text-[8px] text-slate-500">{new Date(pc.createdAt).toLocaleString()}</p>
                               </div>
                             </div>
@@ -1434,7 +1434,7 @@ export default function Users() {
                                 <span className="text-slate-500 text-[8.5px]">{new Date(log.createdAt).toLocaleString()}</span>
                               </div>
                               <p className="text-slate-350 text-[9.5px] leading-relaxed font-sans">{log.description}</p>
-                              {log.amountKC && <p className="text-[8.5px] text-yellow-500 font-sans">XP/Moedas recebidas: +{log.amountKC} JT</p>}
+                              {log.amountJT && <p className="text-[8.5px] text-yellow-500 font-sans">XP/Moedas recebidas: +{log.amountJT} JT</p>}
                             </div>
                           ))
                         ) : (

@@ -31,7 +31,7 @@ interface FinancePanelProps {
   user: UserProfile;
   updateUser: (newUser: Partial<UserProfile>) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
-  onAddAuditLog?: (type: any, desc: string, amtBRL?: number, amtKC?: number) => void;
+  onAddAuditLog?: (type: any, desc: string, amtBRL?: number, amtJT?: number) => void;
 }
 
 interface PixPaymentResult {

@@ -48,7 +48,7 @@ export default function Marketplace() {
                 <div className="flex justify-between items-start">
                   <h4 className="font-bold text-xs text-slate-100 uppercase">{item.name}</h4>
                   <span className="p-0.5 px-2 bg-slate-900 text-yellow-500 rounded text-[9px] font-bold font-mono">
-                    {item.priceKC} JT
+                    {item.priceJT} JT
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-mono">Atleta: {item.sellerName} ({item.sellerEmail})</p>

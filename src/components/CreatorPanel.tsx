@@ -23,7 +23,7 @@ interface CreatorPanelProps {
   courses: Course[];
   updateUser: (newUser: Partial<UserProfile>) => void;
   onAddNewCourse: (newCourse: Course) => void;
-  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtKC?: number) => void;
+  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtJT?: number) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
