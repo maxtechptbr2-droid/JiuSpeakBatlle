@@ -74,7 +74,7 @@ export const simulatedSentEmails: Array<{
 }> = [];
 
 // Seed initial test administrative and athlete accounts into the PostgreSQL database.
-export const seedInitialUsers = async () => {
+export const seedInitialUsers = async (withDb: boolean = false) => {
   const adminPassHash = await bcrypt.hash('98922678aA', 10);
   const userPassHash = await bcrypt.hash('user123', 10);
 
@@ -153,6 +153,11 @@ export const seedInitialUsers = async () => {
 
   for (const u of usersToSeed) {
     inMemoryUsers.set(u.id, u);
+  }
+
+  if (!withDb) {
+    console.log("ℹ️ Skipping user seeding in database on startup. Standalone seeder can perform this.");
+    return;
   }
 
   if (process.env.NODE_ENV === "production") {

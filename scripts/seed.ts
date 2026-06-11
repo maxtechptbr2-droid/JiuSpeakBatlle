@@ -105,7 +105,7 @@ async function runSeed() {
     }
 
     console.log("⏳ [1/5] Semeando Usuários Administrativos...");
-    await seedInitialUsers();
+    await seedInitialUsers(true);
 
     console.log("⏳ [2/5] Semeando Planos e Metadados SaaS...");
     // Let's run robust plan seeds directly here to evade imports circularities

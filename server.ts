@@ -491,8 +491,13 @@ app.get("/api/avatars/render/:characterId/:belt", async (req: any, res: any) => 
   }
 });
 
-export async function initializePremiumBjjAvatars() {
+export async function initializePremiumBjjAvatars(withDb: boolean = false) {
   console.log("🎮 Inicializando Sistema de Avatares Premium JiuSpeak (288 combinações)...");
+  
+  if (!withDb) {
+    console.log("ℹ️ Skipping premium avatars database seeding on startup. Use standalone seeder.");
+    return;
+  }
   
   const avatarsList: any[] = [];
   
@@ -5897,24 +5902,44 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
 
         // Run atomically in transaction
         const freeSub = await prisma.$transaction(async (tx) => {
+          // Verify user exists first to prevent P2003
+          const userExists = await tx.user.findUnique({ where: { id: userId } });
+          if (!userExists) {
+            throw new Error(`Usuário [${userId}] não localizado no banco de dados para criar assinatura.`);
+          }
+
           // Cancel active ones
           await tx.subscription.updateMany({
             where: { userId, status: "ACTIVE" },
             data: { status: "CANCELED", canceledAt: new Date() }
           });
-          // Create new FREE subscription
-          const sub = await tx.subscription.create({
-            data: {
-              userId,
-              planId: targetPlan.id,
-              planType: "FREE",
-              provider: "FREE",
-              amount: 0,
-              status: "ACTIVE",
-              startDate: new Date(),
-              endDate: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000) // 10 years for Free
-            }
+
+          // Check if there's already an active FREE subscription to upsert
+          let sub = await tx.subscription.findFirst({
+            where: { userId, planId: targetPlan.id, status: "ACTIVE" }
           });
+
+          if (sub) {
+            sub = await tx.subscription.update({
+              where: { id: sub.id },
+              data: {
+                endDate: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000)
+              }
+            });
+          } else {
+            sub = await tx.subscription.create({
+              data: {
+                userId,
+                planId: targetPlan.id,
+                planType: "FREE",
+                provider: "FREE",
+                amount: 0,
+                status: "ACTIVE",
+                startDate: new Date(),
+                endDate: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000) // 10 years for Free
+              }
+            });
+          }
           // Log payment
           await tx.subscriptionPayment.create({
             data: {
@@ -6008,19 +6033,43 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
           console.warn("Could not expire older subscription payments inside checkout:", dbErr);
         }
 
-        const dbSub = await tx.subscription.create({
-          data: {
-            userId,
-            planId: targetPlan.id,
-            planType: targetPlan.name,
-            provider: "MERCADOPAGO",
-            externalId: transactionId,
-            amount: price,
-            status: "PAST_DUE",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          }
-        });
+        // Verify user exists first to prevent P2003
+        const userExists = await tx.user.findUnique({ where: { id: userId } });
+        if (!userExists) {
+          throw new Error(`Usuário [${userId}] não localizado no banco de dados para criar assinatura.`);
+        }
+
+        // Try to find if a subscription already exists with this externalId to update (upsert)
+        let dbSub = transactionId ? await tx.subscription.findFirst({
+          where: { externalId: transactionId }
+        }) : null;
+
+        if (dbSub) {
+          dbSub = await tx.subscription.update({
+            where: { id: dbSub.id },
+            data: {
+              userId,
+              planId: targetPlan.id,
+              planType: targetPlan.name,
+              amount: price,
+              status: "PAST_DUE"
+            }
+          });
+        } else {
+          dbSub = await tx.subscription.create({
+            data: {
+              userId,
+              planId: targetPlan.id,
+              planType: targetPlan.name,
+              provider: "MERCADOPAGO",
+              externalId: transactionId,
+              amount: price,
+              status: "PAST_DUE",
+              startDate: new Date(),
+              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            }
+          });
+        }
 
         await tx.payment.create({
           data: {
@@ -6176,7 +6225,7 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
       const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
                           || financialConfig?.bankAccounts?.find((b: any) => b.active)
                           || financialConfig?.bankAccounts?.[0];
-      const adminPixKey = primaryBank?.pixKey || "admin@jiuspeak.com.br";
+      const adminPixKey = process.env.PIX_KEY || primaryBank?.pixKey || "admin@jiuspeak.com.br";
       
       // Generate a fully compliant PIX Copia e Cola payload
       const pixPayload = generatePixPayload(adminPixKey, amount, `Assinatura JiuSpeak ${targetPlan.name}`);
@@ -6203,19 +6252,44 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
 
       // 2. Perform all updates and creates atomically in a transaction
       await prisma.$transaction(async (tx) => {
-        const dbSub = await tx.subscription.create({
-          data: {
-            userId,
-            planId: targetPlan.id,
-            planType: targetPlan.name,
-            provider: "MERCADOPAGO",
-            externalId: String(resultPayment.id),
-            amount,
-            status: "PAST_DUE",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          }
+        // Verify user exists first to prevent P2003
+        const userExists = await tx.user.findUnique({ where: { id: userId } });
+        if (!userExists) {
+          throw new Error(`Usuário [${userId}] não localizado no banco de dados para criar assinatura.`);
+        }
+
+        // Try to find if a subscription already exists with this externalId to update (upsert)
+        const subExtId = String(resultPayment.id);
+        let dbSub = await tx.subscription.findFirst({
+          where: { externalId: subExtId }
         });
+
+        if (dbSub) {
+          dbSub = await tx.subscription.update({
+            where: { id: dbSub.id },
+            data: {
+              userId,
+              planId: targetPlan.id,
+              planType: targetPlan.name,
+              amount,
+              status: "PAST_DUE"
+            }
+          });
+        } else {
+          dbSub = await tx.subscription.create({
+            data: {
+              userId,
+              planId: targetPlan.id,
+              planType: targetPlan.name,
+              provider: "MERCADOPAGO",
+              externalId: subExtId,
+              amount,
+              status: "PAST_DUE",
+              startDate: new Date(),
+              endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            }
+          });
+        }
 
         await tx.payment.create({
           data: {
@@ -6465,19 +6539,44 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
             const isMaster = planType === "MASTER";
 
             await prisma.$transaction(async (tx) => {
-              const sub = await tx.subscription.create({
-                data: {
-                  userId,
-                  planId: targetPlanId,
-                  planType: planType || (isMaster ? "MASTER" : "VIP"),
-                  provider: "MERCADOPAGO",
-                  externalId: String(paymentId),
-                  amount: paymentAmount,
-                  status: "ACTIVE",
-                  startDate: new Date(),
-                  endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-                }
+              // Verify user exists first to prevent P2003
+              const userExists = await tx.user.findUnique({ where: { id: userId } });
+              if (!userExists) {
+                throw new Error(`Usuário [${userId}] não localizado no banco de dados para criar assinatura.`);
+              }
+
+              // Try to find if a subscription already exists with this externalId to update (upsert)
+              const webhookSubExtId = String(paymentId);
+              let sub = await tx.subscription.findFirst({
+                where: { externalId: webhookSubExtId }
               });
+
+              if (sub) {
+                sub = await tx.subscription.update({
+                  where: { id: sub.id },
+                  data: {
+                    userId,
+                    planId: targetPlanId,
+                    planType: planType || (isMaster ? "MASTER" : "VIP"),
+                    amount: paymentAmount,
+                    status: "ACTIVE"
+                  }
+                });
+              } else {
+                sub = await tx.subscription.create({
+                  data: {
+                    userId,
+                    planId: targetPlanId,
+                    planType: planType || (isMaster ? "MASTER" : "VIP"),
+                    provider: "MERCADOPAGO",
+                    externalId: webhookSubExtId,
+                    amount: paymentAmount,
+                    status: "ACTIVE",
+                    startDate: new Date(),
+                    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                  }
+                });
+              }
 
               await tx.payment.create({
                 data: {
@@ -6963,7 +7062,7 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
       const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
                           || financialConfig?.bankAccounts?.find((b: any) => b.active)
                           || financialConfig?.bankAccounts?.[0];
-      const adminPixKey = primaryBank?.pixKey || "admin@jiuspeak.com.br";
+      const adminPixKey = process.env.PIX_KEY || primaryBank?.pixKey || "admin@jiuspeak.com.br";
       
       const pixPayload = generatePixPayload(adminPixKey, value, description || (paymentType === "MARKETPLACE_SELL" ? "Venda de Curso BJJ" : "Recarga de Saldo via PIX"));
       
@@ -10785,13 +10884,13 @@ async function startServer() {
 
   // Load in-memory fallback template arrays safely
   try {
-    await seedInitialUsers();
+    await seedInitialUsers(false);
   } catch (err) {
     console.error("Failed to seed initial in-memory fallback users:", err);
   }
 
   try {
-    await initializePremiumBjjAvatars();
+    await initializePremiumBjjAvatars(false);
   } catch (err) {
     console.error("Failed to populate premium avatars:", err);
   }
