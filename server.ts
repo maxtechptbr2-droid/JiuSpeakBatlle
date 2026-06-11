@@ -1223,15 +1223,20 @@ app.post("/api/auth/register", async (req: any, res: any) => {
     const { email, name, password, role } = req.body;
 
     if (!email || !name || !password) {
-      return res.status(400).json({ error: "Missing required fields (email, name, password)." });
+      return res.status(400).json({ error: "Faltam campos obrigatórios (e-mail, nome, senha)." });
     }
 
-    // Email format simple check
-    if (!email.includes("@")) {
-      return res.status(400).json({ error: "Invalid email format." });
+    const emailStr = String(email).trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailStr)) {
+      return res.status(400).json({ error: "Formato de e-mail inválido." });
     }
 
-    const existingUser = await authStore.findByEmail(email);
+    if (emailStr.endsWith(".con")) {
+      return res.status(400).json({ error: "E-mail inválido: se houver erro de digitação '.con', troque por '.com'." });
+    }
+
+    const existingUser = await authStore.findByEmail(emailStr);
     if (existingUser) {
       return res.status(409).json({ error: "An account already exists with this email address." });
     }
@@ -1329,16 +1334,26 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       return res.status(400).json({ error: "E-mail e senha são campos obrigatórios." });
     }
 
+    const emailStr = String(email).trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailStr)) {
+      return res.status(400).json({ error: "Formato de e-mail inválido." });
+    }
+
+    if (emailStr.endsWith(".con")) {
+      return res.status(400).json({ error: "E-mail inválido: se houver erro de digitação '.con', troque por '.com'." });
+    }
+
     // Check brute-force constraints
-    const blockCheck = await AuthService.checkBruteForceBlock({ email, ipAddress });
+    const blockCheck = await AuthService.checkBruteForceBlock({ email: emailStr, ipAddress });
     if (blockCheck.isBlocked) {
-      logAuth("LOGIN", email, false, { ipAddress, blockReason: "Brute-force lockout active" });
+      logAuth("LOGIN", emailStr, false, { ipAddress, blockReason: "Brute-force lockout active" });
       return res.status(429).json({ 
         error: `Múltiplas tentativas de login incorretas registradas. Bloqueio temporário ativo por mais ${blockCheck.remainingMinutes} minutos para proteger sua conta.` 
       });
     }
 
-    const user = await authStore.findByEmail(email);
+    const user = await authStore.findByEmail(emailStr);
     if (!user || !user.passwordHash) {
       await AuthService.recordLoginAttempt({ email, ipAddress, success: false });
       logAuth("LOGIN", email, false, { ipAddress, reason: "No such user or password hash empty" });
@@ -5519,6 +5534,71 @@ export let inMemoryPlans: InMemoryPlan[] = [
 export let inMemorySubscriptions: InMemorySubscription[] = [];
 export let inMemorySubscriptionPayments: InMemorySubscriptionPayment[] = [];
 
+export interface ValidationSuccessResult {
+  valid: boolean;
+  error?: string;
+  user?: any;
+  plan?: any;
+}
+
+export async function validateSubscriptionCreation(userId: string, planId: string): Promise<ValidationSuccessResult> {
+  const prisma = getPrisma();
+
+  // 1. Validate inputs exist
+  if (!userId) {
+    console.error("[VALIDATE SUBSCRIPTION ERROR] Missing userId.");
+    return { valid: false, error: "userId do usuário é obrigatório." };
+  }
+  if (!planId) {
+    console.error("[VALIDATE SUBSCRIPTION ERROR] Missing planId.");
+    return { valid: false, error: "planId do plano é obrigatório." };
+  }
+
+  if (!prisma) {
+    return { valid: true };
+  }
+
+  try {
+    // 2. Validate user exists in DB to prevent foreign key errors (Subscription_userId_fkey)
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      console.error(`[VALIDATE SUBSCRIPTION RELATIONAL CONSTRAINT ERROR] User not found during creation attempt: ${userId}`);
+      return { valid: false, error: "Usuário não localizado no banco de dados. Impossível assinar." };
+    }
+
+    // 3. Validate plan exists in DB
+    const plan = await prisma.plan.findUnique({
+      where: { id: planId }
+    });
+
+    if (!plan) {
+      console.error(`[VALIDATE SUBSCRIPTION PLAN ERROR] Requested plan definition not found: ${planId}`);
+      return { valid: false, error: "Plano solicitado não existe no catálogo oficial." };
+    }
+
+    // 4. Validate double-sub avoidance
+    const existingActiveSamePlan = await prisma.subscription.findFirst({
+      where: {
+        userId,
+        planId,
+        status: "ACTIVE"
+      }
+    });
+
+    if (existingActiveSamePlan) {
+      console.warn(`[VALIDATE SUBSCRIPTION DUPLICATION CHECK] User: ${userId} has already active subscription: ${existingActiveSamePlan.id} on Plan: ${planId}`);
+    }
+
+    return { valid: true, user, plan };
+  } catch (err: any) {
+    console.error(`[VALIDATE SUBSCRIPTION SYSTEM EXCEPTION] ${err.message}`);
+    return { valid: false, error: "Erro de integridade relacional ao validar a assinatura: " + err.message };
+  }
+}
+
 export async function getActiveSubscriptionForUser(userId: string) {
   const prisma = getPrisma();
   const config = loadFinancialConfig();
@@ -5809,32 +5889,42 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
     // If FREE plan, activate immediately
     if (price === 0.0) {
       if (prisma) {
-        // Cancel active ones
-        await prisma.subscription.updateMany({
-          where: { userId, status: "ACTIVE" },
-          data: { status: "CANCELED", canceledAt: new Date() }
-        });
-        // Create new FREE subscription
-        const freeSub = await prisma.subscription.create({
-          data: {
-            userId,
-            planId: targetPlan.id,
-            planType: "FREE",
-            provider: "FREE",
-            amount: 0,
-            status: "ACTIVE",
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000) // 10 years for Free
-          }
-        });
-        // Log payment
-        await prisma.subscriptionPayment.create({
-          data: {
-            subscriptionId: freeSub.id,
-            amountBRL: 0.0,
-            status: "COMPLETED",
-            paidAt: new Date()
-          }
+        // Run validation first!
+        const validateRes = await validateSubscriptionCreation(userId, targetPlan.id);
+        if (!validateRes.valid) {
+          return res.status(400).json({ error: validateRes.error });
+        }
+
+        // Run atomically in transaction
+        const freeSub = await prisma.$transaction(async (tx) => {
+          // Cancel active ones
+          await tx.subscription.updateMany({
+            where: { userId, status: "ACTIVE" },
+            data: { status: "CANCELED", canceledAt: new Date() }
+          });
+          // Create new FREE subscription
+          const sub = await tx.subscription.create({
+            data: {
+              userId,
+              planId: targetPlan.id,
+              planType: "FREE",
+              provider: "FREE",
+              amount: 0,
+              status: "ACTIVE",
+              startDate: new Date(),
+              endDate: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000) // 10 years for Free
+            }
+          });
+          // Log payment
+          await tx.subscriptionPayment.create({
+            data: {
+              subscriptionId: sub.id,
+              amountBRL: 0.0,
+              status: "COMPLETED",
+              paidAt: new Date()
+            }
+          });
+          return sub;
         });
         return res.json({ activated: true, message: "Plano grátis (FREE) ativado!" });
       }
@@ -5885,55 +5975,64 @@ app.post("/api/subscriptions/checkout", authenticateToken, async (req: any, res:
     }
 
     if (prisma) {
-      try {
-        const pendingSubs = await prisma.subscriptionPayment.findMany({
-          where: {
-            status: "PENDING",
-            subscription: { userId }
-          }
-        });
-        if (pendingSubs.length > 0) {
-          await prisma.subscriptionPayment.updateMany({
-            where: { id: { in: pendingSubs.map(s => s.id) } },
-            data: { status: "EXPIRED" }
-          });
-        }
-        await prisma.payment.updateMany({
-          where: { userId, status: "PENDING" },
-          data: { status: "EXPIRED" }
-        });
-        await prisma.subscription.updateMany({
-          where: { userId, status: "PAST_DUE" },
-          data: { status: "CANCELED" }
-        });
-      } catch (dbErr) {
-        console.warn("Could not expire older subscription payments inside checkout:", dbErr);
+      // 1. Run validation
+      const validateRes = await validateSubscriptionCreation(userId, targetPlan.id);
+      if (!validateRes.valid) {
+        return res.status(400).json({ error: validateRes.error });
       }
 
-      const dbSub = await prisma.subscription.create({
-        data: {
-          userId,
-          planId: targetPlan.id,
-          planType: targetPlan.name,
-          provider: "MERCADOPAGO",
-          externalId: transactionId,
-          amount: price,
-          status: "PAST_DUE",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      // 2. Perform all updates and creates atomically in a transaction
+      await prisma.$transaction(async (tx) => {
+        try {
+          const pendingSubs = await tx.subscriptionPayment.findMany({
+            where: {
+              status: "PENDING",
+              subscription: { userId }
+            }
+          });
+          if (pendingSubs.length > 0) {
+            await tx.subscriptionPayment.updateMany({
+              where: { id: { in: pendingSubs.map(s => s.id) } },
+              data: { status: "EXPIRED" }
+            });
+          }
+          await tx.payment.updateMany({
+            where: { userId, status: "PENDING" },
+            data: { status: "EXPIRED" }
+          });
+          await tx.subscription.updateMany({
+            where: { userId, status: "PAST_DUE" },
+            data: { status: "CANCELED" }
+          });
+        } catch (dbErr) {
+          console.warn("Could not expire older subscription payments inside checkout:", dbErr);
         }
-      });
 
-      await prisma.payment.create({
-        data: {
-          userId,
-          subscriptionId: dbSub.id,
-          provider: "MERCADOPAGO",
-          status: "PENDING",
-          amount: price,
-          currency: "BRL",
-          transactionId
-        }
+        const dbSub = await tx.subscription.create({
+          data: {
+            userId,
+            planId: targetPlan.id,
+            planType: targetPlan.name,
+            provider: "MERCADOPAGO",
+            externalId: transactionId,
+            amount: price,
+            status: "PAST_DUE",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          }
+        });
+
+        await tx.payment.create({
+          data: {
+            userId,
+            subscriptionId: dbSub.id,
+            provider: "MERCADOPAGO",
+            status: "PENDING",
+            amount: price,
+            currency: "BRL",
+            transactionId
+          }
+        });
       });
     }
 
@@ -6096,42 +6195,51 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
 
     // Record dynamic Subscription and Payment to DB
     if (prisma) {
-      const dbSub = await prisma.subscription.create({
-        data: {
-          userId,
-          planId: targetPlan.id,
-          planType: targetPlan.name,
-          provider: "MERCADOPAGO",
-          externalId: String(resultPayment.id),
-          amount,
-          status: "PAST_DUE",
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        }
-      });
+      // 1. Run validation
+      const validateRes = await validateSubscriptionCreation(userId, targetPlan.id);
+      if (!validateRes.valid) {
+        return res.status(400).json({ error: validateRes.error });
+      }
 
-      await prisma.payment.create({
-        data: {
-          userId,
-          subscriptionId: dbSub.id,
-          provider: "MERCADOPAGO",
-          status: resultPayment.status === "approved" ? "COMPLETED" : "PENDING",
-          amount,
-          currency: "BRL",
-          transactionId: String(resultPayment.id)
-        }
-      });
+      // 2. Perform all updates and creates atomically in a transaction
+      await prisma.$transaction(async (tx) => {
+        const dbSub = await tx.subscription.create({
+          data: {
+            userId,
+            planId: targetPlan.id,
+            planType: targetPlan.name,
+            provider: "MERCADOPAGO",
+            externalId: String(resultPayment.id),
+            amount,
+            status: "PAST_DUE",
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          }
+        });
 
-      // Maintain SubscriptionPayment to ensure listing sync
-      await prisma.subscriptionPayment.create({
-        data: {
-          subscriptionId: dbSub.id,
-          amountBRL: amount,
-          status: resultPayment.status === "approved" ? "COMPLETED" : "PENDING",
-          txid: String(resultPayment.id),
-          qrCode: resultPayment.qrCode,
-          qrCodeCopyPaste: resultPayment.qrCodeCopyPaste
-        }
+        await tx.payment.create({
+          data: {
+            userId,
+            subscriptionId: dbSub.id,
+            provider: "MERCADOPAGO",
+            status: resultPayment.status === "approved" ? "COMPLETED" : "PENDING",
+            amount,
+            currency: "BRL",
+            transactionId: String(resultPayment.id)
+          }
+        });
+
+        // Maintain SubscriptionPayment to ensure listing sync
+        await tx.subscriptionPayment.create({
+          data: {
+            subscriptionId: dbSub.id,
+            amountBRL: amount,
+            status: resultPayment.status === "approved" ? "COMPLETED" : "PENDING",
+            txid: String(resultPayment.id),
+            qrCode: resultPayment.qrCode,
+            qrCodeCopyPaste: resultPayment.qrCodeCopyPaste
+          }
+        });
       });
     }
 
@@ -6350,88 +6458,93 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
       } else {
         // Reconcile and create subscription dynamically if missing but metadata contains userId
         if (userId && (paymentStatus === "approved" || paymentStatus === "completed")) {
-          const dbUser = await prisma.user.findUnique({ where: { id: userId } });
-          if (dbUser) {
+          const targetPlanId = planId || (planType === "MASTER" ? "plan-master-id" : "plan-pro-id");
+          const validateRes = await validateSubscriptionCreation(userId, targetPlanId);
+          if (validateRes.valid) {
             const isVip = planType === "VIP";
             const isMaster = planType === "MASTER";
 
-            const sub = await prisma.subscription.create({
-              data: {
-                userId,
-                planId: planId || (isMaster ? "plan-master-id" : "plan-pro-id"),
-                planType: planType || (isMaster ? "MASTER" : "VIP"),
-                provider: "MERCADOPAGO",
-                externalId: String(paymentId),
-                amount: paymentAmount,
-                status: "ACTIVE",
-                startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            await prisma.$transaction(async (tx) => {
+              const sub = await tx.subscription.create({
+                data: {
+                  userId,
+                  planId: targetPlanId,
+                  planType: planType || (isMaster ? "MASTER" : "VIP"),
+                  provider: "MERCADOPAGO",
+                  externalId: String(paymentId),
+                  amount: paymentAmount,
+                  status: "ACTIVE",
+                  startDate: new Date(),
+                  endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                }
+              });
+
+              await tx.payment.create({
+                data: {
+                  userId,
+                  subscriptionId: sub.id,
+                  provider: "MERCADOPAGO",
+                  status: "COMPLETED",
+                  amount: paymentAmount,
+                  currency: "BRL",
+                  transactionId: String(paymentId),
+                  payerEmail,
+                  payerName
+                }
+              });
+
+              await tx.paymentLog.create({
+                data: {
+                  provider: "MERCADOPAGO",
+                  transactionId: String(paymentId),
+                  status: "COMPLETED",
+                  amount: paymentAmount,
+                  payerEmail,
+                  payerName
+                }
+              });
+
+              await tx.subscriptionPayment.create({
+                data: {
+                  subscriptionId: sub.id,
+                  amountBRL: paymentAmount,
+                  status: "COMPLETED",
+                  txid: String(paymentId),
+                  paidAt: new Date()
+                }
+              });
+
+              const updateData: any = {
+                isVerified: true,
+                vipActive: isVip,
+                masterActive: isMaster,
+                subscriptionType: planType,
+                subscriptionUntil: sub.endDate
+              };
+
+              if (isMaster) {
+                updateData.coins = { increment: 2000 };
+                updateData.xp = { increment: 500 };
+              } else {
+                updateData.xp = { increment: 200 };
               }
-            });
 
-            await prisma.payment.create({
-              data: {
-                userId,
-                subscriptionId: sub.id,
-                provider: "MERCADOPAGO",
-                status: "COMPLETED",
-                amount: paymentAmount,
-                currency: "BRL",
-                transactionId: String(paymentId),
-                payerEmail,
-                payerName
-              }
-            });
+              await tx.user.update({
+                where: { id: userId },
+                data: updateData
+              });
 
-            await prisma.paymentLog.create({
-              data: {
-                provider: "MERCADOPAGO",
-                transactionId: String(paymentId),
-                status: "COMPLETED",
-                amount: paymentAmount,
-                payerEmail,
-                payerName
-              }
-            });
-
-            await prisma.subscriptionPayment.create({
-              data: {
-                subscriptionId: sub.id,
-                amountBRL: paymentAmount,
-                status: "COMPLETED",
-                txid: String(paymentId),
-                paidAt: new Date()
-              }
-            });
-
-            const updateData: any = {
-              isVerified: true,
-              vipActive: isVip,
-              masterActive: isMaster,
-              subscriptionType: planType,
-              subscriptionUntil: sub.endDate
-            };
-
-            if (isMaster) {
-              updateData.coins = { increment: 2000 };
-              updateData.xp = { increment: 500 };
-            } else {
-              updateData.xp = { increment: 200 };
-            }
-
-            await prisma.user.update({
-              where: { id: userId },
-              data: updateData
-            });
-
-            await prisma.auditLog.create({
-              data: {
-                actorId: userId,
-                action: "PIX_DEPOSIT",
-                description: `Assinatura ${planType} reconciliada e ativada automaticamente via Mercado Pago (ID: ${paymentId}).`
-              }
+              await tx.auditLog.create({
+                data: {
+                  actorId: userId,
+                  action: "PIX_DEPOSIT",
+                  description: `Assinatura ${planType} reconciliada e ativada automaticamente via Mercado Pago (ID: ${paymentId}).`
+                }
+              });
             });
             console.log(`[Mercado Pago Webhook] Successfully reconciled and activated subscription ${planType} for user ${userId}`);
+          } else {
+            console.error(`[Mercado Pago Webhook Reconcile Blocked] validation failed for User: ${userId} Reason: ${validateRes.error}`);
           }
         }
       }
@@ -10670,42 +10783,17 @@ async function startServer() {
   ArenaService.init(io);
   MatchmakingService.init();
 
-  // Populate initial users in-memory fallback & optionally database
+  // Load in-memory fallback template arrays safely
   try {
     await seedInitialUsers();
   } catch (err) {
-    console.error("Failed to seed initial users:", err);
+    console.error("Failed to seed initial in-memory fallback users:", err);
   }
 
-  // Try database seeding if PostgreSQL is available
-  if (isDatabaseConnected()) {
-    try {
-      await seedStoreProducts();
-    } catch (err) {
-      console.error("Failed to seed store products:", err);
-    }
-    try {
-      await initializePremiumBjjAvatars();
-    } catch (err) {
-      console.error("Failed to seed premium avatars:", err);
-    }
-    try {
-      await seedQuestionsInDb();
-    } catch (err) {
-      console.error("Erro ao semear perguntas no banco:", err);
-    }
-    try {
-      await seedPlansInDb();
-    } catch (err) {
-      console.error("Error seeding plans:", err);
-    }
-  } else {
-    console.log("⚠️ Base de dados PostgreSQL não está conectada. Ignorando semeadura de tabelas e utilizando o banco de dados em memória.");
-    try {
-      await initializePremiumBjjAvatars();
-    } catch (err) {
-      console.error("Failed to populate premium avatars in memory:", err);
-    }
+  try {
+    await initializePremiumBjjAvatars();
+  } catch (err) {
+    console.error("Failed to populate premium avatars:", err);
   }
 
   // Socket.IO Events Orchestrator
@@ -10932,8 +11020,7 @@ async function startServer() {
     }
   };
 
-  // Run seed
-  seedAcademyInDb().catch(e => console.warn("Erro ao semear banco da Academy:", e));
+  // Run seed decoupled from startup: only handled by standalone seeder script
 
   // 1. GET ALL MODULES (with lessons & completeness)
   app.get("/api/academy/modules", authenticateToken, async (req: any, res: any) => {
