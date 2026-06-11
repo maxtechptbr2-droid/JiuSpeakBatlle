@@ -408,7 +408,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
   const [challTargetId, setChallTargetId] = useState<string>('');
   const [challDiscipline, setChallDiscipline] = useState<string>('Sparring de Áudio AI Real');
   const [challBeltLimit, setChallBeltLimit] = useState<string>('Todas as Faixas');
-  const [challPrizeJT, setChallPrizeKC] = useState<number>(300);
+  const [challPrizeJT, setChallPrizeJT] = useState<number>(300);
 
   // 5. Get current selected academy
   const activeAcademy = academies.find(ac => ac.id === selectedAcademyId);
@@ -1733,7 +1733,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                             <input 
                               type="number" 
                               value={challPrizeJT} 
-                              onChange={(e) => setChallPrizeKC(parseInt(e.target.value || '100'))}
+                               onChange={(e) => setChallPrizeJT(parseInt(e.target.value || '100'))}
                               className="w-full bg-slate-950 border border-slate-850 p-2.5 rounded-xl text-xs text-slate-300"
                               required
                             />

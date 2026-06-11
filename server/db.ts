@@ -31,8 +31,8 @@ export async function assertDatabaseConnection(): Promise<boolean> {
     console.log('✓ PostgreSQL conectado');
     dbConnected = true;
     return true;
-  } catch (error) {
-    console.error('✗ PostgreSQL indisponível', error);
+  } catch (error: any) {
+    console.warn('⚠️ Banco de dados offline (usando o mecanismo simulado em memória).');
     dbConnected = false;
     return false;
   }

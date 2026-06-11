@@ -273,7 +273,7 @@ export default function EnterpriseFinance() {
       });
       filename = "relatorio_mensalidades_assinaturas.csv";
     } else if (type === 'store') {
-      csvContent += "ID,Comprador,Email,Produto,Categoria,Pago BRL,Pago KimonoCoins,Data de Compra\n";
+      csvContent += "ID,Comprador,Email,Produto,Categoria,Pago BRL,Pago JiuTickets,Data de Compra\n";
       storeSales.forEach(s => {
         csvContent += `"${s.id}","${s.buyerName}","${s.buyerEmail}","${s.productName}","${s.category}","${s.pricePaidBRL.toFixed(2)}","${s.pricePaidJT}","${new Date(s.createdAt).toLocaleString()}"\n`;
       });
