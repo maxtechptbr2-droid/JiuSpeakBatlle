@@ -222,10 +222,10 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
             </div>
           </div>
           <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded-lg border border-slate-800/80">
-            <Coins className="w-4 h-4 text-yellow-500 fill-yellow-500/10" />
+            <Coins className="w-4 h-4 text-amber-500 fill-amber-500/10" />
             <div className="leading-none">
-              <span className="block text-[10px] text-slate-500 font-mono">KIMONO COINS</span>
-              <span className="text-xs font-bold text-slate-200">{user.coins} KC</span>
+              <span className="block text-[10px] text-slate-500 font-mono">JIUTICKETS</span>
+              <span className="text-xs font-bold text-slate-200">{user.coins} JT</span>
             </div>
           </div>
         </div>

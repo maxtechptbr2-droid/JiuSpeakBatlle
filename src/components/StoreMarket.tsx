@@ -157,7 +157,7 @@ export default function StoreMarket({
   const [adminForm, setAdminForm] = useState({
     name: '',
     description: '',
-    priceKC: 500,
+    priceJT: 500,
     priceBRL: '',
     category: 'AVATAR',
     rarity: 'COMMON',
@@ -165,7 +165,7 @@ export default function StoreMarket({
     stock: '',
     active: true,
     isPromo: false,
-    promoPriceKC: '',
+    promoPriceJT: '',
     isBundle: false,
     isSeasonal: false,
     isExclusive: false
@@ -200,10 +200,10 @@ export default function StoreMarket({
 
     const payload = {
       ...adminForm,
-      priceKC: Number(adminForm.priceKC),
+      priceJT: Number(adminForm.priceJT),
       priceBRL: adminForm.priceBRL !== "" ? Number(adminForm.priceBRL) : null,
       stock: adminForm.stock !== "" ? Number(adminForm.stock) : null,
-      promoPriceKC: adminForm.promoPriceKC !== "" ? Number(adminForm.promoPriceKC) : null
+      promoPriceJT: adminForm.promoPriceJT !== "" ? Number(adminForm.promoPriceJT) : null
     };
 
     try {
@@ -279,7 +279,7 @@ export default function StoreMarket({
     setAdminForm({
       name: '',
       description: '',
-      priceKC: 500,
+      priceJT: 500,
       priceBRL: '',
       category: 'AVATAR',
       rarity: 'COMMON',
@@ -287,7 +287,7 @@ export default function StoreMarket({
       stock: '',
       active: true,
       isPromo: false,
-      promoPriceKC: '',
+      promoPriceJT: '',
       isBundle: false,
       isSeasonal: false,
       isExclusive: false
@@ -303,7 +303,7 @@ export default function StoreMarket({
     setAdminForm({
       name: item.name || '',
       description: item.description || '',
-      priceKC: item.priceKC || 0,
+      priceJT: item.priceJT || 0,
       priceBRL: item.priceBRL !== null && item.priceBRL !== undefined ? String(item.priceBRL) : '',
       category: item.category || 'AVATAR',
       rarity: item.rarity || 'COMMON',
@@ -311,7 +311,7 @@ export default function StoreMarket({
       stock: item.stock !== null && item.stock !== undefined ? String(item.stock) : '',
       active: item.active !== undefined ? Boolean(item.active) : true,
       isPromo: item.isPromo !== undefined ? Boolean(item.isPromo) : false,
-      promoPriceKC: item.promoPriceKC !== null && item.promoPriceKC !== undefined ? String(item.promoPriceKC) : '',
+      promoPriceJT: item.promoPriceJT !== null && item.promoPriceJT !== undefined ? String(item.promoPriceJT) : '',
       isBundle: item.isBundle !== undefined ? Boolean(item.isBundle) : false,
       isSeasonal: item.isSeasonal !== undefined ? Boolean(item.isSeasonal) : false,
       isExclusive: item.isExclusive !== undefined ? Boolean(item.isExclusive) : false
@@ -383,9 +383,9 @@ export default function StoreMarket({
 
   const handleCheckoutCart = async () => {
     if (cart.length === 0) return;
-    const totalCost = cart.reduce((sum, item) => sum + item.priceKC, 0);
+    const totalCost = cart.reduce((sum, item) => sum + item.priceJT, 0);
     if (user.coins < totalCost) {
-      showToast(`KC insuficiente! Total: ${totalCost} KC. Você possui: ${user.coins} KC.`, "error");
+      showToast(`JT insuficiente! Total: ${totalCost} JT. Você possui: ${user.coins} JT.`, "error");
       return;
     }
 
@@ -417,9 +417,9 @@ export default function StoreMarket({
           successfullyBought.push(item);
           onAddAuditLog(
             'market_trade',
-            `Loja Especial: Desbloqueou o item cosmético "${item.name}" por ${item.priceKC} KC (Via Carrinho).`,
+            `Loja Especial: Desbloqueou o item cosmético "${item.name}" por ${item.priceJT} JT (Via Carrinho).`,
             undefined,
-            item.priceKC
+            item.priceJT
           );
         } else {
           showToast(`Erro ao adquirir "${item.name}": ${data.error}`, "error");
@@ -478,7 +478,7 @@ export default function StoreMarket({
       else if (storeCategory === '🎒 Equipamentos') apiCategory = 'Itens Especiais';
       else if (storeCategory === '💎 Itens Premium') apiCategory = 'Pacotes VIP';
       else if (storeCategory === '🔥 Boosters XP') apiCategory = 'XP Boost';
-      else if (storeCategory === '⭐ Colecionáveis') apiCategory = 'Kimono Coins';
+      else if (storeCategory === '⭐ Colecionáveis') apiCategory = 'Jiutickets';
       else if (storeCategory === '🎨 Temas de Perfil') apiCategory = 'Títulos';
 
       let apiRarity = storeRarity;
@@ -549,8 +549,8 @@ export default function StoreMarket({
 
   // Direct buy handler utilizing Express Secure Transaction Layer
   const handlePurchaseProduct = async (product: any) => {
-    if (user.coins < product.priceKC) {
-      showToast(`Kimono Coins insuficientes! Você possui ${user.coins} KC e este item custa ${product.priceKC} KC. Complete tarefas ou use cheats se necessário.`, "error");
+    if (user.coins < product.priceJT) {
+      showToast(`Jiutickets insuficientes! Você possui ${user.coins} JT e este item custa ${product.priceJT} JT. Complete tarefas ou use cheats se necessário.`, "error");
       return;
     }
 
@@ -588,9 +588,9 @@ export default function StoreMarket({
 
       onAddAuditLog(
         'market_trade',
-        `Loja Especial: Atleta desbloqueou o item cosmético "${product.name}" por ${product.priceKC} KC.`,
+        `Loja Especial: Atleta desbloqueou o item cosmético "${product.name}" por ${product.priceJT} JT.`,
         undefined,
-        product.priceKC
+        product.priceJT
       );
 
       showToast(`Parabéns! "${product.name}" foi desbloqueado com sucesso!`, "success");
@@ -729,7 +729,7 @@ export default function StoreMarket({
   // Handle Purchase of official Loja item
   const buyLojaItem = (item: InventoryItem) => {
     if (user.coins < item.price) {
-      showToast(`Kimono Coins insuficientes! Você tem ${user.coins} KC e precisa de ${item.price} KC. Participe de lições ou altere cheat codes para testar.`, "error");
+      showToast(`Jiutickets insuficientes! Você tem ${user.coins} JT e precisa de ${item.price} JT. Participe de lições ou altere cheat codes para testar.`, "error");
       return;
     }
 
@@ -749,7 +749,7 @@ export default function StoreMarket({
 
     onAddAuditLog(
       'market_trade',
-      `Loja Oficial: Atleta adquiriu cosmetic "${item.name}" por ${item.price} KC.`,
+      `Loja Oficial: Atleta adquiriu cosmetic "${item.name}" por ${item.price} JT.`,
       undefined,
       item.price
     );
@@ -781,7 +781,7 @@ export default function StoreMarket({
         name: fromStore.name,
         description: fromStore.description || "",
         category: fromStore.category,
-        price: fromStore.priceKC,
+        price: fromStore.priceJT,
         rarity: fromStore.rarity,
         imageUrl: fromStore.imageUrl || ""
       };
@@ -865,7 +865,7 @@ export default function StoreMarket({
   // Buy Peer-to-Peer marketplace item using BACKEND secure validation & anti-fraud limits
   const buyMarketplaceItem = async (item: any) => {
     if (user.coins < item.price) {
-      showToast(`Kimono Coins insuficientes! Você precisa de ${item.price} KC e possui ${user.coins} KC.`, "error");
+      showToast(`Jiutickets insuficientes! Você precisa de ${item.price} JT e possui ${user.coins} JT.`, "error");
       return;
     }
 
@@ -904,7 +904,7 @@ export default function StoreMarket({
       // Log activity
       onAddAuditLog(
         'market_trade',
-        `Mercado Coin: Adquiriu "${item.name}" de "${item.sellerName}" por ${item.price} KC. Comissão foi retida.`,
+        `Mercado Coin: Adquiriu "${item.name}" de "${item.sellerName}" por ${item.price} JT. Comissão foi retida.`,
         undefined,
         item.price
       );
@@ -927,7 +927,7 @@ export default function StoreMarket({
 
     try {
       const payload: any = {
-        priceKC: listForm.price
+        priceJT: listForm.price
       };
 
       if (sellOption === 'inventory') {
@@ -1107,7 +1107,7 @@ export default function StoreMarket({
             <span>Loja JiuSpeak</span>
           </h3>
           <p className="text-xs text-slate-430 mt-1 max-w-2xl leading-normal">
-            Adquira kimonos de elite, rash guards personalizadas, avatares lendários, boosters de XP, medalhas lendárias e efeitos de perfil com seus Kimono Coins (KC).
+            Adquira kimonos de elite, rash guards personalizadas, avatares lendários, boosters de XP, medalhas lendárias e efeitos de perfil com seus Jiutickets (JT).
           </p>
         </div>
 
@@ -1116,8 +1116,8 @@ export default function StoreMarket({
           <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-2">
             <Coins className="w-5 h-5 text-yellow-500" />
             <div>
-              <span className="block text-[9px] text-slate-500 font-mono">SEU SALDO (KC)</span>
-              <span className="text-sm font-bold text-slate-202">{user.coins} KC</span>
+              <span className="block text-[9px] text-slate-500 font-mono">SEU SALDO (JT)</span>
+              <span className="text-sm font-bold text-slate-202">{user.coins} JT</span>
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-2">
@@ -1133,7 +1133,7 @@ export default function StoreMarket({
       {/* Economics selector micro tabs */}
       <div className="flex border-b border-slate-800 gap-1 overflow-x-auto scroller-hidden">
         {[
-          { id: 'loja', label: '🥋 Loja JiuSpeak', desc: 'Desbloquear com KC' },
+          { id: 'loja', label: '🥋 Loja JiuSpeak', desc: 'Desbloquear com JT' },
           { id: 'market', label: '🤝 Swap de Conteúdo', desc: 'Trocas entre alunos' },
           { id: 'inventorio', label: '🎒 Mochila JiuSpeak', desc: `${user.inventory.length} itens` },
           { id: 'vip', label: '👑 Planos Premium VIP', desc: 'BRL / Pix' },
@@ -1232,8 +1232,8 @@ export default function StoreMarket({
                         <span className="text-[9px] text-slate-505 font-mono block uppercase">Valor de Desbloqueio</span>
                         <div className="flex items-center gap-1.5">
                           <Coins className="w-5 h-5 text-yellow-500" />
-                          <span className="text-xl font-mono font-black text-white">{featured.priceKC}</span>
-                          <span className="text-xs text-slate-500 font-mono">KC</span>
+                          <span className="text-xl font-mono font-black text-white">{featured.priceJT}</span>
+                          <span className="text-xs text-slate-500 font-mono">JT</span>
                         </div>
                       </div>
 
@@ -1308,7 +1308,7 @@ export default function StoreMarket({
             (() => {
               // Filter products user can afford and doesn't own yet
               const affordableAndUnpossessed = storeProducts.filter(p => 
-                p.priceKC <= user.coins && !user.inventory.includes(p.id)
+                p.priceJT <= user.coins && !user.inventory.includes(p.id)
               ).slice(0, 3);
 
               if (affordableAndUnpossessed.length === 0) return null;
@@ -1322,7 +1322,7 @@ export default function StoreMarket({
                         Sugeridos Para Você (Seu Saldo Permite)
                       </h4>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono">Simulação com {user.coins} KC</span>
+                    <span className="text-[10px] text-slate-500 font-mono">Simulação com {user.coins} JT</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="recommended-products-tray">
@@ -1344,7 +1344,7 @@ export default function StoreMarket({
                             <div className="text-right">
                               <div className="flex items-center gap-1">
                                 <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                                <span className="text-xs font-bold font-mono text-slate-101">{p.priceKC}</span>
+                                <span className="text-xs font-bold font-mono text-slate-101">{p.priceJT}</span>
                               </div>
                             </div>
                             <button
@@ -1475,8 +1475,8 @@ export default function StoreMarket({
                   const isLimited = limitedProductIds.includes(product.id);
 
                   // Setup detailed pricing
-                  const displayPrice = product.priceKC;
-                  const originalPrice = isPromo ? Math.floor(product.priceKC * 1.25) : null;
+                  const displayPrice = product.priceJT;
+                  const originalPrice = isPromo ? Math.floor(product.priceJT * 1.25) : null;
 
                   const getCategoryDisplay = (cat: string) => {
                     switch (cat?.toUpperCase()) {
@@ -1617,7 +1617,7 @@ export default function StoreMarket({
                                   onClick={() => handlePurchaseProduct(product)}
                                   disabled={isBusy}
                                   className="px-2.5 py-1.5 bg-violet-650 hover:bg-violet-600 active:scale-95 text-white font-bold text-[10px] uppercase rounded-lg transition-all flex items-center gap-1 cursor-pointer"
-                                  title={`Adquirir por ${product.priceKC} KC`}
+                                  title={`Adquirir por ${product.priceJT} JT`}
                                 >
                                   {isBusy ? (
                                     <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -1724,7 +1724,7 @@ export default function StoreMarket({
               </div>
               <div>
                 <span className="block text-[10px] text-slate-500 font-mono">TETOS REGULATÓRIOS</span>
-                <span className="text-sm font-bold text-amber-400">Min: 50 KC | Max: 50k KC</span>
+                <span className="text-sm font-bold text-amber-400">Min: 50 JT | Max: 50k JT</span>
               </div>
             </div>
           </div>
@@ -1775,7 +1775,7 @@ export default function StoreMarket({
                     <div className="mt-5 pt-3 border-t border-slate-800/50 flex justify-between items-center">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-slate-202">
                         <Coins className="w-4 h-4 text-amber-500" />
-                        <span>{item.price} KC</span>
+                        <span>{item.price} JT</span>
                       </div>
 
                       <button
@@ -1830,8 +1830,8 @@ export default function StoreMarket({
                         <td className="py-2.5 text-slate-201 font-sans">{sale.itemName}</td>
                         <td className="py-2.5 text-slate-400">{sale.buyerName}</td>
                         <td className="py-2.5 text-slate-400">{sale.sellerName}</td>
-                        <td className="py-2.5 text-white">{sale.pricePaidKC} KC</td>
-                        <td className="py-2.5 text-slate-500">{sale.feePaidKC} KC</td>
+                        <td className="py-2.5 text-white">{sale.pricePaidJT} JT</td>
+                        <td className="py-2.5 text-slate-500">{sale.feePaidJT} JT</td>
                         <td className="py-2.5 font-bold">
                           <span className={sale.riskScore > 50 ? 'text-rose-400' : 'text-emerald-450'}>
                             {sale.riskScore}%
@@ -1887,7 +1887,7 @@ export default function StoreMarket({
             </div>
           ) : unlockedItems.length === 0 && user.inventory.length === 0 ? (
             <div className="py-12 border border-dashed border-slate-800 rounded-2xl text-center text-slate-500 text-xs">
-              Sua biblioteca de materiais está vazia! Participe das lições e da arena prática para acumular Kimono Coins e desbloquear materiais na loja virtual.
+              Sua biblioteca de materiais está vazia! Participe das lições e da arena prática para acumular Jiutickets e desbloquear materiais na loja virtual.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="inventory-grid">
@@ -2017,7 +2017,7 @@ export default function StoreMarket({
                 <ul className="text-left text-[11px] text-slate-400 space-y-2 pt-3 font-normal border-t border-slate-900">
                   <li className="flex items-center gap-1.5">💎 Liberação TOTAL de todos os cursos Premium</li>
                   <li className="flex items-center gap-1.5">🥋 Kimono Imperial Dourado Grátis no inventário</li>
-                  <li className="flex items-center gap-1.5">🏅 +2.000 Kimono Coins de saldo inicial imediato</li>
+                  <li className="flex items-center gap-1.5">🏅 +2.000 Jiutickets de saldo inicial imediato</li>
                   <li className="flex items-center gap-1.5">💬 Canal de áudio exclusivo no Discord</li>
                 </ul>
               </div>
@@ -2127,7 +2127,7 @@ export default function StoreMarket({
                       <th className="p-4">Item</th>
                       <th className="p-4">Categoria</th>
                       <th className="p-4">Raridade</th>
-                      <th className="p-4">Preço (KC)</th>
+                      <th className="p-4">Preço (JT)</th>
                       <th className="p-4">Preço (BRL)</th>
                       <th className="p-4">Estoque / Limite</th>
                       <th className="p-4 flex items-center gap-1">Indicadores</th>
@@ -2186,17 +2186,17 @@ export default function StoreMarket({
                             </span>
                           </td>
 
-                          {/* Price KC */}
+                          {/* Price JT */}
                           <td className="p-4">
                             <div className="flex items-center gap-1 font-mono">
                               <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                              {item.isPromo && item.promoPriceKC ? (
+                              {item.isPromo && item.promoPriceJT ? (
                                 <div>
-                                  <span className="text-white font-bold">{item.promoPriceKC} KC</span>
-                                  <span className="text-red-400 line-through text-[9px] ml-1.5 block">{item.priceKC} KC</span>
+                                  <span className="text-white font-bold">{item.promoPriceJT} JT</span>
+                                  <span className="text-red-400 line-through text-[9px] ml-1.5 block">{item.priceJT} JT</span>
                                 </div>
                               ) : (
-                                <span className="text-slate-100 font-bold">{item.priceKC} KC</span>
+                                <span className="text-slate-100 font-bold">{item.priceJT} JT</span>
                               )}
                             </div>
                           </td>
@@ -2399,13 +2399,13 @@ export default function StoreMarket({
               {/* Prices Row */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Preço Original KC</label>
+                  <label className="text-slate-450 font-mono font-bold uppercase block text-[9px] tracking-wide">Preço Original JT</label>
                   <input
                     type="number"
                     required
                     min={0}
-                    value={adminForm.priceKC}
-                    onChange={(e) => setAdminForm({ ...adminForm, priceKC: parseInt(e.target.value) || 0 })}
+                    value={adminForm.priceJT}
+                    onChange={(e) => setAdminForm({ ...adminForm, priceJT: parseInt(e.target.value) || 0 })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-200 font-mono text-center font-bold"
                   />
                 </div>
@@ -2457,23 +2457,23 @@ export default function StoreMarket({
                       <Percent className="w-3.5 h-3.5 text-red-400" />
                       <span>Item promocional ativa</span>
                     </label>
-                    <span className="text-[9.5px] text-slate-500 font-normal">Aplicar redução temporária em Kimono Coins.</span>
+                    <span className="text-[9.5px] text-slate-500 font-normal">Aplicar redução temporária em Jiutickets.</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {adminForm.isPromo && (
                       <input
                         type="number"
-                        placeholder="KC Promo"
+                        placeholder="JT Promo"
                         required
-                        value={adminForm.promoPriceKC}
-                        onChange={(e) => setAdminForm({ ...adminForm, promoPriceKC: e.target.value })}
+                        value={adminForm.promoPriceJT}
+                        onChange={(e) => setAdminForm({ ...adminForm, promoPriceJT: e.target.value })}
                         className="w-24 bg-slate-900 border border-slate-750 text-slate-100 p-1.5 rounded text-center text-[10.5px] font-mono font-bold focus:outline-none"
                       />
                     )}
                     <input
                       type="checkbox"
                       checked={adminForm.isPromo}
-                      onChange={(e) => setAdminForm({ ...adminForm, isPromo: e.target.checked, promoPriceKC: e.target.checked ? String(Math.floor(adminForm.priceKC * 0.8)) : '' })}
+                      onChange={(e) => setAdminForm({ ...adminForm, isPromo: e.target.checked, promoPriceJT: e.target.checked ? String(Math.floor(adminForm.priceJT * 0.8)) : '' })}
                       className="w-4.5 h-4.5 text-violet-650 rounded border-slate-700 bg-slate-950 focus:ring-0 cursor-pointer shrink-0"
                     />
                   </div>
@@ -2694,9 +2694,9 @@ export default function StoreMarket({
 
             <div className="space-y-1 text-xs">
               <div className="flex justify-between items-center">
-                <label className="text-slate-500 font-mono font-bold uppercase block text-[10px]">Preço Solicitado (KC)</label>
+                <label className="text-slate-500 font-mono font-bold uppercase block text-[10px]">Preço Solicitado (JT)</label>
                 {listForm.price > 0 && (
-                  <span className="text-[9px] text-slate-400 font-mono font-normal">Sellers Net: {Math.floor(listForm.price * 0.9)} KC (taxa 10%)</span>
+                  <span className="text-[9px] text-slate-400 font-mono font-normal">Sellers Net: {Math.floor(listForm.price * 0.9)} JT (taxa 10%)</span>
                 )}
               </div>
               <input 
@@ -2804,7 +2804,7 @@ export default function StoreMarket({
                   Compra Concluída!
                 </h3>
                 <p className="text-[11px] text-slate-450 max-w-xs mx-auto leading-normal font-sans">
-                  Seus Kimono Coins (KC) foram computados com sucesso e o item cosmético já está na sua biblioteca portátil de conquistas.
+                  Seus Jiutickets (JT) foram computados com sucesso e o item cosmético já está na sua biblioteca portátil de conquistas.
                 </p>
               </div>
 
@@ -2968,7 +2968,7 @@ export default function StoreMarket({
                               <div className="text-right">
                                 <div className="flex items-center gap-1">
                                   <Coins className="w-3 h-3 text-yellow-500" />
-                                  <span className="text-xs font-mono font-bold text-slate-300">{item.priceKC}</span>
+                                  <span className="text-xs font-mono font-bold text-slate-300">{item.priceJT}</span>
                                 </div>
                                 {isPossessed && <span className="text-[8px] text-red-400 font-sans block">Já obtido!</span>}
                               </div>
@@ -2996,7 +2996,7 @@ export default function StoreMarket({
                         <span className="text-slate-500">Saldo Atual do Aluno:</span>
                         <span className="font-mono font-bold text-slate-200 flex items-center gap-1">
                           <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                          <span>{user.coins} KC</span>
+                          <span>{user.coins} JT</span>
                         </span>
                       </div>
 
@@ -3004,13 +3004,13 @@ export default function StoreMarket({
                         <span className="text-slate-300">Total do Carrinho (Resgate):</span>
                         <span className="font-mono text-white text-base flex items-center gap-1 text-glow-indigo">
                           <Coins className="w-4 h-4 text-amber-500" />
-                          <span>{cart.reduce((sum, item) => sum + item.priceKC, 0)} KC</span>
+                          <span>{cart.reduce((sum, item) => sum + item.priceJT, 0)} JT</span>
                         </span>
                       </div>
                     </div>
 
                     {(() => {
-                      const cartTotal = cart.reduce((sum, it) => sum + it.priceKC, 0);
+                      const cartTotal = cart.reduce((sum, it) => sum + it.priceJT, 0);
                       const isAffordable = user.coins >= cartTotal;
 
                       return (
@@ -3036,10 +3036,10 @@ export default function StoreMarket({
                           {!isAffordable && (
                             <div className="p-3 bg-red-950/20 border border-red-900/20 text-red-400 rounded-xl text-[10px] text-center font-sans space-y-1">
                               <p className="font-bold uppercase tracking-wider flex items-center justify-center gap-1">
-                                <Info className="w-3.5 h-3.5" /> Saldo KC Insuficiente
+                                <Info className="w-3.5 h-3.5" /> Saldo JT Insuficiente
                               </p>
                               <p className="opacity-90 font-normal">
-                                Você precisa de mais <strong>{cartTotal - user.coins} KC</strong> para aprovar esta transação. Jogue partidas ou use o painel de faturamento para carregar tokens imediatos!
+                                Você precisa de mais <strong>{cartTotal - user.coins} JT</strong> para aprovar esta transação. Jogue partidas ou use o painel de faturamento para carregar tokens imediatos!
                               </p>
                             </div>
                           )}
@@ -3141,7 +3141,7 @@ export default function StoreMarket({
                   <span className="block text-[9px] text-slate-500 font-mono uppercase">VALOR DE RESGATE</span>
                   <span className="font-bold text-amber-500 flex items-center gap-1">
                     <Coins className="w-3.5 h-3.5 fill-amber-500/10" />
-                    {viewItemModal.priceKC || 0} KC
+                    {viewItemModal.priceJT || 0} JT
                   </span>
                 </div>
               </div>

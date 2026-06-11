@@ -362,7 +362,7 @@ export class ArenaService {
         winnerId
       );
     } catch (e) {
-      console.error("Falha ao registrar ELO e recompensas financeiras/KCs", e);
+      console.error("Falha ao registrar ELO e recompensas financeiras/JTs", e);
     }
 
     this.io.to(matchId).emit("arena:game_over", {

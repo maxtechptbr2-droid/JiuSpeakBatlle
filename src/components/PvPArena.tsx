@@ -113,7 +113,7 @@ const BOT_SELECT_LIST = [
 interface PvPArenaProps {
   user: UserProfile;
   updateUser: (newUser: Partial<UserProfile>) => void;
-  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtKC?: number) => void;
+  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtJT?: number) => void;
   addXp: (amount: number, reason: string) => void;
   addCoins: (amount: number, reason: string) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
@@ -528,7 +528,7 @@ export default function PvPArena({
                     Arena de Conversação & Vocabulário 🗣️
                   </h3>
                   <p className="text-xs text-slate-400 mt-1.5 max-w-xl">
-                    Pratique seu inglês sob o contexto real do tatame. Teste seus reflexos de vocabulário e tomadas de decisão estruturadas de forma dinâmica! Cada acerto consolida seus pontos de proficiência (ELO), concede moedas escolares e acelera sua progressão de faixa.
+                    Pratique seu inglês sob o contexto real do tatame. Teste seus reflexos de vocabulário e tomadas de decisão estruturadas de forma dinâmica! Cada acerto consolida seus pontos de proficiência (ELO), concede Jiutickets escolares e acelera sua progressão de faixa.
                   </p>
                 </div>
                 
@@ -1294,8 +1294,8 @@ export default function PvPArena({
                     <span className="text-base font-mono font-black text-violet-400">+{gameOverResult.ratingResults.playerA?.eloChange || 32}</span>
                   </div>
                   <div className="text-center bg-slate-950 p-2 rounded-xl">
-                    <span className="block text-[8px] text-slate-550 font-mono">KIMONO COINS</span>
-                    <span className="text-base font-mono font-black text-yellow-500">+{gameOverResult.ratingResults.playerA?.coinsGained || 100}</span>
+                    <span className="block text-[8px] text-slate-550 font-mono">JIUTICKETS</span>
+                    <span className="text-base font-mono font-black text-amber-500">+{gameOverResult.ratingResults.playerA?.coinsGained || 100} JT</span>
                   </div>
                   <div className="text-center bg-slate-950 p-2 rounded-xl">
                     <span className="block text-[8px] text-slate-550 font-mono">XP CONQUISTADO</span>

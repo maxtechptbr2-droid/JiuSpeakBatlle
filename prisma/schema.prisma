@@ -133,7 +133,7 @@ model User {
 model Wallet {
   id               String   @id @default(uuid())
   userId           String   @unique
-  balanceKC        Int      @default(0) // Kimono Coins (Platform virtual coin)
+  balanceJT        Int      @default(0) // Jiutickets (Platform virtual coin)
   balanceBRL       Decimal  @default(0.00)  // Instructor/Saas real monetary balance
   balanceAvailable Decimal  @default(0.00)  // Saldo disponível para saque
   balancePending   Decimal  @default(0.00)  // Saldo pendente (vendas aprovadas)
@@ -151,7 +151,7 @@ model Wallet {
 model Transaction {
   id          String            @id @default(uuid())
   walletId    String
-  amountKC    Int?
+  amountJT    Int?
   amountBRL   Decimal?          
   type        String
   status      String @default("PENDING")
@@ -420,7 +420,7 @@ model StoreProduct {
   id          String   @id @default(uuid())
   name        String   @unique
   description String   
-  priceKC     Int
+  priceJT     Int
   priceBRL    Decimal?  // Optional fiat pricing for premium cosmetics
   category    String   // GI, BELT_STRIPE, AVATAR, TITLE_TAG
   rarity      Rarity   @default(COMMON)
@@ -428,7 +428,7 @@ model StoreProduct {
   stock       Int?     // Null means infinite stock
   active      Boolean  @default(true)
   isPromo     Boolean  @default(false)
-  promoPriceKC Int?
+  promoPriceJT Int?
   isBundle    Boolean  @default(false)
   isSeasonal  Boolean  @default(false)
   isExclusive Boolean  @default(false)
@@ -449,7 +449,7 @@ model StoreSale {
   id          String   @id @default(uuid())
   productId   String
   buyerId     String
-  pricePaidKC Int?
+  pricePaidJT Int?
   pricePaidBRL Decimal? 
   createdAt   DateTime @default(now())
 
@@ -465,7 +465,7 @@ model MarketplaceItem {
   id              String   @id @default(uuid())
   inventoryItemId String   @unique
   sellerId        String
-  priceKC         Int
+  priceJT         Int
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -477,7 +477,7 @@ model MarketplaceItem {
 
   @@index([sellerId])
   @@index([active])
-  @@index([active, priceKC])
+  @@index([active, priceJT])
   @@index([active, createdAt])
 }
 
@@ -485,8 +485,8 @@ model MarketplaceSale {
   id                String   @id @default(uuid())
   marketplaceItemId String   @unique
   buyerId           String
-  pricePaidKC       Int
-  feePaidKC         Int      // Platform fee collected from transit
+  pricePaidJT       Int
+  feePaidJT         Int      // Platform fee collected from transit
   createdAt         DateTime @default(now())
 
   // Relationships
@@ -621,7 +621,7 @@ model AuditLog {
   ipAddress   String?
   userAgent   String?
   amountBRL   Decimal?        
-  amountKC    Int?
+  amountJT    Int?
   createdAt   DateTime        @default(now())
 
   // Relationships

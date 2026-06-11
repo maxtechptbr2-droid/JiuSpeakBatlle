@@ -13,19 +13,19 @@ dotenv.config();
 
 const BASE_DIR = path.join(process.cwd(), "public", "assets", "avatars");
 
-const BELT_MAPPINGS: Record<string, { name: string; rarity: string; priceKC: number }> = {
-  white: { name: "Faixa Branca", rarity: "COMMON", priceKC: 400 },
-  grey: { name: "Faixa Cinza", rarity: "COMMON", priceKC: 500 },
-  yellow: { name: "Faixa Amarela", rarity: "RARE", priceKC: 600 },
-  orange: { name: "Faixa Laranja", rarity: "RARE", priceKC: 700 },
-  green: { name: "Faixa Verde", rarity: "RARE", priceKC: 800 },
-  blue: { name: "Faixa Azul", rarity: "RARE", priceKC: 1000 },
-  purple: { name: "Faixa Roxa", rarity: "EPIC", priceKC: 1500 },
-  brown: { name: "Faixa Marrom", rarity: "EPIC", priceKC: 2000 },
-  black: { name: "Faixa Preta", rarity: "LEGENDARY", priceKC: 5000 },
-  coral: { name: "Faixa Coral", rarity: "LEGENDARY", priceKC: 6000 },
-  red_black: { name: "Faixa Vermelha e Preta", rarity: "LEGENDARY", priceKC: 7500 },
-  red_white: { name: "Faixa Vermelha e Branca", rarity: "LEGENDARY", priceKC: 9000 },
+const BELT_MAPPINGS: Record<string, { name: string; rarity: string; priceJT: number }> = {
+  white: { name: "Faixa Branca", rarity: "COMMON", priceJT: 400 },
+  grey: { name: "Faixa Cinza", rarity: "COMMON", priceJT: 500 },
+  yellow: { name: "Faixa Amarela", rarity: "RARE", priceJT: 600 },
+  orange: { name: "Faixa Laranja", rarity: "RARE", priceJT: 700 },
+  green: { name: "Faixa Verde", rarity: "RARE", priceJT: 800 },
+  blue: { name: "Faixa Azul", rarity: "RARE", priceJT: 1000 },
+  purple: { name: "Faixa Roxa", rarity: "EPIC", priceJT: 1500 },
+  brown: { name: "Faixa Marrom", rarity: "EPIC", priceJT: 2000 },
+  black: { name: "Faixa Preta", rarity: "LEGENDARY", priceJT: 5000 },
+  coral: { name: "Faixa Coral", rarity: "LEGENDARY", priceJT: 6000 },
+  red_black: { name: "Faixa Vermelha e Preta", rarity: "LEGENDARY", priceJT: 7500 },
+  red_white: { name: "Faixa Vermelha e Branca", rarity: "LEGENDARY", priceJT: 9000 },
 };
 
 function capitalize(s: string) {
@@ -40,7 +40,7 @@ export interface ScannedAvatar {
   category: string;
   rarity: string;
   imageUrl: string;
-  priceKC: number;
+  priceJT: number;
   stock: number;
   active: boolean;
 }
@@ -98,7 +98,7 @@ export function scanAvatarsDirectory(): ScannedAvatar[] {
         category: "AVATAR",
         rarity: beltInfo.rarity,
         imageUrl,
-        priceKC: beltInfo.priceKC,
+        priceJT: beltInfo.priceJT,
         stock: 999999,
         active: true,
       });
@@ -131,7 +131,7 @@ async function runImport() {
         update: {
           name: av.name,
           description: av.description,
-          priceKC: av.priceKC,
+          priceJT: av.priceJT,
           category: av.category,
           rarity: av.rarity as any,
           imageUrl: av.imageUrl,
@@ -142,7 +142,7 @@ async function runImport() {
           id: av.id,
           name: av.name,
           description: av.description,
-          priceKC: av.priceKC,
+          priceJT: av.priceJT,
           category: av.category,
           rarity: av.rarity as any,
           imageUrl: av.imageUrl,

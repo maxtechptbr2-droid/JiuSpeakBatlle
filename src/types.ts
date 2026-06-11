@@ -15,7 +15,7 @@ export interface UserProfile {
   xpNextLevel: number;
   belt: BeltRank;
   stripes: number; // 0 to 4
-  coins: number; // Kimono Coins (KC)
+  coins: number; // Jiutickets (JT)
   elo: number; // PVP Arena Ranking
   winCount: number;
   lossCount: number;
@@ -56,7 +56,7 @@ export interface InventoryItem {
   description: string;
   category: 'gi' | 'belt_stripe' | 'title' | 'avatar' | 'background' | 'badge';
   price: number;
-  currency: 'KC' | 'BRL';
+  currency: 'JT' | 'BRL';
   rarity: 'Comum' | 'Raro' | 'Épico' | 'Lendário';
   imageUrl: string;
   sellerId?: string | null; // For peer-to-peer marketplace (null = Official Store)
@@ -178,7 +178,7 @@ export interface AuditLog {
   userName: string;
   type: 'security_alert' | 'pix_deposit' | 'withdrawal' | 'market_trade' | 'lesson_completed' | 'cheat';
   description: string;
-  amountKC?: number;
+  amountJT?: number;
   amountBRL?: number;
   status: 'Aprovado' | 'Pendente' | 'Negado';
   timestamp: string;
@@ -201,7 +201,7 @@ export interface MarketplaceItem {
   inventoryItemId: string;
   sellerId: string;
   sellerName: string;
-  priceKC: number;
+  priceJT: number;
   active: boolean;
   createdAt: string;
   itemDetails?: InventoryItem;
@@ -214,8 +214,8 @@ export interface MarketplaceSale {
   buyerName: string;
   sellerId: string;
   sellerName: string;
-  pricePaidKC: number;
-  feePaidKC: number;
+  pricePaidJT: number;
+  feePaidJT: number;
   itemName: string;
   createdAt: string;
   status: 'Seguro' | 'Suspeito' | 'Analise_Manual' | 'Bloqueado';

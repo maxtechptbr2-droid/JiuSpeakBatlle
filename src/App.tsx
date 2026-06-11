@@ -431,12 +431,12 @@ export default function App() {
     // Log transaction
     addAuditLog(
       'lesson_completed',
-      `Premiação: Lutador resgatou recompensa da conquista "${found.title}" (+${found.xpReward} XP / +${found.coinReward} KC).`,
+      `Premiação: Lutador resgatou recompensa da conquista "${found.title}" (+${found.xpReward} XP / +${found.coinReward} JT).`,
       undefined,
       found.coinReward
     );
 
-    showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP e +${found.coinReward} Kimono Coins salvos!`, 'success');
+    showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP e +${found.coinReward} Jiutickets salvos!`, 'success');
 
     // Trigger automatic viral share congratulations overlay
     setTimeout(() => {
@@ -454,7 +454,7 @@ export default function App() {
     type: 'security_alert' | 'pix_deposit' | 'withdrawal' | 'market_trade' | 'lesson_completed',
     description: string,
     amountBRL?: number,
-    amountKC?: number
+    amountJT?: number
   ) => {
     const newLog: AuditLog = {
       id: `audit_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -463,7 +463,7 @@ export default function App() {
       type,
       description,
       amountBRL,
-      amountKC,
+      amountJT,
       status: 'Aprovado',
       timestamp: new Date().toISOString()
     };
@@ -722,7 +722,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-2 py-0.5 rounded-md font-mono text-[10px]">
               <Coins className="w-3.5 h-3.5" />
-              <span>{user.coins} KC</span>
+              <span>{user.coins} JT</span>
             </div>
             
             <div className="flex items-center gap-1 bg-orange-500/10 text-orange-500 border border-orange-500/20 px-2 py-0.5 rounded-md font-mono text-[10px]">
@@ -1097,8 +1097,8 @@ export default function App() {
                 onClick={() => {
                   const val = user.coins + 1500;
                   setUser(prev => ({ ...prev, coins: val }));
-                  showToast("+1500 Kimono Coins injetados!", "success");
-                  addAuditLog('lesson_completed', `Cheat: Developer injetou +1500 Kimono Coins.`, undefined, 1500);
+                  showToast("+1500 Jiutickets injetados!", "success");
+                  addAuditLog('lesson_completed', `Cheat: Developer injetou +1500 Jiutickets.`, undefined, 1500);
                 }}
                 className="p-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-350 hover:text-white rounded-lg transition-all cursor-pointer font-bold"
               >

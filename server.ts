@@ -62,7 +62,7 @@ app.use(cookieParser());
 // DYNAMIC STOREPRODUCT FIELD COMPATIBILITY SYSTEM (ANTI-DRIFT AUTOPILOT)
 // -------------------------------------------------------------------------
 export let physicalStoreProductColumns: string[] = [
-  "id", "name", "description", "priceKC", "priceBRL", "category", "rarity", "imageUrl", "stock", "active", "createdAt", "updatedAt"
+  "id", "name", "description", "priceJT", "priceBRL", "category", "rarity", "imageUrl", "stock", "active", "createdAt", "updatedAt"
 ];
 
 export async function auditStoreProductColumns() {
@@ -90,8 +90,8 @@ export function getStoreProductSelect() {
   }
   const selectObj: Record<string, boolean> = {};
   const allSchemaFields = [
-    "id", "name", "description", "priceKC", "priceBRL", "category", "rarity", "imageUrl", "stock", "active", "createdAt", "updatedAt",
-    "isPromo", "promoPriceKC", "isBundle", "isSeasonal", "isExclusive", "releaseDate", "promoEndDate"
+    "id", "name", "description", "priceJT", "priceBRL", "category", "rarity", "imageUrl", "stock", "active", "createdAt", "updatedAt",
+    "isPromo", "promoPriceJT", "isBundle", "isSeasonal", "isExclusive", "releaseDate", "promoEndDate"
   ];
   for (const field of allSchemaFields) {
     if (physicalStoreProductColumns.includes(field)) {
@@ -105,7 +105,7 @@ export function sanitizeStoreProduct(p: any) {
   if (!p) return p;
   const defaults: Record<string, any> = {
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: false,
     isExclusive: false,
@@ -528,7 +528,7 @@ export async function initializePremiumBjjAvatars() {
         id: `prod_avatar_${c.id}_${belt.key}`,
         name: `${c.name} (${belt.name})`,
         description: `${c.description} Especialidade: Nível de faixa ${belt.name}.`,
-        priceKC: price,
+        priceJT: price,
         priceBRL: null,
         category: "AVATAR",
         rarity: rarity,
@@ -536,7 +536,7 @@ export async function initializePremiumBjjAvatars() {
         stock: null,
         active: true,
         isPromo: false,
-        promoPriceKC: null,
+        promoPriceJT: null,
         isBundle: false,
         isSeasonal: false,
         isExclusive: false
@@ -594,7 +594,7 @@ export async function initializePremiumBjjAvatars() {
                 update: {
                   name: prod.name,
                   description: prod.description,
-                  priceKC: prod.priceKC,
+                  priceJT: prod.priceJT,
                   category: prod.category,
                   rarity: prod.rarity as any,
                   imageUrl: prod.imageUrl,
@@ -605,7 +605,7 @@ export async function initializePremiumBjjAvatars() {
                   id: prod.id,
                   name: prod.name,
                   description: prod.description,
-                  priceKC: prod.priceKC,
+                  priceJT: prod.priceJT,
                   category: prod.category,
                   rarity: prod.rarity as any,
                   imageUrl: prod.imageUrl,
@@ -672,7 +672,7 @@ app.use((req: any, res: any, next: any) => {
         let action: string | null = null;
         let description = "";
         let amountBRL: number | null = null;
-        let amountKC: number | null = null;
+        let amountJT: number | null = null;
 
         // 1. LOGIN
         if (path === "/api/auth/login" && method === "POST") {
@@ -697,15 +697,15 @@ app.use((req: any, res: any, next: any) => {
           const amount = Number(req.body?.amountBRL || req.body?.amount || body?.amountBRL || 0);
           const kc = Math.round(amount * 1.5);
           amountBRL = amount;
-          amountKC = kc;
-          description = `Nova intenção de PIX registrada: R$ ${amount.toFixed(2)} (equivalente a ${kc} KC).`;
+          amountJT = kc;
+          description = `Nova intenção de PIX registrada: R$ ${amount.toFixed(2)} (equivalente a ${kc} JT).`;
         }
         else if (path === "/api/finance/pix-webhook" && method === "POST") {
           action = "PIX_DEPOSIT";
           const amount = Number(req.body?.amountBRL || req.body?.amount || 0);
           const email = req.body?.email || req.body?.external_ref || "desconhecido";
           amountBRL = amount;
-          amountKC = Math.round(amount * 1.5);
+          amountJT = Math.round(amount * 1.5);
           description = `Depósito PIX compensado com sucesso por webhook: R$ ${amount.toFixed(2)} para o email ${email}.`;
         }
         else if (path.match(/^\/api\/admin\/pix\/([^\/]+)\/action$/) && method === "POST") {
@@ -736,18 +736,18 @@ app.use((req: any, res: any, next: any) => {
         else if (path === "/api/marketplace/buy" && method === "POST") {
           action = "MARKETPLAYCE_BUY";
           const itemId = req.body?.itemId || req.body?.marketplaceItemId || "desconhecido";
-          const priceKC = Number(req.body?.priceKC || req.body?.price || 0);
-          amountKC = priceKC || null;
-          description = `Compra finalizada de item do marketplace (ID anunciante: ${itemId}) no valor total de ${priceKC || "ND"} KC.`;
+          const priceJT = Number(req.body?.priceJT || req.body?.price || 0);
+          amountJT = priceJT || null;
+          description = `Compra finalizada de item do marketplace (ID anunciante: ${itemId}) no valor total de ${priceJT || "ND"} JT.`;
         }
 
         // 6. VENDA (MARKETPLACE LIST/REMOVAL/COMPLETION)
         else if (path === "/api/marketplace/list" && method === "POST") {
           action = "MARKETPLAYCE_LIST";
           const title = req.body?.name || req.body?.title || "Item Vitrine";
-          const priceKC = Number(req.body?.priceKC || req.body?.price || 0);
-          amountKC = priceKC || null;
-          description = `Novo anúncio de vendas catalogado no pregão virtual: "${title}" avaliado por ${priceKC} KC.`;
+          const priceJT = Number(req.body?.priceJT || req.body?.price || 0);
+          amountJT = priceJT || null;
+          description = `Novo anúncio de vendas catalogado no pregão virtual: "${title}" avaliado por ${priceJT} JT.`;
         }
         else if (path.match(/^\/api\/admin\/marketplace\/([^\/]+)\/action$/) && method === "POST") {
           action = "MARKETPLAYCE_LIST";
@@ -833,7 +833,7 @@ app.use((req: any, res: any, next: any) => {
               ipAddress,
               userAgent,
               amountBRL,
-              amountKC
+              amountJT
             }
           });
         }
@@ -860,7 +860,7 @@ export const ALL_ITEMS_CATALOG: Record<string, any> = {
     description: "Direto do armário de um faixa preta aposentado. Desgastado na dose certa para assustar adversários.",
     category: "gi",
     price: 4500,
-    currency: "KC",
+    currency: "JT",
     rarity: "Lendário",
     imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200"
   },
@@ -870,7 +870,7 @@ export const ALL_ITEMS_CATALOG: Record<string, any> = {
     description: "Somente para raspadores flexíveis de laço.",
     category: "title",
     price: 1500,
-    currency: "KC",
+    currency: "JT",
     rarity: "Épico",
     imageUrl: ""
   },
@@ -880,7 +880,7 @@ export const ALL_ITEMS_CATALOG: Record<string, any> = {
     description: "Ostente uma autoconfiança lendária nos saguões virtuais!",
     category: "title",
     price: 6000,
-    currency: "KC",
+    currency: "JT",
     rarity: "Lendário",
     imageUrl: ""
   },
@@ -890,7 +890,7 @@ export const ALL_ITEMS_CATALOG: Record<string, any> = {
     description: "Um quimono de alta costura com costuras em fios de ouro virtual, reservado para os mestres.",
     category: "gi",
     price: 8000,
-    currency: "KC",
+    currency: "JT",
     rarity: "Lendário",
     imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200"
   },
@@ -900,7 +900,7 @@ export const ALL_ITEMS_CATALOG: Record<string, any> = {
     description: "Uma faixa roxa autografada por Royce Gracie.",
     category: "gi",
     price: 3500,
-    currency: "KC",
+    currency: "JT",
     rarity: "Épico",
     imageUrl: ""
   },
@@ -910,7 +910,7 @@ export const ALL_ITEMS_CATALOG: Record<string, any> = {
     description: "Um emblema que exibe no perfil sua capacidade de resistir a passagens.",
     category: "badge",
     price: 1200,
-    currency: "KC",
+    currency: "JT",
     rarity: "Raro",
     imageUrl: ""
   }
@@ -932,7 +932,7 @@ export let inMemoryStoreProducts: any[] = [
     id: "prod_avatar_guerreiro_bjj1",
     name: "Avatar: Samurai do Asfalto",
     description: "Um samurai moderno trajado de kimono reforçado para rolar nas calçadas virtuais.",
-    priceKC: 1500,
+    priceJT: 1500,
     priceBRL: null,
     category: "Avatares Masculinos",
     rarity: "LEGENDARY",
@@ -940,7 +940,7 @@ export let inMemoryStoreProducts: any[] = [
     stock: null,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: false,
     isExclusive: false
@@ -949,7 +949,7 @@ export let inMemoryStoreProducts: any[] = [
     id: "prod_avatar_rainha_bjj1",
     name: "Avatar: Leoa do Absoluto",
     description: "Espírito implacável que domina o circuito feminino de competições peso aberto.",
-    priceKC: 2500,
+    priceJT: 2500,
     priceBRL: null,
     category: "Avatares Femininos",
     rarity: "EPIC",
@@ -957,7 +957,7 @@ export let inMemoryStoreProducts: any[] = [
     stock: null,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: false,
     isExclusive: false
@@ -966,7 +966,7 @@ export let inMemoryStoreProducts: any[] = [
     id: "prod_frame_master_gold1",
     name: "Moldura: Campeão Mundial IBJJF",
     description: "Destaque dourado cintilante e suntuoso para a borda do seu avatar.",
-    priceKC: 1000,
+    priceJT: 1000,
     priceBRL: null,
     category: "Molduras",
     rarity: "LEGENDARY",
@@ -974,7 +974,7 @@ export let inMemoryStoreProducts: any[] = [
     stock: 200,
     active: true,
     isPromo: true,
-    promoPriceKC: 800,
+    promoPriceJT: 800,
     isBundle: false,
     isSeasonal: false,
     isExclusive: true
@@ -983,7 +983,7 @@ export let inMemoryStoreProducts: any[] = [
     id: "prod_title_rubber1",
     name: "Título: 'Caçador de Kimonos'",
     description: "Exiba no seu cabeçalho a reputação de quem não recusa nenhum desafio técnico.",
-    priceKC: 500,
+    priceJT: 500,
     priceBRL: null,
     category: "Títulos",
     rarity: "RARE",
@@ -991,7 +991,7 @@ export let inMemoryStoreProducts: any[] = [
     stock: null,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: false,
     isExclusive: false
@@ -999,8 +999,8 @@ export let inMemoryStoreProducts: any[] = [
   {
     id: "prod_bundle_black_belt1",
     name: "Pacote VIP: Legado Faixa Preta",
-    description: "Uma caixa colecionadora contendo 1 avatar exclusivo, o título 'Imortal' e 1000 Kimono Coins.",
-    priceKC: 6000,
+    description: "Uma caixa colecionadora contendo 1 avatar exclusivo, o título 'Imortal' e 1000 Jiutickets.",
+    priceJT: 6000,
     priceBRL: 49.90,
     category: "Pacotes VIP",
     rarity: "LEGENDARY",
@@ -1008,7 +1008,7 @@ export let inMemoryStoreProducts: any[] = [
     stock: 150,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: true,
     isSeasonal: false,
     isExclusive: false
@@ -1017,7 +1017,7 @@ export let inMemoryStoreProducts: any[] = [
     id: "prod_xp_double_pass1",
     name: "XP Boost: Cinturão Veloz 2X",
     description: "Dobre todo o seu progresso de aprendizagem em lições e quizzes pelas próximas 48 horas.",
-    priceKC: 1200,
+    priceJT: 1200,
     priceBRL: null,
     category: "XP Boost",
     rarity: "COMMON",
@@ -1025,24 +1025,24 @@ export let inMemoryStoreProducts: any[] = [
     stock: null,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: false,
     isExclusive: false
   },
   {
     id: "prod_pack_1000_coins1",
-    name: "Kimono Coins: Maleta de KC (+200 Bônus)",
-    description: "Adicione instantaneamente 1.200 Kimono Coins ao seu saldo para resgates velozes.",
-    priceKC: 0,
+    name: "Jiutickets: Maleta de JT (+200 Bônus)",
+    description: "Adicione instantaneamente 1.200 Jiutickets ao seu saldo para resgates velozes.",
+    priceJT: 0,
     priceBRL: 19.90,
-    category: "Kimono Coins",
+    category: "Jiutickets",
     rarity: "RARE",
     imageUrl: "https://images.unsplash.com/photo-1549576490-b0b4831da60a?auto=format&fit=crop&q=80&w=200",
     stock: null,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: false,
     isExclusive: false
@@ -1051,7 +1051,7 @@ export let inMemoryStoreProducts: any[] = [
     id: "prod_special_gold_belt1",
     name: "Faixa Preta com Fios de Ouro 24K",
     description: "Edição comemorativa especial. Brilha e emite partículas nas salas de conferência.",
-    priceKC: 8000,
+    priceJT: 8000,
     priceBRL: null,
     category: "Itens Especiais",
     rarity: "LEGENDARY",
@@ -1059,7 +1059,7 @@ export let inMemoryStoreProducts: any[] = [
     stock: 5,
     active: true,
     isPromo: false,
-    promoPriceKC: null,
+    promoPriceJT: null,
     isBundle: false,
     isSeasonal: true,
     isExclusive: true
@@ -1072,7 +1072,7 @@ export let inMemoryMarketplaceItems: any[] = [
     inventoryItemId: "p2p_gi_koral",
     sellerId: "user_4593",
     sellerName: "Mestre_Cascão90",
-    priceKC: 4500,
+    priceJT: 4500,
     active: true,
     createdAt: new Date().toISOString()
   },
@@ -1081,7 +1081,7 @@ export let inMemoryMarketplaceItems: any[] = [
     inventoryItemId: "p2p_title_canela",
     sellerId: "user_7733",
     sellerName: "GuardaAranhaGuy",
-    priceKC: 1500,
+    priceJT: 1500,
     active: true,
     createdAt: new Date().toISOString()
   },
@@ -1090,7 +1090,7 @@ export let inMemoryMarketplaceItems: any[] = [
     inventoryItemId: "p2p_title_leao",
     sellerId: "user_2288",
     sellerName: "LeãoDoTatame",
-    priceKC: 6000,
+    priceJT: 6000,
     active: true,
     createdAt: new Date().toISOString()
   }
@@ -1104,8 +1104,8 @@ export let inMemoryMarketplaceSales: any[] = [
     buyerName: "Fabio Gurgel Fan (USER)",
     sellerId: "user_4593",
     sellerName: "Mestre_Cascão90",
-    pricePaidKC: 4500,
-    feePaidKC: 450,
+    pricePaidJT: 4500,
+    feePaidJT: 450,
     itemName: "Kimono Koral Vintage 1998",
     createdAt: new Date(Date.now() - 3600000).toISOString(),
     status: "Seguro",
@@ -1867,7 +1867,7 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
         xp: u.xp,
         level: u.level,
         elo: u.elo,
-        coins: u.wallet?.balanceKC || 0,
+        coins: u.wallet?.balanceJT || 0,
         balanceBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0
       }
     });
@@ -2540,7 +2540,7 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           isAdminApproved: u.isAdminApproved,
           createdAt: u.createdAt,
           avatar: u.avatar,
-          coins: u.wallet?.balanceKC || 0,
+          coins: u.wallet?.balanceJT || 0,
           balanceAvailableBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0.00,
         }));
       });
@@ -2769,7 +2769,7 @@ app.post("/api/admin/users/:id/update", authenticateToken, requireRole(["ADMIN"]
           await prisma.wallet.update({
             where: { id: userWallet.id },
             data: {
-              balanceKC: coins !== undefined ? Number(coins) : undefined,
+              balanceJT: coins !== undefined ? Number(coins) : undefined,
               balanceBRL: balanceBRL !== undefined ? Number(balanceBRL) : undefined,
               balanceAvailable: balanceBRL !== undefined ? Number(balanceBRL) : undefined
             }
@@ -2830,7 +2830,7 @@ app.post("/api/admin/users/create", authenticateToken, requireRole(["ADMIN"]), a
         isAdminApproved: true,
         wallet: {
           create: {
-            balanceKC: 500,
+            balanceJT: 500,
             balanceAvailable: 0.00,
             balanceBRL: 0.00,
             balancePending: 0.00,
@@ -3248,8 +3248,8 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
       if (isDatabaseConnected()) {
         const sw = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
         const tw = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
-        sourceCoins = sw ? sw.balanceKC : 0;
-        targetCoins = tw ? tw.balanceKC : 0;
+        sourceCoins = sw ? sw.balanceJT : 0;
+        targetCoins = tw ? tw.balanceJT : 0;
       } else {
         const swCached = await authStore.findById(sourceUserId);
         const twCached = await authStore.findById(targetUserId);
@@ -3265,21 +3265,21 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
         if (srcWallet) {
           await prisma.wallet.update({
             where: { id: srcWallet.id },
-            data: { balanceKC: { decrement: actualTransfer } }
+            data: { balanceJT: { decrement: actualTransfer } }
           });
         }
         const tgtWallet = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
         if (tgtWallet) {
           await prisma.wallet.update({
             where: { id: tgtWallet.id },
-            data: { balanceKC: { increment: actualTransfer } }
+            data: { balanceJT: { increment: actualTransfer } }
           });
         }
 
         const sWallet = await prisma.wallet.findUnique({ where: { userId: sourceUserId } });
         const tWallet = await prisma.wallet.findUnique({ where: { userId: targetUserId } });
-        await authStore.updateUser(sourceUserId, { coins: sWallet ? sWallet.balanceKC : 0 });
-        await authStore.updateUser(targetUserId, { coins: tWallet ? tWallet.balanceKC : 0 });
+        await authStore.updateUser(sourceUserId, { coins: sWallet ? sWallet.balanceJT : 0 });
+        await authStore.updateUser(targetUserId, { coins: tWallet ? tWallet.balanceJT : 0 });
       } else {
         const newSourceCoins = Math.max(0, sourceCoins - actualTransfer);
         const newTargetCoins = targetCoins + actualTransfer;
@@ -3287,7 +3287,7 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
         await authStore.updateUser(targetUserId, { coins: newTargetCoins });
       }
 
-      auditMsg = `ADMINISTRADOR TRANSFERIU MOEDAS: ${actualTransfer} KC do atleta ${sourceUser.name} para ${targetUser.name}.`;
+      auditMsg = `ADMINISTRADOR TRANSFERIU Jiutickets: ${actualTransfer} JT do atleta ${sourceUser.name} para ${targetUser.name}.`;
     }
     else if (type === "ITEM" || type === "ITENS") {
       const itemId = value;
@@ -3731,7 +3731,7 @@ app.get("/api/admin/marketplace", authenticateToken, requireRole(["ADMIN"]), asy
     const mappedListings = items.map((item: any) => ({
       id: item.id,
       name: ALL_ITEMS_CATALOG[item.inventoryItemId]?.name || "Equipamento Especial",
-      priceKC: item.priceKC,
+      priceJT: item.priceJT,
       active: item.active,
       rarity: ALL_ITEMS_CATALOG[item.inventoryItemId]?.rarity || "COMMON",
       sellerName: item.seller?.name || "Atleta Vendedor",
@@ -4410,7 +4410,7 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
           wallet = await prisma.wallet.create({
             data: {
               userId: user.id!,
-              balanceKC: 0,
+              balanceJT: 0,
               balanceAvailable: newAvailable,
               balanceBRL: newAvailable,
               balancePending: user.balancePendingBRL ?? 0,
@@ -4898,7 +4898,7 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
       productId: s.productId,
       buyerId: s.buyerId,
       pricePaidBRL: s.pricePaidBRL ? Number(s.pricePaidBRL) : 0,
-      pricePaidKC: s.pricePaidKC || 0,
+      pricePaidJT: s.pricePaidJT || 0,
       createdAt: s.createdAt,
       productName: s.product?.name || "Kimono Combat",
       buyerName: s.buyer?.name || "Lutador Comprador",
@@ -4907,9 +4907,9 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
     }));
 
     const safeMarketplaceSales = marketplaceSales.map(m => {
-      const kc = m.pricePaidKC || 0;
+      const kc = m.pricePaidJT || 0;
       const amountBRL = kc * 0.10; 
-      const feeKC = m.feePaidKC || 0;
+      const feeKC = m.feePaidJT || 0;
       const feeBRL = feeKC * 0.10;
 
       const sellerName = m.marketplaceItem?.seller?.name || "Vendedor Local";
@@ -4925,8 +4925,8 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
         sellerEmail,
         buyerName,
         buyerEmail,
-        pricePaidKC: kc,
-        feePaidKC: feeKC,
+        pricePaidJT: kc,
+        feePaidJT: feeKC,
         amountBRL,
         feeBRL,
         createdAt: m.createdAt
@@ -4988,7 +4988,7 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
           productId: `prod-${i}`,
           buyerId: `user-${i}`,
           pricePaidBRL: (30 + (i * 12)) % 400 + 49.90,
-          pricePaidKC: (i * 100) % 3000 + 500,
+          pricePaidJT: (i * 100) % 3000 + 500,
           createdAt: d,
           productName: items[i % items.length],
           buyerName: buyers[i % buyers.length],
@@ -5012,8 +5012,8 @@ app.get("/api/admin/finance/corporate-stats", authenticateToken, requireRole(["A
           sellerEmail: `seller-${i}@market.com`,
           buyerName: buyers[i % buyers.length],
           buyerEmail: `buyer-${i}@market.com`,
-          pricePaidKC: (i + 1) * 800,
-          feePaidKC: Math.round(((i + 1) * 800) * 0.10),
+          pricePaidJT: (i + 1) * 800,
+          feePaidJT: Math.round(((i + 1) * 800) * 0.10),
           amountBRL: (i + 1) * 80,
           feeBRL: ((i + 1) * 8),
           createdAt: d
@@ -7002,7 +7002,7 @@ app.post("/api/finance/pix", authenticateToken, async (req: any, res: any) => {
           wallet = await prisma.wallet.create({
             data: {
               userId: user.id,
-              balanceKC: 0,
+              balanceJT: 0,
               balanceAvailable: user.balanceAvailableBRL || 0,
               balanceBRL: user.balanceAvailableBRL || 0,
               balancePending: user.balancePendingBRL || 0,
@@ -7375,8 +7375,8 @@ app.get("/api/marketplace/items", async (req: any, res: any) => {
             inventoryItemId: list.inventoryItemId,
             sellerId: list.sellerId,
             sellerName: list.seller?.name || "Desconhecido",
-            price: list.priceKC,
-            currency: 'KC',
+            price: list.priceJT,
+            currency: 'JT',
             name: list.inventoryItem?.name || "Item Especial",
             description: list.inventoryItem?.description || "",
             category: (list.inventoryItem?.category || "gi").toLowerCase(),
@@ -7399,7 +7399,7 @@ app.get("/api/marketplace/items", async (req: any, res: any) => {
             name: "Equipamento de Competição",
             description: "Equipamento oficial de torneios.",
             category: "gi",
-            price: li.priceKC,
+            price: li.priceJT,
             rarity: "Comum",
             imageUrl: ""
           };
@@ -7408,8 +7408,8 @@ app.get("/api/marketplace/items", async (req: any, res: any) => {
             inventoryItemId: li.inventoryItemId,
             sellerId: li.sellerId,
             sellerName: li.sellerName || "Atleta Virtual",
-            price: li.priceKC,
-            currency: 'KC',
+            price: li.priceJT,
+            currency: 'JT',
             name: details.name,
             description: details.description,
             category: details.category?.toLowerCase() || "gi",
@@ -7441,9 +7441,9 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
   try {
     const userId = req.user.id;
     const userName = req.user.name;
-    const { inventoryItemId, priceKC, name, description, category, rarity } = req.body;
+    const { inventoryItemId, priceJT, name, description, category, rarity } = req.body;
 
-    const price = parseInt(priceKC);
+    const price = parseInt(priceJT);
 
     // ANTI-FRAUD PRICE CHECKS
     if (isNaN(price) || price < 50 || price > 50000) {
@@ -7454,14 +7454,14 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
             data: {
               actorId: userId,
               action: "SYSTEM_SETTING_CHANGE",
-              description: `ALERTA DE SEGURANÇA ANTIFRAUDE: Tentativa de listagem fraudulenta com preço irregular de ${priceKC} KC pelo usuário "${userName}". Bloqueado.`,
+              description: `ALERTA DE SEGURANÇA ANTIFRAUDE: Tentativa de listagem fraudulenta com preço irregular de ${priceJT} JT pelo usuário "${userName}". Bloqueado.`,
             }
           });
         } catch (e) {}
       }
 
       return res.status(400).json({ 
-        error: "Limites Regulatórios Antifraude: O preço deve estar obrigatoriamente entre 50 KC e 50.000 KC para impedir colisão e transbordamento." 
+        error: "Limites Regulatórios Antifraude: O preço deve estar obrigatoriamente entre 50 JT e 50.000 JT para impedir colisão e transbordamento." 
       });
     }
 
@@ -7510,7 +7510,7 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
       inventoryItemId: finalItemId,
       sellerId: userId,
       sellerName: userName,
-      priceKC: price,
+      priceJT: price,
       active: true,
       createdAt: new Date().toISOString()
     };
@@ -7522,7 +7522,7 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
 
     // Log to standard security auditor
     const prisma = getPrisma();
-    const logDesc = `Mercado P2P: Criou anúncio do item "${finalItemDetails.name}" sob ID "${listingId}" por ${price} KC. Inspeção de integridade ativa.`;
+    const logDesc = `Mercado P2P: Criou anúncio do item "${finalItemDetails.name}" sob ID "${listingId}" por ${price} JT. Inspeção de integridade ativa.`;
     if (prisma) {
       try {
         await prisma.marketplaceItem.create({
@@ -7530,7 +7530,7 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
             id: listingId,
             inventoryItemId: finalItemId,
             sellerId: userId,
-            priceKC: price,
+            priceJT: price,
             active: true
           }
         });
@@ -7540,7 +7540,7 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
             actorId: userId,
             action: "MARKETPLAYCE_LIST",
             description: logDesc,
-            amountKC: price
+            amountJT: price
           }
         });
       } catch (dbErr) {
@@ -7606,7 +7606,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
             inventoryItemId: dbListing.inventoryItemId,
             sellerId: dbListing.sellerId,
             sellerName: dbListing.seller?.name || "Lutador",
-            priceKC: dbListing.priceKC,
+            priceJT: dbListing.priceJT,
             active: false, // Already atomically disabled by the CAS operation above
           };
         }
@@ -7619,7 +7619,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       return res.status(404).json({ error: "Esta oferta não está mais disponível ou foi finalizada por outro atleta." });
     }
 
-    const { sellerId, sellerName, priceKC, inventoryItemId } = listing;
+    const { sellerId, sellerName, priceJT, inventoryItemId } = listing;
 
     // A. ANTI-FRAUD: Self-Buying Prevention
     if (sellerId === buyerId) {
@@ -7645,7 +7645,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     if (nowMs - velocity.lastTime < 60000) {
       if (velocity.count >= 3) {
         return res.status(429).json({ 
-          error: "Bloqueio Velocidade Antifraude: Suspeita de script bot ou evasão de moedas. Aguarde 60 segundos antes de efetuar novas transações." 
+          error: "Bloqueio Velocidade Antifraude: Suspeita de script bot ou evasão de Jiutickets. Aguarde 60 segundos antes de efetuar novas transações." 
         });
       }
       velocity.count += 1;
@@ -7662,9 +7662,9 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     if (!buyerObj) return res.status(400).json({ error: "Perfil comprador inexistente." });
     
     const buyerCoins = buyerObj.coins ?? 0;
-    if (buyerCoins < priceKC) {
+    if (buyerCoins < priceJT) {
       return res.status(400).json({ 
-        error: `Saldo insuficiente! Você tem ${buyerCoins} KC e este item custa ${priceKC} KC.` 
+        error: `Saldo insuficiente! Você tem ${buyerCoins} JT e este item custa ${priceJT} JT.` 
       });
     }
 
@@ -7674,26 +7674,26 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     // D. SYSTEM COMMISSION CHARGES / COMMISSION ENGINE
     // Platform takes 10% commission on P2P trading activity
     const commissionRate = 0.10;
-    const feePaidKC = Math.ceil(priceKC * commissionRate);
-    const sellerNetKC = priceKC - feePaidKC;
+    const feePaidJT = Math.ceil(priceJT * commissionRate);
+    const sellerNetKC = priceJT - feePaidJT;
 
     // E. ASSESS RISK SCORE & COLLUSION ENGINE (RISK METRICS)
     let riskScore = 15;
     let securityNotes = "Garantias operacionais normais aplicadas.";
     let saleStatus: 'Seguro' | 'Suspeito' | 'Analise_Manual' | 'Bloqueado' = 'Seguro';
 
-    if (priceKC > 15000) {
+    if (priceJT > 15000) {
       riskScore = 80;
       securityNotes = "Valor extremamente elevado para bens cosméticos virtuais. Registrado para análise de integridade.";
       saleStatus = 'Suspeito';
-    } else if (priceKC > 6000) {
+    } else if (priceJT > 6000) {
       riskScore = 45;
       securityNotes = "Valor acima da média do tatame. Commissionamento retido para compensação posterior.";
       saleStatus = 'Suspeito';
     }
 
     // F. EXECUTE THE P2P TRANSFER
-    const updatedBuyerCoins = buyerCoins - priceKC;
+    const updatedBuyerCoins = buyerCoins - priceJT;
     await authStore.updateUser(buyerId, { coins: updatedBuyerCoins });
 
     if (sellerObj) {
@@ -7719,8 +7719,8 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       buyerName,
       sellerId,
       sellerName,
-      pricePaidKC: priceKC,
-      feePaidKC,
+      pricePaidJT: priceJT,
+      feePaidJT,
       itemName: itemDetails.name,
       createdAt: new Date().toISOString(),
       status: saleStatus,
@@ -7730,7 +7730,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     inMemoryMarketplaceSales.unshift(newSale);
 
     // H. AUDITING AND LOGGING DISPATCH
-    const auditText = `Mercado P2P: Atleta "${buyerName}" adquiriu "${itemDetails.name}" de "${sellerName}" por ${priceKC} KC. Comissão de 10% cobrada: ${feePaidKC} KC (Plataforma). Vended net: ${sellerNetKC} KC. Risco: ${riskScore}% (${saleStatus}).`;
+    const auditText = `Mercado P2P: Atleta "${buyerName}" adquiriu "${itemDetails.name}" de "${sellerName}" por ${priceJT} JT. Comissão de 10% cobrada: ${feePaidJT} JT (Plataforma). Vended net: ${sellerNetKC} JT. Risco: ${riskScore}% (${saleStatus}).`;
     
     if (prisma) {
       try {
@@ -7739,8 +7739,8 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
             id: saleId,
             marketplaceItemId,
             buyerId,
-            pricePaidKC: priceKC,
-            feePaidKC
+            pricePaidJT: priceJT,
+            feePaidJT
           }
         });
 
@@ -7749,7 +7749,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
             actorId: buyerId,
             action: "MARKETPLAYCE_BUY",
             description: auditText,
-            amountKC: priceKC
+            amountJT: priceJT
           }
         });
       } catch (dbErr) {
@@ -7761,7 +7761,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       success: true,
       message: `Negócio fechado! O item "${itemDetails.name}" foi transferido sob a supervisão do motor antifraude.`,
       commission: {
-        paidKC: feePaidKC,
+        paidKC: feePaidJT,
         rate: "10%",
         sellerReceived: sellerNetKC
       },
@@ -7800,13 +7800,13 @@ app.get("/api/marketplace/sales", async (req: any, res: any) => {
             buyerName: sa.buyer?.name || "Comprador",
             sellerId: mItem?.sellerId || "Sistema",
             sellerName: mItem?.seller?.name || "Vendedor",
-            pricePaidKC: sa.pricePaidKC,
-            feePaidKC: sa.feePaidKC,
+            pricePaidJT: sa.pricePaidJT,
+            feePaidJT: sa.feePaidJT,
             itemName: name,
             createdAt: sa.createdAt.toISOString(),
-            status: sa.pricePaidKC > 15000 ? "Suspeito" : "Seguro",
-            riskScore: sa.pricePaidKC > 15000 ? 80 : 15,
-            securityNotes: sa.pricePaidKC > 15000 ? "Investigaço antifraude em faturamento pendente." : "Consistente com tabelas de referência."
+            status: sa.pricePaidJT > 15000 ? "Suspeito" : "Seguro",
+            riskScore: sa.pricePaidJT > 15000 ? 80 : 15,
+            securityNotes: sa.pricePaidJT > 15000 ? "Investigaço antifraude em faturamento pendente." : "Consistente com tabelas de referência."
           };
         });
         return res.json({ sales });
@@ -7842,7 +7842,7 @@ app.get("/api/marketplace/audit", async (req: any, res: any) => {
           id: lg.id,
           description: lg.description,
           action: lg.action,
-          amountKC: lg.amountKC,
+          amountJT: lg.amountJT,
           createdAt: lg.createdAt.toISOString()
         }));
       } catch (e) {
@@ -7895,7 +7895,7 @@ app.get("/api/store", async (req: any, res: any) => {
         "Títulos": "Títulos",
         "Pacotes VIP": "Pacotes VIP",
         "XP Boost": "XP Boost",
-        "Kimono Coins": "Kimono Coins",
+        "Jiutickets": "Jiutickets",
         "Itens Especiais": "Itens Especiais"
       };
       const targetCategory = categoryMap[category as string] || (category as string);
@@ -7905,10 +7905,10 @@ app.get("/api/store", async (req: any, res: any) => {
     if (rarity && rarity !== "all" && rarity !== "Todos") {
       if (rarity === "MYTHIC" || rarity === "Mítico") {
         whereClause.rarity = "LEGENDARY";
-        whereClause.priceKC = { gte: 4000 };
+        whereClause.priceJT = { gte: 4000 };
       } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
         whereClause.rarity = "LEGENDARY";
-        whereClause.priceKC = { lt: 4000 };
+        whereClause.priceJT = { lt: 4000 };
       } else {
         const rarityMap: Record<string, string> = {
           "Comum": "COMMON",
@@ -7938,7 +7938,7 @@ app.get("/api/store", async (req: any, res: any) => {
         items = await prisma.storeProduct.findMany({
           select: getStoreProductSelect(),
           where: cleanWhere,
-          orderBy: { priceKC: "asc" },
+          orderBy: { priceJT: "asc" },
           skip,
           take: limitNum
         });
@@ -7962,7 +7962,7 @@ app.get("/api/store", async (req: any, res: any) => {
           "Títulos": "Títulos",
           "Pacotes VIP": "Pacotes VIP",
           "XP Boost": "XP Boost",
-          "Kimono Coins": "Kimono Coins",
+          "Jiutickets": "Jiutickets",
           "Itens Especiais": "Itens Especiais"
         };
         const targetCategory = categoryMap[category as string] || (category as string);
@@ -7971,9 +7971,9 @@ app.get("/api/store", async (req: any, res: any) => {
 
       if (rarity && rarity !== "all" && rarity !== "Todos") {
         if (rarity === "MYTHIC" || rarity === "Mítico") {
-          filtered = filtered.filter(p => p.rarity === "LEGENDARY" && p.priceKC >= 4000);
+          filtered = filtered.filter(p => p.rarity === "LEGENDARY" && p.priceJT >= 4000);
         } else if (rarity === "LEGENDARY" || rarity === "Lendário") {
-          filtered = filtered.filter(p => p.rarity === "LEGENDARY" && p.priceKC < 4000);
+          filtered = filtered.filter(p => p.rarity === "LEGENDARY" && p.priceJT < 4000);
         } else {
           const rarityMap: Record<string, string> = {
             "Comum": "COMMON",
@@ -7998,13 +7998,13 @@ app.get("/api/store", async (req: any, res: any) => {
     }
 
     const formattedItems = items.map((item: any) => {
-      const isMythic = item.rarity === "LEGENDARY" && item.priceKC >= 4000;
+      const isMythic = item.rarity === "LEGENDARY" && item.priceJT >= 4000;
       const isPromoActive = item.isPromo && (item.promoEndDate === null || item.promoEndDate === undefined || new Date() <= new Date(item.promoEndDate));
       return patchProductObjectWithBjjAvatar({
         id: item.id,
         name: item.name,
         description: item.description,
-        priceKC: (isPromoActive && item.promoPriceKC !== null && item.promoPriceKC !== undefined) ? Number(item.promoPriceKC) : Number(item.priceKC),
+        priceJT: (isPromoActive && item.promoPriceJT !== null && item.promoPriceJT !== undefined) ? Number(item.promoPriceJT) : Number(item.priceJT),
         priceBRL: item.priceBRL ? Number(item.priceBRL) : undefined,
         category: item.category,
         rarity: isMythic ? "MYTHIC" : item.rarity,
@@ -8012,7 +8012,7 @@ app.get("/api/store", async (req: any, res: any) => {
         stock: item.stock,
         active: item.active,
         isPromo: isPromoActive,
-        promoPriceKC: item.promoPriceKC,
+        promoPriceJT: item.promoPriceJT,
         isBundle: item.isBundle,
         isSeasonal: item.isSeasonal,
         isExclusive: item.isExclusive,
@@ -8092,12 +8092,12 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
 
     // Resolve dynamic promotion active pricing
     const isPromoActive = product.isPromo && (product.promoEndDate === null || product.promoEndDate === undefined || new Date() <= new Date(product.promoEndDate));
-    const pricePaid = (isPromoActive && product.promoPriceKC !== null && product.promoPriceKC !== undefined) ? Number(product.promoPriceKC) : Number(product.priceKC);
+    const pricePaid = (isPromoActive && product.promoPriceJT !== null && product.promoPriceJT !== undefined) ? Number(product.promoPriceJT) : Number(product.priceJT);
 
     const currentCoins = buyerObj.coins ?? 0;
     if (currentCoins < pricePaid) {
       return res.status(400).json({ 
-        error: `Saldo insuficiente! Você precisa de ${pricePaid} KC, mas seu saldo atual é de ${currentCoins} KC.` 
+        error: `Saldo insuficiente! Você precisa de ${pricePaid} JT, mas seu saldo atual é de ${currentCoins} JT.` 
       });
     }
 
@@ -8190,7 +8190,7 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
           id: saleId,
           productId: product.id,
           buyerId,
-          pricePaidKC: pricePaid
+          pricePaidJT: pricePaid
         }
       });
 
@@ -8201,7 +8201,7 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
         await prisma.transaction.create({
           data: {
             walletId: userWallet.id,
-            amountKC: -product.priceKC,
+            amountJT: -product.priceJT,
             type: "STORE_PURCHASE",
             status: "COMPLETED",
             description: `Desbloqueio de cosmético: ${product.name}`,
@@ -8214,8 +8214,8 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
         data: {
           actorId: buyerId,
           action: "SYSTEM_SETTING_CHANGE",
-          description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceKC} KC. Saldo deduzido para ${updatedCoins} KC.`,
-          amountKC: product.priceKC
+          description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceJT} JT. Saldo deduzido para ${updatedCoins} JT.`,
+          amountJT: product.priceJT
         }
       });
     }
@@ -8230,7 +8230,7 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
         name: product.name,
         description: product.description,
         category: product.category,
-        rarity: product.rarity === "LEGENDARY" && product.priceKC >= 4000 ? "MYTHIC" : product.rarity,
+        rarity: product.rarity === "LEGENDARY" && product.priceJT >= 4000 ? "MYTHIC" : product.rarity,
         imageUrl: product.imageUrl
       })
     });
@@ -8272,7 +8272,7 @@ app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
             category: item.product.category,
             rarity: item.product.rarity,
             imageUrl: item.product.imageUrl,
-            priceKC: item.product.priceKC,
+            priceJT: item.product.priceJT,
             priceBRL: item.product.priceBRL ? Number(item.product.priceBRL) : undefined
           });
         }
@@ -8307,7 +8307,7 @@ app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
             category: product.category,
             rarity: product.rarity,
             imageUrl: product.imageUrl,
-            priceKC: product.priceKC,
+            priceJT: product.priceJT,
             priceBRL: product.priceBRL ? Number(product.priceBRL) : undefined
           }) : null
         };
@@ -8861,7 +8861,7 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
     const { 
       name, 
       description, 
-      priceKC, 
+      priceJT, 
       priceBRL, 
       category, 
       rarity, 
@@ -8869,7 +8869,7 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
       stock, 
       active, 
       isPromo, 
-      promoPriceKC, 
+      promoPriceJT, 
       isBundle, 
       isSeasonal, 
       isExclusive,
@@ -8877,15 +8877,15 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
       promoEndDate
     } = req.body;
 
-    if (!name || isNaN(Number(priceKC))) {
-      return res.status(400).json({ error: "Parâmetros inválidos. Nome e preço em KC são obrigatórios." });
+    if (!name || isNaN(Number(priceJT))) {
+      return res.status(400).json({ error: "Parâmetros inválidos. Nome e preço em JT são obrigatórios." });
     }
 
     const newItem = {
       id: "prod_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
       name,
       description: description || "",
-      priceKC: Number(priceKC),
+      priceJT: Number(priceJT),
       priceBRL: priceBRL ? Number(priceBRL) : null,
       category: category || "Itens Especiais",
       rarity: mapRarity(rarity),
@@ -8893,7 +8893,7 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
       stock: stock === null || stock === undefined || stock === "" ? null : Number(stock),
       active: active !== undefined ? Boolean(active) : true,
       isPromo: Boolean(isPromo),
-      promoPriceKC: promoPriceKC ? Number(promoPriceKC) : null,
+      promoPriceJT: promoPriceJT ? Number(promoPriceJT) : null,
       isBundle: Boolean(isBundle),
       isSeasonal: Boolean(isSeasonal),
       isExclusive: Boolean(isExclusive),
@@ -8907,7 +8907,7 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
         id: newItem.id,
         name: newItem.name,
         description: newItem.description,
-        priceKC: newItem.priceKC,
+        priceJT: newItem.priceJT,
         priceBRL: newItem.priceBRL,
         category: newItem.category,
         rarity: newItem.rarity,
@@ -8915,7 +8915,7 @@ app.post("/api/admin/store/create", authenticateToken, requireRole(["ADMIN"]), a
         stock: newItem.stock,
         active: newItem.active,
         isPromo: newItem.isPromo,
-        promoPriceKC: newItem.promoPriceKC,
+        promoPriceJT: newItem.promoPriceJT,
         isBundle: newItem.isBundle,
         isSeasonal: newItem.isSeasonal,
         isExclusive: newItem.isExclusive,
@@ -8957,7 +8957,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
     const { 
       name, 
       description, 
-      priceKC, 
+      priceJT, 
       priceBRL, 
       category, 
       rarity, 
@@ -8965,7 +8965,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
       stock, 
       active, 
       isPromo, 
-      promoPriceKC, 
+      promoPriceJT, 
       isBundle, 
       isSeasonal, 
       isExclusive,
@@ -8974,7 +8974,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
     } = req.body;
 
     const stockVal = stock === null || stock === "" || stock === undefined ? null : Number(stock);
-    const promoPriceVal = promoPriceKC === null || promoPriceKC === "" || promoPriceKC === undefined ? null : Number(promoPriceKC);
+    const promoPriceVal = promoPriceJT === null || promoPriceJT === "" || promoPriceJT === undefined ? null : Number(promoPriceJT);
     const releaseDateVal = releaseDate === null || releaseDate === "" || releaseDate === undefined ? null : new Date(releaseDate);
     const promoEndDateVal = promoEndDate === null || promoEndDate === "" || promoEndDate === undefined ? null : new Date(promoEndDate);
     const mappedRarity = mapRarity(rarity);
@@ -8986,7 +8986,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
       const updateData = sanitizeStoreProductWriteData({
         name,
         description: description !== undefined ? description : undefined,
-        priceKC: priceKC !== undefined ? Number(priceKC) : undefined,
+        priceJT: priceJT !== undefined ? Number(priceJT) : undefined,
         priceBRL: priceBRL !== undefined && priceBRL !== null ? Number(priceBRL) : null,
         category: category !== undefined ? category : undefined,
         rarity: rarity !== undefined ? mappedRarity : undefined,
@@ -8994,7 +8994,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
         stock: stockVal,
         active: active !== undefined ? Boolean(active) : undefined,
         isPromo: isPromo !== undefined ? Boolean(isPromo) : undefined,
-        promoPriceKC: promoPriceVal,
+        promoPriceJT: promoPriceVal,
         isBundle: isBundle !== undefined ? Boolean(isBundle) : undefined,
         isSeasonal: isSeasonal !== undefined ? Boolean(isSeasonal) : undefined,
         isExclusive: isExclusive !== undefined ? Boolean(isExclusive) : undefined,
@@ -9015,7 +9015,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
         ...inMemoryStoreProducts[inMemIdx],
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
-        ...(priceKC !== undefined && { priceKC: Number(priceKC) }),
+        ...(priceJT !== undefined && { priceJT: Number(priceJT) }),
         ...(priceBRL !== undefined && { priceBRL: priceBRL !== null ? Number(priceBRL) : null }),
         ...(category !== undefined && { category }),
         ...(rarity !== undefined && { rarity: mappedRarity }),
@@ -9023,7 +9023,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
         stock: stockVal,
         ...(active !== undefined && { active: Boolean(active) }),
         ...(isPromo !== undefined && { isPromo: Boolean(isPromo) }),
-        promoPriceKC: promoPriceVal,
+        promoPriceJT: promoPriceVal,
         ...(isBundle !== undefined && { isBundle: Boolean(isBundle) }),
         ...(isSeasonal !== undefined && { isSeasonal: Boolean(isSeasonal) }),
         ...(isExclusive !== undefined && { isExclusive: Boolean(isExclusive) }),
@@ -9040,7 +9040,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
         id,
         name,
         description: description || "",
-        priceKC: Number(priceKC),
+        priceJT: Number(priceJT),
         priceBRL: priceBRL ? Number(priceBRL) : null,
         category: category || "Itens Especiais",
         rarity: mappedRarity,
@@ -9048,7 +9048,7 @@ app.post("/api/admin/store/:id/update", authenticateToken, requireRole(["ADMIN"]
         stock: stockVal,
         active: active !== undefined ? Boolean(active) : true,
         isPromo: Boolean(isPromo),
-        promoPriceKC: promoPriceVal,
+        promoPriceJT: promoPriceVal,
         isBundle: Boolean(isBundle),
         isSeasonal: Boolean(isSeasonal),
         isExclusive: Boolean(isExclusive),
@@ -9107,7 +9107,7 @@ app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMI
       id: uniqueId,
       name: duplicatedName,
       description: original.description,
-      priceKC: original.priceKC,
+      priceJT: original.priceJT,
       priceBRL: original.priceBRL ? Number(original.priceBRL) : null,
       category: original.category,
       rarity: original.rarity,
@@ -9115,7 +9115,7 @@ app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMI
       stock: original.stock,
       active: original.active,
       isPromo: original.isPromo,
-      promoPriceKC: original.promoPriceKC,
+      promoPriceJT: original.promoPriceJT,
       isBundle: original.isBundle,
       isSeasonal: original.isSeasonal,
       isExclusive: original.isExclusive
@@ -9127,7 +9127,7 @@ app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMI
         id: duplicatedItem.id,
         name: duplicatedItem.name,
         description: duplicatedItem.description,
-        priceKC: duplicatedItem.priceKC,
+        priceJT: duplicatedItem.priceJT,
         priceBRL: duplicatedItem.priceBRL,
         category: duplicatedItem.category,
         rarity: mapRarity(duplicatedItem.rarity),
@@ -9135,7 +9135,7 @@ app.post("/api/admin/store/:id/duplicate", authenticateToken, requireRole(["ADMI
         stock: duplicatedItem.stock,
         active: duplicatedItem.active,
         isPromo: duplicatedItem.isPromo,
-        promoPriceKC: duplicatedItem.promoPriceKC,
+        promoPriceJT: duplicatedItem.promoPriceJT,
         isBundle: duplicatedItem.isBundle,
         isSeasonal: duplicatedItem.isSeasonal,
         isExclusive: duplicatedItem.isExclusive

@@ -156,14 +156,14 @@ export class RankingService {
           data: {
             actorId: playerAId,
             action: "PVP_MATCH_COMPLETE",
-            description: `Partida PVP concluída. ELO: ${oldEloA} -> ${newEloA}. Ganhou: ${coinsA} moedas e ${xpA} XP.`
+            description: `Partida PVP concluída. ELO: ${oldEloA} -> ${newEloA}. Ganhou: ${coinsA} Jiutickets e ${xpA} XP.`
           }
         });
         await prisma.auditLog.create({
           data: {
             actorId: playerBId,
             action: "PVP_MATCH_COMPLETE",
-            description: `Partida PVP concluída. ELO: ${oldEloB} -> ${newEloB}. Ganhou: ${coinsB} moedas e ${xpB} XP.`
+            description: `Partida PVP concluída. ELO: ${oldEloB} -> ${newEloB}. Ganhou: ${coinsB} Jiutickets e ${xpB} XP.`
           }
         });
     } catch (err) {

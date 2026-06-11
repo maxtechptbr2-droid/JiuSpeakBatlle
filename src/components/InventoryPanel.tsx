@@ -30,7 +30,7 @@ interface InventoryPanelProps {
   user: UserProfile;
   updateUser: (updatedFields: Partial<UserProfile>) => void;
   showToast: (message: string, type: 'success' | 'info' | 'error') => void;
-  onAddAuditLog: (type: any, description: string, amountBRL?: number, amountKC?: number) => void;
+  onAddAuditLog: (type: any, description: string, amountBRL?: number, amountJT?: number) => void;
 }
 
 export default function InventoryPanel({
@@ -418,7 +418,7 @@ export default function InventoryPanel({
             <span className="text-[10px] uppercase font-mono text-slate-500">SEU SALDO:</span>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-extrabold text-amber-400 font-mono">{user.coins}</span>
-              <span className="text-[10px] font-bold text-slate-450 font-sans">KC</span>
+              <span className="text-[10px] font-bold text-slate-450 font-sans">JT</span>
             </div>
           </div>
         </div>
@@ -774,7 +774,7 @@ export default function InventoryPanel({
               <div className="space-y-1">
                 <p className="text-sm font-bold text-slate-300">Nenhum recurso encontrado nesta categoria.</p>
                 <p className="text-xs text-slate-505 max-w-sm mx-auto leading-normal">
-                  Visite a **Loja JiuSpeak** para desbloquear avatares personalizados, títulos e efeitos especiais usando seus Kimono Coins.
+                  Visite a **Loja JiuSpeak** para desbloquear avatares personalizados, títulos e efeitos especiais usando seus Jiutickets.
                 </p>
               </div>
             </div>

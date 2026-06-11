@@ -41,7 +41,7 @@ interface LessonsProps {
   user: UserProfile;
   courses: Course[];
   updateUser: (newUser: Partial<UserProfile>) => void;
-  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtKC?: number) => void;
+  onAddAuditLog: (type: any, desc: string, amtBRL?: number, amtJT?: number) => void;
   addXp: (amount: number, reason: string) => void;
   addCoins: (amount: number, reason: string) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
@@ -310,7 +310,7 @@ export default function Lessons({
       addXp(rewardXP, `Conclusão de Módulo: ${id}`);
       addCoins(rewardCoins, `Estudo do Tatame`);
       onAddAuditLog('lesson_completed', `Atleta concluiu com destaque o módulo de estudo ${id}`, undefined, rewardCoins);
-      showToast(`Módulo Concluído! +${rewardXP} XP e +${rewardCoins} Kimono Coins acumulados!`, 'success');
+      showToast(`Módulo Concluído! +${rewardXP} XP e +${rewardCoins} Jiutickets acumulados!`, 'success');
     }
   };
 
@@ -1257,7 +1257,7 @@ export default function Lessons({
                     </div>
 
                     <p className="text-zinc-300">
-                      Cada lição concluída recompensa seu perfil com XP real e Kimono Coins (KCs). Isso impacta diretamente na sua elegância geral de faixas e ranking geral no PvP.
+                      Cada lição concluída recompensa seu perfil com XP real e Jiutickets (JTs). Isso impacta diretamente na sua elegância geral de faixas e ranking geral no PvP.
                     </p>
 
                     <div className="grid grid-cols-2 gap-3 pt-2">
@@ -1266,8 +1266,8 @@ export default function Lessons({
                         <p className="text-lg font-black text-rose-500 font-mono mt-0.5">+{activePlayAsset.xpReward} XP</p>
                       </div>
                       <div className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl text-center">
-                        <p className="text-[10px] text-zinc-500 uppercase font-mono">Bônus Kimono Coins</p>
-                        <p className="text-lg font-black text-amber-500 font-mono mt-0.5">+{Math.round(activePlayAsset.xpReward / 3)} KC</p>
+                        <p className="text-[10px] text-zinc-500 uppercase font-mono">Bônus Jiutickets</p>
+                        <p className="text-lg font-black text-amber-500 font-mono mt-0.5">+{Math.round(activePlayAsset.xpReward / 3)} JT</p>
                       </div>
                     </div>
 

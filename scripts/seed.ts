@@ -228,7 +228,7 @@ async function runSeed() {
             update: {
               name: `${c.name} (${belt.name})`,
               description: `${c.description} Especialidade: Nível de faixa ${belt.name}.`,
-              priceKC: price,
+              priceJT: price,
               category: "AVATAR",
               rarity: rarity as any,
               imageUrl: `/api/avatars/render/${c.id}/${belt.key}`,
@@ -238,7 +238,7 @@ async function runSeed() {
               id: `prod_avatar_${c.id}_${belt.key}`,
               name: `${c.name} (${belt.name})`,
               description: `${c.description} Especialidade: Nível de faixa ${belt.name}.`,
-              priceKC: price,
+              priceJT: price,
               category: "AVATAR",
               rarity: rarity as any,
               imageUrl: `/api/avatars/render/${c.id}/${belt.key}`,
