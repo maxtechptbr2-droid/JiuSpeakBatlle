@@ -48,6 +48,31 @@ export interface UserProfile {
     imageUrl?: string;
   } | null;
   onboardingDone?: boolean;
+  bio?: string;
+  city?: string;
+  country?: string;
+  nativeLanguage?: string;
+  learningGoal?: string;
+  profilePhoto?: string;
+  coverPhoto?: string;
+  instagram?: string;
+  youtube?: string;
+  facebook?: string;
+  website?: string;
+  birthDate?: string;
+  phone?: string;
+  englishLevel?: string;
+  spanishLevel?: string;
+  frenchLevel?: string;
+  username?: string;
+  beltRank?: string;
+  favoriteTechnique?: string;
+  favoriteAthlete?: string;
+  privacyLevel?: string;
+  themeColor?: string;
+  avatarFrame?: string;
+  followersCount?: number;
+  followingCount?: number;
 }
 
 export interface InventoryItem {

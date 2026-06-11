@@ -94,7 +94,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       totalEarnedBRL: apiUser.totalEarnedBRL !== undefined ? apiUser.totalEarnedBRL : 0.0,
       totalWithdrawnBRL: apiUser.totalWithdrawnBRL !== undefined ? apiUser.totalWithdrawnBRL : 0.0,
       equippedFrame: apiUser.equippedFrame || null,
-      onboardingDone: apiUser.onboardingDone
+      onboardingDone: apiUser.onboardingDone,
+      bio: apiUser.bio || "",
+      city: apiUser.city || "",
+      country: apiUser.country || "",
+      nativeLanguage: apiUser.nativeLanguage || "Português",
+      learningGoal: apiUser.learningGoal || "",
+      profilePhoto: apiUser.profilePhoto || apiUser.avatar || "",
+      coverPhoto: apiUser.coverPhoto || "",
+      instagram: apiUser.instagram || "",
+      youtube: apiUser.youtube || "",
+      facebook: apiUser.facebook || "",
+      website: apiUser.website || "",
+      birthDate: apiUser.birthDate || "",
+      phone: apiUser.phone || "",
+      englishLevel: apiUser.englishLevel || "Iniciante",
+      spanishLevel: apiUser.spanishLevel || "Iniciante",
+      frenchLevel: apiUser.frenchLevel || "Iniciante",
+      username: apiUser.username || "",
+      beltRank: apiUser.beltRank || "Faixa Branca",
+      favoriteTechnique: apiUser.favoriteTechnique || "",
+      favoriteAthlete: apiUser.favoriteAthlete || "",
+      privacyLevel: apiUser.privacyLevel || "public",
+      themeColor: apiUser.themeColor || "",
+      avatarFrame: apiUser.avatarFrame || "",
+      followersCount: apiUser.followersCount || 0,
+      followingCount: apiUser.followingCount || 0
     };
   };
 

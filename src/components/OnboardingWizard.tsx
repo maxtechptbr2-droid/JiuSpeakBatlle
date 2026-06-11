@@ -105,6 +105,12 @@ export default function OnboardingWizard({ user, onComplete, showToast }: Onboar
         showToast("Onboarding concluído com maestria! Bem-vindo ao JiuSpeak Academy.", "success");
         onComplete({
           avatar: profilePhoto || user.avatar,
+          profilePhoto: profilePhoto || user.profilePhoto || user.avatar,
+          nativeLanguage,
+          learningGoal,
+          englishLevel,
+          spanishLevel,
+          frenchLevel,
           onboardingDone: true
         });
       } else {

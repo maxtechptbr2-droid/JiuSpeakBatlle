@@ -180,11 +180,25 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
       if (res.ok) {
         const data = await res.json();
         showToast("Perfil atualizado com sucesso!", "success");
-        // Sync parent React user states
-        updateUser({
-          name: profile.name || user.name,
-          avatar: profile.profilePhoto || user.avatar
-        });
+        // Sync parent React user states using the saved server object
+        if (data.profile) {
+          updateUser({
+            ...data.profile,
+            avatar: data.profile.profilePhoto || data.profile.avatar || user.avatar
+          });
+          // Update local state with the saved fields to swap base64 back as real URL paths
+          let formattedBirthDate = '';
+          if (data.profile.birthDate) {
+            formattedBirthDate = new Date(data.profile.birthDate).toISOString().split('T')[0];
+          }
+          setProfile(p => ({
+            ...p,
+            ...data.profile,
+            birthDate: formattedBirthDate,
+            profilePhoto: data.profile.profilePhoto || data.profile.avatar || user.avatar || '',
+            coverPhoto: data.profile.coverPhoto || ''
+          }));
+        }
       } else {
         const err = await res.json();
         showToast(err.error || "Fracasso ao salvar as atualizações.", "error");
