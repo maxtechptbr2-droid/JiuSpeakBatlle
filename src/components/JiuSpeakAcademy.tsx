@@ -1538,16 +1538,23 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
 
   // SubTab: Arena PVP VIEW
   if (activeSubTab === 'academy_pvp') {
-    const plan = user.subscription?.type?.toUpperCase() || 'FREE';
-    const isMasterOrAdmin = ['MASTER', 'MESTRE', 'MESTRE GRACIE'].includes(plan) || user.role === 'admin';
-    if (!isMasterOrAdmin) {
+    const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+    if (!isAiSubscriptionActive) {
       return (
         <div className="p-12 text-center text-amber-500 font-mono text-sm border border-amber-500/30 rounded-2xl bg-slate-900 max-w-lg mx-auto my-12" id="403-access-denied-academy-pvp">
           <Lock className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-pulse" />
-          <h3 className="font-display font-extrabold text-lg text-white mb-2">Acesso Exclusivo</h3>
+          <h3 className="font-display font-extrabold text-lg text-white mb-2">Assinatura de IA Necessária</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            A Arena PVP é um recurso exclusivo para membros do plano <strong>MASTER</strong>. Faça o upgrade do seu plano na aba correspondente para destravar este recurso e lutar no tatame oficial!
+            A Arena PVP é um recurso exclusivo para lutadores com a assinatura de IA ativa. Ative a <strong>Prática Conversacional com IA</strong> na Central de JiuTickets para destravar este recurso e treinar no tatame oficial!
           </p>
+          {setCurrentTab && (
+            <button
+              onClick={() => setCurrentTab('subscriptions')}
+              className="mt-4 px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition-all"
+            >
+              Ativar na Central de JiuTickets
+            </button>
+          )}
         </div>
       );
     }

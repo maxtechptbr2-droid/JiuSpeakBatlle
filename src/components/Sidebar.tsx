@@ -66,7 +66,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' }] : []),
     { id: 'market', label: 'Loja JiuSpeak', icon: Store, badge: 'Loja' },
     { id: 'inventory', label: 'Mochila JiuSpeak', icon: Award, badge: 'Mochila' },
-    { id: 'subscriptions', label: 'Planos de Estudo', icon: CreditCard, badge: 'Premium' },
+    { id: 'subscriptions', label: 'Central de JiuTickets', icon: Coins, badge: 'JT' },
     { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
     ...(hasAcademyAccess ? [{ id: 'academies', label: 'Academias BJJ', icon: Shield, badge: 'Equipes' }] : []),
     { id: 'viral', label: 'Compartilhar Viral', icon: Share2, badge: 'Canvas' },
@@ -108,11 +108,6 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
               frame={user.equippedFrame}
               size="sm"
             />
-            {!['Gratuito', 'FREE'].includes(user.subscription.type) && (
-              <span className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-slate-950 text-[10px] px-1 rounded-full font-bold flex items-center gap-0.5 animate-pulse z-10">
-                <Sparkles className="w-2.5 h-2.5 fill-slate-950" /> {user.subscription.type}
-              </span>
-            )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="font-display font-semibold text-sm text-slate-200 truncate">{user.name}</p>

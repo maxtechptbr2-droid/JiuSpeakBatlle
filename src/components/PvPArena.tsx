@@ -426,9 +426,10 @@ export default function PvPArena({
 
   // Trigger entering matchmaking queue
   const joinMatchmakingQueue = () => {
-    const plan = user.subscription?.type?.toUpperCase() || 'FREE';
-    if (['FREE', 'GRATUITO', 'PRO'].includes(plan)) {
-      showToast("A Arena PVP em tempo real contra outros alunos é exclusiva do plano MASTER. Faça o upgrade para lutar no tatame oficial!", "info");
+    const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+    if (!isAiSubscriptionActive) {
+      showToast("A Arena PVP em tempo real exige a assinatura ativa de IA. Ative na Central de JiuTickets!", "info");
+      if (setCurrentTab) setCurrentTab('subscriptions');
       return;
     }
     if (!socket || !connected) {
@@ -446,9 +447,10 @@ export default function PvPArena({
 
   // Quick bot session
   const joinBotMatch = (belt?: string) => {
-    const plan = user.subscription?.type?.toUpperCase() || 'FREE';
-    if (['FREE', 'GRATUITO'].includes(plan)) {
-      showToast("A Sessão de Conversação contra IA é exclusiva para os planos PRO e MASTER. Faça o upgrade agora para destravar treinos ilimitados com o Gemini!", "info");
+    const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+    if (!isAiSubscriptionActive) {
+      showToast("A Prática Conversacional contra IA exige a assinatura ativa. Ative na Central de JiuTickets!", "info");
+      if (setCurrentTab) setCurrentTab('subscriptions');
       return;
     }
 
@@ -541,33 +543,40 @@ export default function PvPArena({
 
               {/* Conditional upgrade awareness banners invitation */}
               {(() => {
-                const plan = user.subscription?.type?.toUpperCase() || 'FREE';
-                if (['FREE', 'GRATUITO'].includes(plan)) {
+                const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+                if (!isAiSubscriptionActive) {
                   return (
-                    <div className="bg-violet-950/30 border border-violet-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
-                      <span className="text-xl shrink-0">👑</span>
+                    <div className="bg-rose-950/25 border border-rose-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
+                      <span className="text-xl shrink-0">⚠️</span>
                       <div className="space-y-1">
-                        <h5 className="font-bold text-xs text-white">Libere a Conversação Tática Avançada & Desafios Online</h5>
+                        <h5 className="font-bold text-xs text-rose-400">Assinatura de IA Inativa</h5>
                         <p className="text-[11px] text-slate-400 leading-normal">
-                          Seu perfil está no plano <strong>FREE</strong>. Para ter acesso à prática de conversação com o assistente inteligente de IA e lutar na Arena PvP competitiva em tempo real com outros estudantes, destrave os planos <strong>PRO</strong> ou <strong>MASTER</strong> na aba de faturamento.
+                          Para ter acesso à prática de conversação com o assistente inteligente de IA e lutar na Arena PvP, ative a <strong>Prática Conversacional com IA</strong> na Central de JiuTickets por apenas <strong>2500 JT/mês</strong>.
                         </p>
+                        {setCurrentTab && (
+                          <button
+                            onClick={() => setCurrentTab('subscriptions')}
+                            className="mt-1 text-xs font-bold text-violet-400 hover:underline block"
+                          >
+                            Ir para Central de JiuTickets &rarr;
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
-                } else if (plan === 'PRO') {
+                } else {
                   return (
-                    <div className="bg-blue-950/20 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
-                      <span className="text-xl shrink-0 text-indigo-400">🥋</span>
+                    <div className="bg-emerald-950/20 border border-emerald-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
+                      <span className="text-xl shrink-0 text-emerald-400">✓</span>
                       <div className="space-y-1">
-                        <h5 className="font-bold text-xs text-slate-200">Parabéns! Seu Plano PRO está ativo.</h5>
+                        <h5 className="font-bold text-xs text-emerald-400">Sua Assinatura de IA está Ativa!</h5>
                         <p className="text-[11px] text-slate-400 leading-normal">
-                          Você tem acesso total à prática conversacional com IA. Para destravar a <strong>Arena PvP Online síncrona</strong> contra atletas reais do tatame, realize a atualização para o plano <strong>MASTER</strong>.
+                          Aproveite o acesso completo e ilimitado para treinar seu inglês de tatame, voz natural com IA e disputar na arena PVP do JiuSpeak.
                         </p>
                       </div>
                     </div>
                   );
                 }
-                return null;
               })()}
 
               {/* Botões de Ação para Ingressar em Partida */}

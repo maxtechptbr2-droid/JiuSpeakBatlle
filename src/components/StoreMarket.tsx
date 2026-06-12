@@ -1090,13 +1090,6 @@ export default function StoreMarket({
               <span className="text-sm font-bold text-slate-202">{user.coins} JT</span>
             </div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-2">
-            <UserCheck className="w-5 h-5 text-violet-400" />
-            <div>
-              <span className="block text-[9px] text-slate-500 font-mono">CLUB STATUS</span>
-              <span className="text-sm font-bold text-slate-202 truncate max-w-[120px]">{user.subscription.type}</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -1106,7 +1099,6 @@ export default function StoreMarket({
           { id: 'loja', label: '🥋 Loja JiuSpeak', desc: 'Desbloquear com JT' },
           { id: 'market', label: '🤝 Swap de Conteúdo', desc: 'Trocas entre alunos' },
           { id: 'inventorio', label: '🎒 Mochila JiuSpeak', desc: `${user.inventory.length} itens` },
-          { id: 'vip', label: '👑 Planos Premium VIP', desc: 'BRL / Pix' },
           ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ Painel de Operações', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
           const isActive = activeSubTab === sub.id;
@@ -1945,71 +1937,7 @@ export default function StoreMarket({
         </div>
       )}
 
-      {/* 4. Creator Assinaturas membership buying */}
-      {activeSubTab === 'vip' && (
-        <div className="space-y-6">
-          <div className="text-center max-w-sm mx-auto space-y-1">
-            <h4 className="font-display font-extrabold text-base text-slate-101">Plano Assinaturas de Mestres</h4>
-            <p className="text-xs text-slate-450 leading-relaxed font-normal">
-              Apoie grandes Senseis e ganhe aulas ilimitadas, 2x XP em todas as arenas e o selo VIP cintilante ao lado do nome.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            
-            {/* VIP Pass */}
-            <div className="bg-slate-950/60 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-5 text-center group hover:border-violet-500 transition-all">
-              <div className="space-y-2">
-                <span className="text-[9px] font-mono text-violet-405 uppercase font-bold tracking-widest bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded-full inline-block">
-                  Acesso Duplicado
-                </span>
-                <h5 className="font-display font-bold text-base text-white">VIP Club Pass</h5>
-                <h6 className="text-2xl font-black text-slate-102">R$ 29,90<span className="text-xs font-normal text-slate-500">/mês</span></h6>
-                
-                <ul className="text-left text-[11px] text-slate-400 space-y-2 pt-3 font-normal border-t border-slate-900">
-                  <li className="flex items-center gap-1.5">⚡ Ganhe o dobro de XP por lição</li>
-                  <li className="flex items-center gap-1.5">🛡️ Selo VIP de prestígio no perfil</li>
-                  <li className="flex items-center gap-1.5">📖 Desbloqueia cursos básicos extras</li>
-                  <li className="flex items-center gap-1.5">🤖 Mentor IA ativado no Sparring</li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => handleBuySubscription('Premium VIP', 29.90)}
-                className="w-full py-2 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider transition-all shadow shadow-violet-500/10 cursor-pointer"
-              >
-                Assinar via Pix
-              </button>
-            </div>
-
-            {/* Mestre Gracie */}
-            <div className="bg-slate-950/60 p-6 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-5 text-center group hover:border-yellow-500 transition-all">
-              <div className="space-y-2">
-                <span className="text-[9px] font-mono text-yellow-500 uppercase font-black tracking-widest bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-full inline-block">
-                  Acesso Completo
-                </span>
-                <h5 className="font-display font-bold text-base text-white">Mestre Gracie Club</h5>
-                <h6 className="text-2xl font-black text-slate-102">R$ 49,90<span className="text-xs font-normal text-slate-500">/mês</span></h6>
-                
-                <ul className="text-left text-[11px] text-slate-400 space-y-2 pt-3 font-normal border-t border-slate-900">
-                  <li className="flex items-center gap-1.5">💎 Liberação TOTAL de todos os cursos Premium</li>
-                  <li className="flex items-center gap-1.5">🥋 Kimono Imperial Dourado Grátis no inventário</li>
-                  <li className="flex items-center gap-1.5">🏅 +2.000 JiuTickets de saldo inicial imediato</li>
-                  <li className="flex items-center gap-1.5">💬 Canal de áudio exclusivo no Discord</li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => handleBuySubscription('Mestre Gracie', 49.90)}
-                className="w-full py-2 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs rounded-xl uppercase tracking-wider transition-all shadow shadow-yellow-500/10 cursor-pointer"
-              >
-                Assinar via Pix
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
 
       {/* 4. ADMINISTRATIVE CATALOUGE OPERATIONS PANEL */}
       {activeSubTab === 'admin_store' && user.role === 'admin' && (

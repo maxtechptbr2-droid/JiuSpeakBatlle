@@ -7204,6 +7204,11 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
     const userId = req.user.id;
 
     const JT_PACKAGES: any = {
+      "500jt": { jtAmount: 500, priceBRL: 5.00, name: "Pacote 500 JT" },
+      "1200jt": { jtAmount: 1200, priceBRL: 10.00, name: "Pacote 1.200 JT" },
+      "2500jt": { jtAmount: 2500, priceBRL: 20.00, name: "Pacote 2.500 JT" },
+      "5000jt": { jtAmount: 5000, priceBRL: 35.00, name: "Pacote 5.000 JT" },
+      "12000jt": { jtAmount: 12000, priceBRL: 75.00, name: "Pacote 12.000 JT" },
       "1k": { jtAmount: 1000, priceBRL: 10.00, name: "Pacote 1.000 JT" },
       "5k": { jtAmount: 5000, priceBRL: 45.00, name: "Pacote 5.000 JT" },
       "10k": { jtAmount: 10000, priceBRL: 80.00, name: "Pacote 10.000 JT" }

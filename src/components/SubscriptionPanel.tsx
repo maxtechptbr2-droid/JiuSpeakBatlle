@@ -4,7 +4,18 @@ import {
   ShieldCheck, 
   Copy, 
   Check, 
-  AlertTriangle
+  AlertTriangle,
+  Coins,
+  Cpu,
+  Zap,
+  Sparkles,
+  MessageSquare,
+  Volume2,
+  Mic,
+  ArrowRight,
+  BookmarkCheck,
+  CreditCard,
+  Tv
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -40,32 +51,51 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
     jtAmount: number;
   } | null>(null);
 
+  // New gamer AAA Packages as requested by instructions
   const jtPackages: JtPackage[] = [
     {
-      id: '1k',
-      name: 'Pacote Iniciante',
-      jtAmount: 1000,
-      priceBRL: 10.00,
-      description: 'Ideal para experimentar as sessões de conversação básicas.',
-      gradient: 'from-slate-800 to-slate-900 border-slate-700'
+      id: '500jt',
+      name: 'Pacote Faixa Branca',
+      jtAmount: 500,
+      priceBRL: 5.00,
+      description: 'Ideal para um início básico e experimentar os diálogos táticos.',
+      gradient: 'from-slate-900 via-slate-950 to-slate-900 border-slate-800 shadow-slate-950/40 hover:border-violet-500/50 hover:shadow-violet-950/20'
     },
     {
-      id: '5k',
-      name: 'Pacote Competidor',
+      id: '1200jt',
+      name: 'Pacote Faixa Azul',
+      jtAmount: 1200,
+      priceBRL: 10.05,
+      description: 'Excelente custo-benefício com 20% de bônus extra de JT incluso.',
+      badge: '20% EXTRA',
+      gradient: 'from-blue-950/30 via-slate-950 to-slate-900 border-blue-900/40 shadow-blue-950/20 hover:border-blue-500 hover:shadow-blue-500/20'
+    },
+    {
+      id: '2500jt',
+      name: 'Pacote Faixa Roxa',
+      jtAmount: 2500,
+      priceBRL: 20.00,
+      description: 'Quantidade exata para ativar 1 mês inteiro de IA Conversacional.',
+      badge: 'Recomendado IA',
+      gradient: 'from-purple-950/40 via-slate-950 to-slate-900 border-purple-900/40 shadow-purple-950/35 hover:border-purple-500 hover:shadow-purple-500/25'
+    },
+    {
+      id: '5000jt',
+      name: 'Pacote Faixa Marrom',
       jtAmount: 5000,
-      priceBRL: 45.00,
-      description: 'Mais popular! Perfeito para 2 ativações completas de IA do JiuSpeak.',
-      badge: 'Popular (10% OFF)',
-      gradient: 'from-blue-900/60 via-slate-900 to-slate-950 border-blue-500/30 shadow-blue-950/20 shadow-lg'
+      priceBRL: 35.00,
+      description: 'Economia ideal para atletas focados no aprendizado avançado tático.',
+      badge: 'Melhor Custo',
+      gradient: 'from-amber-950/30 via-slate-950 to-slate-900 border-amber-900/40 shadow-amber-950/20 hover:border-amber-500 hover:shadow-amber-500/25'
     },
     {
-      id: '10k',
+      id: '12000jt',
       name: 'Pacote Faixa Preta',
-      jtAmount: 10000,
-      priceBRL: 80.00,
-      description: 'Excelente custo-benefício! Ideal para atletas focados no aprendizado avançado.',
-      badge: 'Melhor Valor (20% OFF)',
-      gradient: 'from-amber-900/40 via-slate-900 to-slate-950 border-amber-600/30 shadow-amber-950/20 shadow-xl'
+      jtAmount: 12000,
+      priceBRL: 75.00,
+      description: 'O ápice da economia de JiuTickets para lutadores de elite.',
+      badge: 'Elite Valiosa',
+      gradient: 'from-emerald-950/30 via-slate-940 to-slate-950 border-emerald-900/40 shadow-emerald-950/20 hover:border-emerald-500 hover:shadow-emerald-500/30'
     }
   ];
 
@@ -98,7 +128,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
           amountBRL: data.amount,
           jtAmount: pack.jtAmount
         });
-        showToast(`Checkout para ${pack.name} gerado de forma segura no Mercado Pago!`, 'success');
+        showToast(`Fatura para ${pack.name} gerada de forma segura!`, 'success');
       } else {
         showToast(data.error || 'Erro ao gerar checkout de JiuTickets.', 'error');
       }
@@ -144,7 +174,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
     if (!checkoutData) return;
     try {
       setLoading(true);
-      // Directly invoke our newly expanded local payment simulator URL
+      // Directly invoke local payment simulator URL
       const res = await fetch(`/api/payments/simulator?provider=mercadopago&sessionId=${checkoutData.paymentId}&amount=${checkoutData.amountBRL}&userId=${user.id}&purchaseType=JT_PACKAGE_PURCHASE&jtAmount=${checkoutData.jtAmount}`);
       if (res.ok) {
         // Trigger simulated webhook ping
@@ -164,7 +194,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
         });
 
         if (webhookRes.ok) {
-          showToast(`Sucesso! Seu pagamento de R$ ${checkoutData.amountBRL.toFixed(2)} foi processado e ${checkoutData.jtAmount} JT foram creditados!`, 'success');
+          showToast(`Sucesso! Pagamento de R$ ${checkoutData.amountBRL.toFixed(2)} processado e ${checkoutData.jtAmount} JT creditados!`, 'success');
           // Reload profile
           const meRes = await fetch('/api/auth/me', {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -213,199 +243,337 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
   };
 
   return (
-    <div id="recharge-jt-panel" className="max-w-5xl mx-auto space-y-8 p-1 sm:p-4">
-      {/* Visual Identity Title */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 text-[10px] font-bold tracking-widest bg-emerald-500/15 text-emerald-400 rounded-full border border-emerald-500/20 uppercase">
-              Economia JiuSpeak
-            </span>
+    <div id="central-jiutickets-hub" className="max-w-6xl mx-auto space-y-8 p-1 sm:p-4">
+      
+      {/* HEADER: GAMER TITLE & SALDO (No-SaaS Premium, purely virtual economy with aesthetic layout) */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-violet-600/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-600/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="space-y-2 relative z-10 flex-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-black tracking-widest bg-violet-500/10 text-violet-400 rounded-full border border-violet-500/20 uppercase">
+            ⚡ Nova Economia JiuSpeak Battle
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">Loja de JiuTickets</h1>
-          <p className="text-xs text-slate-400">Adquira moedas virtuais (JT) e ative ferramentas com inteligência artificial para treinar seu inglês de tatame.</p>
-        </div>
-
-        {/* Current JT Balance Highlight */}
-        <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 min-w-[220px]">
-          <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl shadow-inner">
-            🪙
-          </div>
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wide">Seu Saldo e Wallet</span>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-amber-500 tracking-tight">
-                {Number(user.coins || 0).toLocaleString()}
-              </span>
-              <span className="text-[10px] font-black text-amber-500/80 uppercase">JT</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Access Control Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl -z-10 pointer-events-none"></div>
-        <div className="space-y-2 text-center md:text-left flex-1">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-center md:justify-start">
-            <h3 className="text-lg font-extrabold text-white uppercase tracking-wide">Servidor de Conversação com IA</h3>
-            <div>
-              {isAiActive() ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Ativo até {formatDateString(user.aiConversationExpiresAt)}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-450 border border-rose-500/20 uppercase tracking-widest animate-pulse">
-                  <AlertTriangle className="w-3 h-3 text-rose-450" /> Expirado ou Sem Acesso
-                </span>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 max-w-xl">
-            Tenha conversações por áudio guiadas por Inteligência Artificial focadas em situações reais de treino, instrução e competições. A ativação é manual: sem renovação indesejada ou cobranças recorrentes.
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            Central de JiuTickets
+          </h1>
+          <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+            Adquira moedas virtuais (JT) para desbloquear itens cosméticos raros na Loja ou habilitar seu Sparring Verbal com Inteligência Artificial.
           </p>
         </div>
 
-        <div className="flex flex-col items-center sm:items-end gap-2.5">
-          <button 
-            onClick={handleActivateAi}
-            disabled={activatingAi}
-            className={`px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg transition-all ${
-              isAiActive() 
-                ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700' 
-                : 'bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 hover:shadow-emerald-500/20 active:scale-[0.98]'
-            } disabled:opacity-50`}
-          >
-            {activatingAi ? 'Processando...' : isAiActive() ? 'Renovar 30 Dias (Custa 2.500 JT)' : 'Ativar 30 Dias (Custa 2.500 JT)'}
-          </button>
-          <span className="text-[10px] text-slate-550 font-mono">Débito único de 2.500 JT</span>
+        {/* Current JT Balance Container (Fortnite V-bucks style box) */}
+        <div className="bg-slate-900/90 border-2 border-amber-500/20 p-5 rounded-2xl flex items-center gap-4 min-w-[240px] relative overflow-hidden group hover:border-amber-500/40 transition-all duration-300">
+          <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-full blur-lg pointer-events-none" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/10 ring-2 ring-amber-500/20 transform group-hover:rotate-12 transition-transform duration-300">
+            🪙
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Sua Carteira de JT</span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-amber-400 tracking-tight drop-shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                {Number(user.coins || 0).toLocaleString()}
+              </span>
+              <span className="text-[10px] font-black text-amber-500 uppercase font-mono">JT</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Package Checkout Section or Catalog */}
-      {selectedPackage && checkoutData ? (
-        <div id="checkout-container-gate" className="bg-slate-900 border-2 border-emerald-500/20 rounded-3xl p-6 sm:p-8 space-y-6 relative">
+      {/* RECHARGE PIX CHECKOUT DRAWER OPTION */}
+      {selectedPackage && checkoutData && (
+        <div id="checkout-container-gate" className="bg-slate-950 border-2 border-emerald-500/40 rounded-3xl p-6 sm:p-8 space-y-6 relative animate-fadeIn shadow-2xl shadow-emerald-950/20">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
           <button 
             onClick={() => { setSelectedPackage(null); setCheckoutData(null); }}
-            className="absolute top-4 right-4 px-3 py-1.5 text-[10px] font-bold text-slate-400 bg-slate-950 border border-slate-800 rounded-lg hover:text-white"
+            className="absolute top-4 right-4 px-3 py-1.5 text-[10px] font-bold text-slate-450 bg-slate-900 border border-slate-800 rounded-lg hover:text-white transition"
           >
-            Voltar ao Catálogo
+            ← Voltar ao Catálogo
           </button>
 
-          <div className="text-center sm:text-left space-y-1.5 border-b border-slate-800 pb-5">
-            <span className="text-[10px] font-bold uppercase text-emerald-400 tracking-wider">Checkout Seguro Mercado Pago</span>
-            <h2 className="text-xl font-black text-white uppercase tracking-tight">Pagamento com PIX</h2>
-            <p className="text-xs text-slate-400">Você está adquirindo <span className="text-amber-500 font-bold">{selectedPackage.name}</span> por <span className="text-white font-bold">R$ {checkoutData.amountBRL.toFixed(2)}</span>.</p>
+          <div className="text-center sm:text-left space-y-1 border-b border-slate-800 pb-5">
+            <span className="text-[10px] font-bold uppercase text-emerald-400 tracking-wider flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Gateway Seguro Integrado
+            </span>
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">Pagamento com PIX, Cartão ou Boleto</h2>
+            <p className="text-xs text-slate-400">
+              Adquirindo <span className="text-amber-400 font-bold">{selectedPackage.name}</span> por <span className="text-emerald-450 font-bold font-mono">R$ {checkoutData.amountBRL.toFixed(2)}</span>.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="grid md:grid-cols-2 gap-8 items-center relative z-10">
             {/* Interactive QR Code Display */}
-            <div className="flex flex-col items-center bg-slate-950 p-6 rounded-2xl border border-slate-850 space-y-4">
+            <div className="flex flex-col items-center bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
               {checkoutData.qrCode ? (
                 <div className="p-3 bg-white rounded-2xl shadow-inner border border-slate-200">
-                  <img src={checkoutData.qrCode} alt="QR Code PIX Mercado Pago" className="w-52 h-52 object-contain" referrerPolicy="no-referrer" />
+                  <img src={checkoutData.qrCode} alt="QR Code PIX" className="w-48 h-48 object-contain" referrerPolicy="no-referrer" />
                 </div>
               ) : (
-                <div className="w-52 h-52 bg-slate-900 rounded-2xl flex items-center justify-center text-slate-500 border border-slate-800 text-xs">
-                  Carregando QR Code...
+                <div className="w-48 h-48 bg-slate-950 rounded-2xl flex items-center justify-center text-slate-500 border border-slate-850 text-xs">
+                  Aguardando QR Code...
                 </div>
               )}
-              <span className="text-[10px] font-bold text-slate-500 uppercase font-mono text-center">Escaneie o código QR com o app do seu banco</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase font-mono text-center leading-normal max-w-[240px]">
+                Escaneie o código QR com o app do seu banco ou copie a chave Pix abaixo.
+              </span>
             </div>
 
             {/* Pix Copy and Paste & Simulator */}
             <div className="space-y-5">
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Código Copia e Cola PIX</label>
+                <label className="text-[10px] font-bold uppercase text-slate-450 tracking-wider">Código Copia e Cola PIX</label>
                 <div className="flex gap-2">
                   <input 
                     type="text" 
                     readOnly 
                     value={checkoutData.qrCodeCopyPaste} 
-                    className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-300 font-mono focus:outline-none" 
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-slate-350 font-mono focus:outline-none" 
                   />
                   <button 
                     onClick={handleCopyClipboardPix}
-                    className="px-4 bg-emerald-500 text-slate-950 rounded-xl hover:bg-emerald-400 active:scale-95 flex items-center justify-center transition-all"
+                    className="px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl active:scale-95 flex items-center justify-center transition-all cursor-pointer"
                     title="Copiar código PIX"
                   >
-                    {copiedKey ? <Check className="w-4 h-4 stroke-slate-950" /> : <Copy className="w-4 h-4 stroke-slate-950" />}
+                    {copiedKey ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              <div className="bg-slate-950 border border-emerald-500/10 p-5 rounded-2xl space-y-3.5">
+              <div className="bg-slate-900/60 border border-emerald-500/20 p-5 rounded-2xl space-y-4">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Ambiente Sandbox Homologado</span>
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Sandbox Homologado para Estudos</span>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
-                  Clique abaixo para simular a liquidação imediata da fatura Pix no webhook integrador do Mercado Pago no ambiente local de testes.
+                <p className="text-[11px] text-slate-450 leading-relaxed font-mono">
+                  Sendo uma aplicação virtual, utilize a ferramenta abaixo para simular a liquidação imediata da fatura de moedas e aprovar os JiuTickets.
                 </p>
                 <button 
                   onClick={handleSimulatePayment}
                   disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.98]"
+                  className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer"
                 >
-                  {loading ? 'Processando Simulação...' : '✓ Simular Confirmação Pix'}
+                  {loading ? 'Aprovando...' : '✓ Simular Confirmação e Creditar JT'}
                 </button>
               </div>
 
-              <div className="text-[10px] text-slate-550 leading-relaxed text-center sm:text-left font-mono">
-                Seu pagamento expira em 15 minutos. Após o processamento, seu saldo de JT será creditado imediatamente em sua carteira.
+              <div className="text-[10px] text-slate-500 leading-normal font-mono">
+                * Os JiuTickets entram imediatamente em sua conta de atleta assim que confirmada a simulação.
               </div>
             </div>
           </div>
         </div>
-      ) : (
-        <div className="space-y-6">
-          <div className="text-center sm:text-left space-y-1.5">
-            <h2 className="text-xl font-black text-white uppercase tracking-wider">Selecione um Pacote de JiuTickets</h2>
-            <p className="text-xs text-slate-400">Escolha a recarga ideal para seu ritmo de estudos de conversação com IA.</p>
+      )}
+
+      {/* CORE LAYOUT: DOUBLE COLUMN COMPONENT SHOP CATALOG */}
+      <div className="grid lg:grid-cols-12 gap-8 items-start">
+        
+        {/* COLUMN 1: COMPRAR JIUTICKETS PACKAGES (7 cols) */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="flex items-center gap-2.5 border-b border-slate-850 pb-3">
+            <div className="w-1.5 h-6 bg-amber-500 rounded-full" />
+            <div>
+              <h2 className="text-lg font-extrabold text-white uppercase tracking-wide">Comprar JiuTickets</h2>
+              <p className="text-[11px] text-slate-450">Escolha o seu pacote. Métodos disponíveis: Pix, Crédito, Débito e Boleto.</p>
+            </div>
           </div>
 
-          {/* Catalog Grid */}
-          <div className="grid md:grid-cols-3 gap-6">
+          {/* Epic Store Grid Package list */}
+          <div className="grid sm:grid-cols-2 gap-5">
             {jtPackages.map((pack) => (
               <div 
-                key={pack.id} 
-                className={`border rounded-3xl p-6 flex flex-col justify-between bg-gradient-to-b ${pack.gradient} transition-all hover:scale-[1.01] relative`}
+                key={pack.id}
+                className={`group border rounded-2xl p-5 flex flex-col justify-between bg-gradient-to-b ${pack.gradient} transition-all duration-300 hover:-translate-y-1 relative`}
               >
                 {pack.badge && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-[9px] font-black uppercase bg-amber-500 text-slate-950 rounded-full tracking-widest border border-amber-400 shadow-md">
+                  <span className="absolute -top-3 left-6 px-2.5 py-0.5 text-[9px] font-black uppercase bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 rounded-full tracking-wider border border-amber-400 shadow-lg">
                     {pack.badge}
                   </span>
                 )}
 
-                <div className="space-y-4 pt-1">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-black text-slate-350 uppercase tracking-wider">{pack.name}</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed min-h-[40px]">{pack.description}</p>
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-[9px] text-slate-500 font-mono tracking-widest uppercase block mb-1">
+                      🥋 Recarga de Elite
+                    </span>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wide group-hover:text-amber-400 transition-colors">
+                      {pack.name}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed min-h-[36px]">
+                      {pack.description}
+                    </p>
                   </div>
 
-                  <div className="space-y-1 pt-2">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-black text-white tracking-tight">🪙 {pack.jtAmount.toLocaleString()}</span>
-                      <span className="text-xs font-black text-slate-400 uppercase">JT</span>
+                  {/* Quantity and value */}
+                  <div className="space-y-0.5 py-1.5 border-t border-b border-slate-900/60 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xl">🪙</span>
+                      <span className="text-2xl font-black text-white tracking-tight">
+                        {pack.jtAmount.toLocaleString()}
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-500 uppercase">JT</span>
                     </div>
-                    <span className="text-lg font-bold text-emerald-400 font-mono">R$ {pack.priceBRL.toFixed(2)}</span>
+                    <span className="text-sm font-black text-emerald-450 font-mono">
+                      R$ {pack.priceBRL.toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
-                <div className="pt-6">
-                  <button 
+                {/* Purchase buttons */}
+                <div className="mt-4 pt-1">
+                  <button
                     onClick={() => handleBuyPackage(pack)}
                     disabled={loading}
-                    className="w-full py-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 hover:bg-slate-900 font-bold text-xs uppercase tracking-wider text-white transition-all shadow-md active:scale-[0.98]"
+                    className="w-full py-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 hover:bg-emerald-500/10 text-xs font-black uppercase tracking-wider text-white hover:text-emerald-400 transition-all cursor-pointer active:scale-95"
                   >
-                    Adquirir com PIX
+                    Adquirir Pacote
                   </button>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Game-like Store Warning rules (No play generation of JTs) */}
+          <div className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl flex items-start gap-3">
+            <span className="text-base">⚠️</span>
+            <div className="space-y-0.5">
+              <h5 className="text-[11px] font-bold text-slate-350 uppercase">Políticas da Virtuconomia</h5>
+              <p className="text-[10px] text-slate-450 leading-relaxed">
+                Atenção: Os usuários do JiuSpeak <strong>não ganham JiuTickets jogando, estudando ou praticando lições</strong>. JTs são moedas premium exclusivas adquiridas por compra direta para manter e customizar avatares e habilitar o Sparring de IA. Todos os cosméticos do marketplace aceitam apenas JT.
+              </p>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* COLUMN 2: EXPERT AI CONVERSATIONAL ASSISTANT SECTION (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="flex items-center gap-2.5 border-b border-slate-850 pb-3">
+            <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
+            <div>
+              <h2 className="text-lg font-extrabold text-white uppercase tracking-wide">Inteligência Artificial</h2>
+              <p className="text-[11px] text-slate-450">Treine com o melhor assistente tático virtual de áudio.</p>
+            </div>
+          </div>
+
+          {/* AI CYBERPUNK PREMIUM CARD */}
+          <div className="relative overflow-hidden bg-gradient-to-b from-indigo-950/60 via-slate-950 to-slate-950 border border-indigo-500/30 rounded-3xl p-6 sm:p-7 space-y-6 hover:shadow-indigo-500/10 hover:shadow-xl transition-all duration-300">
+            {/* Ambient visual glowing mesh grids */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Header of AI */}
+            <div className="flex justify-between items-start relative z-10">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/30">
+                  <Cpu className="w-3 h-3 text-indigo-400" /> Sparring de Idioma
+                </span>
+                <h3 className="text-xl font-black text-white uppercase tracking-wide">
+                  Prática Conversacional IA
+                </h3>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-300 border border-violet-500/30 flex items-center justify-center font-bold text-lg">
+                🤖
+              </div>
+            </div>
+
+            {/* Expired/Active Banner Indicator */}
+            <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-xs relative z-10">
+              <span className="text-slate-400 font-medium">Status do Servidor:</span>
+              <div>
+                {isAiActive() ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> ATIVO até {formatDateString(user.aiConversationExpiresAt)}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest animate-pulse">
+                    <AlertTriangle className="w-3 h-3 text-rose-450" /> INDISPONÍVEL
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-350 leading-relaxed font-sans relative z-10">
+              Treine inglês real com uma inteligência artificial avançada e especializada em Jiu-Jitsu brasileiro para lutas internacionais. Exercite áudio natural em tempo real e perca o medo de falar inglês no tatame!
+            </p>
+
+            {/* Core benefits detailed list */}
+            <div className="space-y-2.5 py-4 border-t border-slate-900 relative z-10">
+              {[
+                { title: 'Voz IA Natural', desc: 'Sintetização de voz avançada com pronúncia de atletas reais.' },
+                { title: 'Conversação em tempo real', desc: 'Respostas em menos de 1 segundo de Sparring.' },
+                { title: 'Correção de Pronúncia', desc: 'Identifica e exibe termos e estruturas gramaticais para melhorar.' },
+                { title: 'Treino de Audição Avançado', desc: 'Aperfeiçoe sua compreensão do dialeto do judô/BJJ.' },
+                { title: 'Situações Reais de Campeonato', desc: 'Instruções de juízes, entrevistas e seminários no exterior.' },
+                { title: 'Sparring verbal em inglês', desc: 'Feedback imediato de gírias e técnicas com termos do tatame.' }
+              ].map((benefit, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className="text-indigo-400 shrink-0 select-none mt-0.5">✦</span>
+                  <div>
+                    <strong className="text-white font-bold block">{benefit.title}</strong>
+                    <span className="text-slate-400 text-[10px] leading-normal">{benefit.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pricing Tag */}
+            <div className="bg-slate-900 border border-slate-805 p-4 rounded-xl flex items-center justify-between relative z-10">
+              <div className="space-y-0.5">
+                <span className="text-[9px] font-mono text-slate-500 uppercase block">Mensalidade Única</span>
+                <span className="text-xs text-slate-350">Acesso por 30 Dias</span>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-1">
+                  <span className="text-2xl font-black text-indigo-300">2.500</span>
+                  <span className="text-xs font-bold text-indigo-400 uppercase">JT</span>
+                </div>
+                <span className="text-[10px] text-slate-500 block font-mono">cobrana não-recorrente</span>
+              </div>
+            </div>
+
+            {/* Activation CTA Button */}
+            <div className="pt-2 relative z-10">
+              <button 
+                onClick={handleActivateAi}
+                disabled={activatingAi || user.coins < 2500 && !isAiActive()}
+                className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  isAiActive() 
+                    ? 'bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-700' 
+                    : user.coins >= 2500 
+                      ? 'bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white hover:shadow-indigo-500/25 active:scale-98' 
+                      : 'bg-slate-900 text-slate-600 border border-slate-800/80 cursor-not-allowed'
+                }`}
+              >
+                {activatingAi ? (
+                  <span>Processando...</span>
+                ) : isAiActive() ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>RENOVAR ACESSO (CUSTA 2.500 JT)</span>
+                  </>
+                ) : user.coins >= 2500 ? (
+                  <>
+                    <Zap className="w-4 h-4 text-indigo-350 fill-indigo-350" />
+                    <span>ATIVAR IA AGORA</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-4 h-4 text-rose-500" />
+                    <span>SALDO INSUFICIENTE (2.500 JT)</span>
+                  </>
+                )}
+              </button>
+              
+              {user.coins < 2500 && !isAiActive() && (
+                <p className="text-center text-[10px] text-rose-450 mt-2 font-medium font-sans">
+                  Você precisa de mais {2500 - user.coins} JTs. Escolha um pacote à esquerda para ativar!
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   );
 }
