@@ -1,9 +1,27 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import OpenAI from 'openai';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const DEFAULT_VOICE = 'nova'; // Warm, clear, didactical female voice
+const DEFAULT_VOICE: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" = 'nova';
+
+let openaiClient: OpenAI | null = null;
+
+/**
+ * Initializes and returns the OpenAI SDK client lazily.
+ */
+function getOpenAIClient(): OpenAI {
+  console.log("Checking if OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY);
+  if (!openaiClient) {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) {
+      console.warn("[TTS WARN] OPENAI_API_KEY is missing in process.env!");
+      throw new Error("A chave OPENAI_API_KEY não está configurada no servidor.");
+    }
+    openaiClient = new OpenAI({ apiKey: key });
+  }
+  return openaiClient;
+}
 
 /**
  * Sanitizes input text to prevent platform abuse/oversized inputs and path traversal.
@@ -50,7 +68,11 @@ export async function gerarAudio(text: string, voiceName: string = DEFAULT_VOICE
     throw new Error("O texto fornecido está vazio ou é inválido.");
   }
 
-  const voice = voiceName.trim() || DEFAULT_VOICE;
+  // Cast voiceName to supported OpenAI voices or fallback to DEFAULT_VOICE
+  const requestedVoice = voiceName.trim().toLowerCase();
+  const validVoices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
+  const voice = (validVoices.includes(requestedVoice) ? requestedVoice : DEFAULT_VOICE) as typeof DEFAULT_VOICE;
+
   const hash = generateHash(cleanText, voice);
 
   // Check cache first
@@ -62,47 +84,42 @@ export async function gerarAudio(text: string, voiceName: string = DEFAULT_VOICE
 
   console.log(`[TTS CACHE MISS] Querying OpenAI TTS API for: "${cleanText.substring(0, 45)}..." | Voice: ${voice} | Hash: ${hash}`);
 
-  if (!OPENAI_API_KEY) {
-    console.warn("[TTS WARN] OPENAI_API_KEY is not defined in the environment.");
-    throw new Error("A chave OPENAI_API_KEY não está configurada no servidor.");
-  }
-
   const cacheDir = path.join(process.cwd(), 'server', 'cache', 'audio');
   if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
+    try {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    } catch (err) {
+      console.error("[TTS DIR CREATE ERROR] Failed to create cache folders:", err);
+    }
   }
 
-  const response = await fetch('https://api.openai.com/v1/audio/speech', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'tts-1',
-      input: cleanText,
-      voice: voice,
-      response_format: 'mp3'
-    })
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error(`[OPENAI TTS API ERROR] Status ${response.status}`, errorBody);
-    throw new Error(`Erro na API OpenAI TTS: status ${response.status} - ${errorBody}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  // Write to cache
-  const cacheFilePath = path.join(cacheDir, `${hash}.mp3`);
   try {
-    fs.writeFileSync(cacheFilePath, buffer);
-    console.log(`[TTS CACHE SAVED] Saved generated speech disk cache file. Hash: ${hash}`);
-  } catch (err) {
-    console.error("[TTS CACHE WRITE ERROR] Failed to save mp3 file to disk:", err);
-  }
+    const openai = getOpenAIClient();
+    console.log("Generating TTS from OpenAI with voice:", voice);
+    
+    // We use the universally available and standard "tts-1" model for cost-effective, high-quality pronunciation,
+    // which has wide availability.
+    const mp3 = await openai.audio.speech.create({
+      model: "tts-1",
+      voice: voice,
+      input: cleanText,
+    });
 
-  return buffer;
+    console.log("TTS generated successfully, converting response to buffer...");
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+
+    // Write to cache
+    const cacheFilePath = path.join(cacheDir, `${hash}.mp3`);
+    try {
+      fs.writeFileSync(cacheFilePath, buffer);
+      console.log(`[TTS CACHE SAVED] Saved generated speech disk cache file. Hash: ${hash}`);
+    } catch (err) {
+      console.error("[TTS CACHE WRITE ERROR] Failed to save mp3 file to disk:", err);
+    }
+
+    return buffer;
+  } catch (error: any) {
+    console.error("[OPENAI TTS CRITICAL REJECTION]", error);
+    throw new Error(`OpenAI Speech extraction failed: ${error.message || error}`);
+  }
 }
