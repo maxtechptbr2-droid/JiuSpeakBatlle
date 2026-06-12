@@ -577,6 +577,692 @@ export async function initializePremiumBjjAvatars(withDb: boolean = false) {
     }
   }
 
+  // 1.5 Setup premium gaming cosmetics spanning 10 official categories
+  const premiumShopCosmetics = [
+    // 1. Kimonos
+    {
+      id: "kimono_classic_white",
+      name: "Kimono Clássico: Branco Purista",
+      description: "O tradicional e imaculado algodão trançado de alta gramatura. Simplicidade é sofisticação.",
+      priceJT: 800,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "COMMON",
+      imageUrl: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_royal_blue",
+      name: "Kimono Nobre: Azul Royal",
+      description: "Trançado duplo reforçado com tingimento reativo persistente. Estilo clássico de campeonato.",
+      priceJT: 1200,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_elite_black",
+      name: "Kimono Forjado: Preto Elite",
+      description: "Fibra de bambu ultraleve e costuras triplas em contraste vermelho. Feito para treinos implacáveis.",
+      priceJT: 1800,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: true, promoPriceJT: 1500, isBundle: false, isSeasonal: false, isExclusive: true
+    },
+    {
+      id: "kimono_flame_red",
+      name: "Kimono Flame: Vulcão Vermelho",
+      description: "Tecido ripstop tingido em vermelho escarlate flamejante. Imponha uma presença incendiária no tatame.",
+      priceJT: 2500,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_golden_legend",
+      name: "Kimono Imperial: Ouro Lendário",
+      description: "Costurado com fios sintéticos banhados a ouro virtual 24K. Um monumento visual reservado aos grandes campeões.",
+      priceJT: 5000,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_neon_cyber",
+      name: "Kimono Tron: Cyber Neon",
+      description: "Bordados com fitas eletroluminescentes neon ativas que brilham no escuro de forma hipnotizante.",
+      priceJT: 7500,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: true, isExclusive: true
+    },
+    {
+      id: "kimono_samurai_spirit",
+      name: "Kimono Guerreiro: Espírito Samurai",
+      description: "Forro interno ilustrado com xilogravuras clássicas do período Edo. Sinta a honra dos antigos guerreiros.",
+      priceJT: 3200,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_dragon_fire",
+      name: "Kimono Shinryu: Fúria do Dragão",
+      description: "Grafismos de dragões orientais costurados a laser nos ombros. Visual soberbo dominado pelo calor do tatame.",
+      priceJT: 3500,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_brasil_campeao",
+      name: "Kimono Orgulho: Patriota Brasileiro",
+      description: "Edição exclusiva nas cores Verde, Amarelo e Azul. Uma celebração ao país berço do jiu-jitsu moderno.",
+      priceJT: 2200,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_japan_heritage",
+      name: "Kimono Herança: Sol Nascente",
+      description: "Detalhes tradicionais com caligrafia Kanji japonesa autêntica. Homenagem ao dojo primordial de Kanō Jigorō.",
+      priceJT: 2300,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_master_tatame",
+      name: "Kimono Clã: Mestre do Tatame",
+      description: "Desenho clássico com patch do clã JiuSpeak. O uniforme oficial da nossa corporação de idiomas.",
+      priceJT: 1900,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "kimono_competicao_mundial",
+      name: "Kimono Elite: Competição Mundial",
+      description: "Calibrado milimetricamente de acordo com as regras de peso e caimento da IBJJF. Desempenho máximo.",
+      priceJT: 2900,
+      priceBRL: null,
+      category: "Kimonos",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 2. Rash Guards
+    {
+      id: "rash_minimalist_gray",
+      name: "Rash Guard Core: Cinza Minimalista",
+      description: "Proteção anti-atrito com design fosco e compressão de alto desempenho. Conforto sob o kimono.",
+      priceJT: 500,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "COMMON",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_cyberpunk_neon",
+      name: "Rash Guard Synthwave: Cyber Neon",
+      description: "Grelhas eletrostáticas e listras violeta neon impressas por sublimação digital de altíssima fidelidade.",
+      priceJT: 1100,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_samurai_oni",
+      name: "Rash Guard Oni: Máscara de Samurai",
+      description: "Estampa fantástica de uma máscara tradicional Oni japonesa protegendo seu peito no NoGi.",
+      priceJT: 1550,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_ufc_pro",
+      name: "Rash Guard Oktagon: UFC Style",
+      description: "Branding profissional estilizado inspirado nos maiores eventos de artes marciais mistas do mundo.",
+      priceJT: 950,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_nogi_champion",
+      name: "Rash Guard Adcc: NoGi Absolute",
+      description: "Desenvolvida para competidores de elite do ADCC. Compressão muscular inteligente que retém oxigênio.",
+      priceJT: 1300,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_black_ops",
+      name: "Rash Guard Operações: Black Ops",
+      description: "Camuflagem furtiva digital cinza e preta. Passe despercebido pelas defesas cinéticas do oponente.",
+      priceJT: 1100,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_shinobi_shadow",
+      name: "Rash Guard Sombra: Ninja Shinobi",
+      description: "Tecido absorvente que repele suor e concede agilidade de sombras ao seu avatar nas partidas.",
+      priceJT: 1400,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_viper_venom",
+      name: "Rash Guard Venenosa: Green Viper",
+      description: "Escamas de cobra texturizadas com realce verde-ácido altamente ameaçador.",
+      priceJT: 1600,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_tiger_fury",
+      name: "Rash Guard Garra: Tiger Strike",
+      description: "Inspirada na agressividade e reflexos velozes do tigre de bengala. Derrube suas presas.",
+      priceJT: 1750,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "rash_dragon_scale",
+      name: "Rash Guard Ryū: Escama de Dragão",
+      description: "Sublimação com escamas metálicas que refletem luz conforme a postura de combate.",
+      priceJT: 2400,
+      priceBRL: null,
+      category: "Rash Guards",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 3. Faixas (Belts)
+    {
+      id: "belt_glow_blue",
+      name: "Faixa Azul: Crio-Glow",
+      description: "Uma faixa azul de silicone semi-transparente que pulsa energias criogênicas frias.",
+      priceJT: 1000,
+      priceBRL: null,
+      category: "Faixas",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "belt_animated_purple",
+      name: "Faixa Roxa: Portal Cósmico",
+      description: "Animação fluida de uma nebulosa estelar violeta cruzando o tecido da sua faixa. Absurdamente linda.",
+      priceJT: 2000,
+      priceBRL: null,
+      category: "Faixas",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "belt_mythic_brown",
+      name: "Faixa Marrom: Forja de Obsidiana",
+      description: "Fibras rústicas infundidas com brasas quentes que gotejam fagulhas ativas de lava.",
+      priceJT: 3000,
+      priceBRL: null,
+      category: "Faixas",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "belt_divine_black",
+      name: "Faixa Preta: Eclipse Celestial",
+      description: "Raridade Divina. Um halo cósmico dourado e preto que distorce a luz ao redor de seu corpo virtual.",
+      priceJT: 6500,
+      priceBRL: null,
+      category: "Faixas",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: true
+    },
+    {
+      id: "belt_coral_mythic",
+      name: "Faixa Coral: Legado do Fundador",
+      description: "Edição Mítica nas cores Vermelho e Branco alternados. Libera partículas de pétalas de cerejeira e poeira estelar.",
+      priceJT: 8000,
+      priceBRL: null,
+      category: "Faixas",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: true
+    },
+
+    // 4. Medalhas (Medals)
+    {
+      id: "medal_regional_champ",
+      name: "Medalha: Campeão Regional",
+      description: "O símbolo dourado da sua primeira dominação nas seletivas locais de inglês de tatame.",
+      priceJT: 600,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "medal_world_champ",
+      name: "Medalha: Campeão Mundial",
+      description: "O topo dos mundos. Medalha de ouro maciço com fita azul sedosa. Exibição de gala no perfil.",
+      priceJT: 3000,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "medal_tatame_king",
+      name: "Medalha: Rei do Tatame",
+      description: "Reservada ao competidor supremo que conquistou o topo absoluto da Arena de Combate.",
+      priceJT: 2500,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "medal_submission_lord",
+      name: "Medalha: Finalizador Supremo",
+      description: "Exiba seu focus em finalizar diálogos sem dar margem para pontuação dos adversários.",
+      priceJT: 1500,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "medal_english_master",
+      name: "Medalha: Mestre do Inglês",
+      description: "Selo de proficiência definitiva em escuta, fala e vocabulário técnico de BJJ em inglês.",
+      priceJT: 1202,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "medal_perfect_pronunciation",
+      name: "Medalha: Pronúncia Perfeita",
+      description: "Recompensa por atingir aproveitamento de 100% no reconhecimento de áudio das aulas com IA!",
+      priceJT: 1000,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "medal_ia_warrior",
+      name: "Medalha: IA Warrior",
+      description: "Conquistada por atletas digitais que completaram 50 sessões de sparring com nosso chatbot avançado.",
+      priceJT: 1400,
+      priceBRL: null,
+      category: "Medalhas",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 5. Molduras de Perfil (Avatar Frames)
+    {
+      id: "frame_neon_voltage",
+      name: "Moldura: Eletrostática Neon",
+      description: "Arco elétrico azul e violeta neon que descarrega faíscas ao redor do seu avatar.",
+      priceJT: 1500,
+      priceBRL: null,
+      category: "Molduras de Perfil",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "frame_gold_aurora",
+      name: "Moldura: Aurora Imperial",
+      description: "Um gradiente dourado suntuoso com brilho solar reflexivo digno de campeões peso pesado.",
+      priceJT: 2000,
+      priceBRL: null,
+      category: "Molduras de Perfil",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "frame_fire_spirit",
+      name: "Moldura: Chamas do Submundo",
+      description: "Fogo animado escaldante que queima as bordas do seu retrato com brasas pulsantes.",
+      priceJT: 1800,
+      priceBRL: null,
+      category: "Molduras de Perfil",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "frame_ice_shard",
+      name: "Moldura: Estilhaço de Gelo",
+      description: "Cristais de gelo polar pontiagudos que emitem vapor congelante ao redor de sua foto.",
+      priceJT: 1200,
+      priceBRL: null,
+      category: "Molduras de Perfil",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "frame_galaxy_rift",
+      name: "Moldura: Fenda do Espaço",
+      description: "Mágica poeira cósmica negra e roxa girando suavemente em transição orbital infinita.",
+      priceJT: 4000,
+      priceBRL: null,
+      category: "Molduras de Perfil",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "frame_brazil_gold",
+      name: "Moldura: Verde e Amarelo Elite",
+      description: "Soberba moldura patriota com efeito neon nas cores da bandeira brasileira. Selo de mestre verde-amarelo.",
+      priceJT: 1400,
+      priceBRL: null,
+      category: "Molduras de Perfil",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 6. Avatares (Avatars)
+    {
+      id: "prod_avatar_anime_fighter",
+      name: "Avatar: Ryu Gaiden (Anime)",
+      description: "Protagonista de anime de artes marciais focado com olhar penetrante e ataduras vermelhas.",
+      priceJT: 1500,
+      priceBRL: null,
+      category: "Avatares",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "prod_avatar_cyber_ninja",
+      name: "Avatar: Cyber Samurai 2099",
+      description: "Guerreiro robótico com viseira holográfica neon azul e máscara ninja respiratória.",
+      priceJT: 2500,
+      priceBRL: null,
+      category: "Avatares",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "prod_avatar_tiger_beast",
+      name: "Avatar: Tigre Dente de Sabre",
+      description: "Mascote animal feroz vestindo um quimono branco rasgado nas garras. Força bestial.",
+      priceJT: 2000,
+      priceBRL: null,
+      category: "Avatares",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "prod_avatar_lion_clan",
+      name: "Avatar: Leão de Judá",
+      description: "Um soberano leão coroado trajando kimono preto com detalhes dourados. Liderança.",
+      priceJT: 3000,
+      priceBRL: null,
+      category: "Avatares",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 7. Temas de Perfil
+    {
+      id: "theme_classic_dark",
+      name: "Tema: Tatame Escuro Premium",
+      description: "Um fundo escuro com textura de borracha de lona esportiva e iluminação focal dramática.",
+      priceJT: 800,
+      priceBRL: null,
+      category: "Temas de Perfil",
+      rarity: "COMMON",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "theme_cyber_arena",
+      name: "Tema: Arena Virtual Cyberpunk",
+      description: "Inunde seu perfil com iluminações azuis e violetas neon, grades tecnológicas e hologramas de combate BJJ.",
+      priceJT: 1600,
+      priceBRL: null,
+      category: "Temas de Perfil",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "theme_tokyo_night",
+      name: "Tema: Japão Noturno",
+      description: "Mistura suave de painéis de papel Shōji clássicos, cerejeiras sob o luar orbital e Kanjis de respeito.",
+      priceJT: 1900,
+      priceBRL: null,
+      category: "Temas de Perfil",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "theme_favela_fight",
+      name: "Tema: Favela Fight Club",
+      description: "Visual rústico com estética urbana brasileira, grafites realistas de campeões e pôr do sol imponente.",
+      priceJT: 1500,
+      priceBRL: null,
+      category: "Temas de Perfil",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "theme_black_gold",
+      name: "Tema: Carbono & Ouro Nobre",
+      description: "Fibra de carbono fosca premium mesclada com entalhes dourados luxuosos e limpos.",
+      priceJT: 2500,
+      priceBRL: null,
+      category: "Temas de Perfil",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 8. Emotes
+    {
+      id: "emote_oss_respect",
+      name: "Emote: OSS! (Tradicional)",
+      description: "Personagem inclinando a cabeça em sinal de respeito absoluto.",
+      priceJT: 300,
+      priceBRL: null,
+      category: "Emotes",
+      rarity: "COMMON",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "emote_tapout_cry",
+      name: "Emote: Três Tapinhas (Tapout)",
+      description: "Boneco animado chorando e batendo no chão pedindo trégua virtual.",
+      priceJT: 600,
+      priceBRL: null,
+      category: "Emotes",
+      rarity: "RARE",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "emote_champion_belt",
+      name: "Emote: Erguendo o Cinturão",
+      description: "Exibição orgulhosa do cinturão dourado nos chats da comunidade.",
+      priceJT: 1000,
+      priceBRL: null,
+      category: "Emotes",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "emote_easy_win",
+      name: "Emote: Vitória Fácil / Smooth",
+      description: "Atleta tirando a poeira invisível da lapela do kimono. Desafio limpo.",
+      priceJT: 800,
+      priceBRL: null,
+      category: "Emotes",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 9. Efeitos Visuais
+    {
+      id: "effect_aura_fire",
+      name: "Aura: Chamas Celestiais",
+      description: "Projeta chamas intensas avermelhadas fumegando ativamente por trás do seu retrato.",
+      priceJT: 2500,
+      priceBRL: null,
+      category: "Efeitos Visuais",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1578269174936-2709b5a19adf?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "effect_aurora_electro",
+      name: "Aura: Tempestade Estática",
+      description: "Raios pulsantes de plasma ciano-elétrico estalando em tempo real. Efeito gamer absoluto.",
+      priceJT: 3000,
+      priceBRL: null,
+      category: "Efeitos Visuais",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "effect_ninja_smoke",
+      name: "Aura: Fumaça Furtiva Ninja",
+      description: "Nuvens de fumaça preta que dissipam e encobrem seu avatar com ar de mistério e perícia.",
+      priceJT: 1500,
+      priceBRL: null,
+      category: "Efeitos Visuais",
+      rarity: "EPIC",
+      imageUrl: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "effect_mythic_stars",
+      name: "Aura: Poeira Estelar",
+      description: "Animação espetacular de glóbulos luminosos galácticos orbitando infinitamente sob sua foto.",
+      priceJT: 5000,
+      priceBRL: null,
+      category: "Efeitos Visuais",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: false, isSeasonal: false, isExclusive: false
+    },
+
+    // 10. Packs
+    {
+      id: "pack_samurai_legend",
+      name: "Pacote: Legado de Shogun",
+      description: "Pack completo de cosméticos lendários! Inclui: Kimono Espírito Samurai + Moldura Samurai + Tema Japão Noturno + Emote OSS.",
+      priceJT: 6000,
+      priceBRL: null,
+      category: "Packs",
+      rarity: "LEGENDARY",
+      imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: true, isSeasonal: true, isExclusive: true
+    },
+    {
+      id: "pack_rookie_bjj",
+      name: "Pacote: Iniciante do Tatame",
+      description: "Contém: Kimono Clássico, Rash Guard Cinza, Tema Tatame Escuro e Emote OSS. Excelente começo de jornada!",
+      priceJT: 1500,
+      priceBRL: null,
+      category: "Packs",
+      rarity: "COMMON",
+      imageUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: true, isSeasonal: false, isExclusive: false
+    },
+    {
+      id: "pack_cyber_ia_master",
+      name: "Pacote: IA Master Futuro",
+      description: "Kit Cyber-Gamer! Inclui: Avatar Cyber Samurai, Moldura Eletrostática, Tema Arena Cyberpunk, Efeito Tempestade Estática.",
+      priceJT: 9500,
+      priceBRL: null,
+      category: "Packs",
+      rarity: "MYTHIC",
+      imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=200",
+      active: true, isPromo: false, isBundle: true, isSeasonal: false, isExclusive: true
+    }
+  ];
+
+  avatarsList.push(...premiumShopCosmetics);
+
+
   // 2. Scan physical premium image assets if they exist (Automatic Auto-detection)
   let scannedList: any[] = [];
   try {
@@ -8421,14 +9107,25 @@ app.get("/api/store", async (req: any, res: any) => {
         "Avatares Masculinos": "Avatares Masculinos",
         "Avatares Femininos": "Avatares Femininos",
         "Molduras": "Molduras",
+        "Molduras de Perfil": "Molduras",
+        "Medalhas": "Títulos",
         "Títulos": "Títulos",
         "Pacotes VIP": "Pacotes VIP",
         "XP Boost": "XP Boost",
         "JiuTickets": "JiuTickets",
         "Itens Especiais": "Itens Especiais"
       };
-      const targetCategory = categoryMap[category as string] || (category as string);
-      whereClause.category = targetCategory;
+      
+      if (category === "Avatares") {
+        whereClause.category = { in: ["AVATAR", "Avatares"] };
+      } else if (category === "Molduras de Perfil") {
+        whereClause.category = { in: ["Molduras", "Molduras de Perfil"] };
+      } else if (category === "Medalhas") {
+        whereClause.category = { in: ["Títulos", "Medalhas"] };
+      } else {
+        const targetCategory = categoryMap[category as string] || (category as string);
+        whereClause.category = targetCategory;
+      }
     }
 
     if (rarity && rarity !== "all" && rarity !== "Todos") {
@@ -8488,14 +9185,24 @@ app.get("/api/store", async (req: any, res: any) => {
           "Avatares Masculinos": "Avatares Masculinos",
           "Avatares Femininos": "Avatares Femininos",
           "Molduras": "Molduras",
+          "Molduras de Perfil": "Molduras",
+          "Medalhas": "Títulos",
           "Títulos": "Títulos",
           "Pacotes VIP": "Pacotes VIP",
           "XP Boost": "XP Boost",
           "JiuTickets": "JiuTickets",
           "Itens Especiais": "Itens Especiais"
         };
-        const targetCategory = categoryMap[category as string] || (category as string);
-        filtered = filtered.filter(p => p.category === targetCategory);
+        if (category === "Avatares") {
+          filtered = filtered.filter(p => p.category === "AVATAR" || p.category === "Avatares");
+        } else if (category === "Molduras de Perfil") {
+          filtered = filtered.filter(p => p.category === "Molduras" || p.category === "Molduras de Perfil");
+        } else if (category === "Medalhas") {
+          filtered = filtered.filter(p => p.category === "Títulos" || p.category === "Medalhas");
+        } else {
+          const targetCategory = categoryMap[category as string] || (category as string);
+          filtered = filtered.filter(p => p.category === targetCategory);
+        }
       }
 
       if (rarity && rarity !== "all" && rarity !== "Todos") {

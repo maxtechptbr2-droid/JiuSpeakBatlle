@@ -470,16 +470,16 @@ export default function StoreMarket({
     setIsStoreLoading(true);
     try {
       let apiCategory = 'Todos';
-      if (storeCategory === '🥋 Kimonos') apiCategory = 'Itens Especiais';
-      else if (storeCategory === '👕 Rash Guards') apiCategory = 'Itens Especiais';
+      if (storeCategory === '🥋 Kimonos') apiCategory = 'Kimonos';
+      else if (storeCategory === '👕 Rash Guards') apiCategory = 'Rash Guards';
+      else if (storeCategory === '🎗️ Faixas') apiCategory = 'Faixas';
+      else if (storeCategory === '🏆 Medalhas') apiCategory = 'Medalhas';
+      else if (storeCategory === '🖼️ Molduras de Perfil') apiCategory = 'Molduras de Perfil';
       else if (storeCategory === '👤 Avatares') apiCategory = 'Avatares';
-      else if (storeCategory === '🏆 Medalhas') apiCategory = 'Títulos';
-      else if (storeCategory === '🎖️ Molduras') apiCategory = 'Molduras';
-      else if (storeCategory === '🎒 Equipamentos') apiCategory = 'Itens Especiais';
-      else if (storeCategory === '💎 Itens Premium') apiCategory = 'Pacotes VIP';
-      else if (storeCategory === '🔥 Boosters XP') apiCategory = 'XP Boost';
-      else if (storeCategory === '⭐ Colecionáveis') apiCategory = 'JiuTickets';
-      else if (storeCategory === '🎨 Temas de Perfil') apiCategory = 'Títulos';
+      else if (storeCategory === '🎨 Temas de Perfil') apiCategory = 'Temas de Perfil';
+      else if (storeCategory === '💬 Emotes') apiCategory = 'Emotes';
+      else if (storeCategory === '✨ Efeitos Visuais') apiCategory = 'Efeitos Visuais';
+      else if (storeCategory === '📦 Packs') apiCategory = 'Packs';
 
       let apiRarity = storeRarity;
       if (storeRarity === 'Comum') apiRarity = 'COMMON';
@@ -495,50 +495,9 @@ export default function StoreMarket({
       });
       const data = await res.json();
       if (data && data.success) {
-        let itemsFiltered = data.items;
-
-        // Perform semantic visual categorization locally to avoid altering database
-        if (storeCategory === '🥋 Kimonos') {
-          itemsFiltered = itemsFiltered.filter((item: any) => 
-            item.name.toLowerCase().includes('kimono') || 
-            item.name.toLowerCase().includes('quimono') ||
-            item.name.toLowerCase().includes('faixa') ||
-            item.category?.toLowerCase().includes('faixa')
-          );
-        } else if (storeCategory === '👕 Rash Guards') {
-          itemsFiltered = itemsFiltered.filter((item: any) => 
-            item.name.toLowerCase().includes('rash') || 
-            item.name.toLowerCase().includes('guard') ||
-            item.description?.toLowerCase().includes('rash')
-          );
-        } else if (storeCategory === '👤 Avatares') {
-          itemsFiltered = itemsFiltered.filter((item: any) => 
-            item.category?.toLowerCase().includes('avatar') || 
-            item.name.toLowerCase().includes('avatar')
-          );
-        } else if (storeCategory === '🏆 Medalhas') {
-          itemsFiltered = itemsFiltered.filter((item: any) => 
-            item.name.toLowerCase().includes('medalha') || 
-            item.name.toLowerCase().includes('título') ||
-            item.category?.toLowerCase().includes('título')
-          );
-        } else if (storeCategory === '🎒 Equipamentos') {
-          itemsFiltered = itemsFiltered.filter((item: any) => 
-            !item.name.toLowerCase().includes('rash') && 
-            !item.name.toLowerCase().includes('kimono') && 
-            !item.name.toLowerCase().includes('quimono')
-          );
-        } else if (storeCategory === '⭐ Colecionáveis') {
-          itemsFiltered = itemsFiltered.filter((item: any) => 
-            item.name.toLowerCase().includes('coins') || 
-            item.name.toLowerCase().includes('colecion') ||
-            item.name.toLowerCase().includes('maleta')
-          );
-        }
-
-        setStoreProducts(itemsFiltered);
+        setStoreProducts(data.items);
         setStoreTotalPages(data.pagination.totalPages || 1);
-        setStoreTotalItems(itemsFiltered.length);
+        setStoreTotalItems(data.pagination.totalItems || data.items.length);
       }
     } catch (error) {
       console.error("Erro ao carregar catálogo da Loja:", error);
@@ -1015,6 +974,9 @@ export default function StoreMarket({
 
   const getRarityBadgeColor = (rarity: string, productName?: string) => {
     const nameLower = productName?.toLowerCase() || '';
+    if (nameLower.includes('eclipse celestial') || nameLower.includes('legado do fundador') || nameLower.includes('neon cyber') || nameLower.includes('ia master futuro')) {
+      return 'bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 text-white border-violet-400 font-extrabold shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-pulse';
+    }
     if (nameLower.includes('faixa cinza') || nameLower.includes('faixa branca') || nameLower.includes('grey') || nameLower.includes('white')) {
       return 'bg-slate-800 text-slate-350 border-slate-700';
     }
@@ -1042,6 +1004,9 @@ export default function StoreMarket({
 
     const r = rarity?.toUpperCase();
     switch (r) {
+      case 'DIVINE':
+      case 'DIVINO':
+        return 'bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 text-white border-violet-400 font-extrabold shadow-[0_0_15px_rgba(168,85,247,0.5)] animate-pulse';
       case 'COMUM':
       case 'COMMON': 
         return 'bg-slate-800 text-slate-350 border-slate-700';
@@ -1064,6 +1029,9 @@ export default function StoreMarket({
 
   const getRarityLabel = (rarity: string, productName?: string) => {
     const nameLower = productName?.toLowerCase() || '';
+    if (nameLower.includes('eclipse celestial') || nameLower.includes('legado do fundador') || nameLower.includes('neon cyber') || nameLower.includes('ia master futuro')) {
+      return 'Divino';
+    }
     if (nameLower.includes('faixa cinza') || nameLower.includes('grey')) return 'Comum';
     if (nameLower.includes('faixa branca') || nameLower.includes('white')) return 'Comum';
     if (nameLower.includes('faixa amarela') || nameLower.includes('yellow')) return 'Incomum';
@@ -1079,6 +1047,8 @@ export default function StoreMarket({
 
     const r = rarity?.toUpperCase();
     switch (r) {
+      case 'DIVINE':
+      case 'DIVINO': return 'Divino';
       case 'COMMON':
       case 'COMUM': return 'Comum';
       case 'RARE':
@@ -1374,14 +1344,14 @@ export default function StoreMarket({
                   'Todos',
                   '🥋 Kimonos',
                   '👕 Rash Guards',
-                  '👤 Avatares',
+                  '🎗️ Faixas',
                   '🏆 Medalhas',
-                  '🎖️ Molduras',
-                  '🎒 Equipamentos',
-                  '💎 Itens Premium',
-                  '🔥 Boosters XP',
-                  '⭐ Colecionáveis',
-                  '🎨 Temas de Perfil'
+                  '🖼️ Molduras de Perfil',
+                  '👤 Avatares',
+                  '🎨 Temas de Perfil',
+                  '💬 Emotes',
+                  '✨ Efeitos Visuais',
+                  '📦 Packs'
                 ].map((cat) => {
                   const isActive = storeCategory === cat;
                   return (
@@ -1495,9 +1465,16 @@ export default function StoreMarket({
                   const catDisplay = getCategoryDisplay(product.category);
 
                   // Custom border and shadow coloring classes according to esports tier
-                  const getEsportsCardTheme = (rar: string) => {
+                  const getEsportsCardTheme = (rar: string, name?: string) => {
                     const r = rar?.toUpperCase();
+                    const nameLower = name?.toLowerCase() || '';
+                    if (nameLower.includes('eclipse celestial') || nameLower.includes('legado do fundador') || nameLower.includes('neon cyber') || nameLower.includes('ia master futuro')) {
+                      return 'border-fuchsia-500/50 shadow-[0_0_25px_-5px_rgba(168,85,247,0.4)] hover:border-pink-400 hover:shadow-[0_0_35px_rgba(236,72,153,0.5)] bg-gradient-to-b from-fuchsia-950/20 via-slate-950/40 to-slate-950/60 transition-all duration-300 relative';
+                    }
                     switch(r) {
+                      case 'DIVINE':
+                      case 'DIVINO':
+                        return 'border-fuchsia-500/50 shadow-[0_0_25px_-5px_rgba(168,85,247,0.4)] hover:border-pink-400 hover:shadow-[0_0_35px_rgba(236,72,153,0.5)] bg-gradient-to-b from-fuchsia-950/20 via-slate-950/40 to-slate-950/60 transition-all duration-300 relative';
                       case 'COMMON':
                       case 'COMUM': 
                         return 'border-slate-850 hover:border-slate-700 hover:shadow-slate-900/10';
@@ -1522,7 +1499,7 @@ export default function StoreMarket({
                     <div
                       key={product.id}
                       id={`product-card-${product.id}`}
-                      className={`bg-slate-950/65 rounded-2xl border flex flex-col justify-between overflow-hidden group hover:scale-[1.03] transition-all duration-300 relative ${getEsportsCardTheme(product.rarity)}`}
+                      className={`bg-slate-950/65 rounded-2xl border flex flex-col justify-between overflow-hidden group hover:scale-[1.03] transition-all duration-300 relative ${getEsportsCardTheme(product.rarity, product.name)}`}
                     >
                       {/* Interactive shine sweep */}
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
