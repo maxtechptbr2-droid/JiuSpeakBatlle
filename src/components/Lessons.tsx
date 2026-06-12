@@ -362,6 +362,7 @@ export default function Lessons({
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ text })
       });
 

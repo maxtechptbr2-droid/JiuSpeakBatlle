@@ -461,6 +461,7 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ text: phrase })
       });
 

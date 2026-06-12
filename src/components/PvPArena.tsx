@@ -117,6 +117,7 @@ interface PvPArenaProps {
   addXp: (amount: number, reason: string) => void;
   addCoins: (amount: number, reason: string) => void;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
+  setCurrentTab?: (tab: string) => void;
 }
 
 export default function PvPArena({ 
@@ -125,7 +126,8 @@ export default function PvPArena({
   onAddAuditLog,
   addXp,
   addCoins,
-  showToast 
+  showToast,
+  setCurrentTab
 }: PvPArenaProps) {
   
   // Navigation & Real-time game state

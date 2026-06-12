@@ -142,8 +142,8 @@ export default function StoreMarket({
   setCurrentTab
 }: StoreMarketProps) {
   
-  // Tabs within economics: 'loja' | 'market' | 'inventorio' | 'vip' | 'admin_store'
-  const [activeSubTab, setActiveSubTab] = useState<'loja' | 'market' | 'inventorio' | 'vip' | 'admin_store'>('loja');
+  // Tabs within economics: 'loja' | 'market' | 'inventorio' | 'admin_store'
+  const [activeSubTab, setActiveSubTab] = useState<'loja' | 'market' | 'inventorio' | 'admin_store'>('loja');
   const [viewItemModal, setViewItemModal] = useState<any | null>(null);
 
   // Admin Store control states

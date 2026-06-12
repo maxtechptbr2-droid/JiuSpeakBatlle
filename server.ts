@@ -249,10 +249,18 @@ function csrfProtection(req: any, res: any, next: any) {
     return next();
   }
   
-  // Bypass CSRF protection for official and custom Mercado Pago & PIX webhook endpoints, plus the custom OpenAI TTS speech endpoint
+  // Whitelisted secure routes that are excluded from CSRF validation (e.g. secure public / voice / webhook endpoints)
+  const csrfExcludedRoutes = [
+    "/api/tts"
+  ];
+
+  if (csrfExcludedRoutes.includes(req.path)) {
+    return next();
+  }
+  
+  // Bypass CSRF protection for official and custom Mercado Pago & PIX webhook endpoints, plus any webhook paths
   const cleanPath = String(req.path || "").toLowerCase().trim().replace(/\/$/, "");
   if (
-    cleanPath === "/api/tts" ||
     cleanPath === "/webhook/mercadopago" ||
     cleanPath === "/api/payments/mercadopago/webhook" ||
     cleanPath === "/api/finance/pix-webhook" ||
@@ -2874,25 +2882,81 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
   }
 });
 
+// Specific strict rate limiter for Text-to-Speech requests to prevent abuse of the OpenAI API (max 20 requests/minute per IP)
+const ttsRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Muitas requisições de áudio. Por favor, aguarde um minuto para gerar mais pronúncias." }
+});
+
 // POST /api/tts - Voice IA premium OpenAI TTS integration (with intelligent local caching)
-app.post("/api/tts", async (req: any, res: any) => {
+app.post("/api/tts", ttsRateLimiter, (req: any, res: any, next: any) => {
+  // Try to authenticate optional JWT tokens if sent to match requesting users
+  // but allow non-authenticated session previews securely under strict rate limits.
+  const authHeader = req.headers["authorization"];
+  let token = authHeader && authHeader.split(" ")[1];
+  if (!token) {
+    token = req.cookies?.["accessToken"] || req.cookies?.["token"];
+  }
+
+  if (token) {
+    try {
+      const jwt = require("jsonwebtoken");
+      const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
+      req.user = decoded;
+    } catch (err) {
+      console.warn("[TTS AUTH WARNING] Invalid or expired JWT token encountered on TTS endpoint.");
+      return res.status(403).json({ error: "Token JWT inválido ou expirado. Por favor, faça login novamente." });
+    }
+  }
+  next();
+}, async (req: any, res: any) => {
+  const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
   try {
     const { text, voiceId } = req.body;
-    if (!text) {
-      return res.status(400).json({ error: "O texto é obrigatório para gerar áudio." });
+    
+    // Log the request initiation
+    console.log(`[TTS REQUEST] Initiated speech generation. Voice: "${voiceId || 'unspecified'}" | IP: ${ip} | Text excerpt: "${text ? text.substring(0, 45) : ''}"`);
+
+    // Payload verification
+    if (!text || typeof text !== 'string' || text.trim() === '') {
+      console.error(`[TTS ERROR] Empty or invalid text payload from IP: ${ip}`);
+      return res.status(400).json({ error: "O texto é obrigatório e não pode ser vazio." });
+    }
+
+    // Word limit / length enforcement (max 500 characters)
+    if (text.length > 500) {
+      console.error(`[TTS ERROR] Rejected payload from IP: ${ip} | Reason: Input length (${text.length}) exceeds 500 character limit.`);
+      return res.status(400).json({ error: "O texto excede o limite permitido de 500 caracteres por áudio." });
+    }
+
+    // Sanitize input to remove dangerous HTML script elements, backslashes, or illegal chars
+    const sanitizedText = text
+      .trim()
+      .replace(/<[^>]*>/g, "") // remove HTML/XML tags
+      .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F]/g, ""); // strip control characters
+
+    if (!sanitizedText) {
+      console.error(`[TTS ERROR] Empty text after character sanitization for IP: ${ip}`);
+      return res.status(400).json({ error: "O texto enviado possui apenas caracteres inválidos ou nocivos." });
     }
 
     const { gerarAudio } = await import("./server/services/openaiTTS");
-    const buffer = await gerarAudio(text, voiceId);
+    const buffer = await gerarAudio(sanitizedText, voiceId);
 
     res.set({
       "Content-Type": "audio/mpeg",
       "Content-Length": buffer.length.toString(),
       "Cache-Control": "public, max-age=31536000, immutable" // Highly cacheable content
     });
+    
+    // Log successful generation completed
+    console.log(`[TTS GENERATED] Speech successfully rendered for Text: "${sanitizedText.substring(0, 35)}..." | Voice: "${voiceId || 'nova'}"`);
     res.send(buffer);
   } catch (err: any) {
-    console.error("[TTS ENDPOINT ERROR]", err);
+    console.error(`[TTS ERROR] Execution exception on /api/tts | IP: ${ip} | Error: ${err.message || err}`);
     res.status(500).json({ error: err.message || "Erro interno ao processar OpenAI TTS." });
   }
 });

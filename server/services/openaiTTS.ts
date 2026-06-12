@@ -95,17 +95,27 @@ export async function gerarAudio(text: string, voiceName: string = DEFAULT_VOICE
 
   try {
     const openai = getOpenAIClient();
-    console.log("Generating TTS from OpenAI with voice:", voice);
+    console.log("Generating TTS from OpenAI. Trying model: gpt-4o-mini-tts with voice:", voice);
     
-    // We use the universally available and standard "tts-1" model for cost-effective, high-quality pronunciation,
-    // which has wide availability.
-    const mp3 = await openai.audio.speech.create({
-      model: "tts-1",
-      voice: voice,
-      input: cleanText,
-    });
+    let mp3;
+    try {
+      mp3 = await openai.audio.speech.create({
+        model: "gpt-4o-mini-tts",
+        voice: voice,
+        input: cleanText,
+      });
+      console.log("[TTS GENERATED] Voice generated successfully using gpt-4o-mini-tts");
+    } catch (err: any) {
+      console.warn("[TTS WARN] Failed to generate with gpt-4o-mini-tts mode. Falling back to standard tts-1. Error:", err.message || err);
+      mp3 = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: voice,
+        input: cleanText,
+      });
+      console.log("[TTS GENERATED] Voice generated successfully using fallback model tts-1");
+    }
 
-    console.log("TTS generated successfully, converting response to buffer...");
+    console.log("TTS audio ready, converting stream to buffer...");
     const buffer = Buffer.from(await mp3.arrayBuffer());
 
     // Write to cache
