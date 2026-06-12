@@ -207,6 +207,10 @@ export default function Lessons({
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceAccuracyPercent, setVoiceAccuracyPercent] = useState<number | null>(null);
 
+  // Active premium text-to-speech playing state
+  const [ttsVoicePlayingText, setTtsVoicePlayingText] = useState<string | null>(null);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
   // Certificate modal state
   const [viewingCertificateBelt, setViewingCertificateBelt] = useState<BeltRank | null>(null);
 
@@ -336,15 +340,77 @@ export default function Lessons({
     }, 2000);
   };
 
-  const speakTextToSpeech = (text: string) => {
+  const speakTextToSpeech = async (text: string) => {
+    // Stop any currently playing technical pronunciation audio
+    if (activeAudioRef.current) {
+      try {
+        activeAudioRef.current.pause();
+      } catch (e) {}
+      activeAudioRef.current = null;
+    }
+
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-      showToast('🔊 Reproduzindo som nativo americano...', 'info');
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+
+    setTtsVoicePlayingText(text);
+    showToast('🔊 Gerando pronúncia com voz IA premium...', 'info');
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+
+      if (!response.ok) {
+        throw new Error("TTS Route Failed");
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      
+      activeAudioRef.current = audio;
+      
+      audio.onended = () => {
+        setTtsVoicePlayingText(null);
+      };
+
+      audio.onerror = () => {
+        console.warn("Audio element failed to play; falling back to local synthesis.");
+        fallbackBrowserSpeech(text);
+      };
+
+      await audio.play();
+      showToast('🔊 Reproduzindo áudio ElevenLabs premium...', 'success');
+    } catch (err) {
+      console.warn("ElevenLabs TTS fallbacked to local browser synthesis:", err);
+      fallbackBrowserSpeech(text);
+    }
+  };
+
+  const fallbackBrowserSpeech = (text: string) => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85;
+        
+        utterance.onend = () => {
+          setTtsVoicePlayingText(null);
+        };
+        
+        window.speechSynthesis.speak(utterance);
+        showToast('🔊 Reproduzindo som nativo (sinal simulado)...', 'info');
+      } catch (e) {
+        setTtsVoicePlayingText(null);
+      }
     } else {
+      setTtsVoicePlayingText(null);
       showToast('A síntese vocal por voz não é suportada neste browser.', 'error');
     }
   };
@@ -996,13 +1062,17 @@ export default function Lessons({
                                 <p className="text-[10px] font-mono text-zinc-400 mt-1 italic">Pronúncia: /{term.pronunciation}/</p>
                                 <p className="text-[10px] text-zinc-500 font-sans mt-0.5">Tradução: {term.translation}</p>
                               </div>
-                              <button
+                               <button
                                 onClick={() => speakTextToSpeech(term.word)}
-                                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 cursor-pointer text-[10px] flex items-center gap-1"
+                                className={`p-1.5 px-2.5 rounded-lg cursor-pointer text-[10px] flex items-center gap-1 transition-all ${
+                                  ttsVoicePlayingText === term.word
+                                    ? 'bg-red-600 font-bold text-white animate-pulse shadow-glow'
+                                    : 'bg-zinc-805 hover:bg-zinc-700 text-zinc-200'
+                                }`}
                                 title="Pronunciar Inglês"
                               >
-                                <Volume2 className="w-3.5 h-3.5 text-zinc-300" />
-                                <span>Falar</span>
+                                <Volume2 className={`w-3.5 h-3.5 ${ttsVoicePlayingText === term.word ? 'animate-bounce text-white' : 'text-zinc-300'}`} />
+                                <span>{ttsVoicePlayingText === term.word ? 'Ouvindo...' : 'Falar'}</span>
                               </button>
                             </div>
                           ))}
@@ -1066,9 +1136,26 @@ export default function Lessons({
                       Clique em gravar e repita a frase abaixo com precisão técnica em inglês para obter pontuação do AI Coach.
                     </p>
 
-                    <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-xl text-center space-y-2">
-                      <p className="text-[9px] text-zinc-500 uppercase font-mono">Frase Técnico-Foco:</p>
-                      <p className="text-sm font-extrabold text-red-500 italic">"Could we go easy on this specific training round?"</p>
+                    <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-xl text-center space-y-2 relative">
+                      <p className="text-[9px] text-zinc-500 uppercase font-mono flex items-center justify-center gap-1.5">
+                        <span>Frase Técnico-Foco:</span>
+                        <span className="text-red-500 font-extrabold text-[8px] border border-red-900/60 p-0.5 px-1 bg-red-950/40 rounded">VOZ PREMIUM ELEVENLABS</span>
+                      </p>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <p className="text-sm font-extrabold text-red-500 italic">"Could we go easy on this specific training round?"</p>
+                        <button
+                          onClick={() => speakTextToSpeech("Could we go easy on this specific training round?")}
+                          className={`p-1.5 px-3 rounded-lg text-xs flex items-center gap-1 cursor-pointer transition-all ${
+                            ttsVoicePlayingText === "Could we go easy on this specific training round?"
+                              ? 'bg-red-600 text-white animate-pulse shadow-glow'
+                              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-205'
+                          }`}
+                          title="🔊 Ouvir Frase com ElevenLabs Voice"
+                        >
+                          <Volume2 className={`w-3.5 h-3.5 ${ttsVoicePlayingText === "Could we go easy on this specific training round?" ? 'animate-bounce' : ''}`} />
+                          <span className="text-[10px] uppercase tracking-wider font-extrabold">Ouvir Frase</span>
+                        </button>
+                      </div>
                       <p className="text-[10px] text-zinc-400">Tradução: "Poderíamos ir devagar nesta rodada de treino específico?"</p>
                     </div>
 

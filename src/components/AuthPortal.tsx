@@ -448,14 +448,52 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   };
 
   // Play audio TTS for the Free Lesson Preview
-  const speakPreviewPhrase = (phrase: string) => {
+  const speakPreviewPhrase = async (phrase: string) => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(phrase);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85;
-      window.speechSynthesis.speak(utterance);
-      showToast("Fale o termo logo após escutar!", "info");
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+
+    showToast('🔊 Gerando pronúncia com voz IA premium...', 'info');
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: phrase })
+      });
+
+      if (!response.ok) {
+        throw new Error("TTS Route Failed");
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      
+      audio.onerror = () => {
+        fallbackPreviewSpeech(phrase);
+      };
+
+      await audio.play();
+      showToast('🔊 Reproduzindo áudio ElevenLabs premium...', 'success');
+    } catch (err) {
+      console.warn("ElevenLabs TTS fallbacked in AuthPortal:", err);
+      fallbackPreviewSpeech(phrase);
+    }
+  };
+
+  const fallbackPreviewSpeech = (phrase: string) => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(phrase);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+        showToast("Fale o termo logo após escutar!", "info");
+      } catch (e) {}
     } else {
       showToast("Áudio indisponível neste navegador, mas o texto é: " + phrase, "info");
     }
