@@ -1889,6 +1889,10 @@ export const authenticateToken = (req: any, res: any, next: any) => {
         console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} suspenso tentou requisitar recurso autêntico.`);
         return res.status(403).json({ error: "Conta suspensa" });
       }
+      if (user.deletedAt) {
+        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} excluído tentou requisitar recurso autêntico.`);
+        return res.status(403).json({ error: "Esta conta foi excluída" });
+      }
       try {
         const userSubscription = await getActiveSubscriptionForUser(decoded.userId);
         (user as any).subscription = userSubscription;
@@ -2139,6 +2143,12 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       logAuth("LOGIN", email, false, { ipAddress, reason: "Suspended user attempted login" });
       console.error(`[LOGIN FAILURE] Conta suspensa tentou se autenticar: ${email}`);
       return res.status(403).json({ error: "Conta suspensa" });
+    }
+
+    if (user.deletedAt) {
+      logAuth("LOGIN", email, false, { ipAddress, reason: "Deleted user attempted login" });
+      console.error(`[LOGIN FAILURE] Conta excluída tentou se autenticar: ${email}`);
+      return res.status(403).json({ error: "Conta excluída" });
     }
 
     // Success login registered
@@ -3423,6 +3433,18 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
 
     try {
       totalCount = await prisma.user.count();
+      
+      // Get online users using active session lookup
+      const onlineUserIds = new Set<string>();
+      try {
+        const activeSessions = await prisma.userSession.findMany({
+          where: { isOnline: true }
+        });
+        activeSessions.forEach((s: any) => onlineUserIds.add(s.userId));
+      } catch (sessErr) {
+        console.warn("Failed to fetch active user sessions:", sessErr);
+      }
+
       const list = await prisma.user.findMany({
         orderBy: { createdAt: "desc" },
         skip,
@@ -3441,6 +3463,11 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           isSuspended: true,
           isBanned: true,
           isAdminApproved: true,
+          isMuted: true,
+          isFrozen: true,
+          deletedAt: true,
+          deletedBy: true,
+          deleteReason: true,
           createdAt: true,
           avatar: true,
           wallet: true,
@@ -3461,6 +3488,12 @@ app.get("/api/admin/users", authenticateToken, requireRole(["ADMIN"]), async (re
           isSuspended: u.isSuspended,
           isBanned: u.isBanned,
           isAdminApproved: u.isAdminApproved,
+          isMuted: u.isMuted || false,
+          isFrozen: u.isFrozen || false,
+          deletedAt: u.deletedAt,
+          deletedBy: u.deletedBy,
+          deleteReason: u.deleteReason,
+          isOnline: onlineUserIds.has(u.id),
           createdAt: u.createdAt,
           avatar: u.avatar,
           coins: u.wallet?.balanceJT || 0,
@@ -3788,6 +3821,7 @@ app.post("/api/admin/users/create", authenticateToken, requireRole(["ADMIN"]), a
 app.post("/api/admin/users/:id/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
     const { id } = req.params;
+    const { reason } = req.body;
     if (id === req.user.id) {
       return res.status(400).json({ error: "Não é permitido excluir sua própria conta de administrador." });
     }
@@ -3796,7 +3830,8 @@ app.post("/api/admin/users/:id/delete", authenticateToken, requireRole(["ADMIN"]
       return res.status(404).json({ error: "Lutador não localizado no banco ou memória." });
     }
 
-    await authStore.deleteUser(id);
+    const deleteReason = reason || "Excluído por decisão administrativa";
+    await authStore.deleteUser(id, req.user.id, deleteReason);
 
     // Write audit log if database is connected
     const prisma = getPrisma();
@@ -3805,14 +3840,14 @@ app.post("/api/admin/users/:id/delete", authenticateToken, requireRole(["ADMIN"]
         data: {
           actorId: req.user.id,
           action: "SYSTEM_SETTING_CHANGE",
-          description: `ADMINISTRADOR excluiu permanentemente o cadastro do lutador ${userToDelete.name} (${userToDelete.email}).`,
+          description: `ADMINISTRADOR arquivou (soft-delete) o cadastro do lutador ${userToDelete.name} (${userToDelete.email}). Motivo: ${deleteReason}`,
           ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
           userAgent: req.headers["user-agent"]
         }
       }).catch(() => {});
     }
 
-    res.json({ success: true, message: `O lutador ${userToDelete.name} foi removido integralmente.` });
+    res.json({ success: true, message: `O lutador ${userToDelete.name} foi arquivado (soft-delete) com sucesso.` });
   } catch (error: any) {
     res.status(500).json({ error: "Erro ao remover lutador: " + (error.message || error) });
   }
@@ -12920,6 +12955,97 @@ async function startServer() {
       res.json({ success: true });
     } catch (e) {
       res.json({ success: false });
+    }
+  });
+
+  // 13. USER HEARTBEAT (REAL-TIME ONLINE TRACKING)
+  app.post("/api/user/heartbeat", authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { currentPage, deviceInfo } = req.body;
+      const ipAddress = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+      const userAgent = req.headers["user-agent"] || "unknown";
+
+      const prisma = getPrisma();
+      if (prisma) {
+        // Find existing active session
+        const existingSession = await prisma.userSession.findFirst({
+          where: { userId, isOnline: true }
+        });
+
+        if (existingSession) {
+          await prisma.userSession.update({
+            where: { id: existingSession.id },
+            data: {
+              lastSeen: new Date(),
+              currentPage: currentPage || existingSession.currentPage,
+              deviceInfo: deviceInfo || existingSession.deviceInfo,
+              ipAddress,
+              userAgent
+            }
+          });
+        } else {
+          await prisma.userSession.create({
+            data: {
+              userId,
+              isOnline: true,
+              lastSeen: new Date(),
+              currentPage: currentPage || "Dashboard",
+              deviceInfo: deviceInfo || "Web Browser",
+              ipAddress,
+              userAgent
+            }
+          });
+        }
+
+        // Cleanup inactive sessions: sessions without updates for > 45 seconds are offlined
+        const cutoff = new Date(Date.now() - 45000);
+        await prisma.userSession.updateMany({
+          where: {
+            isOnline: true,
+            lastSeen: { lt: cutoff }
+          },
+          data: {
+            isOnline: false
+          }
+        });
+      }
+
+      res.json({ success: true, serverTime: new Date().toISOString() });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 14. RESTORE SOFT DELETED USER BY ADMIN
+  app.post("/api/admin/users/:id/restore", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const restored = await authStore.restoreUser(id);
+      if (!restored) {
+        return res.status(404).json({ error: "Lutador não localizado no banco ou memória." });
+      }
+
+      const prisma = getPrisma();
+      let userObj = null;
+      if (prisma) {
+        userObj = await prisma.user.findUnique({ where: { id } });
+        if (userObj) {
+          await prisma.auditLog.create({
+            data: {
+              actorId: req.user.id,
+              action: "SYSTEM_SETTING_CHANGE",
+              description: `ADMINISTRADOR restabeleceu (restore) a conta do lutador ${userObj.name} (${userObj.email}).`,
+              ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+              userAgent: req.headers["user-agent"]
+            }
+          }).catch(() => {});
+        }
+      }
+
+      res.json({ success: true, message: `A conta do lutador foi restabelecida com sucesso.` });
+    } catch (error: any) {
+      res.status(500).json({ error: "Erro ao restaurar atleta: " + (error.message || error) });
     }
   });
 

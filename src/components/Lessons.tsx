@@ -36,6 +36,7 @@ import {
 import { UserProfile, Course, BeltRank } from '../types';
 import { NETFLIX_ASSETS, NetflixAsset } from '../data/lessonsData';
 import * as lessonsData from '../data/lessonsData';
+import CareerMode from './CareerMode';
 
 interface LessonsProps {
   user: UserProfile;
@@ -66,6 +67,8 @@ export default function Lessons({
   addCoins, 
   showToast 
 }: LessonsProps) {
+
+  const [activeModeFlag, setActiveModeFlag] = useState<'CARREIRA' | 'NETFLIX'>('CARREIRA');
 
   // --- COMPONENT PERSISTED STATES ---
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -554,8 +557,38 @@ export default function Lessons({
         </div>
       </div>
 
-      {/* 2. CINEMATIC HEADLINE HERO BANNER */}
-      {searchQuery === '' && selectedBelt === 'ALL' && (
+      {/* 2. MODE SELECTOR SWITCH */}
+      <div className="flex gap-2 p-1.5 bg-[#161616] rounded-2xl border border-zinc-850 w-full" id="learning-mode-selector-tabs">
+        <button
+          onClick={() => setActiveModeFlag('CARREIRA')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+            activeModeFlag === 'CARREIRA'
+              ? 'bg-gradient-to-r from-red-650 to-orange-600 text-white shadow-lg'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          <Trophy className="w-4 h-4 text-amber-500 animate-pulse" />
+          <span>Modo Jornada (RPG Carreira)</span>
+        </button>
+        <button
+          onClick={() => setActiveModeFlag('NETFLIX')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
+            activeModeFlag === 'NETFLIX'
+              ? 'bg-zinc-900 border border-zinc-700 text-white shadow-lg'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          <BookOpen className="w-4 h-4 text-red-500" />
+          <span>Netflix On-Demand (Biblioteca)</span>
+        </button>
+      </div>
+
+      {activeModeFlag === 'CARREIRA' ? (
+        <CareerMode user={user} addXp={addXp} addCoins={addCoins} showToast={showToast} />
+      ) : (
+        <>
+          {/* 3. CINEMATIC HEADLINE HERO BANNER */}
+          {searchQuery === '' && selectedBelt === 'ALL' && (
         <div className="relative rounded-2xl overflow-hidden h-[300px] sm:h-[420px] border border-zinc-850 shadow-2xl group transition-all duration-300 hover:border-red-600/30">
           
           {/* Wallpaper dynamic visual gradient vignette */}
@@ -875,6 +908,8 @@ export default function Lessons({
         </div>
 
       </div>
+      </>
+      )}
 
       {/* =======================================================================
           5. IMMERSIVE NETFLIX MEDIA PLAYER ACCORDION OVERLAY MODAL

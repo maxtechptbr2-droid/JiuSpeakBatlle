@@ -76,6 +76,11 @@ model User {
   subscriptionType  String?   @default("FREE")
   subscriptionUntil DateTime?
   aiConversationExpiresAt DateTime?
+  isMuted           Boolean   @default(false)
+  isFrozen          Boolean   @default(false)
+  deletedAt         DateTime?
+  deletedBy         String?
+  deleteReason      String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -733,4 +738,49 @@ model AcademyProgress {
   completedAt DateTime?
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model UserSession {
+  id           String   @id @default(uuid())
+  userId       String
+  ipAddress    String?
+  deviceInfo   String?
+  userAgent    String?
+  lastSeen     DateTime @default(now())
+  currentPage  String?
+  isOnline     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([isOnline])
+}
+
+model UserModeration {
+  id             String    @id @default(uuid())
+  userId         String
+  moderationType String    // SUSPENSION, BAN, MUTE, FREEZE
+  reason         String
+  expiresAt      DateTime?
+  createdBy      String
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model AdminAuditLog {
+  id            String   @id @default(uuid())
+  adminId       String
+  targetUserId  String?
+  actionType    String
+  actionDetails String
+  createdAt     DateTime @default(now())
+
+  @@index([adminId])
+  @@index([targetUserId])
+}
+
+model AdminRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions String[]
 }

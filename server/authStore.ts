@@ -61,6 +61,9 @@ export interface AuthUser {
   resetToken: string | null;
   resetTokenExpires: Date | null;
   refreshToken: string | null;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
+  deleteReason?: string | null;
 }
 
 // Deprecated in-memory store preserved as an empty map for import-compatibility but completely unused
@@ -1865,82 +1868,61 @@ export const authStore = {
     }
   },
 
-  async deleteUser(id: string): Promise<boolean> {
-    const deletedFromMemory = inMemoryUsers.delete(id);
+  async deleteUser(id: string, deletedBy: string = "ADMIN", deleteReason: string = "Excluído por decisão administrativa"): Promise<boolean> {
+    const memUser = inMemoryUsers.get(id);
+    if (memUser) {
+      memUser.deletedAt = new Date();
+      memUser.deletedBy = deletedBy;
+      memUser.deleteReason = deleteReason;
+    }
     try {
       const prisma = getPrisma();
       if (!prisma) {
         throw new Error("Prisma client is missing.");
       }
       
-      await prisma.$transaction(async (tx) => {
-        // 1. Academy progress
-        await tx.academyProgress.deleteMany({ where: { userId: id } });
-        
-        // 2. Notifications, RefreshTokens
-        await tx.notification.deleteMany({ where: { userId: id } });
-        await tx.refreshToken.deleteMany({ where: { userId: id } });
-        
-        // 3. Followers and following relationships
-        await tx.follower.deleteMany({
-          where: {
-            OR: [
-              { followerId: id },
-              { followingId: id }
-            ]
-          }
-        });
-        
-        // 4. Social Interactions (Posts, Comments, Likes)
-        await tx.like.deleteMany({ where: { userId: id } });
-        await tx.comment.deleteMany({ where: { authorId: id } });
-        await tx.socialPost.deleteMany({ where: { authorId: id } });
-        
-        // 5. Game and Arena elements (UserAchievement, Rank)
-        await tx.userAchievement.deleteMany({ where: { userId: id } });
-        await tx.rank.deleteMany({ where: { userId: id } });
-        
-        // 6. PvP elements – challenge matches, defender matches, and answers
-        await tx.pvpAnswer.deleteMany({ where: { userId: id } });
-        await tx.pvpMatch.deleteMany({
-          where: {
-            OR: [
-              { challengerId: id },
-              { defenderId: id }
-            ]
-          }
-        });
-        
-        // 7. Store, Marketplace, and Inventory dependents
-        await tx.marketplaceSale.deleteMany({ where: { buyerId: id } });
-        await tx.marketplaceItem.deleteMany({ where: { sellerId: id } });
-        await tx.storeSale.deleteMany({ where: { buyerId: id } });
-        
-        const userInventory = await tx.inventory.findUnique({ where: { userId: id } });
-        if (userInventory) {
-          await tx.inventoryItem.deleteMany({ where: { inventoryId: userInventory.id } });
-          await tx.inventory.delete({ where: { id: userInventory.id } });
+      await prisma.user.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy,
+          deleteReason,
         }
-        
-        // 8. Bank accounts, Wallet, and transaction dependents
-        await tx.bankAccount.deleteMany({ where: { userId: id } });
-        const userWallet = await tx.wallet.findUnique({ where: { userId: id } });
-        if (userWallet) {
-          await tx.transaction.deleteMany({ where: { walletId: userWallet.id } });
-          await tx.wallet.delete({ where: { id: userWallet.id } });
-        }
-        
-        // 9. Audit logs referencing the user as actor
-        await tx.auditLog.deleteMany({ where: { actorId: id } });
-        
-        // 10. Finally delete the user
-        await tx.user.delete({ where: { id } });
       });
 
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL deleteUser transaction falhou. fallback para memória:", dbErr);
-      return deletedFromMemory;
+      console.error("✗ PostgreSQL soft deleteUser falhou. fallback para memória:", dbErr);
+      return !!memUser;
+    }
+  },
+
+  async restoreUser(id: string): Promise<boolean> {
+    const memUser = inMemoryUsers.get(id);
+    if (memUser) {
+      memUser.deletedAt = null;
+      memUser.deletedBy = null;
+      memUser.deleteReason = null;
+    }
+    try {
+      const prisma = getPrisma();
+      if (!prisma) {
+        throw new Error("Prisma client is missing.");
+      }
+      
+      await prisma.user.update({
+        where: { id },
+        data: {
+          deletedAt: null,
+          deletedBy: null,
+          deleteReason: null,
+        }
+      });
+
+      return true;
+    } catch (dbErr) {
+      console.error("✗ PostgreSQL restoreUser falhou. fallback para memória:", dbErr);
+      return !!memUser;
     }
   },
 

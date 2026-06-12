@@ -49,6 +49,7 @@ export default function Users() {
     handleUpdateUserScores,
     handleCreateUser,
     handleDeleteUser,
+    handleRestoreUser,
     handleResetPassword,
     fetchAdvancedInfo,
     showToast
@@ -475,10 +476,14 @@ export default function Users() {
                       </div>
                     </td>
                     <td className="py-3 px-3">
-                      {regUser.isBanned ? (
+                      {regUser.deletedAt ? (
+                        <span className="p-1 px-2 rounded bg-purple-500/10 border border-purple-500/25 text-purple-400 font-extrabold uppercase text-[9px]">ARQUIVADO</span>
+                      ) : regUser.isBanned ? (
                         <span className="p-1 px-2 rounded bg-rose-500/10 border border-rose-500/25 text-rose-400 font-extrabold uppercase text-[9px]">BANIDO</span>
                       ) : regUser.isSuspended ? (
                         <span className="p-1 px-2 rounded bg-amber-500/10 border border-amber-500/25 text-amber-400 font-extrabold uppercase text-[9px]">SUSPENSO</span>
+                      ) : regUser.isOnline ? (
+                        <span className="p-1 px-2 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-extrabold uppercase text-[9px] animate-pulse">● ONLINE</span>
                       ) : (
                         <span className="p-1 px-2 rounded bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-extrabold uppercase text-[9px]">ATIVO</span>
                       )}
@@ -530,28 +535,50 @@ export default function Users() {
                         <Key className="w-3 h-3" />
                       </button>
 
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          if (regUser.id === user.id) {
-                            showToast("Não é possível auto-excluir seu login atual.", "error");
-                            return;
-                          }
-                          setDoubleConfirmAction({
-                            actionType: 'DELETE',
-                            title: 'Excluir Atleta Permanentemente',
-                            message: `Deseja realmente EXCLUIR permanentemente o lutador "${regUser.name}" (${regUser.email})? Esta ação removerá históricos, compras e carteiras.`,
-                            onConfirm: async () => {
-                              await handleDeleteUser(regUser.id);
+                      {regUser.deletedAt ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDoubleConfirmAction({
+                              actionType: 'RESTORE',
+                              title: 'Reativar Atleta',
+                              message: `Deseja desfazer a exclusão e reativar a conta do lutador "${regUser.name}" (${regUser.email})?`,
+                              onConfirm: async () => {
+                                await handleRestoreUser(regUser.id);
+                              }
+                            });
+                          }}
+                          className="p-1 px-2.5 bg-emerald-950/25 hover:bg-emerald-900 border border-emerald-950/30 text-[10px] text-emerald-400 hover:text-white rounded cursor-pointer transition-all uppercase font-sans font-bold inline-block"
+                          title="Restabelecer Acesso do Lutador/Atleta"
+                        >
+                          Restaurar
+                        </button>
+                      ) : (
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            if (regUser.id === user.id) {
+                              showToast("Não é possível auto-excluir seu login atual.", "error");
+                              return;
                             }
-                          });
-                        }}
-                        disabled={regUser.id === user.id}
-                        className="p-1 px-2 bg-rose-950/20 hover:bg-rose-900 border border-rose-950/30 disabled:opacity-30 disabled:hover:bg-transparent text-[10px] text-rose-450 hover:text-white rounded cursor-pointer transition-all"
-                        title="Excluir Atleta Permanentemente"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                            const reason = window.prompt("Motivo para arquivar a conta do atleta:", "Opção do aluno");
+                            if (reason === null) return;
+                            setDoubleConfirmAction({
+                              actionType: 'DELETE',
+                              title: 'Arquivar Atleta (Soft-Delete)',
+                              message: `Deseja realmente arquivar a conta do lutador "${regUser.name}"? Motivo: ${reason}`,
+                              onConfirm: async () => {
+                                await handleDeleteUser(regUser.id, reason);
+                              }
+                            });
+                          }}
+                          disabled={regUser.id === user.id}
+                          className="p-1 px-2 bg-rose-950/20 hover:bg-rose-900 border border-rose-950/30 disabled:opacity-30 disabled:hover:bg-transparent text-[10px] text-rose-450 hover:text-white rounded cursor-pointer transition-all"
+                          title="Arquivar Atleta"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 inline-block" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -1705,29 +1732,57 @@ export default function Users() {
                           A exclusão removerá todas as chaves estrangeiras, estatísticas, carteiras e logins associados a este usuário na base central.
                         </p>
                         <div className="flex justify-between items-center pt-1.5">
-                          <span className="text-[9px] text-rose-400/80 font-bold uppercase">Esta operação é definitiva e irreversível</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (activeAuditUser.id === user.id) {
-                                showToast("Não é possível auto-excluir o login atual.", "error");
-                                return;
-                              }
-                              setDoubleConfirmAction({
-                                actionType: 'DELETE',
-                                title: 'Wipe de Usuário Total',
-                                message: `Excluir permanentemente o lutador "${activeAuditUser.name}" (${activeAuditUser.email})?`,
-                                onConfirm: async () => {
-                                  await handleDeleteUser(activeAuditUser.id);
-                                  setActiveAuditUser(null);
-                                  setAdvancedInfo(null);
-                                }
-                              });
-                            }}
-                            className="bg-rose-600 hover:bg-rose-500 text-white font-sans font-bold text-[9px] p-2 px-4 rounded cursor-pointer transition-all uppercase"
-                          >
-                            Excluir Usuário do Sistema
-                          </button>
+                          {activeAuditUser.deletedAt ? (
+                            <>
+                              <span className="text-[9px] text-purple-400 font-bold uppercase">Esta conta está arquivada (soft-deleted)</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDoubleConfirmAction({
+                                    actionType: 'RESTORE',
+                                    title: 'Restabelecer Matrícula',
+                                    message: `Restabelecer as credenciais e remover suspensão de "${activeAuditUser.name}"?`,
+                                    onConfirm: async () => {
+                                      await handleRestoreUser(activeAuditUser.id);
+                                      setActiveAuditUser(null);
+                                      setAdvancedInfo(null);
+                                    }
+                                  });
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-bold text-[9px] p-2 px-4 rounded cursor-pointer transition-all uppercase"
+                              >
+                                Restaurar Conta
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[9px] text-rose-400/80 font-bold uppercase">Arquivamento seguro com motivo de auditoria</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (activeAuditUser.id === user.id) {
+                                    showToast("Não é possível auto-excluir o login atual.", "error");
+                                    return;
+                                  }
+                                  const reason = window.prompt("Motivo do arquivamento (Soft-Delete):", "Solicitado pelo aluno");
+                                  if (reason === null) return;
+                                  setDoubleConfirmAction({
+                                    actionType: 'DELETE',
+                                    title: 'Arquivar Atleta (Soft-Delete)',
+                                    message: `Confirmar arquivamento de "${activeAuditUser.name}"? Motivo: ${reason}`,
+                                    onConfirm: async () => {
+                                      await handleDeleteUser(activeAuditUser.id, reason);
+                                      setActiveAuditUser(null);
+                                      setAdvancedInfo(null);
+                                    }
+                                  });
+                                }}
+                                className="bg-rose-600 hover:bg-rose-500 text-white font-sans font-bold text-[9px] p-2 px-4 rounded cursor-pointer transition-all uppercase"
+                              >
+                                Arquivar Usuário
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
 

@@ -63,7 +63,8 @@ export interface AdminContextType {
   handleReportDecision: (reportId: string, decision: 'DISMISS' | 'DELETE_CONTENT') => Promise<void>;
 
   handleCreateUser: (payload: any) => Promise<boolean>;
-  handleDeleteUser: (userId: string) => Promise<void>;
+  handleDeleteUser: (userId: string, reason?: string) => Promise<void>;
+  handleRestoreUser: (userId: string) => Promise<void>;
   handleResetPassword: (userId: string, newPass: string) => Promise<void>;
   fetchAdvancedInfo: (userId: string) => Promise<any>;
 
@@ -572,10 +573,12 @@ export function AdminProvider({
     }
   };
 
-  const handleDeleteUser = async (userId: string): Promise<void> => {
+  const handleDeleteUser = async (userId: string, reason?: string): Promise<void> => {
     try {
       const res = await authFetch(`/api/admin/users/${userId}/delete`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
       });
       const data = await res.json();
       if (res.ok) {
@@ -587,6 +590,24 @@ export function AdminProvider({
       }
     } catch {
       showToast("Erro técnico de rede.", "error");
+    }
+  };
+
+  const handleRestoreUser = async (userId: string): Promise<void> => {
+    try {
+      const res = await authFetch(`/api/admin/users/${userId}/restore`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || "A conta do lutador foi restabelecida com sucesso.", "success");
+        fetchUsers();
+        fetchDashboardStats();
+      } else {
+        showToast(data.error || "Não foi possível reativar usuário.", "error");
+      }
+    } catch {
+      showToast("Erro de rede ao restaurar usuário.", "error");
     }
   };
 
@@ -714,6 +735,7 @@ export function AdminProvider({
       handleReportDecision,
       handleCreateUser,
       handleDeleteUser,
+      handleRestoreUser,
       handleResetPassword,
       fetchAdvancedInfo,
 
