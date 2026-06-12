@@ -69,6 +69,69 @@ async function runProfileDiagnosticTest() {
     avatarFrame: "item_purple_belt"
   };
 
+  console.log("\n📸 == TESTANDO ENGINE DE UPLOAD DE FOTOS (FÍSICO E ESTRUTURAL) ===");
+  const fs = await import('fs');
+  const path = await import('path');
+  const dummyBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+  const profilesDir = path.join(uploadsDir, 'profiles');
+  const coversDir = path.join(uploadsDir, 'covers');
+
+  console.log("📁 Diretório Geral de Uploads:", uploadsDir);
+  console.log("📁 Diretório de Perfis:", profilesDir);
+  console.log("📁 Diretório de Capas:", coversDir);
+
+  if (!fs.existsSync(profilesDir)) {
+    fs.mkdirSync(profilesDir, { recursive: true });
+  }
+  if (!fs.existsSync(coversDir)) {
+    fs.mkdirSync(coversDir, { recursive: true });
+  }
+
+  // Aplicar permissões Unix
+  fs.chmodSync(uploadsDir, 0o755);
+  fs.chmodSync(profilesDir, 0o755);
+  fs.chmodSync(coversDir, 0o755);
+
+  console.log("✅ Pastas e permissões 755 configuradas com sucesso!");
+
+  // Gravação de arquivos teste em formato webp
+  const profileFilename = `profile_${userId}_${Date.now()}.webp`;
+  const coverFilename = `cover_${userId}_${Date.now()}.webp`;
+
+  const testProfilePath = path.join(profilesDir, profileFilename);
+  const testCoverPath = path.join(coversDir, coverFilename);
+
+  const parsedMatches = dummyBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  if (!parsedMatches) {
+    console.error("❌ Falha de regex de teste de base64.");
+    process.exit(1);
+  }
+  const decodedBuffer = Buffer.from(parsedMatches[2], 'base64');
+
+  fs.writeFileSync(testProfilePath, decodedBuffer);
+  fs.chmodSync(testProfilePath, 0o755);
+
+  fs.writeFileSync(testCoverPath, decodedBuffer);
+  fs.chmodSync(testCoverPath, 0o755);
+
+  console.log("✅ Fotos gravadas em disco com sucesso!");
+  console.log("   • Perfil:", testProfilePath);
+  console.log("   • Capa:  ", testCoverPath);
+
+  if (fs.existsSync(testProfilePath) && fs.existsSync(testCoverPath)) {
+    console.log("🟢 [SUCESSO] Gravação física e permissões de uploads validados!");
+  } else {
+    console.error("🔴 [ERRO] Falha ao gravar fotos de teste em disco.");
+    process.exit(1);
+  }
+
+  // Limpando fotos temporárias de teste
+  fs.unlinkSync(testProfilePath);
+  fs.unlinkSync(testCoverPath);
+  console.log("🧹 Fotos de teste físicas removidas com sucesso!");
+
   console.log("\n⚙️ 1. Enviando atualizações via authStore.updateUser...");
   const updateSuccess = await authStore.updateUser(userId, payloadToTest);
   if (!updateSuccess) {

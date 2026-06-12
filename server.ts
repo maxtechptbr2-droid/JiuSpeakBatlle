@@ -58,6 +58,12 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
+// Static serving for user-uploaded profile and cover photos
+app.use(
+  '/uploads',
+  express.static(path.join(process.cwd(), 'public', 'uploads'))
+);
+
 // -------------------------------------------------------------------------
 // DYNAMIC STOREPRODUCT FIELD COMPATIBILITY SYSTEM (ANTI-DRIFT AUTOPILOT)
 // -------------------------------------------------------------------------
@@ -1917,33 +1923,121 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
 
 // Helper to automatically convert and save Base64 strings as filesystem uploads
 async function saveBase64Image(userId: string, base64Data: string, prefix: "profile" | "cover"): Promise<string> {
-  if (!base64Data || !base64Data.startsWith("data:image/")) {
+  const cwd = process.cwd();
+  console.log('[UPLOAD ROOT]', cwd);
+  
+  // Log receipt of raw payloads with lengths
+  if (prefix === "profile") {
+    console.log("[UPLOAD PROFILE RECEIVED] Payload size/length:", base64Data ? base64Data.length : 0);
+  } else {
+    console.log("[UPLOAD COVER RECEIVED] Payload size/length:", base64Data ? base64Data.length : 0);
+  }
+
+  if (!base64Data) {
+    console.error(`[UPLOAD ${prefix.toUpperCase()} ERROR] Received empty/null string`);
+    return base64Data;
+  }
+
+  if (!base64Data.startsWith("data:image/")) {
+    console.error(`[UPLOAD ${prefix.toUpperCase()} ERROR] String is not a base64 string. It is a preset or URL:`, base64Data.substring(0, 100));
     return base64Data; // Already is a standard URL or preset
   }
+
   try {
     const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
+      console.error(`[UPLOAD ${prefix.toUpperCase()} ERROR] Base64 regex match failed!`);
       return base64Data;
     }
     const type = matches[1];
     const buffer = Buffer.from(matches[2], 'base64');
-    const extension = type.split('/')[1] || 'png';
-    const safeFilename = `${prefix}_user_${userId}_${Date.now()}.${extension}`;
+    
+    const uploadsDir = path.join(cwd, 'public', 'uploads');
+    const profilesDir = path.join(uploadsDir, 'profiles');
+    const coversDir = path.join(uploadsDir, 'covers');
 
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     const fs = await import('fs');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(profilesDir)) {
+      fs.mkdirSync(profilesDir, { recursive: true });
+    }
+    if (!fs.existsSync(coversDir)) {
+      fs.mkdirSync(coversDir, { recursive: true });
     }
 
-    const filepath = path.join(uploadsDir, safeFilename);
+    // Apply 755 permissions on created directories
+    try {
+      fs.chmodSync(uploadsDir, 0o755);
+      fs.chmodSync(profilesDir, 0o755);
+      fs.chmodSync(coversDir, 0o755);
+    } catch (chmodErr) {
+      console.log("⚠️ Directory chmod warned (safe to ignore on non-linux systems):", chmodErr);
+    }
+
+    // Generate output filename conforming to profile_USERID_TIMESTAMP.webp or cover_USERID_TIMESTAMP.webp
+    const timestamp = Date.now();
+    const filename = `${prefix}_${userId}_${timestamp}.webp`;
+    const targetFolder = prefix === "profile" ? profilesDir : coversDir;
+    const filepath = path.join(targetFolder, filename);
+
+    console.log("[UPLOAD PATH GENERATED] Target binary filepath:", filepath);
+
     fs.writeFileSync(filepath, buffer);
-    return `/uploads/${safeFilename}`;
+
+    try {
+      fs.chmodSync(filepath, 0o755);
+    } catch (fChmodErr) {
+      // ignore
+    }
+
+    const relativeUrlPath = `/uploads/${prefix}s/${filename}`;
+
+    if (prefix === "profile") {
+      console.log("[UPLOAD PROFILE SAVED] Physical image written. Path:", relativeUrlPath);
+    } else {
+      console.log("[UPLOAD COVER SAVED] Physical image written. Path:", relativeUrlPath);
+    }
+
+    return relativeUrlPath;
   } catch (err) {
-    console.error(`Error saving base64 ${prefix} image:`, err);
+    console.error(`[UPLOAD ${prefix.toUpperCase()} CRITICAL ERROR] saving base64 to disk failed:`, err);
     return base64Data;
   }
 }
+
+// DIAGNOSTICS ENDPOINT FOR PHOTO UPLOADS
+app.get("/api/debug/uploads", async (req: any, res: any) => {
+  try {
+    const fs = await import('fs');
+    const cwd = process.cwd();
+    const uploadRoot = path.join(cwd, 'public', 'uploads');
+    const profileFolder = path.join(uploadRoot, 'profiles');
+    const coverFolder = path.join(uploadRoot, 'covers');
+
+    const profileFolderExists = fs.existsSync(profileFolder);
+    const coverFolderExists = fs.existsSync(coverFolder);
+
+    let totalProfileImages = 0;
+    let totalCoverImages = 0;
+
+    if (profileFolderExists) {
+      totalProfileImages = fs.readdirSync(profileFolder).length;
+    }
+    if (coverFolderExists) {
+      totalCoverImages = fs.readdirSync(coverFolder).length;
+    }
+
+    res.json({
+      cwd,
+      uploadRoot,
+      profileFolderExists,
+      coverFolderExists,
+      totalProfileImages,
+      totalCoverImages
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // UPDATE CURRENT USER PROFILE
 app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
@@ -1962,13 +2056,25 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
 
     // Handle base64 to file conversion for profilePhoto and coverPhoto automatically!
     let savedProfilePhoto = profilePhoto;
-    if (profilePhoto && profilePhoto.startsWith("data:image/")) {
-      savedProfilePhoto = await saveBase64Image(req.user.id, profilePhoto, "profile");
+    if (profilePhoto) {
+      if (profilePhoto.startsWith("data:image/")) {
+        savedProfilePhoto = await saveBase64Image(req.user.id, profilePhoto, "profile");
+      } else {
+        console.log(`[UPLOAD PROFILE ERROR] Received URL/Preset or simple string instead of base64: "${profilePhoto.substring(0, 100)}"`);
+      }
+    } else {
+      console.log(`[UPLOAD PROFILE ERROR] Received empty/null profilePhoto string`);
     }
 
     let savedCoverPhoto = coverPhoto;
-    if (coverPhoto && coverPhoto.startsWith("data:image/")) {
-      savedCoverPhoto = await saveBase64Image(req.user.id, coverPhoto, "cover");
+    if (coverPhoto) {
+      if (coverPhoto.startsWith("data:image/")) {
+        savedCoverPhoto = await saveBase64Image(req.user.id, coverPhoto, "cover");
+      } else {
+        console.log(`[UPLOAD COVER ERROR] Received URL/Preset or simple string instead of base64: "${coverPhoto.substring(0, 100)}"`);
+      }
+    } else {
+      console.log(`[UPLOAD COVER ERROR] Received empty/null coverPhoto string`);
     }
     
     if (username) {
@@ -2014,6 +2120,7 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
     };
     
     if (savedProfilePhoto) {
+      updateData.profilePhoto = savedProfilePhoto;
       updateData.avatar = savedProfilePhoto;
     }
     
@@ -2025,6 +2132,8 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
       include: { wallet: true }
     });
     
+    console.log("[PRISMA PROFILE UPDATED] User ID:", u.id, "ProfilePhoto:", u.profilePhoto, "Avatar:", u.avatar, "CoverPhoto:", u.coverPhoto);
+
     await authStore.updateUser(req.user.id, {
       ...updateData,
       avatar: u.avatar
