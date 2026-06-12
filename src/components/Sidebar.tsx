@@ -52,70 +52,12 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
   };
 
   const hasPermission = (featureKey: string): boolean => {
-    if (user.role === 'admin') return true;
-    
-    // Check if dynamic releasedFeatures list is provided by server on user profile subscription
-    const sub = user.subscription as any;
-    if (sub?.releasedFeatures && sub.releasedFeatures[featureKey] !== undefined) {
-      return !!sub.releasedFeatures[featureKey];
-    }
-
-    // Default static plan rules fallback
-    const subType = user.subscription?.type?.toUpperCase() || 'FREE';
-    const defaultPermissions: Record<string, Record<string, boolean>> = {
-      FREE: {
-        modulesAll: false,
-        conversationalSection: false,
-        arenaPvp: false,
-        bjjAcademies: false,
-        marketplace: false,
-        jiuspeakLibrary: true,
-        inventoryBackpack: true,
-        jiuspeakStore: false,
-        premiumResources: false,
-      },
-      VIP: {
-        modulesAll: true,
-        conversationalSection: true,
-        arenaPvp: false,
-        bjjAcademies: false,
-        marketplace: true,
-        jiuspeakLibrary: true,
-        inventoryBackpack: true,
-        jiuspeakStore: true,
-        premiumResources: false,
-      },
-      PRO: {
-        modulesAll: true,
-        conversationalSection: true,
-        arenaPvp: true,
-        bjjAcademies: true,
-        marketplace: true,
-        jiuspeakLibrary: true,
-        inventoryBackpack: true,
-        jiuspeakStore: true,
-        premiumResources: true,
-      },
-      MASTER: {
-        modulesAll: true,
-        conversationalSection: true,
-        arenaPvp: true,
-        bjjAcademies: true,
-        marketplace: true,
-        jiuspeakLibrary: true,
-        inventoryBackpack: true,
-        jiuspeakStore: true,
-        premiumResources: true,
-      }
-    };
-
-    const planGate = defaultPermissions[subType] || defaultPermissions.FREE;
-    return !!planGate[featureKey];
+    return true;
   };
 
-  const hasAcademyAccess = hasPermission('bjjAcademies');
-  const hasConversacaoAccess = hasPermission('conversationalSection');
-  const hasArenaPvpAccess = hasPermission('arenaPvp');
+  const hasAcademyAccess = true;
+  const hasConversacaoAccess = true;
+  const hasArenaPvpAccess = true;
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel do Aluno', icon: GraduationCap, badge: null },

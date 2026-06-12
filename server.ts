@@ -1910,7 +1910,8 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
       level: u.level,
       elo: u.elo,
       coins: u.wallet?.balanceJT || 0,
-      balanceBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0
+      balanceBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0,
+      aiConversationExpiresAt: u.aiConversationExpiresAt
     };
     console.log("[PROFILE GET response profile KEYS]", Object.keys(profileResponse), "COUNT:", Object.keys(profileResponse).length);
     res.json({
@@ -6508,6 +6509,173 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
   }
 });
 
+// Global map for tracking pending in-memory purchases of JiuTickets (JT) securely to avoid SQL schema mutations
+export const pendingJtPayments = new Map<string, { userId: string; jtAmount: number; amountBRL: number }>();
+
+app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { packageId, paymentMethodId = "pix" } = req.body;
+    const userId = req.user.id;
+
+    const JT_PACKAGES: any = {
+      "1k": { jtAmount: 1000, priceBRL: 10.00, name: "Pacote 1.000 JT" },
+      "5k": { jtAmount: 5000, priceBRL: 45.00, name: "Pacote 5.000 JT" },
+      "10k": { jtAmount: 10000, priceBRL: 80.00, name: "Pacote 10.000 JT" }
+    };
+
+    const targetPackage = JT_PACKAGES[packageId];
+    if (!targetPackage) {
+      return res.status(400).json({ error: "Pacote selecionado inválido." });
+    }
+
+    const amount = targetPackage.priceBRL;
+    let resultPayment: any;
+
+    if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      // Direct payment call
+      resultPayment = await createDirectPayment({
+        transactionAmount: amount,
+        description: `JiuSpeak ${targetPackage.name}`,
+        paymentMethodId,
+        payerEmail: req.user.email,
+        metadata: { 
+          userId, 
+          jtAmount: targetPackage.jtAmount, 
+          amountBRL: amount, 
+          purchaseType: "JT_PACKAGE_PURCHASE" 
+        }
+      });
+    } else {
+      // Mock Sandbox payment
+      const mockTxId = "mp_jt_" + crypto.randomUUID();
+      const financialConfig = loadFinancialConfig();
+      const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
+                          || financialConfig?.bankAccounts?.find((b: any) => b.active)
+                          || financialConfig?.bankAccounts?.[0];
+      const adminPixKey = process.env.PIX_KEY || primaryBank?.pixKey || "admin@jiuspeak.com.br";
+      
+      const pixPayload = generatePixPayload(adminPixKey, amount, `JiuSpeak ${targetPackage.name}`);
+      
+      resultPayment = {
+        id: mockTxId,
+        status: "pending",
+        statusDetail: "pending_waiting_transfer",
+        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
+        qrCodeCopyPaste: pixPayload,
+        barcode: "34181.75009 01234.567890 12345.678901 2 34560000002990",
+        transactionAmount: amount,
+        paymentMethodId,
+      };
+    }
+
+    // Save purchase context to our global map for webhook reconciliation 
+    pendingJtPayments.set(String(resultPayment.id), {
+      userId,
+      jtAmount: targetPackage.jtAmount,
+      amountBRL: amount
+    });
+
+    const expiresAtDate = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    return res.json({
+      success: true,
+      paymentId: resultPayment.id,
+      qrCodeBase64: resultPayment.qrCode,
+      pixCopiaECola: resultPayment.qrCodeCopyPaste,
+      status: resultPayment.status,
+      statusDetail: resultPayment.statusDetail,
+      barcode: resultPayment.barcode,
+      amount: resultPayment.transactionAmount,
+      paymentMethodId: resultPayment.paymentMethodId,
+      expiresAt: expiresAtDate.toISOString()
+    });
+
+  } catch (error: any) {
+    console.error("Error in Mercado Pago JT payment creation:", error);
+    res.status(500).json({ error: error.message || "Erro ao processar pagamento do pacote de JT." });
+  }
+});
+
+// Endpoint to active or renew 30 days of Premium AI Conversations for 2,500 JT
+app.post("/api/conversational/activate", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const prisma = getPrisma();
+    
+    // Fetch current user and wallet state
+    const userObj = await authStore.findById(userId);
+    if (!userObj) {
+      return res.status(404).json({ error: "Usuário não localizado." });
+    }
+
+    let balanceJT = 0;
+    if (prisma) {
+      const wallet = await prisma.wallet.findUnique({ where: { userId } });
+      balanceJT = wallet ? wallet.balanceJT : 0;
+    } else {
+      balanceJT = userObj.coins || 0;
+    }
+
+    const cost = 2500;
+    if (balanceJT < cost) {
+      return res.status(400).json({ 
+        error: `Saldo de JiuTickets insuficiente. Você possui ${balanceJT} JT, mas são necessários ${cost} JT para ativar a Inteligência Artificial.` 
+      });
+    }
+
+    // Determine the new expiration date (+30 days)
+    // If there is an existing expiration date in the future, extend it, otherwise start from now
+    const now = new Date();
+    let baseDate = now;
+    if (userObj.aiConversationExpiresAt) {
+      const currentExpiry = new Date(userObj.aiConversationExpiresAt);
+      if (currentExpiry.getTime() > now.getTime()) {
+        baseDate = currentExpiry;
+      }
+    }
+    const newExpiry = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    if (prisma) {
+      await prisma.$transaction(async (tx) => {
+        await tx.wallet.update({
+          where: { userId },
+          data: { balanceJT: { decrement: cost } }
+        });
+
+        await tx.user.update({
+          where: { id: userId },
+          data: { aiConversationExpiresAt: newExpiry }
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actorId: userId,
+            action: "MARKETPLACE_BUY",
+            description: `Ativação manual de 30 dias de Conversação IA por 2.500 JT. Nova expiração: ${newExpiry.toLocaleDateString("pt-BR")}`
+          }
+        });
+      });
+    }
+
+    // Synchronize state with unified authStore state memory fallback
+    await authStore.updateUser(userId, {
+      coins: balanceJT - cost,
+      aiConversationExpiresAt: newExpiry
+    });
+
+    return res.json({
+      success: true,
+      aiConversationExpiresAt: newExpiry.toISOString(),
+      coins: balanceJT - cost,
+      message: "Conversação com IA ativada com sucesso por 30 dias! Bons treinos de tatame!"
+    });
+
+  } catch (error: any) {
+    console.error("Error activating conversational section:", error);
+    res.status(500).json({ error: "Erro ao realizar ativação da conversa com IA." });
+  }
+});
+
 // 5. MERCADO PAGO SECURE WEBHOOK (UNIFIED EXCLUSIVE WEBHOOK ENGINE)
 async function handleMercadoPagoWebhook(req: any, res: any) {
   const prisma = getPrisma();
@@ -6578,6 +6746,19 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
     let planId = "";
     let planType = "";
 
+    let isJtPurchase = false;
+    let jtUserId = "";
+    let jtAmountToCredit = 0;
+    let jtAmountBrl = 0;
+
+    const pendingJtPur = pendingJtPayments.get(String(paymentId));
+    if (pendingJtPur) {
+      isJtPurchase = true;
+      jtUserId = pendingJtPur.userId;
+      jtAmountToCredit = pendingJtPur.jtAmount;
+      jtAmountBrl = pendingJtPur.amountBRL;
+    }
+
     const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
     const isMockId = String(paymentId) === "123456" || String(paymentId) === "1234567" || String(paymentId).startsWith("test");
     
@@ -6597,6 +6778,13 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
           userId = mpData.metadata?.user_id || mpData.metadata?.userId || "";
           planId = mpData.metadata?.plan_id || mpData.metadata?.planId || "";
           planType = mpData.metadata?.plan_type || mpData.metadata?.planType || "";
+          
+          if (mpData.metadata?.purchase_type === "JT_PACKAGE_PURCHASE" || mpData.metadata?.purchaseType === "JT_PACKAGE_PURCHASE") {
+            isJtPurchase = true;
+            jtUserId = userId || String(mpData.metadata?.user_id || mpData.metadata?.userId);
+            jtAmountToCredit = Number(mpData.metadata?.jt_amount || mpData.metadata?.jtAmount || 0);
+            jtAmountBrl = paymentAmount;
+          }
         } else {
           console.error(`[Mercado Pago Webhook] Failed to retrieve authentic payment detail from Mercado Pago. Code: ${mpRes.status}`);
         }
@@ -6611,6 +6799,75 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
       planId = req.body?.metadata?.planId || req.query?.planId || "";
       planType = req.body?.metadata?.planType || req.query?.planType || "VIP";
       paymentAmount = planType === "MASTER" ? 49.90 : 29.90;
+
+      const rawPurchaseType = req.body?.metadata?.purchaseType || req.body?.metadata?.purchase_type || req.query?.purchaseType;
+      if (rawPurchaseType === "JT_PACKAGE_PURCHASE" || pendingJtPur) {
+        isJtPurchase = true;
+        jtUserId = String(userId || req.body?.metadata?.userId || req.body?.metadata?.user_id || req.query?.userId || pendingJtPur?.userId);
+        jtAmountToCredit = Number(req.body?.metadata?.jtAmount || req.body?.metadata?.jt_amount || req.query?.jtAmount || pendingJtPur?.jtAmount || 1000);
+        jtAmountBrl = Number(req.body?.metadata?.amountBRL || req.body?.metadata?.amount_brl || req.query?.amount || pendingJtPur?.amountBRL || 10);
+        paymentAmount = jtAmountBrl;
+      }
+    }
+
+    // Process approved JT package purchase immediately before standard subscriptions
+    if (isJtPurchase && (paymentStatus === "approved" || paymentStatus === "completed")) {
+      console.log(`[Mercado Pago Webhook] Reconciling approved JT Pacote Purchase for User: ${jtUserId}, Amount: ${jtAmountToCredit} JT`);
+      if (prisma) {
+        await prisma.$transaction(async (tx) => {
+          const userWallet = await tx.wallet.findUnique({ where: { userId: jtUserId } });
+          if (userWallet) {
+            await tx.wallet.update({
+              where: { userId: jtUserId },
+              data: { balanceJT: { increment: jtAmountToCredit } }
+            });
+          } else {
+            await tx.wallet.create({
+              data: {
+                userId: jtUserId,
+                balanceJT: jtAmountToCredit,
+                balanceAvailable: 0,
+                balanceBRL: 0,
+                balancePending: 0,
+                totalEarned: 0,
+                totalWithdrawn: 0
+              }
+            });
+          }
+
+          await tx.paymentLog.create({
+            data: {
+              provider: "MERCADOPAGO",
+              transactionId: String(paymentId),
+              status: "COMPLETED",
+              amount: jtAmountBrl,
+              payerEmail,
+              payerName
+            }
+          });
+
+          await tx.auditLog.create({
+            data: {
+              actorId: jtUserId,
+              action: "PIX_DEPOSIT",
+              description: `Compra de Pacote de ${jtAmountToCredit} JiuTickets (JT) processada e creditada via webhook Mercado Pago (ID: ${paymentId}).`
+            }
+          });
+        });
+      }
+
+      // Sync state to memory store fallback
+      const targetUser = Array.from((await import("./server/authStore")).inMemoryUsers.values()).find(u => u.id === jtUserId);
+      if (targetUser) {
+        await authStore.updateUser(jtUserId, {
+          coins: (targetUser.coins || 0) + jtAmountToCredit
+        });
+      }
+
+      // Clear map to avoid double crediting
+      pendingJtPayments.delete(String(paymentId));
+
+      return res.status(200).json({ received: true, success: true, message: `Successfully credited ${jtAmountToCredit} JT to user ${jtUserId}` });
     }
 
     // Process payment success / status validation
@@ -6847,8 +7104,11 @@ app.post("/webhook/mercadopago", handleMercadoPagoWebhook);
 
 // 6. PORTAL DE SIMULAÇÃO DE PAGAMENTOS HOMOLOGADO (MERCADO PAGO EXCLUSIVO SANDBOX)
 app.get("/api/payments/simulator", (req: any, res: any) => {
-  const { provider, sessionId, amount, planType, userId, planId } = req.query;
+  const { provider, sessionId, amount, planType, userId, planId, purchaseType, jtAmount } = req.query;
   
+  const isJt = purchaseType === "JT_PACKAGE_PURCHASE" || !!jtAmount;
+  const payLabel = isJt ? `${Number(jtAmount).toLocaleString()} JiuTickets (JT)` : `JiuSpeak ${planType || "VIP"}`;
+
   res.send(`
     <!DOCTYPE html>
     <html lang="pt-br">
@@ -6879,12 +7139,12 @@ app.get("/api/payments/simulator", (req: any, res: any) => {
             <span class="text-slate-400 font-mono text-[9px] truncate max-w-[180px]" title="${sessionId}">${sessionId}</span>
           </div>
           <div class="flex justify-between items-center border-t border-slate-800/40 pt-2.5">
-            <span class="text-slate-500 font-mono">Plano de Assinatura:</span>
-            <span class="text-slate-200 font-bold uppercase tracking-wider">JiuSpeak ${planType}</span>
+            <span class="text-slate-500 font-mono">Item / Pacote:</span>
+            <span class="text-slate-200 font-bold uppercase tracking-wider">${payLabel}</span>
           </div>
           <div class="flex justify-between items-center border-t border-slate-800 pt-2.5">
             <span class="text-slate-400 font-bold font-mono">Valor Cobrado:</span>
-            <span class="text-emerald-400 font-mono font-black text-base">R$ ${Number(amount).toFixed(2)}</span>
+            <span class="text-emerald-400 font-mono font-black text-base">R$ ${Number(amount || 10).toFixed(2)}</span>
           </div>
         </div>
 
@@ -6911,7 +7171,7 @@ app.get("/api/payments/simulator", (req: any, res: any) => {
           }
 
           try {
-            const res = await fetch('/api/payments/mercadopago/webhook?userId=${userId}&planType=${planType}&planId=${planId}', {
+            const res = await fetch('/api/payments/mercadopago/webhook?userId=${userId || ""}&planType=${planType || ""}&planId=${planId || ""}&purchaseType=${purchaseType || ""}&jtAmount=${jtAmount || ""}&amount=${amount || ""}', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
@@ -6923,8 +7183,11 @@ app.get("/api/payments/simulator", (req: any, res: any) => {
                 },
                 metadata: {
                   userId: "${userId}",
-                  planId: "${planId}",
-                  planType: "${planType}"
+                  planId: "${planId || ""}",
+                  planType: "${planType || ""}",
+                  purchaseType: "${purchaseType || ""}",
+                  jtAmount: "${jtAmount || ""}",
+                  amountBRL: "${amount || ""}"
                 }
               })
             });

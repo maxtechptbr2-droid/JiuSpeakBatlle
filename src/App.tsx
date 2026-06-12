@@ -782,61 +782,14 @@ export default function App() {
             const hasPermission = (featureKey: string): boolean => {
               if (user.role === 'admin') return true;
               
-              const sub = user.subscription as any;
-              if (sub?.releasedFeatures && sub.releasedFeatures[featureKey] !== undefined) {
-                return !!sub.releasedFeatures[featureKey];
+              if (featureKey === 'conversationalSection') {
+                if (!user.aiConversationExpiresAt) return false;
+                const expiry = new Date(user.aiConversationExpiresAt);
+                return expiry.getTime() > Date.now();
               }
-
-              const sType = user.subscription?.type?.toUpperCase() || 'FREE';
-              const defaultPermissions: Record<string, Record<string, boolean>> = {
-                FREE: {
-                  modulesAll: false,
-                  conversationalSection: false,
-                  arenaPvp: false,
-                  bjjAcademies: false,
-                  marketplace: false,
-                  jiuspeakLibrary: true,
-                  inventoryBackpack: true,
-                  jiuspeakStore: false,
-                  premiumResources: false,
-                },
-                VIP: {
-                  modulesAll: true,
-                  conversationalSection: true,
-                  arenaPvp: false,
-                  bjjAcademies: false,
-                  marketplace: true,
-                  jiuspeakLibrary: true,
-                  inventoryBackpack: true,
-                  jiuspeakStore: true,
-                  premiumResources: false,
-                },
-                PRO: {
-                  modulesAll: true,
-                  conversationalSection: true,
-                  arenaPvp: true,
-                  bjjAcademies: true,
-                  marketplace: true,
-                  jiuspeakLibrary: true,
-                  inventoryBackpack: true,
-                  jiuspeakStore: true,
-                  premiumResources: true,
-                },
-                MASTER: {
-                  modulesAll: true,
-                  conversationalSection: true,
-                  arenaPvp: true,
-                  bjjAcademies: true,
-                  marketplace: true,
-                  jiuspeakLibrary: true,
-                  inventoryBackpack: true,
-                  jiuspeakStore: true,
-                  premiumResources: true,
-                }
-              };
-
-              const planGate = defaultPermissions[sType] || defaultPermissions.FREE;
-              return !!planGate[featureKey];
+              
+              // All other modules, store, academies and backpack features are fully unlocked for JT economy!
+              return true;
             };
 
             const hasAcademy = hasPermission('bjjAcademies');
@@ -895,9 +848,28 @@ export default function App() {
             if (currentTab === 'pvp') {
               if (!hasConversacao) {
                 return (
-                  <AccessDenied403 
-                    message="403 - Acesso Negado. A Seção de Conversação com IA é exclusiva para planos autorizados. Faça o upgrade agora para destravar treinos de diálogo ilimitados!" 
-                  />
+                  <div className="flex flex-col items-center justify-center p-8 sm:p-12 min-h-[450px] text-center max-w-xl mx-auto space-y-6" id="403-access-denied-conv">
+                    <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 flex items-center justify-center text-4xl shadow-inner animate-pulse">
+                      🪙
+                    </div>
+                    <div className="space-y-2">
+                      <span className="px-2.5 py-0.5 text-[10px] font-bold tracking-widest bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 uppercase">
+                        Sessão Desativada
+                      </span>
+                      <h3 className="font-display font-black text-2xl text-white uppercase tracking-tight">Treino de Conversação com IA</h3>
+                      <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                        A Seção de Conversação Avançada com IA e spars virtuais requer ativação manual. Você pode ativar ou renovar seu passe de 30 dias na Loja usando seu saldo de JiuTickets (JT).
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full max-w-sm justify-center">
+                      <button 
+                        onClick={() => setCurrentTab('subscriptions')}
+                        className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.98]"
+                      >
+                        Ir para a Loja de JiuTickets
+                      </button>
+                    </div>
+                  </div>
                 );
               }
               return (

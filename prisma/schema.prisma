@@ -75,6 +75,7 @@ model User {
   masterActive      Boolean   @default(false)
   subscriptionType  String?   @default("FREE")
   subscriptionUntil DateTime?
+  aiConversationExpiresAt DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

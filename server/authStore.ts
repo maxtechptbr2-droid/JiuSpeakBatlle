@@ -56,6 +56,7 @@ export interface AuthUser {
   masterActive?: boolean;
   subscriptionType?: string | null;
   subscriptionUntil?: string | null;
+  aiConversationExpiresAt?: Date | null;
   verificationToken: string | null;
   resetToken: string | null;
   resetTokenExpires: Date | null;
@@ -1547,6 +1548,7 @@ export const authStore = {
           avatarFrame: u.avatarFrame,
           isVerified: u.isVerified,
           verificationToken: u.verificationToken,
+          aiConversationExpiresAt: u.aiConversationExpiresAt,
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
           refreshToken: u.refreshToken,
@@ -1635,6 +1637,7 @@ export const authStore = {
           avatarFrame: u.avatarFrame,
           isVerified: u.isVerified,
           verificationToken: u.verificationToken,
+          aiConversationExpiresAt: u.aiConversationExpiresAt,
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
           refreshToken: u.refreshToken,
@@ -1808,6 +1811,7 @@ export const authStore = {
       if (fields.themeColor !== undefined) prismaData.themeColor = fields.themeColor;
       if (fields.avatarFrame !== undefined) prismaData.avatarFrame = fields.avatarFrame;
       if (fields.isVerified !== undefined) prismaData.isVerified = fields.isVerified;
+      if (fields.aiConversationExpiresAt !== undefined) prismaData.aiConversationExpiresAt = fields.aiConversationExpiresAt;
       if (fields.verificationToken !== undefined) prismaData.verificationToken = fields.verificationToken;
       if (fields.resetToken !== undefined) prismaData.resetToken = fields.resetToken;
       if (fields.resetTokenExpires !== undefined) prismaData.resetTokenExpires = fields.resetTokenExpires;

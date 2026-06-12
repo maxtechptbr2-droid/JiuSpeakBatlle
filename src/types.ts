@@ -48,6 +48,7 @@ export interface UserProfile {
     imageUrl?: string;
   } | null;
   onboardingDone?: boolean;
+  aiConversationExpiresAt?: string;
   bio?: string;
   city?: string;
   country?: string;
