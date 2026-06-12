@@ -1497,7 +1497,7 @@ export const authStore = {
       });
 
       if (u) {
-        return patchUserObjectWithDeterministicAvatar({
+        const uMapped = patchUserObjectWithDeterministicAvatar({
           id: u.id,
           email: u.email,
           name: u.name,
@@ -1551,6 +1551,8 @@ export const authStore = {
           resetTokenExpires: u.resetTokenExpires,
           refreshToken: u.refreshToken,
         });
+        console.log("[AUTH STORE findByEmail KEYS]", Object.keys(uMapped), "COUNT:", Object.keys(uMapped).length);
+        return uMapped;
       }
 
       // Fallback search in-memory if not found in db but exists locally
@@ -1583,7 +1585,7 @@ export const authStore = {
       });
 
       if (u) {
-        return patchUserObjectWithDeterministicAvatar({
+        const uMapped = patchUserObjectWithDeterministicAvatar({
           id: u.id,
           email: u.email,
           name: u.name,
@@ -1637,6 +1639,8 @@ export const authStore = {
           resetTokenExpires: u.resetTokenExpires,
           refreshToken: u.refreshToken,
         });
+        console.log("[AUTH STORE findById KEYS]", Object.keys(uMapped), "COUNT:", Object.keys(uMapped).length);
+        return uMapped;
       }
       return inMemoryUsers.get(id) || null;
     } catch (dbErr) {
@@ -1752,6 +1756,7 @@ export const authStore = {
   },
 
   async updateUser(id: string, fields: Partial<AuthUser>): Promise<boolean> {
+    console.log("[AUTH STORE updateUser INPUT KEYS]", Object.keys(fields), "COUNT:", Object.keys(fields).length);
     const memUser = inMemoryUsers.get(id);
     if (memUser) {
       Object.assign(memUser, fields);

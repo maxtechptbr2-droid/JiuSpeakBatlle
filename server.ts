@@ -1208,6 +1208,7 @@ export const authenticateToken = (req: any, res: any, next: any) => {
       }
 
       req.user = user;
+      console.log("[AUTH TOKEN req.user KEYS]", Object.keys(req.user), "COUNT:", Object.keys(req.user).length);
       next();
     } catch (dbErr: any) {
       console.error("[AUTH FAILURE] Erro crítico de comunicação com o Postgres/Prisma durante autenticação de rotas:", dbErr);
@@ -1689,6 +1690,7 @@ const inMemoryUserProfiles = new Map<string, any>();
 // 5. GET ME (Perfil logado)
 app.get("/api/auth/me", authenticateToken, (req: any, res: any) => {
   const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
+  console.log("[AUTH ME safeUser KEYS]", Object.keys(safeUser), "COUNT:", Object.keys(safeUser).length);
   res.json({ user: safeUser });
 });
 
@@ -1863,47 +1865,49 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
       include: { wallet: true }
     });
     if (!u) return res.status(404).json({ error: "User not found" });
+    const profileResponse = {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      bio: u.bio || "",
+      city: u.city || "",
+      country: u.country || "",
+      nativeLanguage: u.nativeLanguage || "",
+      learningGoal: u.learningGoal || "",
+      profilePhoto: u.profilePhoto || u.avatar || "",
+      coverPhoto: u.coverPhoto || "",
+      instagram: u.instagram || "",
+      youtube: u.youtube || "",
+      facebook: u.facebook || "",
+      website: u.website || "",
+      birthDate: u.birthDate,
+      phone: u.phone || "",
+      englishLevel: u.englishLevel || "",
+      spanishLevel: u.spanishLevel || "",
+      frenchLevel: u.frenchLevel || "",
+      onboardingDone: u.onboardingDone,
+      lastLoginAt: u.lastLoginAt,
+      username: u.username || "",
+      beltRank: u.beltRank || "",
+      favoriteTechnique: u.favoriteTechnique || "",
+      favoriteAthlete: u.favoriteAthlete || "",
+      privacyLevel: u.privacyLevel || "public",
+      followersCount: u.followersCount || 0,
+      followingCount: u.followingCount || 0,
+      themeColor: u.themeColor || "",
+      avatarFrame: u.avatarFrame || "",
+      isVerified: u.isVerified || false,
+      belt: u.belt,
+      stripes: u.stripes,
+      xp: u.xp,
+      level: u.level,
+      elo: u.elo,
+      coins: u.wallet?.balanceJT || 0,
+      balanceBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0
+    };
+    console.log("[PROFILE GET response profile KEYS]", Object.keys(profileResponse), "COUNT:", Object.keys(profileResponse).length);
     res.json({
-      profile: {
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        bio: u.bio || "",
-        city: u.city || "",
-        country: u.country || "",
-        nativeLanguage: u.nativeLanguage || "",
-        learningGoal: u.learningGoal || "",
-        profilePhoto: u.profilePhoto || u.avatar || "",
-        coverPhoto: u.coverPhoto || "",
-        instagram: u.instagram || "",
-        youtube: u.youtube || "",
-        facebook: u.facebook || "",
-        website: u.website || "",
-        birthDate: u.birthDate,
-        phone: u.phone || "",
-        englishLevel: u.englishLevel || "",
-        spanishLevel: u.spanishLevel || "",
-        frenchLevel: u.frenchLevel || "",
-        onboardingDone: u.onboardingDone,
-        lastLoginAt: u.lastLoginAt,
-        username: u.username || "",
-        beltRank: u.beltRank || "",
-        favoriteTechnique: u.favoriteTechnique || "",
-        favoriteAthlete: u.favoriteAthlete || "",
-        privacyLevel: u.privacyLevel || "public",
-        followersCount: u.followersCount || 0,
-        followingCount: u.followingCount || 0,
-        themeColor: u.themeColor || "",
-        avatarFrame: u.avatarFrame || "",
-        isVerified: u.isVerified || false,
-        belt: u.belt,
-        stripes: u.stripes,
-        xp: u.xp,
-        level: u.level,
-        elo: u.elo,
-        coins: u.wallet?.balanceJT || 0,
-        balanceBRL: u.wallet?.balanceAvailable ? Number(u.wallet.balanceAvailable) : 0
-      }
+      profile: profileResponse
     });
   } catch (err) {
     console.error("GET /api/profile err:", err);
@@ -1943,6 +1947,7 @@ async function saveBase64Image(userId: string, base64Data: string, prefix: "prof
 
 // UPDATE CURRENT USER PROFILE
 app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
+  console.log("[PROFILE PUT req.body KEYS]", Object.keys(req.body), "COUNT:", Object.keys(req.body).length);
   const { 
     name, bio, city, country, nativeLanguage, learningGoal, 
     profilePhoto, coverPhoto, instagram, youtube, facebook, website,
