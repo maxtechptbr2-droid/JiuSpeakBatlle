@@ -825,13 +825,6 @@ export default function App() {
             }
 
             if (currentTab === 'lessons') {
-              if (!hasPermission('modulesAll')) {
-                return (
-                  <AccessDenied403 
-                    message="403 - Acesso Negado. O acesso a todos os módulos do curso é restrito para o seu plano atual. Realize o upgrade de plano agora para destravar todo o conteúdo das lições!" 
-                  />
-                );
-              }
               return (
                 <Lessons 
                   user={user} 
@@ -849,24 +842,24 @@ export default function App() {
               if (!hasConversacao) {
                 return (
                   <div className="flex flex-col items-center justify-center p-8 sm:p-12 min-h-[450px] text-center max-w-xl mx-auto space-y-6" id="403-access-denied-conv">
-                    <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border-2 border-amber-500/20 flex items-center justify-center text-4xl shadow-inner animate-pulse">
-                      🪙
+                    <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-center text-4xl shadow-inner animate-pulse">
+                      🤖
                     </div>
                     <div className="space-y-2">
-                      <span className="px-2.5 py-0.5 text-[10px] font-bold tracking-widest bg-amber-500/10 text-amber-400 rounded-full border border-amber-500/20 uppercase">
+                      <span className="px-2.5 py-0.5 text-[10px] font-bold tracking-widest bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20 uppercase">
                         Sessão Desativada
                       </span>
                       <h3 className="font-display font-black text-2xl text-white uppercase tracking-tight">Treino de Conversação com IA</h3>
                       <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                        A Seção de Conversação Avançada com IA e spars virtuais requer ativação manual. Você pode ativar ou renovar seu passe de 30 dias na Loja usando seu saldo de JiuTickets (JT).
+                        A Seção de Conversação Avançada com IA e sparrings virtuais requer ativação por JiuTickets. Ative ou renove seu passe de 30 dias por 2500 JT na Central de JiuTickets.
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full max-w-sm justify-center">
                       <button 
                         onClick={() => setCurrentTab('subscriptions')}
-                        className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.98]"
+                        className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-650 hover:from-violet-500 hover:to-indigo-550 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.98]"
                       >
-                        Ir para a Loja de JiuTickets
+                        Ir para a Central de JiuTickets
                       </button>
                     </div>
                   </div>
@@ -880,18 +873,12 @@ export default function App() {
                   addXp={addXp}
                   addCoins={addCoins}
                   showToast={showToast}
+                  setCurrentTab={setCurrentTab}
                 />
               );
             }
 
             if (currentTab === 'market') {
-              if (!hasPermission('marketplace') && !hasPermission('jiuspeakStore')) {
-                return (
-                  <AccessDenied403 
-                    message="403 - Acesso Negado. A Loja e o Marketplace são exclusivos para planos VIP, PRO e MASTER. Faça o upgrade para equipar seu avatar com kimonos lendários!" 
-                  />
-                );
-              }
               return (
                 <StoreMarket 
                   user={user} 
@@ -904,13 +891,6 @@ export default function App() {
             }
 
             if (currentTab === 'inventory') {
-              if (!hasPermission('inventoryBackpack')) {
-                return (
-                  <AccessDenied403 
-                    message="403 - Acesso Negado. Seu plano de assinatura atual restringe o acesso ao inventário pessoal." 
-                  />
-                );
-              }
               return (
                 <InventoryPanel 
                   user={user} 
