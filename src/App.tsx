@@ -43,6 +43,7 @@ const AcademiesCommunities = React.lazy(() => import('./components/AcademiesComm
 const JiuSpeakAcademy = React.lazy(() => import('./components/JiuSpeakAcademy'));
 const ProfilePanel = React.lazy(() => import('./components/ProfilePanel'));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
+const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
 
 // Spinner skeleton screen for lazy-loaded route transitions 
@@ -148,10 +149,29 @@ export default function App() {
         return 'profile-settings';
       }
       if (path.startsWith('/profile/')) {
-        const username = path.split('/profile/')[1];
+        const username = path.split('/profile/')[2] || path.split('/profile/')[1];
         if (username) {
           return `profile-public-${username}`;
         }
+      }
+      if (path.startsWith('/u/')) {
+        const username = path.split('/u/')[1];
+        if (username) {
+          return `profile-public-${username}`;
+        }
+      }
+      if (path.startsWith('/certificate/')) {
+        const hash = path.split('/certificate/')[1];
+        if (hash) {
+          return `certificate-public-${hash}`;
+        }
+      }
+      if (path.startsWith('/invite/')) {
+        const referrer = path.split('/invite/')[1];
+        if (referrer) {
+          localStorage.setItem('jiuspeak_referrer', referrer.trim());
+        }
+        return 'dashboard';
       }
     }
     return 'dashboard';
@@ -187,12 +207,30 @@ export default function App() {
         if (username) {
           setCurrentTab(`profile-public-${username}`);
         }
+      } else if (path.startsWith('/u/')) {
+        const username = path.split('/u/')[1];
+        if (username) {
+          setCurrentTab(`profile-public-${username}`);
+        }
+      } else if (path.startsWith('/certificate/')) {
+        const hash = path.split('/certificate/')[1];
+        if (hash) {
+          setCurrentTab(`certificate-public-${hash}`);
+        }
       } else if (path === '/') {
         setCurrentTab('dashboard');
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (localStorage.getItem('jiuspeak_referrer') && window.location.pathname.startsWith('/invite/')) {
+      const referrer = localStorage.getItem('jiuspeak_referrer');
+      showToast(`Você foi convidado por @${referrer}! Registre-se para resgatar 200 JT livres!`, 'success');
+      window.history.pushState(null, '', '/');
+    }
   }, []);
 
   useEffect(() => {
@@ -210,15 +248,22 @@ export default function App() {
       }
     } else if (currentTab.startsWith('profile-public-')) {
       const username = currentTab.replace('profile-public-', '');
-      if (window.location.pathname !== `/profile/${username}`) {
-        window.history.pushState(null, '', `/profile/${username}`);
+      if (window.location.pathname !== `/u/${username}`) {
+        window.history.pushState(null, '', `/u/${username}`);
+      }
+    } else if (currentTab.startsWith('certificate-public-')) {
+      const hash = currentTab.replace('certificate-public-', '');
+      if (window.location.pathname !== `/certificate/${hash}`) {
+        window.history.pushState(null, '', `/certificate/${hash}`);
       }
     } else {
       if (
         window.location.pathname === '/store' || 
         window.location.pathname === '/inventory' || 
         window.location.pathname === '/dashboard/profile' ||
-        window.location.pathname.startsWith('/profile/')
+        window.location.pathname.startsWith('/profile/') ||
+        window.location.pathname.startsWith('/u/') ||
+        window.location.pathname.startsWith('/certificate/')
       ) {
         window.history.pushState(null, '', '/');
       }
@@ -920,6 +965,17 @@ export default function App() {
                   currentUser={user}
                   showToast={showToast}
                   onNavigate={setCurrentTab}
+                />
+              );
+            }
+
+            if (currentTab.startsWith('certificate-public-')) {
+              const hash = currentTab.replace('certificate-public-', '');
+              return (
+                <PublicCertificateView 
+                  hash={hash}
+                  onNavigate={setCurrentTab}
+                  showToast={showToast}
                 />
               );
             }

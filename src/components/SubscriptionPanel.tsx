@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   ShieldCheck, 
@@ -50,6 +50,58 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
     amountBRL: number;
     jtAmount: number;
   } | null>(null);
+
+  const [pollingStatus, setPollingStatus] = useState<string>('pending');
+
+  useEffect(() => {
+    if (!checkoutData || !token) {
+      setPollingStatus('pending');
+      return;
+    }
+
+    let intervalId: any;
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/payments/status/${checkoutData.paymentId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && (data.status === 'approved' || data.status === 'completed' || data.processed)) {
+            setPollingStatus('approved');
+            showToast(`Pagamento de ${checkoutData.jtAmount} JT Aprovado!`, 'success');
+            
+            // Refresh balance
+            const meRes = await fetch('/api/auth/me', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const meData = await meRes.json();
+            if (meData.user) {
+              updateUser(meData.user);
+            }
+            
+            clearInterval(intervalId);
+            setTimeout(() => {
+              setCheckoutData(null);
+              setSelectedPackage(null);
+            }, 4000);
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao verificar status do PIX:', err);
+      }
+    };
+
+    checkStatus();
+    intervalId = setInterval(checkStatus, 3000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [checkoutData, token]);
 
   // New gamer AAA Packages as requested by instructions
   const jtPackages: JtPackage[] = [
@@ -167,54 +219,6 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       showToast('Erro de comunicação para ativação de IA.', 'error');
     } finally {
       setActivatingAi(false);
-    }
-  };
-
-  const handleSimulatePayment = async () => {
-    if (!checkoutData) return;
-    try {
-      setLoading(true);
-      // Directly invoke local payment simulator URL
-      const res = await fetch(`/api/payments/simulator?provider=mercadopago&sessionId=${checkoutData.paymentId}&amount=${checkoutData.amountBRL}&userId=${user.id}&purchaseType=JT_PACKAGE_PURCHASE&jtAmount=${checkoutData.jtAmount}`);
-      if (res.ok) {
-        // Trigger simulated webhook ping
-        const webhookRes = await fetch('/api/payments/mercadopago/webhook', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'payment.created',
-            data: { id: checkoutData.paymentId },
-            metadata: {
-              userId: user.id,
-              purchaseType: 'JT_PACKAGE_PURCHASE',
-              jtAmount: checkoutData.jtAmount,
-              amountBRL: checkoutData.amountBRL
-            }
-          })
-        });
-
-        if (webhookRes.ok) {
-          showToast(`Sucesso! Pagamento de R$ ${checkoutData.amountBRL.toFixed(2)} processado e ${checkoutData.jtAmount} JT creditados!`, 'success');
-          // Reload profile
-          const meRes = await fetch('/api/auth/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const meData = await meRes.json();
-          if (meData.user) {
-            updateUser(meData.user);
-          }
-          setCheckoutData(null);
-          setSelectedPackage(null);
-        } else {
-          showToast('Erro ao simular webhook de compensação.', 'error');
-        }
-      } else {
-        showToast('Erro no portal de simulação de pagamentos.', 'error');
-      }
-    } catch (err) {
-      showToast('Erro ao homologar pagamento simulado.', 'error');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -339,25 +343,31 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 border border-emerald-500/20 p-5 rounded-2xl space-y-4">
+              <div className="bg-slate-900/60 border border-violet-500/20 p-5 rounded-2xl space-y-4">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Sandbox Homologado para Estudos</span>
+                  <div className={`w-2.5 h-2.5 rounded-full ${pollingStatus === 'approved' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                    {pollingStatus === 'approved' ? '✓ LOGÍSTICA COMPLETA' : '⚡ AGUARDANDO REDE BACEN...'}
+                  </span>
                 </div>
-                <p className="text-[11px] text-slate-450 leading-relaxed font-mono">
-                  Sendo uma aplicação virtual, utilize a ferramenta abaixo para simular a liquidação imediata da fatura de moedas e aprovar os JiuTickets.
+                <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+                  {pollingStatus === 'approved' 
+                    ? 'Seu pagamento Pix foi compensado com sucesso! Os JiuTickets correspondentes já foram adicionados ao seu saldo de atleta.'
+                    : 'Aguardando liquidação do Pix pelo Banco Central. Identificação automática de faturas em tempo real via webhook integrado.'}
                 </p>
-                <button 
-                  onClick={handleSimulatePayment}
-                  disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 text-xs uppercase font-extrabold tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer"
-                >
-                  {loading ? 'Aprovando...' : '✓ Simular Confirmação e Creditar JT'}
-                </button>
+                {pollingStatus === 'approved' ? (
+                  <div className="py-2.5 px-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center text-emerald-400 font-bold text-[10.5px] uppercase font-mono tracking-wider animate-bounce">
+                    ✓ Confirmado e Creditado!
+                  </div>
+                ) : (
+                  <div className="py-2.5 px-4 bg-amber-500/5 border border-amber-500/10 rounded-xl text-center text-amber-500 font-bold text-[10px] font-mono tracking-widest uppercase animate-pulse">
+                    Aguardando webhook oficial...
+                  </div>
+                )}
               </div>
 
               <div className="text-[10px] text-slate-500 leading-normal font-mono">
-                * Os JiuTickets entram imediatamente em sua conta de atleta assim que confirmada a simulação.
+                * Os JiuTickets entram em sua conta exclusivamente após a recepção do webhook certificado.
               </div>
             </div>
           </div>

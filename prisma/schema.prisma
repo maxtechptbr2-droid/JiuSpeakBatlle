@@ -108,6 +108,7 @@ model User {
   following               Follower[]        @relation("UserFollowing")
   refreshTokens           RefreshToken[]
   academyProgress         AcademyProgress[]
+  paymentTransactions     PaymentTransaction[]
 
   @@index([belt])
   @@index([level])
@@ -784,3 +785,92 @@ model AdminRole {
   name        String   @unique
   permissions String[]
 }
+
+model PaymentTransaction {
+  id                String   @id @default(cuid())
+  userId            String
+  mercadoPagoId     String   @unique
+  amountBRL         Float
+  amountJT          Int
+  status            String
+  paymentMethod     String
+  qrCode            String?
+  qrCodeBase64      String?
+  copiaecola        String?
+  processed         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  bio           String?
+  country       String?
+  city          String?
+  academy       String?
+  bjjInstagram  String?
+  bjjYoutube    String?
+  bjjTikTok     String?
+  teacherBadge  Boolean  @default(false)
+  athleteBadge  Boolean  @default(false)
+  verifiedBadge Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model UserFollower {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+}
+
+model SocialFeed {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String   // "ACHIEVEMENT", "CERTIFICATE", "XP_GAIN", "PVP_VICTORY", "BELT_PROMOTION"
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+}
+
+model SocialShare {
+  id          String   @id @default(uuid())
+  userId      String
+  postType    String   // "ACHIEVEMENT", "CERTIFICATE", "BELT_PROMOTION"
+  itemId      String
+  platform    String   // "INSTAGRAM", "WHATSAPP", "TIKTOK", "LINK_COPY"
+  createdAt   DateTime @default(now())
+}
+
+model Certificate {
+  id          String   @id @default(uuid())
+  userId      String
+  moduleTitle String
+  beltLevel   String
+  hash        String   @unique
+  qrCode      String
+  createdAt   DateTime @default(now())
+}
+
+model UserReferral {
+  id           String   @id @default(uuid())
+  referrerId   String
+  referredId   String   @unique
+  referralCode String
+  rewardAmount Int      @default(100) // JiuTickets rewards
+  createdAt    DateTime @default(now())
+}
+
+model UserActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  actionType  String   // "FOLLOW", "POST_CREATION", "CERTIFICATE_VIEW", "PROFILE_EDIT"
+  description String
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
+
+

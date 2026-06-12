@@ -70,7 +70,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
   });
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'edit' | 'social'>('edit');
+  const [activeTab, setActiveTab] = useState<'edit' | 'social' | 'invite'>('edit');
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [loadingSocial, setLoadingSocial] = useState(false);
@@ -433,12 +433,20 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
           >
             Seguidores & Amigos
           </button>
+          <button
+            onClick={() => setActiveTab('invite')}
+            className={`px-4 py-2 font-display font-bold text-xs uppercase tracking-wider transition-all border-b-2 ${
+              activeTab === 'invite' ? 'border-violet-500 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Indicações (Ganhe JT)
+          </button>
         </div>
       </div>
 
       {/* 2. TAB TRANSITIONS */}
 
-      {activeTab === 'edit' ? (
+      {activeTab === 'edit' && (
         <form onSubmit={handleSave} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 space-y-8 shadow-xl">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
             <div>
@@ -983,7 +991,9 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
             </button>
           </div>
         </form>
-      ) : (
+      )}
+
+      {activeTab === 'social' && (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6 shadow-xl" id="social-tab-panel">
           <div className="border-b border-slate-800 pb-4">
             <h3 className="text-base font-display font-black text-white uppercase tracking-wider flex items-center gap-2">
@@ -1060,6 +1070,108 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
 
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'invite' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6 shadow-xl animate-fadeIn" id="invite-tab-panel">
+          <div className="border-b border-slate-800 pb-4">
+            <h3 className="text-base font-display font-black text-white uppercase tracking-wider flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" /> SISTEMA DE INDICAÇÕES JIUSPEAK (GANHE 200 JT)
+            </h3>
+            <p className="text-[11px] text-slate-400">Ajude nossa comunidade de Jiu-Jitsu e Inglês a crescer pelo mundo e receba créditos oficiais em JiuTickets!</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Link copier column */}
+            <div className="md:col-span-2 space-y-4 bg-slate-950/60 p-6 rounded-2xl border border-slate-850">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 block font-bold">Seu Link Único de indicação</span>
+              
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  readOnly
+                  value={`${window.location.origin}/invite/${profile.username || user.username || user.id}`}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 font-mono focus:outline-none" 
+                  id="referral-sharing-link-value"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById('referral-sharing-link-value') as HTMLInputElement;
+                    if (el) {
+                      navigator.clipboard.writeText(el.value);
+                      showToast("Link de indicação copiado! Envie nos grupos de WhatsApp da sua academia.", "success");
+                    }
+                  }}
+                  className="px-4 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer"
+                >
+                  Copiar Link
+                </button>
+              </div>
+
+              <div className="space-y-2 font-sans">
+                <span className="text-[10px] font-mono text-slate-500 uppercase block font-bold">Compartilhar rápido nas redes</span>
+                <div className="flex gap-2 flex-wrap">
+                  <a
+                    href={`https://api.whatsapp.com/send?text=Faça%20parte%20da%20maior%20plataforma%20de%20Jiu-Jitsu%20e%20Inglês%20do%20mundo,%20ganhe%20200%20JiuTickets%20ao%20entrar!%20Acesse:%20${window.location.origin}/invite/${profile.username || user.username || user.id}`}
+                    target="_blank"
+                    rel="referrer"
+                    className="p-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center gap-1.5 hover:bg-emerald-500/20 transition-all font-mono"
+                  >
+                    WhatsApp
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=Entrando%20no%20@JiuSpeak%20para%20dominar%20o%20Mundo.%20Cadastre-se%20com%20meu%20link:%20${window.location.origin}/invite/${profile.username || user.username || user.id}`}
+                    target="_blank"
+                    rel="referrer"
+                    className="p-2 px-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-bold flex items-center gap-1.5 hover:bg-sky-500/20 transition-all font-mono"
+                  >
+                    Twitter / X
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const shareText = `Acabei de receber conquistas na JiuSpeak. Use meu link de indicação para receber 200 JT ao se registrar: ${window.location.origin}/invite/${profile.username || user.username || user.id}`;
+                      navigator.clipboard.writeText(shareText);
+                      showToast("Post pronto copiado para os Stories do Instagram/TikTok!", "success");
+                    }}
+                    className="p-2 px-3 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-450 text-xs font-bold flex items-center gap-1.5 hover:bg-pink-550/20 transition-all font-mono cursor-pointer"
+                  >
+                    TikTok / Instagram
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics column */}
+            <div className="space-y-4 bg-slate-950/60 p-6 rounded-2xl border border-slate-850 font-sans">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block font-bold">Resumo Financeiro Virtual</span>
+              
+              <div className="space-y-3">
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                  <span className="text-[10px] text-slate-500 block font-mono">INDICADOS CADASTRADOS</span>
+                  <span className="text-xl font-mono font-black text-white">0 Atletas</span>
+                </div>
+                
+                <div className="bg-indigo-950/40 border border-indigo-900/45 p-4 rounded-xl">
+                  <span className="text-[10px] text-indigo-400 block font-mono">BÔNUS JT RECEBIDOS</span>
+                  <span className="text-xl font-mono font-black text-indigo-300">0 JT</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="bg-slate-950 p-6 rounded-2xl border border-slate-850/60 space-y-2 font-sans">
+            <span className="text-xs font-bold text-white block">Regras claras do Dojô Viral:</span>
+            <ul className="text-slate-400 text-[11px] list-disc pl-5 space-y-1.5 font-sans leading-relaxed">
+              <li>O indicado deve utilizar o link <strong>direto</strong> para acessar a plataforma para gravar o cookies de rastreio.</li>
+              <li>A recompensa de <strong>200 JT</strong> livres de tarifas para cada um será creditada assim que o indicado finalizar com maestria o Onboarding Wizard.</li>
+              <li>Sistemas automatizados ou IPs idênticos para auto-indicação serão suspensos sumariamente pelo Painel Administrativo. Treine limpo, jogue limpo!</li>
+            </ul>
+          </div>
         </div>
       )}
 
