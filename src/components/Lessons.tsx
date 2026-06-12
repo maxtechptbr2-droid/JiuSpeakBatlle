@@ -366,7 +366,8 @@ export default function Lessons({
       });
 
       if (!response.ok) {
-        throw new Error("TTS Route Failed");
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || "TTS Route Failed");
       }
 
       const blob = await response.blob();
@@ -385,9 +386,10 @@ export default function Lessons({
       };
 
       await audio.play();
-      showToast('🔊 Reproduzindo áudio ElevenLabs premium...', 'success');
-    } catch (err) {
-      console.warn("ElevenLabs TTS fallbacked to local browser synthesis:", err);
+      showToast('🔊 Reproduzindo áudio OpenAI premium...', 'success');
+    } catch (err: any) {
+      console.warn("OpenAI TTS fallbacked to local browser synthesis:", err);
+      showToast(`⚠️ OpenAI off: Usando fallback imediato de voz local...`, 'info');
       fallbackBrowserSpeech(text);
     }
   };
@@ -1139,7 +1141,7 @@ export default function Lessons({
                     <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-xl text-center space-y-2 relative">
                       <p className="text-[9px] text-zinc-500 uppercase font-mono flex items-center justify-center gap-1.5">
                         <span>Frase Técnico-Foco:</span>
-                        <span className="text-red-500 font-extrabold text-[8px] border border-red-900/60 p-0.5 px-1 bg-red-950/40 rounded">VOZ PREMIUM ELEVENLABS</span>
+                        <span className="text-red-500 font-extrabold text-[8px] border border-red-900/60 p-0.5 px-1 bg-red-950/40 rounded">VOZ PREMIUM OPENAI</span>
                       </p>
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
                         <p className="text-sm font-extrabold text-red-500 italic">"Could we go easy on this specific training round?"</p>
@@ -1150,7 +1152,7 @@ export default function Lessons({
                               ? 'bg-red-600 text-white animate-pulse shadow-glow'
                               : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-205'
                           }`}
-                          title="🔊 Ouvir Frase com ElevenLabs Voice"
+                          title="🔊 Ouvir Frase com OpenAI Voice"
                         >
                           <Volume2 className={`w-3.5 h-3.5 ${ttsVoicePlayingText === "Could we go easy on this specific training round?" ? 'animate-bounce' : ''}`} />
                           <span className="text-[10px] uppercase tracking-wider font-extrabold">Ouvir Frase</span>

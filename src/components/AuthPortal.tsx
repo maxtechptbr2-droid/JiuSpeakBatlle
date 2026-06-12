@@ -465,7 +465,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
       });
 
       if (!response.ok) {
-        throw new Error("TTS Route Failed");
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || "TTS Route Failed");
       }
 
       const blob = await response.blob();
@@ -477,9 +478,10 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
       };
 
       await audio.play();
-      showToast('🔊 Reproduzindo áudio ElevenLabs premium...', 'success');
-    } catch (err) {
-      console.warn("ElevenLabs TTS fallbacked in AuthPortal:", err);
+      showToast('🔊 Reproduzindo áudio OpenAI premium...', 'success');
+    } catch (err: any) {
+      console.warn("OpenAI TTS fallbacked in AuthPortal:", err);
+      showToast(`⚠️ OpenAI off: Usando fallback imediato de voz local...`, 'info');
       fallbackPreviewSpeech(phrase);
     }
   };

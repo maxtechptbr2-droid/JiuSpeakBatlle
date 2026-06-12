@@ -2186,7 +2186,7 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
   }
 });
 
-// POST /api/tts - Voice IA premium ElevenLabs integration (with local caching)
+// POST /api/tts - Voice IA premium OpenAI TTS integration (with intelligent local caching)
 app.post("/api/tts", async (req: any, res: any) => {
   try {
     const { text, voiceId } = req.body;
@@ -2194,17 +2194,18 @@ app.post("/api/tts", async (req: any, res: any) => {
       return res.status(400).json({ error: "O texto é obrigatório para gerar áudio." });
     }
 
-    const { generateSpeech } = await import("./server/services/elevenlabs");
-    const buffer = await generateSpeech(text, voiceId);
+    const { gerarAudio } = await import("./server/services/openaiTTS");
+    const buffer = await gerarAudio(text, voiceId);
 
     res.set({
       "Content-Type": "audio/mpeg",
-      "Content-Length": buffer.length.toString()
+      "Content-Length": buffer.length.toString(),
+      "Cache-Control": "public, max-age=31536000, immutable" // Highly cacheable content
     });
     res.send(buffer);
   } catch (err: any) {
     console.error("[TTS ENDPOINT ERROR]", err);
-    res.status(500).json({ error: err.message || "Erro interno ao processar TTS." });
+    res.status(500).json({ error: err.message || "Erro interno ao processar OpenAI TTS." });
   }
 });
 
