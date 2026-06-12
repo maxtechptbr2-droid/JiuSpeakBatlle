@@ -389,7 +389,11 @@ export default function Lessons({
       showToast('🔊 Reproduzindo áudio OpenAI premium...', 'success');
     } catch (err: any) {
       console.warn("OpenAI TTS fallbacked to local browser synthesis:", err);
-      showToast(`⚠️ OpenAI off: Usando fallback imediato de voz local...`, 'info');
+      const isQuota = err.message && String(err.message).toLowerCase().includes("quota");
+      const friendlyMsg = isQuota 
+        ? "⚠️ OpenAI Sem Saldo/Quota no momento. Usando voz alternativa temporária..."
+        : "⚠️ Serviço de Voz Premium indisponível. Usando voz alternativa temporária...";
+      showToast(friendlyMsg, 'info');
       fallbackBrowserSpeech(text);
     }
   };

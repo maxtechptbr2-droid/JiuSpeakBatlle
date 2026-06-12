@@ -249,9 +249,10 @@ function csrfProtection(req: any, res: any, next: any) {
     return next();
   }
   
-  // Bypass CSRF protection for official and custom Mercado Pago & PIX webhook endpoints
+  // Bypass CSRF protection for official and custom Mercado Pago & PIX webhook endpoints, plus the custom OpenAI TTS speech endpoint
   const cleanPath = String(req.path || "").toLowerCase().trim().replace(/\/$/, "");
   if (
+    cleanPath === "/api/tts" ||
     cleanPath === "/webhook/mercadopago" ||
     cleanPath === "/api/payments/mercadopago/webhook" ||
     cleanPath === "/api/finance/pix-webhook" ||
