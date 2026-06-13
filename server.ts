@@ -7485,7 +7485,16 @@ export const pendingJtPayments = new Map<string, { userId: string; jtAmount: num
 
 app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async (req: any, res: any) => {
   try {
-    const { packageId, paymentMethodId = "pix" } = req.body;
+    const { 
+      packageId, 
+      paymentMethodId = "pix",
+      token,
+      installments = 1,
+      identificationType,
+      identificationNumber,
+      payerFirstName,
+      payerLastName
+    } = req.body;
     const userId = req.user.id;
 
     const JT_PACKAGES: any = {
@@ -7507,13 +7516,21 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
     const amount = targetPackage.priceBRL;
     let resultPayment: any;
 
+    const isCreditOrDebit = paymentMethodId !== "pix" && paymentMethodId !== "bolbradesco";
+
     if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
-      // Direct payment call
+      // Direct payment call via official Mercado Pago SDK wrapper
       resultPayment = await createDirectPayment({
         transactionAmount: amount,
         description: `JiuSpeak ${targetPackage.name}`,
         paymentMethodId,
+        token,
+        installments: Number(installments),
         payerEmail: req.user.email,
+        payerFirstName: payerFirstName || req.user.name?.split(" ")[0],
+        payerLastName: payerLastName || req.user.name?.split(" ").slice(1).join(" "),
+        identificationType,
+        identificationNumber,
         metadata: { 
           userId, 
           jtAmount: targetPackage.jtAmount, 
@@ -7522,7 +7539,7 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
         }
       });
     } else {
-      // Mock Sandbox payment
+      // High fidelity Simulated / Mock Sandbox payment
       const mockTxId = "mp_jt_" + crypto.randomUUID();
       const financialConfig = loadFinancialConfig();
       const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
@@ -7532,16 +7549,44 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
       
       const pixPayload = generatePixPayload(adminPixKey, amount, `JiuSpeak ${targetPackage.name}`);
       
-      resultPayment = {
-        id: mockTxId,
-        status: "pending",
-        statusDetail: "pending_waiting_transfer",
-        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
-        qrCodeCopyPaste: pixPayload,
-        barcode: "34181.75009 01234.567890 12345.678901 2 34560000002990",
-        transactionAmount: amount,
-        paymentMethodId,
-      };
+      if (isCreditOrDebit) {
+        // Credit card / debit card is accredited instantly for great user sandbox experience!
+        resultPayment = {
+          id: mockTxId,
+          status: "approved",
+          statusDetail: "accredited",
+          qrCode: "",
+          qrCodeCopyPaste: "",
+          barcode: "",
+          transactionAmount: amount,
+          paymentMethodId,
+        };
+      } else if (paymentMethodId === "bolbradesco") {
+        // Boleto bradesco response simulation
+        resultPayment = {
+          id: mockTxId,
+          status: "pending",
+          statusDetail: "pending_waiting_payment",
+          qrCode: "",
+          qrCodeCopyPaste: "",
+          barcode: "23790.50400 43000.001257 89002.500008 1 9500000000" + Math.floor(1000 + Math.random() * 9000),
+          transactionAmount: amount,
+          paymentMethodId,
+          boletoUrl: `${process.env.APP_URL || window?.location?.origin || ""}/api/payments/mock-boleto-pdf`
+        };
+      } else {
+        // PIX response simulation
+        resultPayment = {
+          id: mockTxId,
+          status: "pending",
+          statusDetail: "pending_waiting_transfer",
+          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
+          qrCodeCopyPaste: pixPayload,
+          barcode: "",
+          transactionAmount: amount,
+          paymentMethodId,
+        };
+      }
     }
 
     // Save purchase context to our global map for webhook reconciliation 
@@ -7551,7 +7596,9 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
       amountBRL: amount
     });
 
-    console.log(`[PIX CREATED] Mercado Pago transaction generated successfully. ID: ${resultPayment.id}, Value: R$ ${amount}`);
+    console.log(`[PAYMENT CREATED] Mercado Pago transaction generated successfully. ID: ${resultPayment.id}, Method: ${paymentMethodId}, Value: R$ ${amount}`);
+
+    const isAlreadyApproved = resultPayment.status === "approved" || resultPayment.status === "completed";
 
     // Persist PaymentTransaction record for tracking and status polling
     const paymentTxPayload = {
@@ -7559,12 +7606,12 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
       mercadoPagoId: String(resultPayment.id),
       amountBRL: amount,
       amountJT: targetPackage.jtAmount,
-      status: "PENDING",
+      status: isAlreadyApproved ? "approved" : "PENDING",
       paymentMethod: paymentMethodId,
       qrCode: resultPayment.qrCode || "",
       qrCodeBase64: resultPayment.qrCode || "",
-      copiaecola: resultPayment.qrCodeCopyPaste || "",
-      processed: false,
+      copiaecola: resultPayment.qrCodeCopyPaste || resultPayment.barcode || "",
+      processed: isAlreadyApproved,
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -7579,17 +7626,82 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
             mercadoPagoId: String(resultPayment.id),
             amountBRL: amount,
             amountJT: targetPackage.jtAmount,
-            status: "PENDING",
+            status: isAlreadyApproved ? "approved" : "PENDING",
             paymentMethod: paymentMethodId,
             qrCode: resultPayment.qrCode || "",
             qrCodeBase64: resultPayment.qrCode || "",
-            copiaecola: resultPayment.qrCodeCopyPaste || "",
-            processed: false
+            copiaecola: resultPayment.qrCodeCopyPaste || resultPayment.barcode || "",
+            processed: isAlreadyApproved
           }
         });
       } catch (dbErr) {
         console.warn("Could not save PaymentTransaction to database, falling back to in-memory:", dbErr);
       }
+    }
+
+    // For instantaneous simulated credit of Card payments:
+    if (isCreditOrDebit && isAlreadyApproved) {
+      console.log(`[INSTANT CREDIT] Processing instant sandbox credit of ${targetPackage.jtAmount} JT for card transaction: ${resultPayment.id}`);
+      
+      // Update Prisma Wallet
+      if (prisma) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            const userWallet = await tx.wallet.findUnique({ where: { userId } });
+            if (userWallet) {
+              await tx.wallet.update({
+                where: { userId },
+                data: { balanceJT: { increment: targetPackage.jtAmount } }
+              });
+            } else {
+              await tx.wallet.create({
+                data: {
+                  userId,
+                  balanceJT: targetPackage.jtAmount,
+                  balanceAvailable: 0,
+                  balanceBRL: 0,
+                  balancePending: 0,
+                  totalEarned: 0,
+                  totalWithdrawn: 0
+                }
+              });
+            }
+
+            await tx.paymentLog.create({
+              data: {
+                provider: "MERCADOPAGO",
+                transactionId: String(resultPayment.id),
+                status: "COMPLETED",
+                amount: amount,
+                payerEmail: req.user.email,
+                payerName: req.user.name || "Atleta JiuSpeak"
+              }
+            });
+
+            await tx.auditLog.create({
+              data: {
+                actorId: userId,
+                action: "PIX_DEPOSIT",
+                description: `Compra via Cartão (${paymentMethodId}) de ${targetPackage.jtAmount} JT aprovada instantaneamente (ID: ${resultPayment.id}).`
+              }
+            });
+          });
+        } catch (txnErr) {
+          console.error("Prisma card transaction instant credit failed:", txnErr);
+        }
+      }
+
+      // Sync state to memory store fallback
+      const targetUser = Array.from((await import("./server/authStore")).inMemoryUsers.values()).find(u => u.id === userId);
+      if (targetUser) {
+        await authStore.updateUser(userId, {
+          coins: (targetUser.coins || 0) + targetPackage.jtAmount
+        });
+        console.log(`[JT CREDITED] In-memory user coins updated dynamically with ${targetPackage.jtAmount} JT`);
+      }
+
+      // Remove from active maps to complete lifecycle
+      pendingJtPayments.delete(String(resultPayment.id));
     }
 
     const expiresAtDate = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
@@ -7602,8 +7714,9 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
       status: resultPayment.status,
       statusDetail: resultPayment.statusDetail,
       barcode: resultPayment.barcode,
-      amount: resultPayment.transactionAmount,
-      paymentMethodId: resultPayment.paymentMethodId,
+      boletoUrl: resultPayment.boletoUrl || "",
+      amount: resultPayment.transactionAmount || amount,
+      paymentMethodId: resultPayment.paymentMethodId || paymentMethodId,
       expiresAt: expiresAtDate.toISOString()
     });
 
@@ -7649,6 +7762,94 @@ app.get("/api/payments/status/:paymentId", authenticateToken, async (req: any, r
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// MANUAL RECONCILIATION FOR ADMINISTRATORS & CRONY SYSTEMS
+app.get("/api/payments/reconcile", authenticateToken, async (req: any, res: any) => {
+  try {
+    const actorId = req.user.id;
+    const ip = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "unknown";
+
+    const { PaymentReconciliationService } = await import("./server/services/reconciliation");
+    const result = await PaymentReconciliationService.reconcilePendingPayments(actorId, String(ip), String(userAgent));
+
+    res.json({
+      success: true,
+      message: "Varredura de reconciliação financeira concluída com sucesso.",
+      report: result
+    });
+  } catch (err: any) {
+    console.error("Reconciliation endpoint error:", err);
+    res.status(500).json({ error: err.message || "Erro no processamento da reconciliação." });
+  }
+});
+
+// MOCK BOLETO PDF ROUTE FOR A PREMIUM EXPERIENCE
+app.get("/api/payments/mock-boleto-pdf", async (req: any, res: any) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+      <meta charset="UTF-8">
+      <title>Boleto Bancário - JiuSpeak Battle</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-100 p-8 flex items-center justify-center min-h-screen">
+      <div class="max-w-3xl w-full bg-white p-8 rounded-2xl shadow-md border border-gray-200 text-gray-800 font-sans space-y-6">
+        <div class="flex justify-between items-center border-b pb-4">
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">🥋</span>
+            <span class="font-bold text-xl font-mono uppercase text-indigo-900">JiuSpeak Premium Bill</span>
+          </div>
+          <span class="text-2xl font-bold font-mono">033-7 | 03399.01234 56789.012345 67890.123456 7 94500000005000</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-4 text-xs border rounded-lg overflow-hidden divide-y divide-x divide-gray-200">
+          <div class="p-3 col-span-3">
+            <span class="text-[9px] text-gray-500 uppercase block font-bold">Sacado</span>
+            <span class="font-semibold block text-sm">Praticante de Jiu-Jitsu Beneficiário</span>
+          </div>
+          <div class="p-3 bg-gray-50">
+            <span class="text-[9px] text-gray-500 uppercase block font-bold">Vencimento</span>
+            <span class="font-bold block text-sm">\${new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR')}</span>
+          </div>
+
+          <div class="p-3 col-span-2">
+            <span class="text-[9px] text-gray-550 uppercase block font-bold">Beneficiário</span>
+            <span class="font-semibold block">JIUSPEAK LTDA - CNPJ 41.229.001/0001-99</span>
+          </div>
+          <div class="p-3">
+            <span class="text-[9px] text-gray-550 uppercase block font-bold">Agência/Código Beneficiário</span>
+            <span class="font-semibold block">3015 / 123456-7</span>
+          </div>
+          <div class="p-3 bg-gray-50">
+            <span class="text-[9px] text-gray-550 uppercase block font-bold">Valor do Documento</span>
+            <span class="font-bold block text-emerald-700 text-sm">R$ consulte pacote selecionado</span>
+          </div>
+
+          <div class="p-3 col-span-4 bg-gray-50">
+            <span class="text-[9px] text-gray-550 uppercase block font-bold">Demonstrativo</span>
+            <p class="leading-relaxed text-gray-700 text-xs">Recarga premium de moedas virtuais JiuTickets (JT) para customização cosmética de sua conta do dojo virtual e prática com Sparring de Inteligência Artificial.</p>
+          </div>
+        </div>
+
+        <div class="bg-gray-100 p-6 rounded-xl flex flex-col items-center gap-3 border border-dashed border-gray-300">
+          <span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Código de Barras para Leitura</span>
+          <div class="w-full h-12 bg-black flex items-center justify-around text-white font-mono tracking-widest text-[9px] select-none rounded p-2 text-center">
+            ||||| | |||| |||| || ||| ||||| |||| || |||||| | |||| |||| || ||| ||||| |||| || |||||| | |||| |||| || ||| ||||| |||| || ||||||
+          </div>
+          <span class="text-xs font-mono font-bold text-gray-700">0339901234567890123456789012345679450000005000</span>
+        </div>
+
+        <div class="flex justify-between items-center text-[10px] text-gray-400 font-mono">
+          <span>* Autenticação Mecânica no Verso</span>
+          <button onclick="window.print()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors shadow">Imprimir Boleto Bancário</button>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
 });
 
 // Endpoint to active or renew 30 days of Premium AI Conversations for 2,500 JT
