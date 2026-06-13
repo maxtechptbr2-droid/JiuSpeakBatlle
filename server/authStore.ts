@@ -1437,20 +1437,19 @@ export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; 
       user.name = mapped.name + suffix;
     }
     
-    // Check if the user already has a physically uploaded custom avatar/profilePhoto or a real external URL saved in the DB
-    const profileHasUpload = user.profilePhoto && (user.profilePhoto.startsWith("/uploads/") || (user.profilePhoto.startsWith("http") && !user.profilePhoto.includes("unsplash.com") && !user.profilePhoto.includes("dicebear.com")));
-    const avatarHasUpload = user.avatar && (user.avatar.startsWith("/uploads/") || (user.avatar.startsWith("http") && !user.avatar.includes("unsplash.com") && !user.avatar.includes("dicebear.com")));
-    
-    const avatarMissing = !user.avatar || user.avatar.trim() === "" || user.avatar.includes("unsplash.com") || user.avatar.includes("dicebear.com");
+    // Check if the user already has any custom photo/avatar set (containing /uploads/, http, or https)
+    const hasProfilePhoto = user.profilePhoto && (user.profilePhoto.includes("/uploads/") || user.profilePhoto.startsWith("http"));
+    const hasAvatar = user.avatar && (user.avatar.includes("/uploads/") || user.avatar.startsWith("http"));
 
-    if (!profileHasUpload && !avatarHasUpload && avatarMissing) {
+    // Apply deterministic avatar ONLY when BOTH are empty/missing
+    if (!hasProfilePhoto && !hasAvatar) {
       user.avatar = mapped.image;
     } else {
-      // Prioritize the custom physical upload route and keep it synchronized
-      if (profileHasUpload && !avatarHasUpload) {
+      // If one of them has a custom upload, ensure they match and keep synchronized
+      if (hasProfilePhoto && !hasAvatar) {
         user.avatar = user.profilePhoto;
-      } else if (avatarHasUpload && !user.profilePhoto) {
-        (user as any).profilePhoto = user.avatar;
+      } else if (hasAvatar && !user.profilePhoto) {
+        user.profilePhoto = user.avatar;
       }
     }
     

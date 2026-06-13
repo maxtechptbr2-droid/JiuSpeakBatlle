@@ -2437,11 +2437,98 @@ app.post("/api/auth/sessions/:id/revoke", authenticateToken, async (req: any, re
 const inMemoryUserProfiles = new Map<string, any>();
 
 // 5. GET ME (Perfil logado)
-app.get("/api/auth/me", authenticateToken, (req: any, res: any) => {
-  const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
-  console.log(`[AUTH ME RESPONSE] Dispatched auth/me payload for User ID: ${safeUser.id}, Name: "${safeUser.name}", profilePhoto: "${safeUser.profilePhoto}", avatar: "${safeUser.avatar}"`);
-  console.log("[AUTH ME safeUser KEYS]", Object.keys(safeUser), "COUNT:", Object.keys(safeUser).length);
-  res.json({ user: safeUser });
+app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      // Fallback if postgres is down
+      const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
+      console.log(`[AUTH ME FALLBACK] Dispatched auth/me fallback payload for User ID: ${safeUser.id}`);
+      return res.json({ user: safeUser });
+    }
+
+    const dbUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { wallet: true }
+    });
+
+    if (!dbUser) {
+      console.error(`[AUTH ME DB ERROR] User not found in database: ${req.user.id}`);
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    console.log("[AUTH ME DB]", {
+      id: dbUser.id,
+      avatar: dbUser.avatar,
+      profilePhoto: dbUser.profilePhoto,
+      coverPhoto: dbUser.coverPhoto
+    });
+
+    // Make sure we resolve the subscription using the helper or attach existing one
+    let subscription = { type: "FREE", priceBRL: 0, autoRenew: false };
+    try {
+      subscription = await getActiveSubscriptionForUser(dbUser.id);
+    } catch (err) {
+      console.warn("Could not attach user subscription in auth/me:", err);
+    }
+
+    // Construct the updated user response object
+    const userPayload = {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role as any,
+      isAdminApproved: dbUser.isAdminApproved,
+      belt: dbUser.belt as any,
+      stripes: dbUser.stripes,
+      xp: dbUser.xp,
+      level: dbUser.level,
+      elo: dbUser.elo,
+      avatar: dbUser.avatar,
+      profilePhoto: dbUser.profilePhoto,
+      coverPhoto: dbUser.coverPhoto,
+      bio: dbUser.bio,
+      city: dbUser.city,
+      country: dbUser.country,
+      nativeLanguage: dbUser.nativeLanguage,
+      learningGoal: dbUser.learningGoal,
+      instagram: dbUser.instagram,
+      youtube: dbUser.youtube,
+      facebook: dbUser.facebook,
+      website: dbUser.website,
+      avatarFrame: dbUser.avatarFrame,
+      themeColor: dbUser.themeColor,
+      username: dbUser.username,
+      beltRank: dbUser.beltRank,
+      favoriteTechnique: dbUser.favoriteTechnique,
+      favoriteAthlete: dbUser.favoriteAthlete,
+      followersCount: dbUser.followersCount,
+      followingCount: dbUser.followingCount,
+      birthDate: dbUser.birthDate,
+      phone: dbUser.phone,
+      englishLevel: dbUser.englishLevel,
+      spanishLevel: dbUser.spanishLevel,
+      frenchLevel: dbUser.frenchLevel,
+      onboardingDone: dbUser.onboardingDone,
+      coins: dbUser.wallet?.balanceJT || 0,
+      balanceAvailableBRL: dbUser.wallet?.balanceAvailable ? Number(dbUser.wallet.balanceAvailable) : 0.00,
+      balancePendingBRL: dbUser.wallet?.balancePending ? Number(dbUser.wallet.balancePending) : 0.00,
+      totalEarnedBRL: dbUser.wallet?.totalEarned ? Number(dbUser.wallet.totalEarned) : 0.00,
+      totalWithdrawnBRL: dbUser.wallet?.totalWithdrawn ? Number(dbUser.wallet.totalWithdrawn) : 0.00,
+      isEmailVerified: dbUser.isEmailVerified,
+      isSuspended: dbUser.isSuspended,
+      isBanned: dbUser.isBanned,
+      lastLoginAt: dbUser.lastLoginAt,
+      isVerified: dbUser.isVerified,
+      subscription,
+      inventory: inMemoryUserInventories.get(dbUser.id) || []
+    };
+
+    res.json({ user: userPayload });
+  } catch (error: any) {
+    console.error("[AUTH ME CRITICAL ERROR]:", error);
+    res.status(500).json({ error: "Erro interno ao buscar perfil atualizado: " + error.message });
+  }
 });
 
 // 5.0 GET DEBUG ME (Direct from Postgres without transformation)
