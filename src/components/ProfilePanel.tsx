@@ -169,6 +169,11 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      console.log(
+        "[PROFILE SAVE PAYLOAD]",
+        JSON.stringify(profile, null, 2)
+      );
+
       const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
       const res = await fetch('/api/profile', {
         method: 'PUT',
@@ -178,6 +183,11 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
         },
         body: JSON.stringify(profile)
       });
+
+      console.log(
+        "[PROFILE SAVE RESPONSE]",
+        await res.clone().json()
+      );
 
       if (res.ok) {
         const data = await res.json();

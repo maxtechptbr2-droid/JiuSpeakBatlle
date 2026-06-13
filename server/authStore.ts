@@ -1436,11 +1436,7 @@ export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; 
       user.name = mapped.name + suffix;
     }
     
-    const hasCustomProfilePhoto =
-      (user as any).profilePhoto &&
-      String((user as any).profilePhoto).trim() !== "";
-
-    if (!user.avatar && !hasCustomProfilePhoto) {
+    if (!user.avatar && !(user as any).profilePhoto) {
       user.avatar = mapped.image;
     }
     
