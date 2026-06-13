@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { 
   Globe, 
   Target, 
@@ -20,6 +21,7 @@ interface OnboardingWizardProps {
 }
 
 export default function OnboardingWizard({ user, onComplete, showToast }: OnboardingWizardProps) {
+  const { syncMe } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -102,7 +104,17 @@ export default function OnboardingWizard({ user, onComplete, showToast }: Onboar
       });
 
       if (res.ok) {
+        const data = await res.json();
+        console.log("[PROFILE SAVE RESPONSE]", data);
         showToast("Onboarding concluído com maestria! Bem-vindo ao JiuSpeak Academy.", "success");
+        
+        // Ensure immediate profile context sync with Postgres
+        try {
+          await syncMe();
+        } catch (syncErr) {
+          console.error("[ONBOARDING WIZARD] syncMe failed after finalize:", syncErr);
+        }
+
         onComplete({
           avatar: profilePhoto || user.avatar,
           profilePhoto: profilePhoto || user.profilePhoto || user.avatar,

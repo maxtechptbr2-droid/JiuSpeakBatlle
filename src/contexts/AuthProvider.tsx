@@ -63,11 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       else if (raw === 'RED') beltString = 'Preto'; // Default boundary
     }
 
+    let resolvedAvatar = apiUser.profilePhoto || apiUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
+    let resolvedProfilePhoto = apiUser.profilePhoto || apiUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150';
+
     return {
       id: apiUser.id,
       name: apiUser.name,
       email: apiUser.email,
-      avatar: apiUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+      avatar: resolvedAvatar,
       level: apiUser.level || 1,
       xp: apiUser.xp || 0,
       xpNextLevel: 1000,
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       country: apiUser.country || "",
       nativeLanguage: apiUser.nativeLanguage || "Português",
       learningGoal: apiUser.learningGoal || "",
-      profilePhoto: apiUser.profilePhoto || apiUser.avatar || "",
+      profilePhoto: resolvedProfilePhoto,
       coverPhoto: apiUser.coverPhoto || "",
       instagram: apiUser.instagram || "",
       youtube: apiUser.youtube || "",
@@ -243,6 +246,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = !!user;
   const isAdmin = user?.role === 'admin';
   const role = user?.role || 'athlete';
+
+  console.log("[AUTH CONTEXT USER]", user);
 
   return (
     <AuthContext.Provider value={{

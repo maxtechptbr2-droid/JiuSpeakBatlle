@@ -37,6 +37,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout }: SidebarProps) {
+  console.log("[SIDEBAR USER]", user);
   const [academyExpanded, setAcademyExpanded] = React.useState(true);
   
   // BJJ belt background configurations
@@ -103,7 +104,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
         <div className="flex items-center gap-3 mb-4">
           <div className="relative">
             <AvatarWithFrame
-              avatarUrl={user.avatar}
+              avatarUrl={user.profilePhoto || user.avatar}
               userName={user.name}
               frame={user.equippedFrame}
               size="sm"

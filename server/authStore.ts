@@ -1431,26 +1431,17 @@ export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; 
       suffix = " (INSTRUCTOR)";
     }
     
-    // Only override name if missing, blank or a raw default placeholder
-    const nameMissing = !user.name || user.name.trim() === "" || user.name.toLowerCase().startsWith("atleta_") || user.name.toLowerCase().startsWith("user_") || user.name.toLowerCase().startsWith("novo atleta") || user.name.toLowerCase().startsWith("membro_");
-    if (nameMissing) {
+    // Only override name if strictly empty or blank
+    if (!user.name || user.name.trim() === "") {
       user.name = mapped.name + suffix;
     }
     
-    // Check if the user already has any custom photo/avatar set (containing /uploads/, http, or https)
-    const hasProfilePhoto = user.profilePhoto && (user.profilePhoto.includes("/uploads/") || user.profilePhoto.startsWith("http"));
-    const hasAvatar = user.avatar && (user.avatar.includes("/uploads/") || user.avatar.startsWith("http"));
+    const hasCustomProfilePhoto =
+      (user as any).profilePhoto &&
+      String((user as any).profilePhoto).trim() !== "";
 
-    // Apply deterministic avatar ONLY when BOTH are empty/missing
-    if (!hasProfilePhoto && !hasAvatar) {
+    if (!user.avatar && !hasCustomProfilePhoto) {
       user.avatar = mapped.image;
-    } else {
-      // If one of them has a custom upload, ensure they match and keep synchronized
-      if (hasProfilePhoto && !hasAvatar) {
-        user.avatar = user.profilePhoto;
-      } else if (hasAvatar && !user.profilePhoto) {
-        user.profilePhoto = user.avatar;
-      }
     }
     
     (user as any).gender = mapped.gender;

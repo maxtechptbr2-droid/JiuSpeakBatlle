@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { 
   User, 
   MapPin, 
@@ -39,6 +40,7 @@ interface ProfilePanelProps {
 }
 
 export default function ProfilePanel({ user, updateUser, showToast, onNavigate }: ProfilePanelProps) {
+  const { syncMe } = useAuth();
   // Enhanced state aligning with schema expansion
   const [profile, setProfile] = useState({
     bio: '',
@@ -179,11 +181,29 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
 
       if (res.ok) {
         const data = await res.json();
+        console.log("[PROFILE SAVE RESPONSE]", data);
         showToast("Perfil atualizado com sucesso!", "success");
-        // Sync parent React user states using the saved server object
+        
+        // Sync immediately with the server's most accurate record state
+        try {
+          await syncMe();
+        } catch (syncErr) {
+          console.error("[PROFILE PANEL] syncMe failed after save:", syncErr);
+        }
+
+        // Sync parent React user states using the saved server object and call updateUser
         if (data.profile) {
           updateUser({
             ...data.profile,
+            profilePhoto: data.profile.profilePhoto,
+            coverPhoto: data.profile.coverPhoto,
+            bio: data.profile.bio,
+            city: data.profile.city,
+            country: data.profile.country,
+            instagram: data.profile.instagram,
+            youtube: data.profile.youtube,
+            facebook: data.profile.facebook,
+            website: data.profile.website,
             avatar: data.profile.profilePhoto || data.profile.avatar || user.avatar
           });
           // Update local state with the saved fields to swap base64 back as real URL paths

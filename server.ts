@@ -2974,6 +2974,21 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
       avatarFrame: avatarFrame !== undefined ? avatarFrame : undefined,
     };
     
+    if (beltRank !== undefined && beltRank !== null) {
+      const rankUpper = (beltRank as string).toUpperCase();
+      if (rankUpper.includes("BRANCA") || rankUpper.includes("WHITE")) {
+        updateData.belt = "WHITE";
+      } else if (rankUpper.includes("AZUL") || rankUpper.includes("BLUE")) {
+        updateData.belt = "BLUE";
+      } else if (rankUpper.includes("ROXA") || rankUpper.includes("PURPLE")) {
+        updateData.belt = "PURPLE";
+      } else if (rankUpper.includes("MARROM") || rankUpper.includes("BROWN")) {
+        updateData.belt = "BROWN";
+      } else if (rankUpper.includes("PRETA") || rankUpper.includes("PRETO") || rankUpper.includes("BLACK")) {
+        updateData.belt = "BLACK";
+      }
+    }
+    
     if (savedProfilePhoto) {
       updateData.profilePhoto = savedProfilePhoto;
       updateData.avatar = savedProfilePhoto;
