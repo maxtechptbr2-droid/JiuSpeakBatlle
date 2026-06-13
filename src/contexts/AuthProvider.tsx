@@ -20,7 +20,21 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    const cached = localStorage.getItem('jiuspeak_user_profile_v2');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') {
+          console.log('[PROFILE READ]', parsed);
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to parse cached profile", e);
+      }
+    }
+    return null;
+  });
   const [authReady, setAuthReady] = useState(false);
   const [accessToken, setAccessTokenState] = useState<string | null>(() => localStorage.getItem('jiuspeak_access_token'));
   const [refreshToken, setRefreshTokenState] = useState<string | null>(() => localStorage.getItem('jiuspeak_refresh_token'));
@@ -137,7 +151,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.user) {
           const profile = mapApiUserToUserProfile(data.user);
           setUser(profile);
-          localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(profile));
+          const currentProfile = JSON.parse(localStorage.getItem('jiuspeak_user_profile_v2') || '{}');
+          const cleanUser: any = {};
+          Object.keys(profile).forEach(key => {
+            const val = (profile as any)[key];
+            const prevVal = currentProfile[key];
+            if (val !== undefined && val !== null) {
+              if (typeof val === 'string' && val.trim() === '' && prevVal && prevVal.trim() !== '') {
+                const preservedFields = ['profilePhoto', 'coverPhoto', 'username', 'beltRank', 'bio', 'city', 'country', 'instagram', 'youtube', 'facebook', 'website', 'favoriteTechnique', 'favoriteAthlete'];
+                if (preservedFields.includes(key)) {
+                  cleanUser[key] = prevVal;
+                  return;
+                }
+              }
+              cleanUser[key] = val;
+            }
+          });
+          const mergedProfile = { ...currentProfile, ...cleanUser };
+          localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(mergedProfile));
+          console.log('[PROFILE WRITE]', mergedProfile);
           return true;
         }
       }
@@ -153,7 +185,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     const profile = mapApiUserToUserProfile(data.user);
     setUser(profile);
-    localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(profile));
+    const currentProfile = JSON.parse(localStorage.getItem('jiuspeak_user_profile_v2') || '{}');
+    const cleanUser: any = {};
+    Object.keys(profile).forEach(key => {
+      const val = (profile as any)[key];
+      const prevVal = currentProfile[key];
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'string' && val.trim() === '' && prevVal && prevVal.trim() !== '') {
+          const preservedFields = ['profilePhoto', 'coverPhoto', 'username', 'beltRank', 'bio', 'city', 'country', 'instagram', 'youtube', 'facebook', 'website', 'favoriteTechnique', 'favoriteAthlete'];
+          if (preservedFields.includes(key)) {
+            cleanUser[key] = prevVal;
+            return;
+          }
+        }
+        cleanUser[key] = val;
+      }
+    });
+    const mergedProfile = { ...currentProfile, ...cleanUser };
+    localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(mergedProfile));
+    console.log('[PROFILE WRITE]', mergedProfile);
   };
 
   const logout = async () => {
@@ -209,7 +259,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(prev => {
       if (!prev) return null;
       const updated = { ...prev, ...fields };
-      localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(updated));
+      const currentProfile = JSON.parse(localStorage.getItem('jiuspeak_user_profile_v2') || '{}');
+      const cleanUser: any = {};
+      Object.keys(updated).forEach(key => {
+        const val = (updated as any)[key];
+        const prevVal = currentProfile[key];
+        if (val !== undefined && val !== null) {
+          if (typeof val === 'string' && val.trim() === '' && prevVal && prevVal.trim() !== '') {
+            const preservedFields = ['profilePhoto', 'coverPhoto', 'username', 'beltRank', 'bio', 'city', 'country', 'instagram', 'youtube', 'facebook', 'website', 'favoriteTechnique', 'favoriteAthlete'];
+            if (preservedFields.includes(key)) {
+              cleanUser[key] = prevVal;
+              return;
+            }
+          }
+          cleanUser[key] = val;
+        }
+      });
+      const mergedProfile = { ...currentProfile, ...cleanUser };
+      localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(mergedProfile));
+      console.log('[PROFILE WRITE]', mergedProfile);
       return updated;
     });
   };

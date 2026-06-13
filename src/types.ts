@@ -74,6 +74,7 @@ export interface UserProfile {
   avatarFrame?: string;
   followersCount?: number;
   followingCount?: number;
+  isVerified?: boolean;
 }
 
 export interface InventoryItem {

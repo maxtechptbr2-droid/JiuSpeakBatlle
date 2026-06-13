@@ -442,7 +442,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
       id: `post_${Date.now()}`,
       academyId: selectedAcademyId,
       authorName: user.name,
-      authorAvatar: user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
+      authorAvatar: user.profilePhoto || user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
       authorBelt: user.belt,
       content: newPostText,
       likes: 0,
@@ -624,7 +624,8 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         belt: user.belt,
         level: user.level,
         score: user.xp + (user.level * 1000) + (user.elo > 1000 ? user.elo / 2 : 50),
-        avatar: user.avatar
+        avatar: user.profilePhoto || user.avatar,
+        profilePhoto: user.profilePhoto
       };
       academyMockUsers.push(userMapped);
     }
@@ -1151,7 +1152,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                           <div key={rk.id} className="bg-slate-950/40 p-2.5 rounded-xl border border-slate-950 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="font-mono text-[10px] text-slate-500 font-bold">#{idx+1}</span>
-                              <img src={rk.avatar} alt="" className="w-6 h-6 rounded-full border border-slate-800 shrink-0 object-cover" />
+                              <img src={(rk as any).profilePhoto || rk.avatar} alt="" className="w-6 h-6 rounded-full border border-slate-800 shrink-0 object-cover" />
                               <span className="text-[11px] font-bold text-slate-200 truncate">{rk.name}</span>
                             </div>
                             <span className="text-[9px] font-mono font-black text-violet-400">{rk.belt}</span>
@@ -1190,7 +1191,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                     className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-xl"
                   >
                     <div className="flex gap-3 items-center">
-                      <img src={user.avatar} alt="Me" className="w-8 h-8 rounded-full border border-slate-800 shrink-0 object-cover" />
+                      <img src={user.profilePhoto || user.avatar} alt="Me" className="w-8 h-8 rounded-full border border-slate-800 shrink-0 object-cover" />
                       <div className="flex-1">
                         <textarea 
                           placeholder={`Escrever algo importante no mural da equipe "${activeAcademy.name}"...`}
@@ -1313,7 +1314,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                               {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx+1}`}
                             </div>
 
-                            <img src={rk.avatar} alt="Photo" className="w-8 h-8 rounded-full border border-slate-800 shrink-0 object-cover" />
+                            <img src={(rk as any).profilePhoto || rk.avatar} alt="Photo" className="w-8 h-8 rounded-full border border-slate-800 shrink-0 object-cover" />
 
                             <div>
                               <span className={`block text-xs font-bold leading-none ${isMe ? 'text-violet-400' : 'text-slate-100'}`}>

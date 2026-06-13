@@ -240,7 +240,7 @@ export function AchievementCards({ user, showToast, onPostCreated }: Achievement
                 
                 {/* Visual Avatar with cosmetic dynamic frames */}
                 <AvatarWithFrame
-                  avatarUrl={user.avatar}
+                  avatarUrl={user.profilePhoto || user.avatar}
                   userName={user.name}
                   frame={user.equippedFrame}
                   size="xs"

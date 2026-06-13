@@ -153,8 +153,10 @@ export default function InventoryPanel({
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
+            console.log('[PROFILE READ]', parsed);
             parsed.avatar = item.product.imageUrl;
             localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(parsed));
+            console.log('[PROFILE WRITE]', parsed);
           } catch (e) {}
         }
       }
@@ -213,8 +215,10 @@ export default function InventoryPanel({
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
+            console.log('[PROFILE READ]', parsed);
             parsed.avatar = fallbackAvatar;
             localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(parsed));
+            console.log('[PROFILE WRITE]', parsed);
           } catch (e) {}
         }
       }
@@ -449,7 +453,7 @@ export default function InventoryPanel({
               )}
               
               <AvatarWithFrame
-                avatarUrl={previewAvatarUrl || user.avatar}
+                avatarUrl={previewAvatarUrl || user.profilePhoto || user.avatar}
                 userName={user.name}
                 frame={previewFrame ? { id: 'preview', name: previewFrameName || 'Preview Frame', rarity: previewFrame || 'COMMON' } : equippedFrame ? equippedFrame.product : null}
                 size="xl"

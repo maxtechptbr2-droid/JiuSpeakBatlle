@@ -43,32 +43,32 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
   const { syncMe } = useAuth();
   // Enhanced state aligning with schema expansion
   const [profile, setProfile] = useState({
-    bio: '',
-    city: '',
-    country: '',
-    nativeLanguage: 'Português',
-    learningGoal: '',
-    profilePhoto: '',
-    coverPhoto: '',
-    instagram: '',
-    youtube: '',
-    facebook: '',
-    website: '',
-    birthDate: '',
-    phone: '',
-    englishLevel: 'Iniciante',
-    spanishLevel: 'Iniciante',
-    frenchLevel: 'Iniciante',
-    username: '',
-    beltRank: 'Faixa Branca',
-    favoriteTechnique: '',
-    favoriteAthlete: '',
-    privacyLevel: 'public',
-    followersCount: 0,
-    followingCount: 0,
-    themeColor: '#7c3aed',
-    avatarFrame: 'none',
-    isVerified: false
+    bio: user.bio || '',
+    city: user.city || '',
+    country: user.country || '',
+    nativeLanguage: user.nativeLanguage || 'Português',
+    learningGoal: user.learningGoal || '',
+    profilePhoto: user.profilePhoto || user.avatar || '',
+    coverPhoto: user.coverPhoto || '',
+    instagram: user.instagram || '',
+    youtube: user.youtube || '',
+    facebook: user.facebook || '',
+    website: user.website || '',
+    birthDate: user.birthDate || '',
+    phone: user.phone || '',
+    englishLevel: user.englishLevel || 'Iniciante',
+    spanishLevel: user.spanishLevel || 'Iniciante',
+    frenchLevel: user.frenchLevel || 'Iniciante',
+    username: user.username || '',
+    beltRank: user.beltRank || 'Faixa Branca',
+    favoriteTechnique: user.favoriteTechnique || '',
+    favoriteAthlete: user.favoriteAthlete || '',
+    privacyLevel: user.privacyLevel || 'public',
+    followersCount: user.followersCount || 0,
+    followingCount: user.followingCount || 0,
+    themeColor: user.themeColor || '#7c3aed',
+    avatarFrame: user.avatarFrame || 'none',
+    isVerified: user.isVerified || false
   });
 
   const [loading, setLoading] = useState(true);
@@ -1054,7 +1054,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                     followers.map((item) => (
                       <div key={item.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-2xl border border-slate-900 shadow-inner">
                         <div className="flex items-center gap-3">
-                          <img src={item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-slate-800" />
+                          <img src={item.profilePhoto || item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-slate-800" />
                           <div>
                             <p className="text-xs font-bold text-white">{item.name}</p>
                             <p className="text-[10px] font-mono text-slate-500">@{item.username || 'atleta'}</p>
@@ -1083,7 +1083,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                     following.map((item) => (
                       <div key={item.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-2xl border border-slate-900 shadow-inner">
                         <div className="flex items-center gap-3">
-                          <img src={item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-slate-800" />
+                          <img src={item.profilePhoto || item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-slate-800" />
                           <div>
                             <p className="text-xs font-bold text-white">{item.name}</p>
                             <p className="text-[10px] font-mono text-slate-500">@{item.username || 'atleta'}</p>

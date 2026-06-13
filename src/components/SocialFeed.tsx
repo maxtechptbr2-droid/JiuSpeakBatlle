@@ -908,7 +908,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
           <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-4">
             <div className="flex flex-col items-center pb-3 border-b border-slate-850">
               <AvatarWithFrame
-                avatarUrl={user.avatar}
+                avatarUrl={user.profilePhoto || user.avatar}
                 userName={user.name}
                 frame={user.equippedFrame}
                 size="md"
@@ -991,7 +991,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
               >
                 <div className="flex gap-3 items-center">
                   <AvatarWithFrame
-                    avatarUrl={user.avatar}
+                    avatarUrl={user.profilePhoto || user.avatar}
                     userName={user.name}
                     frame={user.equippedFrame}
                     size="sm"
@@ -1018,7 +1018,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                             onClick={() => insertMention(net.name)}
                             className="flex items-center gap-2 p-1.5 hover:bg-slate-900 rounded-lg cursor-pointer transition-colors text-xs text-slate-300"
                           >
-                            <img src={net.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                            <img src={net.profilePhoto || net.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
                             <span className="font-bold text-[11px]">{net.name}</span>
                             <span className={`text-[7px] font-black uppercase px-1 rounded ${getBeltBg(net.belt)}`}>
                               {translateBelt(net.belt)}
@@ -1169,7 +1169,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                         <div className="flex justify-between items-start gap-4">
                           <div className="flex gap-3 items-center">
                             <AvatarWithFrame
-                              avatarUrl={post.authorAvatar}
+                              avatarUrl={post.authorProfilePhoto || post.authorAvatar}
                               userName={post.authorName}
                               frame={post.authorFrame}
                               size="sm"
@@ -1302,7 +1302,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                                 {post.comments.map((comm: any) => (
                                   <div key={comm.id} className="bg-slate-950/20 p-3 rounded-xl border border-slate-850/60 flex gap-3 text-xs items-start">
                                     <AvatarWithFrame
-                                      avatarUrl={comm.authorAvatar}
+                                      avatarUrl={comm.authorProfilePhoto || comm.authorAvatar}
                                       userName={comm.authorName}
                                       frame={comm.authorFrame}
                                       size="xs"
@@ -1400,7 +1400,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex gap-2 min-w-0">
                         <AvatarWithFrame
-                          avatarUrl={net.avatar}
+                          avatarUrl={net.profilePhoto || net.avatar}
                           userName={net.name}
                           frame={net.equippedFrame}
                           size="xs"

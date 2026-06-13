@@ -449,9 +449,11 @@ export default function StoreMarket({
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
+        console.log('[PROFILE READ]', parsed);
         parsed.coins = currentCoins;
         parsed.inventory = currentInventory;
         localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(parsed));
+        console.log('[PROFILE WRITE]', parsed);
       } catch (e) {}
     }
 
@@ -559,9 +561,11 @@ export default function StoreMarket({
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
+          console.log('[PROFILE READ]', parsed);
           parsed.coins = data.updatedCoins;
           parsed.inventory = [...(parsed.inventory || []), product.id];
           localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(parsed));
+          console.log('[PROFILE WRITE]', parsed);
         } catch (e) {}
       }
 

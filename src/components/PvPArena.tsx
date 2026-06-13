@@ -813,7 +813,7 @@ export default function PvPArena({
                             <span className="w-3.5 text-center text-[10px] font-mono text-slate-500">{idx + 1}</span>
                           )}
                           <AvatarWithFrame
-                            avatarUrl={player.avatar}
+                            avatarUrl={player.profilePhoto || player.avatar}
                             userName={player.name}
                             frame={player.equippedFrame}
                             size="xs"
@@ -937,7 +937,7 @@ export default function PvPArena({
             {/* Challenger Card */}
             <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-805 text-center space-y-4 flex flex-col items-center">
               <AvatarWithFrame
-                avatarUrl={user.avatar}
+                avatarUrl={user.profilePhoto || user.avatar}
                 userName={user.name}
                 frame={user.equippedFrame}
                 size="lg"
@@ -973,7 +973,7 @@ export default function PvPArena({
             {/* Defender Card */}
             <div className="bg-slate-900/60 p-6 rounded-2xl border border-slate-805 text-center space-y-4 flex flex-col items-center">
               <AvatarWithFrame
-                avatarUrl={opponent.avatar}
+                avatarUrl={opponent.profilePhoto || opponent.avatar}
                 userName={opponent.name}
                 frame={opponent.equippedFrame}
                 size="lg"
@@ -1095,7 +1095,7 @@ export default function PvPArena({
                 <div className={`p-4 rounded-xl border flex items-center justify-between ${answeredCount.challenger ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-slate-900 border-slate-800/60'}`}>
                   <div className="flex items-center gap-3">
                     <AvatarWithFrame
-                      avatarUrl={user.avatar}
+                      avatarUrl={user.profilePhoto || user.avatar}
                       userName={user.name}
                       frame={user.equippedFrame}
                       size="xs"
@@ -1116,7 +1116,7 @@ export default function PvPArena({
                 <div className={`p-4 rounded-xl border flex items-center justify-between ${answeredCount.defender ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-slate-900 border-slate-800/60'}`}>
                   <div className="flex items-center gap-3">
                     <AvatarWithFrame
-                      avatarUrl={opponent.avatar}
+                      avatarUrl={opponent.profilePhoto || opponent.avatar}
                       userName={opponent.name}
                       frame={opponent.equippedFrame}
                       size="xs"
@@ -1186,7 +1186,7 @@ export default function PvPArena({
               {(roundResult as any).botComment && (
                 <div className="bg-indigo-950/20 border border-indigo-505/30 p-4 rounded-2xl flex items-start gap-3.5 animate-fadeIn">
                   <AvatarWithFrame
-                    avatarUrl={opponent.avatar}
+                    avatarUrl={opponent.profilePhoto || opponent.avatar}
                     userName={opponent.name}
                     frame={opponent.equippedFrame}
                     size="sm"

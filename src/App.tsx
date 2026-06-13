@@ -275,7 +275,42 @@ export default function App() {
 
   // 2. State Auto-Persist Effect triggers
   useEffect(() => {
-    localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(user));
+    if (user) {
+      console.log(
+        "[AVATAR DEBUG]",
+        {
+          profilePhoto: user?.profilePhoto,
+          avatar: user?.avatar
+        }
+      );
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const currentProfile = JSON.parse(localStorage.getItem('jiuspeak_user_profile_v2') || '{}');
+    const cleanUser: any = {};
+    if (user) {
+      Object.keys(user).forEach(key => {
+        const val = user[key];
+        const prevVal = currentProfile[key];
+        if (val !== undefined && val !== null) {
+          if (typeof val === 'string' && val.trim() === '' && prevVal && prevVal.trim() !== '') {
+            const preservedFields = ['profilePhoto', 'coverPhoto', 'username', 'beltRank', 'bio', 'city', 'country', 'instagram', 'youtube', 'facebook', 'website', 'favoriteTechnique', 'favoriteAthlete'];
+            if (preservedFields.includes(key)) {
+              cleanUser[key] = prevVal;
+              return;
+            }
+          }
+          cleanUser[key] = val;
+        }
+      });
+    }
+    const mergedProfile = {
+      ...currentProfile,
+      ...cleanUser
+    };
+    localStorage.setItem('jiuspeak_user_profile_v2', JSON.stringify(mergedProfile));
+    console.log('[PROFILE WRITE]', mergedProfile);
   }, [user]);
 
   useEffect(() => {

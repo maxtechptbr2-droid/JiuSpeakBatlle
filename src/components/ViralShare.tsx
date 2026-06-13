@@ -223,7 +223,7 @@ export const ViralShare: React.FC<ViralShareProps> = ({
       achievement: preselectedConquest?.customTitle || CONQUEST_TEMPLATES[conquestType].title,
       type: conquestType,
       xp: customXP.toString(),
-      avatar: user.avatar,
+      avatar: user.profilePhoto || user.avatar,
       frame: user.equippedFrame?.name || 'none'
     });
     return `${baseUrl}/?${query.toString()}`;
@@ -390,7 +390,7 @@ export const ViralShare: React.FC<ViralShareProps> = ({
 
       try {
         // Fallback-aware loader
-        await loadImage(avatarImg, user.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(customName)}`);
+        await loadImage(avatarImg, user.profilePhoto || user.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(customName)}`);
         
         ctx.save();
         ctx.beginPath();
@@ -701,7 +701,7 @@ export const ViralShare: React.FC<ViralShareProps> = ({
     }, 300);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conquestType, cardFormat, customName, customBelt, customLevel, customElo, customXP, customTitle, user.avatar, user.equippedFrame]);
+  }, [conquestType, cardFormat, customName, customBelt, customLevel, customElo, customXP, customTitle, user.profilePhoto, user.avatar, user.equippedFrame]);
 
   // Handle immediate manual download of compiled high-res asset
   const handleDownloadImage = () => {
