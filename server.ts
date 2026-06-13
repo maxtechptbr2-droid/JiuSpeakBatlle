@@ -3,6 +3,7 @@ dotenv.config({ override: true });
 
 import express from "express";
 import path from "path";
+import fs from "fs";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
@@ -23,12 +24,15 @@ import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { RankingService } from "./server/pvp/ranking";
 import { prisma, getPrisma, assertDatabaseConnection, isDatabaseConnected, setDatabaseConnected } from "./server/db";
-import { Rarity } from "@prisma/client";
+import { Rarity, Prisma } from "@prisma/client";
 import { getRedisClient } from "./server/pvp/redis";
 import { getCached, invalidateCache } from "./server/cache";
 import { parsePagination, formatPaginatedResponse } from "./server/pagination";
 import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
 import { createPreference, createDirectPayment } from "./server/services/mercadopago";
+import marketplaceRouter from "./src/server/modules/marketplace/routes";
+import { initEscrowReleaserCron } from "./src/server/modules/marketplace/cron/escrow-releaser.cron";
+
 
 
 // -------------------------------------------------------------------------
@@ -59,8 +63,8 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
 // Auto-create uploads subdirectories synchronously with safe verification
-const fsBoot = require('fs');
-const pathBoot = require('path');
+const fsBoot = fs;
+const pathBoot = path;
 const uploadsBootDir = pathBoot.join(process.cwd(), 'public', 'uploads');
 const profilesBootDir = pathBoot.join(uploadsBootDir, 'profiles');
 const coversBootDir = pathBoot.join(uploadsBootDir, 'covers');
@@ -3105,7 +3109,6 @@ app.post("/api/tts", ttsRateLimiter, (req: any, res: any, next: any) => {
 
   if (token) {
     try {
-      const jwt = require("jsonwebtoken");
       const decoded = jwt.verify(token, JWT_ACCESS_SECRET);
       req.user = decoded;
     } catch (err) {
@@ -5279,15 +5282,64 @@ app.get("/api/pvp/leaderboard", async (req: any, res: any) => {
 // 1. GET current wallet fields
 app.get("/api/finance/wallet", authenticateToken, async (req: any, res: any) => {
   try {
-    const user = await authStore.findById(req.user.id);
+    const userId = req.user.id;
+    const user = await authStore.findById(userId);
     if (!user) {
       return res.status(404).json({ error: "Usuário não encontrado." });
     }
+
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        let wallet = await prisma.wallet.findUnique({ where: { userId } });
+        if (!wallet) {
+          // Zero-seed/Initialize Wallet in database with user's current values to keep alignment
+          const initAvailable = user.balanceAvailableBRL ?? 420.00;
+          const initPending = user.balancePendingBRL ?? 155.00;
+          const initEarned = user.totalEarnedBRL ?? 575.00;
+          const initWithdrawn = user.totalWithdrawnBRL ?? 0.00;
+          const initJT = user.coins ?? 2000;
+
+          wallet = await prisma.wallet.create({
+            data: {
+              userId,
+              balanceJT: initJT,
+              balanceAvailable: new Prisma.Decimal(initAvailable),
+              balancePending: new Prisma.Decimal(initPending),
+              totalEarned: new Prisma.Decimal(initEarned),
+              totalWithdrawn: new Prisma.Decimal(initWithdrawn),
+              balanceBRL: new Prisma.Decimal(initAvailable)
+            }
+          });
+        }
+
+        // Always sync database state back to cached authStore user fields
+        await authStore.updateUser(userId, {
+          balanceAvailableBRL: Number(wallet.balanceAvailable),
+          balancePendingBRL: Number(wallet.balancePending),
+          totalEarnedBRL: Number(wallet.totalEarned),
+          totalWithdrawnBRL: Number(wallet.totalWithdrawn),
+          coins: wallet.balanceJT
+        });
+
+        return res.json({
+          balanceAvailableBRL: Number(wallet.balanceAvailable),
+          balancePendingBRL: Number(wallet.balancePending),
+          totalEarnedBRL: Number(wallet.totalEarned),
+          totalWithdrawnBRL: Number(wallet.totalWithdrawn),
+          coins: wallet.balanceJT
+        });
+      } catch (dbErr) {
+        console.warn("Error checking/seeding wallet in database, utilizing memory cache fallback:", dbErr);
+      }
+    }
+
     res.json({
       balanceAvailableBRL: user.balanceAvailableBRL ?? 420.00,
       balancePendingBRL: user.balancePendingBRL ?? 155.00,
       totalEarnedBRL: user.totalEarnedBRL ?? 575.00,
       totalWithdrawnBRL: user.totalWithdrawnBRL ?? 0.00,
+      coins: user.coins ?? 2000
     });
   } catch (err: any) {
     console.error("Erro ao obter carteira:", err);
@@ -5713,14 +5765,125 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
       });
     }
 
-    // ---------------- STEP A: BLOQUEIO DO SALDO (Available Balance lock) ----------------
-    // Subtract immediately from available, but DO NOT increase total sacado yet (only on approval done).
-    const newAvailable = Number((currentAvailable - value).toFixed(2));
+    // ---------------- STEP A: TRANSACTION ENGINE AND SALDO LOCATOR ----------------
+    let newAvailable = Number((currentAvailable - value).toFixed(2));
+    const withdrawalId = `with_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+
+    if (prisma) {
+      try {
+        const transResult = await prisma.$transaction(async (tx) => {
+          // 1. SELECT FOR UPDATE on the user's database Wallet record to lock it pessimistically
+          const wallets = await tx.$queryRawUnsafe<any[]>(
+            'SELECT * FROM "Wallet" WHERE "userId" = $1 FOR UPDATE',
+            user.id!
+          );
+
+          let dbWallet: any;
+          if (!wallets || wallets.length === 0) {
+            // Seed wallet in DB if not available yet
+            dbWallet = await tx.wallet.create({
+              data: {
+                userId: user.id!,
+                balanceJT: user.coins ?? 2000,
+                balanceAvailable: new Prisma.Decimal(currentAvailable),
+                balancePending: new Prisma.Decimal(user.balancePendingBRL ?? 0),
+                totalEarned: new Prisma.Decimal(user.totalEarnedBRL ?? 0),
+                totalWithdrawn: new Prisma.Decimal(user.totalWithdrawnBRL ?? 0),
+                balanceBRL: new Prisma.Decimal(currentAvailable)
+              }
+            });
+          } else {
+            dbWallet = wallets[0];
+          }
+
+          const dbAvailable = Number(dbWallet.balanceAvailable);
+
+          // Anti double spend check inside the locked row
+          if (dbAvailable < value) {
+            throw new Error(`Saldo disponível insuficiente no banco de dados! Saldo atualizado: R$ ${dbAvailable.toFixed(2)}.`);
+          }
+
+          // Anti duplicate request validation inside locked transaction
+          const dbPendingWithdraw = await tx.withdrawal.findFirst({
+            where: {
+              walletId: dbWallet.id,
+              status: "PENDING"
+            }
+          });
+          if (dbPendingWithdraw) {
+            throw new Error("Já existe uma solicitação de saque em andamento para esta carteira.");
+          }
+
+          // Calculate next available balance
+          const updatedAvailableDecimal = Prisma.Decimal.sub(dbWallet.balanceAvailable, value);
+
+          // Update DB Wallet
+          await tx.wallet.update({
+            where: { id: dbWallet.id },
+            data: {
+              balanceAvailable: updatedAvailableDecimal,
+              balanceBRL: updatedAvailableDecimal
+            }
+          });
+
+          // Ensure Bank Account exists
+          let bankAcc = await tx.bankAccount.findFirst({ where: { userId: user.id! } });
+          if (!bankAcc) {
+            bankAcc = await tx.bankAccount.create({
+              data: {
+                userId: user.id!,
+                bankName: "Banco do Brasil (Simulado)",
+                agency: "1234",
+                accountNumber: "98765-4",
+                accountType: "Corrente",
+                pixKey: pixKey || "chavePix",
+                pixKeyType: keyType || "CPF",
+              }
+            });
+          }
+
+          // Create pending withdrawal
+          await tx.withdrawal.create({
+            data: {
+              id: withdrawalId,
+              walletId: dbWallet.id,
+              bankAccountId: bankAcc.id,
+              amountBRL: value,
+              status: "PENDING",
+              pixKey: pixKey || "chavePix",
+              pixKeyType: keyType || "CPF",
+              notes: "Aguardando liberação de auditoria de saques."
+            }
+          });
+
+          // Create audit log inside the same transaction
+          await tx.auditLog.create({
+            data: {
+              actorId: user.id!,
+              action: "WITHDRAW_PROCESS",
+              description: `Solicitação de Saque Iniciada: R$ ${value.toFixed(2)} retidos em análise (ID: ${withdrawalId}). Chave PIX: ${pixKey}.`,
+              amountBRL: value,
+            }
+          });
+
+          return Number(updatedAvailableDecimal);
+        }, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        });
+
+        // Set the synchronized available amount
+        newAvailable = transResult;
+      } catch (e: any) {
+        console.error("Erro na transação de retirada:", e);
+        return res.status(400).json({ error: e.message || "Erro de integridade financeira durante solicitação de saque." });
+      }
+    }
+
+    // Always update cached user state for dual-engine
     await authStore.updateUser(user.id!, {
       balanceAvailableBRL: newAvailable
     });
 
-    const withdrawalId = `with_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
     const newWithdrawal: WithdrawalRecord = {
       id: withdrawalId,
       walletId: `wallet_${user.id}`,
@@ -5737,74 +5900,6 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
     };
 
     inMemoryWithdrawals.unshift(newWithdrawal);
-
-    // ---------------- STEP B: DB PERSIST AND RELATION LINKING ----------------
-    if (prisma) {
-      try {
-        let wallet = await prisma.wallet.findUnique({ where: { userId: user.id! } });
-        if (!wallet) {
-          wallet = await prisma.wallet.create({
-            data: {
-              userId: user.id!,
-              balanceJT: 0,
-              balanceAvailable: newAvailable,
-              balanceBRL: newAvailable,
-              balancePending: user.balancePendingBRL ?? 0,
-              totalEarned: user.totalEarnedBRL ?? 0,
-              totalWithdrawn: user.totalWithdrawnBRL ?? 0
-            }
-          });
-        } else {
-          // Sync wallet balance
-          await prisma.wallet.update({
-            where: { id: wallet.id },
-            data: { 
-              balanceAvailable: newAvailable,
-              balanceBRL: newAvailable
-            }
-          });
-        }
-
-        let bankAcc = await prisma.bankAccount.findFirst({ where: { userId: user.id! } });
-        if (!bankAcc) {
-          bankAcc = await prisma.bankAccount.create({
-            data: {
-              userId: user.id!,
-              bankName: "Banco do Brasil (Simulado)",
-              agency: "1234",
-              accountNumber: "98765-4",
-              accountType: "Corrente",
-              pixKey: pixKey || "chavePix",
-              pixKeyType: keyType || "CPF",
-            }
-          });
-        }
-
-        const dbWithdraw = await prisma.withdrawal.create({
-          data: {
-            id: withdrawalId, // Use the same unique ID for correlation
-            walletId: wallet.id,
-            bankAccountId: bankAcc.id,
-            amountBRL: value,
-            status: "PENDING",
-            pixKey: pixKey || "chavePix",
-            pixKeyType: keyType || "CPF",
-            notes: "Aguardando liberação de auditoria de saques."
-          }
-        });
-
-        await prisma.auditLog.create({
-          data: {
-            actorId: user.id!,
-            action: "WITHDRAW_PROCESS",
-            description: `Solicitação de Saque Iniciada: R$ ${value.toFixed(2)} retidos em análise (ID: ${withdrawalId}). Chave PIX: ${pixKey}.`,
-            amountBRL: value,
-          }
-        });
-      } catch (e) {
-        console.warn("Prisma error persisting PENDING withdrawal, fallback used:", e);
-      }
-    }
 
     // ---------------- STEP C: RECORD DETAILED AUDIT STATEMENTS ----------------
     await logWithdrawalAudit(
@@ -6543,7 +6638,6 @@ app.post("/api/admin/finance/transaction-rates", authenticateToken, requireRole(
   }
 });
 
-import fs from "fs";
 
 const FINANCIAL_CONFIG_PATH = path.join(process.cwd(), "server", "financial_config.json");
 
@@ -13780,6 +13874,9 @@ async function startServer() {
     }
   });
 
+  // Mount Teacher Marketplace router
+  app.use("/api/marketplace", marketplaceRouter);
+
   // Global Express Error-handling logging middleware
   app.use((err: any, req: any, res: any, next: any) => {
     logError(`UNHANDLED_ROUTE_ERROR [${req.method} ${req.url}]`, err);
@@ -13830,6 +13927,9 @@ async function startServer() {
     console.log("=".repeat(80) + "\n");
 
     logApp("SERVER_STARTUP_COMPLETED", startupDetails);
+
+    // Boot Teacher Marketplace Escrow Cron Job
+    initEscrowReleaserCron();
   });
 }
 

@@ -1,5 +1,5 @@
-import { authStore, patchUserObjectWithDeterministicAvatar } from "../authStore";
-import { prisma } from "../db";
+import { authStore, patchUserObjectWithDeterministicAvatar, inMemoryUsers } from "../authStore";
+import { prisma, isDatabaseConnected } from "../db";
 
 // Belt Priority Map (BLACK -> BROWN -> PURPLE -> BLUE -> WHITE)
 // RED is mapped higher than BLACK just in case it appears.
@@ -187,82 +187,95 @@ export class RankingService {
     take: number = 50
   ): Promise<{ list: any[]; totalCount: number }> {
     try {
-      // 1. Fetch active users (with select optimization)
-      const rawUsers = await prisma.user.findMany({
-        select: {
-          id: true,
-          name: true,
-          elo: true,
-          belt: true,
-          level: true,
-          stripes: true,
-          avatar: true
-        }
-      });
-      const queryUsers = rawUsers.map((u) => patchUserObjectWithDeterministicAvatar({ ...u }));
-
-      // 2. Fetch cosmetic frames currently equipped (batch request)
-      const userIds = queryUsers.map((u) => u.id);
-      const equippedItems = await (prisma.inventoryItem as any).findMany({
-        where: {
-          inventory: {
-            userId: { in: userIds }
-          },
-          isEquipped: true,
-          product: {
-            category: "FRAME"
-          }
-        },
-        include: {
-          inventory: true,
-          product: true
-        }
-      });
-
+      let queryUsers: any[] = [];
       const frameMap = new Map<string, any>();
-      equippedItems.forEach((item: any) => {
-        if (item.inventory?.userId) {
-          frameMap.set(item.inventory.userId, {
-            id: item.product?.id || item.id,
-            name: item.name,
-            rarity: item.product?.rarity || item.rarity,
-            description: item.description,
-            imageUrl: item.product?.imageUrl || item.imageUrl
-          });
-        }
-      });
-
-      // 3. If type is "mensal" or "semanal", fetch recent match historical outcomes to compute performance
       const recentEloGains = new Map<string, number>();
-      if (type === "mensal" || type === "semanal") {
-        const daysLimit = type === "semanal" ? 7 : 30;
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - daysLimit);
 
-        const recentMatches = await prisma.pvpMatch.findMany({
-          where: {
-            status: "COMPLETED",
-            createdAt: { gte: startDate }
-          },
-          select: {
-            challengerId: true,
-            defenderId: true,
-            winnerId: true,
-            eloChangeChallenger: true,
-            eloChangeDefender: true
+      if (!isDatabaseConnected()) {
+        const rawUsers = Array.from(inMemoryUsers.values());
+        queryUsers = rawUsers.map((u) => patchUserObjectWithDeterministicAvatar({ ...u }));
+      } else {
+        try {
+          // 1. Fetch active users (with select optimization)
+          const rawUsers = await prisma.user.findMany({
+            select: {
+              id: true,
+              name: true,
+              elo: true,
+              belt: true,
+              level: true,
+              stripes: true,
+              avatar: true
+            }
+          });
+          queryUsers = rawUsers.map((u) => patchUserObjectWithDeterministicAvatar({ ...u }));
+
+          // 2. Fetch cosmetic frames currently equipped (batch request)
+          const userIds = queryUsers.map((u) => u.id);
+          const equippedItems = await (prisma.inventoryItem as any).findMany({
+            where: {
+              inventory: {
+                userId: { in: userIds }
+              },
+              isEquipped: true,
+              product: {
+                category: "FRAME"
+              }
+            },
+            include: {
+              inventory: true,
+              product: true
+            }
+          });
+
+          equippedItems.forEach((item: any) => {
+            if (item.inventory?.userId) {
+              frameMap.set(item.inventory.userId, {
+                id: item.product?.id || item.id,
+                name: item.name,
+                rarity: item.product?.rarity || item.rarity,
+                description: item.description,
+                imageUrl: item.product?.imageUrl || item.imageUrl
+              });
+            }
+          });
+
+          // 3. If type is "mensal" or "semanal", fetch recent match historical outcomes to compute performance
+          if (type === "mensal" || type === "semanal") {
+            const daysLimit = type === "semanal" ? 7 : 30;
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - daysLimit);
+
+            const recentMatches = await prisma.pvpMatch.findMany({
+              where: {
+                status: "COMPLETED",
+                createdAt: { gte: startDate }
+              },
+              select: {
+                challengerId: true,
+                defenderId: true,
+                winnerId: true,
+                eloChangeChallenger: true,
+                eloChangeDefender: true
+              }
+            });
+
+            recentMatches.forEach((m) => {
+              if (m.winnerId) {
+                // challenger gain
+                const chGain = m.eloChangeChallenger ? Math.max(0, m.eloChangeChallenger) : 0;
+                const defGain = m.eloChangeDefender ? Math.max(0, m.eloChangeDefender) : 0;
+
+                recentEloGains.set(m.challengerId, (recentEloGains.get(m.challengerId) || 0) + chGain);
+                recentEloGains.set(m.defenderId, (recentEloGains.get(m.defenderId) || 0) + defGain);
+              }
+            });
           }
-        });
-
-        recentMatches.forEach((m) => {
-          if (m.winnerId) {
-            // challenger gain
-            const chGain = m.eloChangeChallenger ? Math.max(0, m.eloChangeChallenger) : 0;
-            const defGain = m.eloChangeDefender ? Math.max(0, m.eloChangeDefender) : 0;
-
-            recentEloGains.set(m.challengerId, (recentEloGains.get(m.challengerId) || 0) + chGain);
-            recentEloGains.set(m.defenderId, (recentEloGains.get(m.defenderId) || 0) + defGain);
-          }
-        });
+        } catch (dbErr: any) {
+          console.warn("⚠️ Banco de dados offline ou indisponível em getLeaderboardData. Usando dados em memória:", dbErr.message || dbErr);
+          const rawUsers = Array.from(inMemoryUsers.values());
+          queryUsers = rawUsers.map((u) => patchUserObjectWithDeterministicAvatar({ ...u }));
+        }
       }
 
       // Map users to display objects with pre-calculated custom metrics
@@ -328,8 +341,8 @@ export class RankingService {
       const paginatedList = list.slice(skip, skip + take);
 
       return { list: paginatedList, totalCount };
-    } catch (err) {
-      console.error("Critical error in getLeaderboardData engine:", err);
+    } catch (err: any) {
+      console.warn("⚠️ Processamento do getLeaderboardData finalizado com fallback:", err.message || err);
       return { list: [], totalCount: 0 };
     }
   }

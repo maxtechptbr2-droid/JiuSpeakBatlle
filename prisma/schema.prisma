@@ -110,6 +110,13 @@ model User {
   academyProgress         AcademyProgress[]
   paymentTransactions     PaymentTransaction[]
 
+  // Marketplace Domain Virtual Relations (Additive, no physical User columns added)
+  teacherProfile         TeacherProfile?
+  teacherApplications    MarketplaceTeacherApplication[]
+  marketplacePurchases   MarketplacePurchase[]
+  marketplaceEnrollments MarketplaceEnrollment[]
+  marketplaceReviews     MarketplaceReview[]
+
   @@index([belt])
   @@index([level])
   @@index([elo])
@@ -872,5 +879,305 @@ model UserActivityLog {
   ipAddress   String?
   createdAt   DateTime @default(now())
 }
+
+// ==========================================
+// ENUMS FOR TEACHER MARKETPLACE
+// ==========================================
+
+enum MarketplaceProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  REVISION_REQUIRED
+  APPROVED
+  REJECTED
+}
+
+enum MarketplacePurchaseStatus {
+  PENDING
+  RELEASED
+  REFUNDED
+  CANCELLED
+}
+
+enum MarketplaceProductType {
+  COURSE
+  EBOOK
+  PDF
+  FLASHCARDS
+  MENTORING
+  BUNDLE
+}
+
+enum TeacherApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReviewAction {
+  SUBMIT
+  APPROVE
+  REJECT
+  REQUEST_REVISION
+}
+
+// ==========================================
+// TEACHER MARKETPLACE DOMAIN MODELS
+// ==========================================
+
+model MarketplaceSettings {
+  id                         String   @id @default("default")
+  jtToBrlConversionRate      Decimal  @default(0.0100)
+  defaultPlatformCommission  Decimal  @default(10.00)
+  escrowDays                 Int      @default(7)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model MarketplaceSettingsHistory {
+  id         String   @id @default(uuid())
+  adminId    String
+  adminName  String
+  adminEmail String
+  reason     String
+  oldValue   Json
+  newValue   Json
+  createdAt  DateTime @default(now())
+}
+
+model TeacherProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  bio       String
+  academy   String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products  MarketplaceProduct[]
+
+  @@index([approved])
+}
+
+model MarketplaceTeacherApplication {
+  id          String                   @id @default(uuid())
+  userId      String
+  bio         String
+  academy     String
+  experience  String
+  status      TeacherApplicationStatus @default(PENDING)
+  adminNotes  String?
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  // Relationships
+  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents MarketplaceTeacherDocument[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model MarketplaceTeacherDocument {
+  id              String                        @id @default(uuid())
+  applicationId   String
+  documentType    String                        // e.g., "ID_CARD", "BLACK_BELT_DIPLOMA", "FEDERATION_CARD"
+  fileUrl         String
+  fileName        String?
+  fileSize        Int?
+  status          String                        @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason String?
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+
+  // Relationships
+  application     MarketplaceTeacherApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model MarketplaceCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  products    MarketplaceProduct[]
+
+  @@index([isActive])
+}
+
+model MarketplaceProduct {
+  id              String                   @id @default(uuid())
+  profileId       String
+  categoryId      String
+  title           String
+  description     String
+  priceJT         Int
+  type            MarketplaceProductType
+  status          MarketplaceProductStatus @default(DRAFT)
+  rating          Decimal                  @default(0.0)
+  salesCount      Int                      @default(0)
+  isArchived      Boolean                  @default(false)
+  archivedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  // Relationships
+  teacherProfile TeacherProfile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category       MarketplaceCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  versions       MarketplaceProductVersion[]
+  lessons        MarketplaceLesson[]
+  files          MarketplaceFile[]
+  purchases      MarketplacePurchase[]
+  enrollments    MarketplaceEnrollment[]
+  reviews        MarketplaceReview[]
+  reviewHistories ProductReviewHistory[]
+
+  @@index([profileId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([type])
+  @@index([isArchived])
+}
+
+model MarketplaceProductVersion {
+  id        String   @id @default(uuid())
+  productId String
+  version   Int
+  snapshot  Json
+  createdAt DateTime @default(now())
+
+  // Relationships
+  product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model MarketplaceLesson {
+  id          String   @id @default(uuid())
+  productId   String
+  title       String
+  description String?
+  videoUrl    String?
+  orderIndex  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  files     MarketplaceFile[]
+
+  @@index([productId])
+  @@index([orderIndex])
+}
+
+model MarketplaceFile {
+  id          String   @id @default(uuid())
+  productId   String?
+  lessonId    String?
+  name        String
+  fileUrl     String
+  fileSize    Int?
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  product   MarketplaceProduct? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  lesson    MarketplaceLesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([lessonId])
+}
+
+model MarketplacePurchase {
+  id                    String                    @id @default(uuid())
+  buyerId               String
+  productId             String
+  priceSpentJT          Int
+  conversionRateUsed    Decimal
+  totalEquivalentBRL    Decimal
+  platformCommissionBRL Decimal
+  teacherNetBRL         Decimal
+  status                MarketplacePurchaseStatus @default(PENDING)
+  escrowDays            Int                       @default(7)
+  releaseDate           DateTime
+  riskScore             Int                       @default(0)
+  fraudFlag             Boolean                   @default(false)
+  ipAddress             String?
+  fingerprint           String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  // Relationships
+  buyer     User               @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([buyerId])
+  @@index([productId])
+  @@index([status])
+  @@index([releaseDate])
+}
+
+model MarketplaceEnrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@index([active])
+}
+
+model MarketplaceReview {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model ProductReviewHistory {
+  id        String       @id @default(uuid())
+  productId String
+  action    ReviewAction
+  actorId   String
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  // Relationships
+  product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
 
 
