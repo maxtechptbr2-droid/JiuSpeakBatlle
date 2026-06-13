@@ -58,10 +58,48 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 
-// Static serving for user-uploaded profile and cover photos
+// Auto-create uploads subdirectories synchronously with safe verification
+const fsBoot = require('fs');
+const pathBoot = require('path');
+const uploadsBootDir = pathBoot.join(process.cwd(), 'public', 'uploads');
+const profilesBootDir = pathBoot.join(uploadsBootDir, 'profiles');
+const coversBootDir = pathBoot.join(uploadsBootDir, 'covers');
+
+if (!fsBoot.existsSync(uploadsBootDir)) {
+  fsBoot.mkdirSync(uploadsBootDir, { recursive: true });
+}
+if (!fsBoot.existsSync(profilesBootDir)) {
+  fsBoot.mkdirSync(profilesBootDir, { recursive: true });
+}
+if (!fsBoot.existsSync(coversBootDir)) {
+  fsBoot.mkdirSync(coversBootDir, { recursive: true });
+}
+
+try {
+  fsBoot.chmodSync(uploadsBootDir, 0o755);
+  fsBoot.chmodSync(profilesBootDir, 0o755);
+  fsBoot.chmodSync(coversBootDir, 0o755);
+  console.log("[UPLOAD INIT] Diretorios de upload criados e configurados com permissoes robustas.");
+} catch (e) {
+  console.log("[UPLOAD INIT] Warn configuring permissions (safe to ignore on Windows):", e);
+}
+
+// Log statics reading accesses for auditing and safety
+app.use('/uploads', (req: any, res: any, next: any) => {
+  console.log(`[UPLOAD READ] Static asset requested: ${req.originalUrl || req.url}`);
+  next();
+});
+
+// Robust static file serving middleware for user media files
 app.use(
   '/uploads',
-  express.static(path.join(process.cwd(), 'public', 'uploads'))
+  express.static(
+    pathBoot.join(process.cwd(), 'public', 'uploads'),
+    {
+      maxAge: '30d',
+      etag: true
+    }
+  )
 );
 
 // -------------------------------------------------------------------------
@@ -2401,8 +2439,35 @@ const inMemoryUserProfiles = new Map<string, any>();
 // 5. GET ME (Perfil logado)
 app.get("/api/auth/me", authenticateToken, (req: any, res: any) => {
   const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
+  console.log(`[AUTH ME RESPONSE] Dispatched auth/me payload for User ID: ${safeUser.id}, Name: "${safeUser.name}", profilePhoto: "${safeUser.profilePhoto}", avatar: "${safeUser.avatar}"`);
   console.log("[AUTH ME safeUser KEYS]", Object.keys(safeUser), "COUNT:", Object.keys(safeUser).length);
   res.json({ user: safeUser });
+});
+
+// 5.0 GET DEBUG ME (Direct from Postgres without transformation)
+app.get("/api/debug/me", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Prisma client not connected" });
+    }
+    const u = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        avatar: true,
+        profilePhoto: true,
+        coverPhoto: true
+      }
+    });
+    if (!u) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    console.log(`[GET /api/debug/me] Direct DB payload for ${req.user.id}:`, u);
+    res.json(u);
+  } catch (error: any) {
+    console.error("[GET /api/debug/me] Error:", error);
+    res.status(500).json({ error: "Erro interno: " + error.message });
+  }
 });
 
 // 5.1 GET PROFILE (Custom metadata)
@@ -2697,11 +2762,7 @@ async function saveBase64Image(userId: string, base64Data: string, prefix: "prof
 
     const relativeUrlPath = `/uploads/${prefix}s/${filename}`;
 
-    if (prefix === "profile") {
-      console.log("[UPLOAD PROFILE SAVED] Physical image written. Path:", relativeUrlPath);
-    } else {
-      console.log("[UPLOAD COVER SAVED] Physical image written. Path:", relativeUrlPath);
-    }
+    console.log(`[UPLOAD SAVE] Physical image written. Path: ${relativeUrlPath}, Size: ${buffer.length} bytes, Prefix: ${prefix}`);
 
     return relativeUrlPath;
   } catch (err) {
@@ -2747,6 +2808,7 @@ app.get("/api/debug/uploads", async (req: any, res: any) => {
 
 // UPDATE CURRENT USER PROFILE
 app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
+  console.log(`[PROFILE UPDATE] Initialized profile update request for User: ${req.user.id}, fields:`, Object.keys(req.body));
   console.log("[PROFILE PUT req.body KEYS]", Object.keys(req.body), "COUNT:", Object.keys(req.body).length);
   const { 
     name, bio, city, country, nativeLanguage, learningGoal, 

@@ -1417,7 +1417,7 @@ export function getDeterministicIndexHex(id: string, max: number = 40): number {
   return Math.abs(hash) % max;
 }
 
-export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; name?: string; avatar?: string | null; role?: string }>(user: T): T {
+export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; name?: string; avatar?: string | null; role?: string; profilePhoto?: string | null }>(user: T): T {
   if (!user || !user.id) return user;
   
   const idx = getDeterministicIndexHex(user.id, avatarMappingList.length);
@@ -1430,8 +1430,30 @@ export function patchUserObjectWithDeterministicAvatar<T extends { id?: string; 
     } else if (user.role === "INSTRUCTOR") {
       suffix = " (INSTRUCTOR)";
     }
-    user.name = mapped.name + suffix;
-    user.avatar = mapped.image;
+    
+    // Only override name if missing, blank or a raw default placeholder
+    const nameMissing = !user.name || user.name.trim() === "" || user.name.toLowerCase().startsWith("atleta_") || user.name.toLowerCase().startsWith("user_") || user.name.toLowerCase().startsWith("novo atleta") || user.name.toLowerCase().startsWith("membro_");
+    if (nameMissing) {
+      user.name = mapped.name + suffix;
+    }
+    
+    // Check if the user already has a physically uploaded custom avatar/profilePhoto or a real external URL saved in the DB
+    const profileHasUpload = user.profilePhoto && (user.profilePhoto.startsWith("/uploads/") || (user.profilePhoto.startsWith("http") && !user.profilePhoto.includes("unsplash.com") && !user.profilePhoto.includes("dicebear.com")));
+    const avatarHasUpload = user.avatar && (user.avatar.startsWith("/uploads/") || (user.avatar.startsWith("http") && !user.avatar.includes("unsplash.com") && !user.avatar.includes("dicebear.com")));
+    
+    const avatarMissing = !user.avatar || user.avatar.trim() === "" || user.avatar.includes("unsplash.com") || user.avatar.includes("dicebear.com");
+
+    if (!profileHasUpload && !avatarHasUpload && avatarMissing) {
+      user.avatar = mapped.image;
+    } else {
+      // Prioritize the custom physical upload route and keep it synchronized
+      if (profileHasUpload && !avatarHasUpload) {
+        user.avatar = user.profilePhoto;
+      } else if (avatarHasUpload && !user.profilePhoto) {
+        (user as any).profilePhoto = user.avatar;
+      }
+    }
+    
     (user as any).gender = mapped.gender;
   }
   return user;
@@ -1501,7 +1523,7 @@ export const authStore = {
       });
 
       if (u) {
-        const uMapped = patchUserObjectWithDeterministicAvatar({
+        const uMapped: AuthUser = {
           id: u.id,
           email: u.email,
           name: u.name,
@@ -1555,7 +1577,16 @@ export const authStore = {
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
           refreshToken: u.refreshToken,
-        });
+        };
+        console.log(
+          "[AUTH USER]",
+          {
+            id: uMapped.id,
+            avatar: uMapped.avatar,
+            profilePhoto: uMapped.profilePhoto,
+            coverPhoto: uMapped.coverPhoto
+          }
+        );
         console.log("[AUTH STORE findByEmail KEYS]", Object.keys(uMapped), "COUNT:", Object.keys(uMapped).length);
         return uMapped;
       }
@@ -1590,7 +1621,7 @@ export const authStore = {
       });
 
       if (u) {
-        const uMapped = patchUserObjectWithDeterministicAvatar({
+        const uMapped: AuthUser = {
           id: u.id,
           email: u.email,
           name: u.name,
@@ -1644,7 +1675,16 @@ export const authStore = {
           resetToken: u.resetToken,
           resetTokenExpires: u.resetTokenExpires,
           refreshToken: u.refreshToken,
-        });
+        };
+        console.log(
+          "[AUTH USER]",
+          {
+            id: uMapped.id,
+            avatar: uMapped.avatar,
+            profilePhoto: uMapped.profilePhoto,
+            coverPhoto: uMapped.coverPhoto
+          }
+        );
         console.log("[AUTH STORE findById KEYS]", Object.keys(uMapped), "COUNT:", Object.keys(uMapped).length);
         return uMapped;
       }
