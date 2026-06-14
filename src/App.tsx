@@ -45,6 +45,7 @@ const ProfilePanel = React.lazy(() => import('./components/ProfilePanel'));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
 const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
+const HomePage = React.lazy(() => import('./components/HomePage'));
 
 // Spinner skeleton screen for lazy-loaded route transitions 
 const LoadingFallback = () => (
@@ -139,6 +140,18 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
+      if (path === '/' || path === '/login' || path === '/register') {
+        return 'landing';
+      }
+      if (path === '/dashboard') {
+        return 'dashboard';
+      }
+      if (path === '/professor') {
+        return 'creator';
+      }
+      if (path === '/admin') {
+        return 'admin';
+      }
       if (path === '/store') {
         return 'market';
       }
@@ -171,10 +184,10 @@ export default function App() {
         if (referrer) {
           localStorage.setItem('jiuspeak_referrer', referrer.trim());
         }
-        return 'dashboard';
+        return 'landing';
       }
     }
-    return 'dashboard';
+    return 'landing';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [cheatModalOpen, setCheatModalOpen] = useState<boolean>(false);
@@ -196,7 +209,15 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
-      if (path === '/store') {
+      if (path === '/' || path === '/login' || path === '/register') {
+        setCurrentTab('landing');
+      } else if (path === '/dashboard') {
+        setCurrentTab('dashboard');
+      } else if (path === '/professor') {
+        setCurrentTab('creator');
+      } else if (path === '/admin') {
+        setCurrentTab('admin');
+      } else if (path === '/store') {
         setCurrentTab('market');
       } else if (path === '/inventory') {
         setCurrentTab('inventory');
@@ -217,8 +238,6 @@ export default function App() {
         if (hash) {
           setCurrentTab(`certificate-public-${hash}`);
         }
-      } else if (path === '/') {
-        setCurrentTab('dashboard');
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -234,7 +253,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentTab === 'market') {
+    if (currentTab === 'landing') {
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.history.pushState(null, '', '/');
+      }
+    } else if (currentTab === 'dashboard') {
+      if (window.location.pathname !== '/dashboard') {
+        window.history.pushState(null, '', '/dashboard');
+      }
+    } else if (currentTab === 'creator') {
+      if (window.location.pathname !== '/professor') {
+        window.history.pushState(null, '', '/professor');
+      }
+    } else if (currentTab === 'admin') {
+      if (window.location.pathname !== '/admin') {
+        window.history.pushState(null, '', '/admin');
+      }
+    } else if (currentTab === 'market') {
       if (window.location.pathname !== '/store') {
         window.history.pushState(null, '', '/store');
       }
@@ -272,6 +307,59 @@ export default function App() {
 
   // Custom Inline Toast System
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error'; visible: boolean } | null>(null);
+
+  // Dynamic Trial states for Landing Page
+  const [showFreeLesson, setShowFreeLesson] = useState(false);
+  const [trialStep, setTrialStep] = useState(0);
+  const [trialMicSuccess, setTrialMicSuccess] = useState<boolean | null>(null);
+  const [trialIsRecording, setTrialIsRecording] = useState(false);
+
+  const sampleLessons = [
+    {
+      term: "Pull Guard",
+      meaning: "Puxar para a guarda",
+      pronunciation: "pʊl ɡɑːrd",
+      tip: "Usado para puxar seu adversário à sua guarda no início do rola para evitar quedas pesadas de wrestlers."
+    },
+    {
+      term: "Underhook",
+      meaning: "Esgrimar o braço (passar por baixo)",
+      pronunciation: "ˈʌn-dər-hʊk",
+      tip: "A pegada mais importante das lutas! Quem tem a esgrima profunda controla o quadril e as costas do adversário."
+    },
+    {
+      term: "Tap Out / I tap!",
+      meaning: "Bater (desistir do combate com segurança)",
+      pronunciation: "tæp aʊt",
+      tip: "A palavra que garante a sua segurança física. Dizer 'I tap' no exterior para imediatamente a luta no tatame gringo."
+    }
+  ];
+
+  const speakPreviewPhrase = (phrase: string) => {
+    if ('speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(phrase);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.85;
+        window.speechSynthesis.speak(utterance);
+        showToast("Fale o termo logo após escutar!", "info");
+      } catch (e) {}
+    } else {
+      showToast("Áudio indisponível neste navegador, mas o termo é: " + phrase, "info");
+    }
+  };
+
+  const simulateMicCheck = () => {
+    setTrialIsRecording(true);
+    setTrialMicSuccess(null);
+    showToast("Escutando... Fale no microfone!", "info");
+    setTimeout(() => {
+      setTrialIsRecording(false);
+      setTrialMicSuccess(true);
+      showToast("Pronúncia Excelente! Alavanca mental validada com 96% de exatidão.", "success");
+    }, 1800);
+  };
 
   // 2. State Auto-Persist Effect triggers
   useEffect(() => {
@@ -701,6 +789,51 @@ export default function App() {
         )}
         <React.Suspense fallback={<LoadingFallback />}>
           <AuthPortal onLoginSuccess={handleLoginSuccess} showToast={showToast} />
+        </React.Suspense>
+      </div>
+    );
+  }
+
+  // Render direct HomePage if authenticated but exploring the root public landing page tab
+  if (currentTab === 'landing') {
+    return (
+      <div className="min-h-screen text-slate-200 bg-[#000814] flex flex-col items-stretch w-full overflow-x-hidden font-sans relative" id="app-wrapper-landing">
+        {toast && toast.visible && (
+          <div className="fixed top-4 right-4 z-50 animate-bounce cursor-pointer max-w-sm w-full">
+            <div className={`p-4 rounded-xl border shadow-xl flex items-center gap-3 ${
+              toast.type === 'success' 
+                ? 'bg-emerald-950/90 border-emerald-500 text-emerald-250 shadow-emerald-500/10' 
+                : (toast.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-250 shadow-red-500/10' : 'bg-slate-900/90 border-indigo-500 text-indigo-250 shadow-indigo-500/10')
+            }`}>
+              <span className="text-lg">
+                {toast.type === 'success' ? '🥋' : (toast.type === 'error' ? '🚨' : '⚡')}
+              </span>
+              <p className="text-xs font-semibold leading-snug">{toast.message}</p>
+            </div>
+          </div>
+        )}
+        <React.Suspense fallback={<LoadingFallback />}>
+          <HomePage
+            user={user}
+            courses={courses}
+            onOpenAuthModal={(v) => {
+              // Redirect to corresponding profile depending on user's role
+              if (user.role === 'admin') setCurrentTab('admin');
+              else if (user.role === 'professor') setCurrentTab('creator');
+              else setCurrentTab('dashboard');
+            }}
+            showToast={showToast}
+            showFreeLesson={showFreeLesson}
+            setShowFreeLesson={setShowFreeLesson}
+            trialStep={trialStep}
+            setTrialStep={setTrialStep}
+            trialMicSuccess={trialMicSuccess}
+            setTrialMicSuccess={setTrialMicSuccess}
+            trialIsRecording={trialIsRecording}
+            simulateMicCheck={simulateMicCheck}
+            sampleLessons={sampleLessons}
+            speakPreviewPhrase={speakPreviewPhrase}
+          />
         </React.Suspense>
       </div>
     );

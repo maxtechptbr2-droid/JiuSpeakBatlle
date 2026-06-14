@@ -37,7 +37,7 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
   return (
     <section 
       id="inicio" 
-      className="relative min-h-screen overflow-hidden flex flex-col justify-center bg-[#000814] pt-24 pb-16 lg:py-32"
+      className="relative z-10 min-h-screen flex items-center justify-center bg-[#000814] pt-24 pb-16 lg:py-32"
     >
       {/* Background container: Panoramic Cinematic Dark Blue Stadium Atmosphere */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
@@ -46,17 +46,12 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
         
         {/* Real High-Resolution Stadium background photo */}
         <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-45 mix-blend-lighten"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-100"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1540747737956-378724044452?auto=format&fit=crop&q=80&w=1920')`,
-          }}
-        />
-
-        {/* Vector SVG overlay adding spotlight laser cones, custom lights and light beams */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-85"
-          style={{
-            backgroundImage: `url(${heroBg})`,
+            backgroundImage: `url('https://www.jiuspeak.com.br/images/hero-bg.jpg')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
           }}
         />
 
@@ -79,7 +74,7 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
       </div>
 
       {/* Extreme Vignette Overlay to ensure perfect text readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#000814] via-[#000814]/85 to-[#000814]/15 z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#000814]/95 via-[#000814]/75 to-[#000814]/30 z-10 pointer-events-none" />
 
       {/* Content Container */}
       <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col justify-between h-full">
@@ -99,17 +94,15 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
             {/* Epic Main Headline exactly as mockup */}
             <div className="space-y-4">
               <h1 className="text-4xl sm:text-5xl lg:text-7xl font-sans font-black tracking-tighter leading-[1.05] text-white uppercase select-none flex flex-col">
-                <span className="block text-white">SUPERE SEUS LIMITES.</span>
+                <span className="block text-white">TRAIN HARD.</span>
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#009dff] via-[#00bfff] to-blue-600 drop-shadow-[0_0_35px_rgba(0,157,255,0.25)]">
-                  DOMINE EM QUALQUER
+                  SPEAK GLOBALLY.
                 </span>
-                <span className="block text-[#009dff]">ARENA.</span>
               </h1>
               
               {/* Mockup Subtitle */}
               <p className="text-slate-300 text-base sm:text-lg lg:text-xl font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">
-                A maior plataforma global de Jiu-Jitsu.
-                Conecte-se, evolua, compita e seja reconhecido em qualquer lugar do mundo.
+                Aprenda inglês para competir, ensinar e viver o jiu-jitsu em qualquer lugar do mundo.
               </p>
             </div>
 
@@ -129,19 +122,19 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
               <button
                 type="button"
                 onClick={handleAction}
-                className="w-full sm:w-auto px-8 py-4 bg-[#009dff] hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.02] shadow-[0_4px_20px_rgba(0,157,255,0.35)] flex items-center justify-center gap-2 cursor-pointer border-none"
+                className="w-full sm:w-auto px-8 py-4 bg-[#009dff] hover:bg-blue-505 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 hover:scale-[1.02] shadow-[0_4px_20px_rgba(0,157,255,0.35)] flex items-center justify-center gap-2 cursor-pointer border-none"
               >
                 <Users className="w-4 h-4 text-white" />
-                <span>ENTRAR NA COMUNIDADE</span>
+                <span>COMEÇAR AGORA</span>
               </button>
               
               <button
                 type="button"
                 onClick={onExploreClick}
-                className="w-full sm:w-auto px-8 py-4 bg-transparent hover:bg-blue-950/20 border border-slate-700 hover:border-blue-500/50 text-slate-350 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-350 cursor-pointer whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-8 py-4 bg-transparent hover:bg-blue-950/20 border border-slate-700 hover:border-blue-500/50 text-slate-355 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-350 cursor-pointer whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
               >
                 <Globe className="w-4 h-4 text-slate-400" />
-                <span>EXPLORAR ARENAS</span>
+                <span>EXPLORAR A JORNADA</span>
               </button>
             </div>
 
