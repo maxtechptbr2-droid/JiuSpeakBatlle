@@ -1990,7 +1990,7 @@ app.post("/api/auth/register", async (req: any, res: any) => {
     res.status(201).json({
       message: selectedRole === "ADMIN" 
         ? "Conta de Professor Administrador criada com sucesso! Por segurança, seu perfil está aguardando aprovação do Administrador Geral."
-        : "Registro concluído com sucesso. Um e-mail de confirmação foi enviado.",
+        : "Conta criada com sucesso!",
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -3007,6 +3007,155 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
   }
 });
 
+// PATCH CURRENT USER PROFILE (Partial updates matching the requirement)
+app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
+  console.log(`[PROFILE PATCH] Initialized patch request for User: ${req.user.id}, fields:`, Object.keys(req.body));
+  const { 
+    name, bio, city, country, nativeLanguage, learningGoal, 
+    profilePhoto, coverPhoto, instagram, youtube, facebook, website,
+    birthDate, phone, englishLevel, spanishLevel, frenchLevel,
+    onboardingDone, username, beltRank, favoriteTechnique, favoriteAthlete,
+    privacyLevel, themeColor, avatarFrame,
+    globalTeamId, branchId, independentAcademyId
+  } = req.body;
+  
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+
+    let savedProfilePhoto = profilePhoto;
+    if (profilePhoto && profilePhoto.startsWith("data:image/")) {
+      savedProfilePhoto = await saveBase64Image(req.user.id, profilePhoto, "profile");
+    }
+
+    let savedCoverPhoto = coverPhoto;
+    if (coverPhoto && coverPhoto.startsWith("data:image/")) {
+      savedCoverPhoto = await saveBase64Image(req.user.id, coverPhoto, "cover");
+    }
+    
+    if (username) {
+      const sanitizedUsername = username.trim().toLowerCase();
+      const existing = await prisma.user.findFirst({
+        where: {
+          username: sanitizedUsername,
+          NOT: { id: req.user.id }
+        }
+      });
+      if (existing) {
+        return res.status(400).json({ error: "Este nome de usuário já está em uso." });
+      }
+    }
+    
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (bio !== undefined) updateData.bio = bio;
+    if (city !== undefined) updateData.city = city;
+    if (country !== undefined) updateData.country = country;
+    if (nativeLanguage !== undefined) updateData.nativeLanguage = nativeLanguage;
+    if (learningGoal !== undefined) updateData.learningGoal = learningGoal;
+    if (savedProfilePhoto !== undefined) updateData.profilePhoto = savedProfilePhoto;
+    if (savedCoverPhoto !== undefined) updateData.coverPhoto = savedCoverPhoto;
+    if (instagram !== undefined) updateData.instagram = instagram;
+    if (youtube !== undefined) updateData.youtube = youtube;
+    if (facebook !== undefined) updateData.facebook = facebook;
+    if (website !== undefined) updateData.website = website;
+    if (birthDate !== undefined) updateData.birthDate = birthDate ? new Date(birthDate) : null;
+    if (phone !== undefined) updateData.phone = phone;
+    if (englishLevel !== undefined) updateData.englishLevel = englishLevel;
+    if (spanishLevel !== undefined) updateData.spanishLevel = spanishLevel;
+    if (frenchLevel !== undefined) updateData.frenchLevel = frenchLevel;
+    if (onboardingDone !== undefined) updateData.onboardingDone = onboardingDone;
+    if (username !== undefined) updateData.username = username ? username.trim().toLowerCase() : null;
+    if (beltRank !== undefined) updateData.beltRank = beltRank;
+    if (favoriteTechnique !== undefined) updateData.favoriteTechnique = favoriteTechnique;
+    if (favoriteAthlete !== undefined) updateData.favoriteAthlete = favoriteAthlete;
+    if (privacyLevel !== undefined) updateData.privacyLevel = privacyLevel;
+    if (themeColor !== undefined) updateData.themeColor = themeColor;
+    if (avatarFrame !== undefined) updateData.avatarFrame = avatarFrame;
+    if (globalTeamId !== undefined) updateData.globalTeamId = globalTeamId || null;
+    if (branchId !== undefined) updateData.branchId = branchId || null;
+    if (independentAcademyId !== undefined) updateData.independentAcademyId = independentAcademyId || null;
+
+    if (beltRank !== undefined && beltRank !== null) {
+      const rankUpper = (beltRank as string).toUpperCase();
+      if (rankUpper.includes("BRANCA") || rankUpper.includes("WHITE")) {
+        updateData.belt = "WHITE";
+      } else if (rankUpper.includes("AZUL") || rankUpper.includes("BLUE")) {
+        updateData.belt = "BLUE";
+      } else if (rankUpper.includes("ROXA") || rankUpper.includes("PURPLE")) {
+        updateData.belt = "PURPLE";
+      } else if (rankUpper.includes("MARROM") || rankUpper.includes("BROWN")) {
+        updateData.belt = "BROWN";
+      } else if (rankUpper.includes("PRETA") || rankUpper.includes("PRETO") || rankUpper.includes("BLACK")) {
+        updateData.belt = "BLACK";
+      }
+    }
+    
+    if (savedProfilePhoto) {
+      updateData.avatar = savedProfilePhoto;
+    }
+    
+    const u = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      include: { wallet: true }
+    });
+    
+    await authStore.updateUser(req.user.id, {
+      ...updateData,
+      avatar: u.avatar
+    });
+    
+    res.json({
+      success: true,
+      profile: {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        bio: u.bio,
+        city: u.city,
+        country: u.country,
+        nativeLanguage: u.nativeLanguage,
+        learningGoal: u.learningGoal,
+        profilePhoto: u.profilePhoto || u.avatar,
+        coverPhoto: u.coverPhoto,
+        instagram: u.instagram,
+        youtube: u.youtube,
+        facebook: u.facebook,
+        website: u.website,
+        birthDate: u.birthDate,
+        phone: u.phone,
+        englishLevel: u.englishLevel,
+        spanishLevel: u.spanishLevel,
+        frenchLevel: u.frenchLevel,
+        onboardingDone: u.onboardingDone,
+        lastLoginAt: u.lastLoginAt,
+        username: u.username,
+        beltRank: u.beltRank,
+        favoriteTechnique: u.favoriteTechnique,
+        favoriteAthlete: u.favoriteAthlete,
+        privacyLevel: u.privacyLevel,
+        followersCount: u.followersCount,
+        followingCount: u.followingCount,
+        themeColor: u.themeColor,
+        avatarFrame: u.avatarFrame,
+        isVerified: u.isVerified,
+        globalTeamId: u.globalTeamId,
+        branchId: u.branchId,
+        independentAcademyId: u.independentAcademyId,
+        belt: u.belt,
+        stripes: u.stripes,
+        xp: u.xp,
+        level: u.level,
+        elo: u.elo
+      }
+    });
+  } catch (err: any) {
+    console.error("PATCH /api/profile err:", err);
+    res.status(500).json({ error: "Erro ao atualizar perfil (PATCH): " + err.message });
+  }
+});
+
 // Specific strict rate limiter for Text-to-Speech requests to prevent abuse of the OpenAI API (max 20 requests/minute per IP)
 const ttsRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -3571,26 +3720,6 @@ app.post("/api/auth/reset-password", async (req: any, res: any) => {
     console.error("Error in reset-password endpoint:", error);
     res.status(500).json({ error: "Internal server error." });
   }
-});
-
-// 9. OUTBOX MONITOR (For Sandbox UX Testing - Accessible to administrators even in production for verification)
-app.get("/api/dev/emails", authenticateToken, (req: any, res: any) => {
-  const userRole = req.user && String(req.user.role).toUpperCase();
-  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DEVELOPER";
-  if (process.env.NODE_ENV === "production" && !isAdmin) {
-    return res.status(403).json({ error: "Funcionalidade desativada em ambiente de produção por motivos de segurança." });
-  }
-  res.json({ emails: simulatedSentEmails });
-});
-
-app.post("/api/dev/emails/clear", authenticateToken, (req: any, res: any) => {
-  const userRole = req.user && String(req.user.role).toUpperCase();
-  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DEVELOPER";
-  if (process.env.NODE_ENV === "production" && !isAdmin) {
-    return res.status(403).json({ error: "Funcionalidade desativada em ambiente de produção por motivos de segurança." });
-  }
-  simulatedSentEmails.length = 0;
-  res.json({ status: "cleared" });
 });
 
 // 10. ADMIN & USERS LIST (Demonstrates Roles / ADMIN route)

@@ -52,7 +52,7 @@ interface SimulatedEmail {
 let cachedCsrfToken: string | null = null;
 
 export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProps) {
-  const [view, setView] = useState<'login' | 'register' | 'forgot' | 'reset' | 'verify'>('login');
+  const [view, setView] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   
   // Form fields
@@ -90,6 +90,15 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   const [diagQ3, setDiagQ3] = useState<string | null>(null);
   const [scoreDiagnostico, setScoreDiagnostico] = useState<number | null>(null);
   const [cefrLevel, setCefrLevel] = useState<string>('A1');
+
+  // Academy Connection (Step 6)
+  const [academyType, setAcademyType] = useState<'none' | 'global' | 'independent'>('none');
+  const [globalTeamsList, setGlobalTeamsList] = useState<any[]>([]);
+  const [branchesList, setBranchesList] = useState<any[]>([]);
+  const [independentAcademiesList, setIndependentAcademiesList] = useState<any[]>([]);
+  const [selectGlobalTeamId, setSelectGlobalTeamId] = useState<string>('');
+  const [selectBranchId, setSelectBranchId] = useState<string>('');
+  const [selectIndependentAcademyId, setSelectIndependentAcademyId] = useState<string>('');
   
   // Password Recovery / Verification fields
   const [token, setToken] = useState('');
@@ -100,7 +109,6 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [simulatedEmails, setSimulatedEmails] = useState<SimulatedEmail[]>([]);
 
   // Interactive FREE LESSON mock state
   const [showFreeLesson, setShowFreeLesson] = useState(false);
@@ -108,24 +116,40 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   const [trialMicSuccess, setTrialMicSuccess] = useState<boolean | null>(null);
   const [trialIsRecording, setTrialIsRecording] = useState(false);
 
-  // Periodically fetch simulated emails so user is never lost
-  const fetchSimulatedEmails = async () => {
-    try {
-      const res = await fetch('/api/dev/emails');
-      if (res.ok) {
-        const data = await res.json();
-        setSimulatedEmails(data.emails || []);
-      }
-    } catch (e) {
-      console.warn('Sandbox simulated email loader API is not accessible yet.', e);
+  // Load Academy Lists for Step 6 Onboarding
+  useEffect(() => {
+    if (registerStep === 6) {
+      setLoading(true);
+      Promise.all([
+        fetch('/api/academy/all-groups').then(r => r.ok ? r.json() : {}),
+        fetch('/api/academy/global-teams').then(r => r.ok ? r.json() : []),
+        fetch('/api/academy/independent-academies').then(r => r.ok ? r.json() : [])
+      ]).then(([allGroups, gTeams, indAcademy]: [any, any, any]) => {
+        const teams = gTeams.globalTeams || gTeams || allGroups.globalTeams || [];
+        const independents = indAcademy.independentAcademies || indAcademy || allGroups.independentAcademies || [];
+        setGlobalTeamsList(teams);
+        setIndependentAcademiesList(independents);
+      }).catch(err => {
+        console.error("Failed loading academy options on onboarding wizard", err);
+      }).finally(() => {
+        setLoading(false);
+      });
     }
-  };
+  }, [registerStep]);
 
   useEffect(() => {
-    fetchSimulatedEmails();
-    const timer = setInterval(fetchSimulatedEmails, 5500);
-    return () => clearInterval(timer);
-  }, [view]);
+    if (selectGlobalTeamId) {
+      fetch(`/api/academy/global-teams/${selectGlobalTeamId}/branches`)
+        .then(res => res.ok ? res.json() : {})
+        .then((data: any) => {
+          setBranchesList(data.branches || data || []);
+        })
+        .catch(err => console.error("Error loading onboarding branches:", err));
+    } else {
+      setBranchesList([]);
+      setSelectBranchId('');
+    }
+  }, [selectGlobalTeamId]);
 
   const clearFormMessages = () => {
     setErrorMsg('');
@@ -188,8 +212,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     return res;
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!email || !name || !password) {
       setErrorMsg('Por favor, preencha todos os campos obrigatórios para se registrar.');
       return;
@@ -239,7 +263,10 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
         realPhoto: selectedInitialAvatar || "",
         cefrLevel: cefrLevel || "A1",
         diagnosticScore: scoreDiagnostico || 0,
-        achievements: ["first_armlock_onboarding"]
+        achievements: ["first_armlock_onboarding"],
+        globalTeamId: academyType === 'global' ? selectGlobalTeamId : null,
+        branchId: academyType === 'global' ? selectBranchId : null,
+        independentAcademyId: academyType === 'independent' ? selectIndependentAcademyId : null
       };
 
       // Set profile endpoint with credentials active
@@ -270,7 +297,10 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                 bjjBelt.toUpperCase() === 'AZUL' ? 'BLUE' :
                 bjjBelt.toUpperCase() === 'ROXA' ? 'PURPLE' :
                 bjjBelt.toUpperCase() === 'MARROM' ? 'BROWN' : 'BLACK',
-          isEmailVerified: true
+          isEmailVerified: true,
+          globalTeamId: academyType === 'global' ? selectGlobalTeamId : null,
+          branchId: academyType === 'global' ? selectBranchId : null,
+          independentAcademyId: academyType === 'independent' ? selectIndependentAcademyId : null
         }
       });
     } catch (err: any) {
@@ -341,10 +371,9 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
         throw new Error(data.error || 'Erro ao solicitar nova senha.');
       }
 
-      setSuccessMsg('Instruções de redefinição foram simuladas para a sua caixa postal abaixo.');
-      showToast('E-mail de redefinição enviado para a outbox!', 'success');
+      setSuccessMsg('Instruções de redefinição foram enviadas com sucesso!');
+      showToast('E-mail de redefinição de senha enviado!', 'success');
       setView('reset');
-      fetchSimulatedEmails();
     } catch (err: any) {
       setErrorMsg(err.message);
       showToast('Erro ao enviar e-mail.', 'error');
@@ -394,60 +423,6 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
     } finally {
       setLoading(false);
     }
-  };
-
-  // Submit direct e-mail verification token
-  const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) {
-      setErrorMsg('Por favor, informe o token de verificação.');
-      return;
-    }
-
-    setLoading(true);
-    setErrorMsg('');
-    setSuccessMsg('');
-
-    try {
-      const res = await fetchWithCsrf('/api/auth/verify', {
-        method: 'POST',
-        body: JSON.stringify({ token }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Token inválido.');
-      }
-
-      setSuccessMsg(data.message || 'E-mail verificado com sucesso!');
-      showToast('Conta ativada com sucesso! Oss.', 'success');
-      setToken('');
-      setView('login');
-    } catch (err: any) {
-      setErrorMsg(err.message);
-      showToast('Erro na ativação.', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fast evaluation helper: clicking on simulated outgoing email logs instantly fills tokens!
-  const handleApplySimulatedEmail = (sim: SimulatedEmail) => {
-    if (sim.subject.includes('Confirme')) {
-      setView('verify');
-      setToken(sim.token);
-      showToast('Token de confirmação de e-mail copiado da caixa postal simulada!', 'info');
-    } else if (sim.subject.includes('Recuperação')) {
-      setView('reset');
-      setToken(sim.token);
-      showToast('Token de redefinição de senha copiado com sucesso!', 'info');
-    }
-  };
-
-  const handleClearInbox = async () => {
-    await fetch('/api/dev/emails/clear', { method: 'POST' });
-    setSimulatedEmails([]);
-    showToast('Caixa de correio simulada esvaziada.', 'info');
   };
 
   // Play audio TTS for the Free Lesson Preview
@@ -751,9 +726,9 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
               <div className="space-y-4" id="register-wizard-container">
                 {/* Step indicator slider */}
                 <div className="flex items-center justify-between bg-[#01040ec0] p-2.5 rounded-2xl border border-slate-900">
-                  <span className="text-[10px] font-mono text-slate-550 font-bold uppercase tracking-wide">ETAPA {registerStep} DE 5</span>
+                  <span className="text-[10px] font-mono text-slate-550 font-bold uppercase tracking-wide">ETAPA {registerStep} DE 6</span>
                   <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((st) => (
+                    {[1, 2, 3, 4, 5, 6].map((st) => (
                       <div 
                         key={st} 
                         className={`h-1.5 rounded-sm transition-all ${
@@ -1212,9 +1187,140 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                       </button>
                       <button
                         type="button"
-                        onClick={handleRegister}
-                        disabled={loading || !diagQ1 || !diagQ2 || !diagQ3}
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                        onClick={() => {
+                          if (!diagQ1 || !diagQ2 || !diagQ3) {
+                            showToast("Por favor, responda todas as questões do diagnóstico para calibrar seu nível.", "error");
+                            return;
+                          }
+                          setRegisterStep(6);
+                        }}
+                        className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        Avançar <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 6: CHOOSE ACADEMY / DOJO LINKUP */}
+                {registerStep === 6 && (
+                  <div className="space-y-4 animate-fadeIn" id="step-6-academy">
+                    <div className="text-center space-y-1">
+                      <span className="text-[10px] uppercase font-mono font-black text-blue-450 bg-blue-950/40 px-3 py-1 rounded-full border border-blue-500/20 tracking-wider inline-block">
+                        🏢 FILIAÇÃO & ACADEMIA
+                      </span>
+                      <p className="text-[11px] text-slate-400 mt-1">Escolha o seu time para habilitar o ranqueamento competitivo internacional.</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 label-class">Como deseja treinar?</label>
+                        <div className="grid grid-cols-3 gap-2 text-[10px]">
+                          {(['none', 'global', 'independent'] as const).map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => {
+                                setAcademyType(type);
+                                setSelectGlobalTeamId('');
+                                setSelectBranchId('');
+                                setSelectIndependentAcademyId('');
+                              }}
+                              className={`p-2.5 rounded-xl text-center border font-bold transition-all flex flex-col items-center justify-center cursor-pointer ${
+                                academyType === type
+                                  ? 'bg-blue-950/40 border-blue-500 text-blue-300'
+                                  : 'bg-[#00040a]/90 border-slate-900 text-slate-450 hover:border-slate-850'
+                              }`}
+                            >
+                              <span className="text-sm mb-1">
+                                {type === 'none' && '🥋'}
+                                {type === 'global' && '🌍'}
+                                {type === 'independent' && '🏫'}
+                              </span>
+                              <span className="leading-tight text-[9px] block">
+                                {type === 'none' && 'Sem Vínculo'}
+                                {type === 'global' && 'Equipe Global'}
+                                {type === 'independent' && 'Independente'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Global Team selection */}
+                      {academyType === 'global' && (
+                        <div className="space-y-3 animate-scaleUp">
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Equipe Global (Nível 1)</label>
+                            <select
+                              value={selectGlobalTeamId}
+                              onChange={(e) => setSelectGlobalTeamId(e.target.value)}
+                              className="w-full bg-[#00040a]/90 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none cursor-pointer"
+                            >
+                              <option value="">-- Selecionar Equipe --</option>
+                              {globalTeamsList.map((team: any) => (
+                                <option key={team.id} value={team.id}>{team.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {selectGlobalTeamId && (
+                            <div className="animate-scaleUp">
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Filial Oficial (Nível 2)</label>
+                              <select
+                                value={selectBranchId}
+                                onChange={(e) => setSelectBranchId(e.target.value)}
+                                className="w-full bg-[#00040a]/90 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none cursor-pointer"
+                              >
+                                <option value="">-- Selecionar Filial --</option>
+                                {branchesList.map((branch: any) => (
+                                  <option key={branch.id} value={branch.id}>{branch.name} ({branch.city})</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Independent Academy selection */}
+                      {academyType === 'independent' && (
+                        <div className="space-y-3 animate-scaleUp">
+                          <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Academia Independente (Nível 3)</label>
+                            <select
+                              value={selectIndependentAcademyId}
+                              onChange={(e) => setSelectIndependentAcademyId(e.target.value)}
+                              className="w-full bg-[#00040a]/90 border border-slate-800 text-xs text-white rounded-xl px-3 py-2.5 focus:outline-none cursor-pointer"
+                            >
+                              <option value="">-- Selecionar Academia --</option>
+                              {independentAcademiesList.map((academy: any) => (
+                                <option key={academy.id} value={academy.id}>{academy.name} ({academy.city})</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {academyType === 'none' && (
+                        <div className="p-3 bg-blue-950/20 border border-blue-500/10 rounded-xl text-[10px] text-slate-400 leading-normal animate-scaleUp">
+                          ℹ️ Como <strong>Atleta sem vínculo</strong>, você poderá treinar normalmente e filiar-se a uma academia oficial a qualquer momento através do seu perfil.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2.5 pt-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setRegisterStep(5)}
+                        className="py-2 px-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Voltar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRegister()}
+                        disabled={loading || (academyType === 'global' && !selectBranchId) || (academyType === 'independent' && !selectIndependentAcademyId)}
+                        className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
                       >
                         {loading ? (
                           <RefreshCw className="w-4 h-4 animate-spin text-white" />
@@ -1323,85 +1429,6 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
                   Salvar Nova Chave ✔
                 </button>
               </form>
-            )}
-
-            {/* VIEW 5: VERIFY ACTIVATION CODE */}
-            {view === 'verify' && (
-              <form onSubmit={handleVerifyEmail} className="space-y-4 font-sans text-xs">
-                <div className="p-3.5 rounded-2xl bg-slate-950/50 border border-slate-850 text-[11px] text-slate-200">
-                  <p className="font-bold text-blue-450 mb-0.5 font-sans">📬 Ativação Necessária</p>
-                  Copie o token de confirmação ('v_xxx...') na Sandbox Outbox fictícia abaixo.
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black text-slate-405 uppercase tracking-wider mb-1.5 font-mono">Código de Token</label>
-                  <div className="relative">
-                    <Compass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-500" />
-                    <input
-                      type="text"
-                      value={token}
-                      onChange={e => setToken(e.target.value)}
-                      placeholder="v_xxx..."
-                      className="w-full bg-[#00040a]/90 border border-slate-800 focus:border-blue-500 rounded-xl pl-10.5 pr-4 py-2.5 text-xs text-white"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-1 text-xs font-sans">
-                  <button
-                    type="button"
-                    onClick={() => setView('login')}
-                    className="py-2 px-4 bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                  >
-                    Login
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-2.5 bg-gradient-to-r from-blue-700 to-blue-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
-                  >
-                    Validar & Ativar Conta ⚡
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* COPIED SANDBOX INBOX */}
-            {simulatedEmails && simulatedEmails.length > 0 && (
-              <div className="mt-5 pt-4.5 border-t border-[#0b1329] space-y-2.5">
-                <div className="flex items-center justify-between text-[11px] font-mono">
-                  <span className="text-blue-400 font-bold flex items-center gap-1.5 uppercase tracking-wide">
-                    📬 Sandbox Outbox (Email Simulado)
-                  </span>
-                  <button 
-                    onClick={handleClearInbox}
-                    className="text-rose-450 hover:text-rose-350 font-bold underline cursor-pointer"
-                  >
-                    Limpar
-                  </button>
-                </div>
-                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 font-sans">
-                  {simulatedEmails.map(sim => (
-                    <button
-                      key={sim.id}
-                      onClick={() => handleApplySimulatedEmail(sim)}
-                      className="w-full text-left p-2.5 bg-[#00030a] hover:bg-[#060a1e] border border-slate-900 hover:border-blue-900 rounded-xl transition-all block cursor-pointer"
-                    >
-                      <div className="flex justify-between text-[8px] font-mono text-slate-500">
-                        <span>Para: {sim.to}</span>
-                        <span>{new Date(sim.timestamp).toLocaleTimeString()}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 truncate mt-1 font-mono">
-                        Assunto: {sim.subject}
-                      </p>
-                      <div className="mt-1 flex items-center justify-between text-[10px]">
-                        <span className="font-mono text-blue-400 font-bold text-[9px]">Token: {sim.token}</span>
-                        <span className="text-[9px] text-emerald-400 font-bold underline">Auto-Aplica →</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
             )}
 
           </div>
