@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Star, Award, Shield, Trophy, Globe, Flame, ShieldAlert, Sparkles, Languages } from 'lucide-react';
 import FeaturePill from './FeaturePill';
 import CTAButton from './CTAButton';
+import heroBg from '../../assets/hero/hero-bg.svg';
 
 interface HeroSectionProps {
   onStartClick: () => void;
@@ -16,10 +17,10 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
 
   // 4 Features as shown exactly in the reference image
   const featuresList = [
-    { label: 'Inglês focado no jiu-jitsu', icon: Star },
-    { label: 'Aulas práticas do tatame', icon: Award },
-    { label: 'Evolução contínua', icon: Flame },
-    { label: 'Preparação para competir e ensinar no exterior', icon: Languages }
+    { label: 'Inglês específico para jiu-jitsu', icon: Star },
+    { label: 'Método prático 100% aplicado', icon: Award },
+    { label: 'Evolução por faixas', icon: Flame },
+    { label: 'Comunidade global de lutadores', icon: Languages }
   ];
 
   const handleAction = () => {
@@ -39,7 +40,15 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
       className="relative min-h-screen overflow-hidden flex items-center bg-[#000814]"
     >
       {/* Background: z-0 */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div 
+        className="absolute inset-0 z-0 pointer-events-none opacity-80"
+        style={{
+          backgroundImage: `url(${heroBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
         {/* Cinematic star arena grids */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.15)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.15)_1px,transparent_1px)] bg-[size:4.5rem_4.5rem] opacity-40 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         {/* Neon glowing halos */}
@@ -49,7 +58,7 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
       </div>
 
       {/* Overlay: z-10 */}
-      <div className="absolute inset-0 bg-black/40 z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#040914]/98 via-[#010611]/85 to-[#00040a]/50 z-10 pointer-events-none" />
 
       {/* Conteúdo: z-20 */}
       <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-24 lg:py-32 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -64,18 +73,17 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
           </div>
 
           {/* Epic Main Headline exactly as mockup */}
-          <div className="space-y-3">
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-sans font-black tracking-tight leading-[1.1] text-white uppercase select-none flex flex-col">
-              <span className="block text-white">SUA JORNADA</span>
+          <div className="space-y-4">
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-sans font-black tracking-tighter leading-[1.05] text-white uppercase select-none flex flex-col">
+              <span className="block text-white">TRAIN HARD.</span>
               <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#009dff] via-[#00bfff] to-blue-600 drop-shadow-[0_0_35px_rgba(0,157,255,0.45)]">
-                INTERNACIONAL
+                SPEAK GLOBALLY.
               </span>
-              <span className="block text-white">COMEÇA AGORA.</span>
             </h1>
             
             {/* Mockup Subtitle */}
-            <p className="text-slate-350 text-base sm:text-lg lg:text-xl font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">
-              Aprenda inglês com o jiu-jitsu e treine para o mundo.
+            <p className="text-slate-300 text-base sm:text-lg lg:text-xl font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">
+              Aprenda inglês para competir, ensinar e viver o jiu-jitsu em qualquer lugar do mundo.
             </p>
           </div>
 
