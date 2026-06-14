@@ -44,10 +44,21 @@ export default function Header({ onLoginClick, onRegisterClick, onNavigateToSect
       id="header-premium-bar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 font-sans ${
         isScrolled
-          ? 'bg-[#030712]/90 backdrop-blur-lg border-b border-blue-500/10 shadow-[0_4px_30px_rgba(0,132,255,0.06)] py-3'
-          : 'bg-transparent py-5'
+          ? 'bg-[#030712]/95 backdrop-blur-lg border-b border-blue-500/10 shadow-[0_4px_30px_rgba(0,132,255,0.06)] py-2'
+          : 'bg-transparent py-4'
       }`}
     >
+      {/* Top International flags banner matching UI screenshot exactly */}
+      <div className="w-full flex justify-center items-center gap-4 text-[10px] font-mono font-bold tracking-widest text-[#94a3b8] mb-1 opacity-80 select-none">
+        <span className="flex items-center gap-1">🇺🇸 <span className="text-[9px] uppercase text-slate-450">USA</span></span>
+        <span className="w-1 h-1 rounded-full bg-blue-500" />
+        <span className="flex items-center gap-1">🇧🇷 <span className="text-[9px] uppercase text-slate-450">BRA</span></span>
+        <span className="w-1 h-1 rounded-full bg-blue-500" />
+        <span className="flex items-center gap-1">🇦🇪 <span className="text-[9px] uppercase text-slate-450">UAE</span></span>
+        <span className="w-1 h-1 rounded-full bg-blue-500" />
+        <span className="flex items-center gap-1">🇯🇵 <span className="text-[9px] uppercase text-slate-450">JPN</span></span>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         
         {/* LEFT: LOGO */}

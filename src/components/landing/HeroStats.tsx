@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Globe2, BookOpen, Flame } from 'lucide-react';
+import { Users, Globe2, Shield, Star } from 'lucide-react';
 
 interface HeroStatsProps {
   id?: string;
@@ -9,28 +9,28 @@ interface HeroStatsProps {
 export default function HeroStats({ id, className = '' }: HeroStatsProps) {
   const stats = [
     {
-      value: '+12K',
-      label: 'Alunos ativos',
+      value: '10K+',
+      label: 'ATLETAS',
       icon: Users,
-      desc: 'Competidores mundiais'
+      desc: 'Conectados globalmente'
     },
     {
-      value: '+150',
-      label: 'Países alcançados',
+      value: '50+',
+      label: 'PAÍSES',
       icon: Globe2,
-      desc: 'Conexão global de dojôs'
+      desc: 'Representados'
     },
     {
-      value: '+2.5M',
-      label: 'Aulas concluídas',
-      icon: BookOpen,
-      desc: 'Vocabulário tático afiado'
+      value: '100+',
+      label: 'ACADEMIAS',
+      icon: Shield,
+      desc: 'Parcerias ativas'
     },
     {
-      value: '+500K',
-      label: 'Horas de treino',
-      icon: Flame,
-      desc: 'Consistência no tatame'
+      value: '4.9',
+      label: 'AVALIAÇÃO',
+      icon: Star,
+      desc: 'Da comunidade'
     }
   ];
 
