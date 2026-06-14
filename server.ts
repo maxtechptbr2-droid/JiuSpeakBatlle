@@ -1895,106 +1895,14 @@ export let inMemoryMarketplaceSales: any[] = [
 // Security trackers
 const purchaseVelocityTracker = new Map<string, { count: number; lastTime: number }>();
 
-// Middleware to authenticate JWT Access Token
-export const authenticateToken = (req: any, res: any, next: any) => {
-  const authHeader = req.headers["authorization"];
-  let token = authHeader && authHeader.split(" ")[1];
+import { authenticateToken as middlewareAuthToken, registerAuthHelpers } from "./server/middleware/auth";
+import { requireRole as middlewareRequireRole } from "./server/middleware/roles";
 
-  if (!token) {
-    token = req.cookies?.["accessToken"] || req.cookies?.["token"];
-  }
+export const authenticateToken = middlewareAuthToken;
+export const requireRole = middlewareRequireRole;
 
-  if (!token) {
-    console.error("[AUTH FAILURE] Erro de autenticação: cabeçalho Bearer Token ou cookie accessToken ausente.");
-    return res.status(401).json({ error: "Access token missing. Please authenticate." });
-  }
-
-  jwt.verify(token, JWT_ACCESS_SECRET, async (err: any, decoded: any) => {
-    if (err) {
-      console.error(`[AUTH FAILURE] Falha ao verificar token JWT. Erro: ${err.message}, Token substring: ${token.substring(0, 15)}...`);
-      if (err.name === "TokenExpiredError") {
-        return res.status(401).json({ error: "Token expirado" });
-      }
-      return res.status(401).json({ error: "Token expirado ou inválido" });
-    }
-
-    try {
-      const user = await authStore.findById(decoded.userId);
-      if (!user) {
-        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} extraído do token JWT não foi localizado.`);
-        return res.status(404).json({ error: "Usuário não encontrado" });
-      }
-      if (user.isBanned) {
-        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} banido tentou requisitar recurso autêntico.`);
-        return res.status(403).json({ error: "Conta bloqueada" });
-      }
-      if (user.isSuspended) {
-        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} suspenso tentou requisitar recurso autêntico.`);
-        return res.status(403).json({ error: "Conta suspensa" });
-      }
-      if (user.deletedAt) {
-        console.error(`[AUTH FAILURE] Usuário ID ${decoded.userId} excluído tentou requisitar recurso autêntico.`);
-        return res.status(403).json({ error: "Esta conta foi excluída" });
-      }
-      try {
-        const userSubscription = await getActiveSubscriptionForUser(decoded.userId);
-        (user as any).subscription = userSubscription;
-      } catch (subErr) {
-        console.warn("Could not attach user subscription:", subErr);
-        (user as any).subscription = { type: "FREE", priceBRL: 0, autoRenew: false };
-      }
-
-      // Inject marketplace inventory tracking
-      if (user && user.id) {
-        if (!inMemoryUserInventories.get(user.id)) {
-          inMemoryUserInventories.set(user.id, ["item_purple_belt", "item_armor_badge"]);
-        }
-        (user as any).inventory = inMemoryUserInventories.get(user.id) || [];
-        if ((user as any).coins === undefined) {
-          (user as any).coins = 600;
-        }
-      }
-
-      req.user = user;
-      console.log("[AUTH TOKEN req.user KEYS]", Object.keys(req.user), "COUNT:", Object.keys(req.user).length);
-      next();
-    } catch (dbErr: any) {
-      console.error("[AUTH FAILURE] Erro crítico de comunicação com o Postgres/Prisma durante autenticação de rotas:", dbErr);
-      const isDbErr = isDatabaseConnected() && (dbErr.message?.includes("connect") || dbErr.message?.includes("database") || dbErr.message?.includes("Prisma") || dbErr.message?.includes("Postgres") || dbErr.message?.includes("Can't reach database"));
-      if (isDbErr) {
-        return res.status(503).json({ error: "Banco indisponível" });
-      }
-      return res.status(500).json({ error: "Internal server error." });
-    }
-  });
-};
-
-// Middleware to authorize specific Roles
-export const requireRole = (allowedRoles: string[]) => {
-  return (req: any, res: any, next: any) => {
-    if (!req.user || !req.user.role) {
-      return res.status(403).json({
-        error: "Forbidden. Higher privilege role needed to execute this action.",
-      });
-    }
-    const userRole = String(req.user.role).toUpperCase();
-    const authorized = allowedRoles.some(role => {
-      const target = String(role).toUpperCase();
-      // Match general ADMIN roles
-      if (target === "ADMIN" && (userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "DEVELOPER")) {
-        return true;
-      }
-      return target === userRole;
-    });
-
-    if (!authorized) {
-      return res.status(403).json({
-        error: "Forbidden. Higher privilege role needed to execute this action.",
-      });
-    }
-    next();
-  };
-};
+// Register helpers to bridge server-specific items safely
+registerAuthHelpers(getActiveSubscriptionForUser, inMemoryUserInventories);
 
 // =========================================================================
 // API ENDPOINTS FOR SECURE JWT AUTHENTICATION

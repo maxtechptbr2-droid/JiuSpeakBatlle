@@ -75,6 +75,9 @@ export interface UserProfile {
   followersCount?: number;
   followingCount?: number;
   isVerified?: boolean;
+  globalTeamId?: string;
+  branchId?: string;
+  independentAcademyId?: string;
 }
 
 export interface InventoryItem {
