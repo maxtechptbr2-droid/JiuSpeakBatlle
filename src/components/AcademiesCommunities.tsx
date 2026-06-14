@@ -145,8 +145,8 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
       const statsRes = await fetch('/api/academy/stats');
       const statsPayload = await statsRes.json();
 
-      setGlobalTeams(gtData.globalTeams || []);
-      setIndependentAcademies(indData.independentAcademies || []);
+      setGlobalTeams(Array.isArray(gtData) ? gtData : (gtData.globalTeams || []));
+      setIndependentAcademies(Array.isArray(indData) ? indData : (indData.independentAcademies || []));
       setStatsData(statsPayload || {});
 
       // Set fallback lists if server is empty
@@ -170,7 +170,8 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
       fetch(`/api/academy/global-teams/${selectedGlobalTeamId}/branches`)
         .then(res => res.json())
         .then(data => {
-          if (data.branches) setBranches(data.branches);
+          const branchesList = Array.isArray(data) ? data : (data.branches || []);
+          setBranches(branchesList);
         })
         .catch(err => console.warn("Error retrieving branches: ", err));
     }
@@ -185,7 +186,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
 
   const fetchRankings = async () => {
     try {
-      let url = `/api/academy/rankings?`;
+      let url = `/api/academy/rankings?format=dashboard&`;
       if (rankingCountry) url += `country=${encodeURIComponent(rankingCountry)}&`;
       if (rankingState) url += `state=${encodeURIComponent(rankingState)}&`;
       if (rankingCity) url += `city=${encodeURIComponent(rankingCity)}`;
