@@ -12927,6 +12927,19 @@ async function startServer() {
   try {
     await assertDatabaseConnection();
     await auditStoreProductColumns();
+    if (isDatabaseConnected()) {
+      const p = getPrisma();
+      if (p) {
+        const count = await p.globalTeam.count().catch(() => 0);
+        if (count === 0) {
+          console.log("🌱 [ACADEMY AUTO SEEDS] Nenhuma equipe global encontrada no banco. Iniciando semeamento automático de academias...");
+          const { seedAcademyHierarchy } = await import("./scripts/seedAcademies");
+          await seedAcademyHierarchy(p);
+        } else {
+          console.log(`✓ [ACADEMY CHECK] Hierarquia de academias já semeada no banco (${count} equipes encontradas).`);
+        }
+      }
+    }
   } catch (dbErr) {
     console.error("⚠️ [DATABASE CONNECTION WARNING] Falha ao verificar banco de dados durante bootstrap:", dbErr);
   }

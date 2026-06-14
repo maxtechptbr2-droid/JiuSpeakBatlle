@@ -57,7 +57,7 @@ router.get("/all-groups", async (req, res) => {
     }
 
     const [globalTeams, branches, independentAcademies] = await Promise.all([
-      prisma.globalTeam.findMany({ select: { id: true, name: true, verified: true }, orderBy: { name: "asc" } }),
+      prisma.globalTeam.findMany({ select: { id: true, name: true, countryOrigin: true, verified: true }, orderBy: { name: "asc" } }),
       prisma.academyBranch.findMany({ select: { id: true, globalTeamId: true, name: true, city: true, state: true, verified: true }, orderBy: { name: "asc" } }),
       prisma.independentAcademy.findMany({ select: { id: true, name: true, city: true, state: true, verified: true }, orderBy: { name: "asc" } })
     ]);
@@ -65,6 +65,44 @@ router.get("/all-groups", async (req, res) => {
     res.json({ globalTeams, branches, independentAcademies });
   } catch (error: any) {
     res.status(500).json({ error: "Erro ao carregar afiliados: " + error.message });
+  }
+});
+
+// ==========================================
+// DEBUG DIAGNOSTICS ENDPOINT
+// ==========================================
+router.get("/debug", async (req, res) => {
+  try {
+    const isOnline = await isDbOnline();
+    if (!isOnline) {
+      return res.json({
+        isOnline: false,
+        source: "In-Memory Simulation Store",
+        counts: {
+          globalTeams: mockGlobalTeams.length,
+          branches: mockBranches.length,
+          independentAcademies: mockIndependentAcademies.length
+        }
+      });
+    }
+
+    const [globalTeamsCount, branchesCount, independentCount] = await Promise.all([
+      prisma.globalTeam.count(),
+      prisma.academyBranch.count(),
+      prisma.independentAcademy.count()
+    ]);
+
+    res.json({
+      isOnline: true,
+      source: "PostgreSQL Production Database Engine",
+      counts: {
+        globalTeams: globalTeamsCount,
+        branches: branchesCount,
+        independentAcademies: independentCount
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: "Debug diagnostics failed: " + error.message });
   }
 });
 
