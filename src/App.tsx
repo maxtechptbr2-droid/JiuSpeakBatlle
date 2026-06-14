@@ -140,8 +140,12 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
+      const cachedProfile = localStorage.getItem('jiuspeak_user_profile_v2');
+      const cachedToken = localStorage.getItem('jiuspeak_access_token');
+      const isLoggedIn = !!(cachedProfile && cachedToken);
+
       if (path === '/' || path === '/login' || path === '/register') {
-        return 'landing';
+        return isLoggedIn ? 'dashboard' : 'landing';
       }
       if (path === '/dashboard') {
         return 'dashboard';
@@ -184,7 +188,7 @@ export default function App() {
         if (referrer) {
           localStorage.setItem('jiuspeak_referrer', referrer.trim());
         }
-        return 'landing';
+        return isLoggedIn ? 'dashboard' : 'landing';
       }
     }
     return 'landing';
@@ -209,8 +213,9 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
+      const isLoggedIn = !!authUser;
       if (path === '/' || path === '/login' || path === '/register') {
-        setCurrentTab('landing');
+        setCurrentTab(isLoggedIn ? 'dashboard' : 'landing');
       } else if (path === '/dashboard') {
         setCurrentTab('dashboard');
       } else if (path === '/professor') {
@@ -242,7 +247,7 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
     if (localStorage.getItem('jiuspeak_referrer') && window.location.pathname.startsWith('/invite/')) {
@@ -304,6 +309,23 @@ export default function App() {
       }
     }
   }, [currentTab]);
+
+  // Coordinate tab redirects based on authenticated user state
+  useEffect(() => {
+    if (authReady) {
+      if (authUser) {
+        if (currentTab === 'landing') {
+          setCurrentTab('dashboard');
+        }
+      } else {
+        if (currentTab !== 'landing' && 
+            !currentTab.startsWith('profile-public-') && 
+            !currentTab.startsWith('certificate-public-')) {
+          setCurrentTab('landing');
+        }
+      }
+    }
+  }, [authUser, authReady, currentTab]);
 
   // Custom Inline Toast System
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error'; visible: boolean } | null>(null);
@@ -485,6 +507,7 @@ export default function App() {
 
   const handleLoginSuccess = (data: { accessToken: string; refreshToken: string; user: any }) => {
     login(data);
+    setCurrentTab('dashboard');
     showToast("Autenticado com sucesso!", "success");
   };
 
