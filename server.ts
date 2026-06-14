@@ -32,6 +32,7 @@ import { logApp, logError, logAuth, logPayment, logPvP } from "./server/logger";
 import { createPreference, createDirectPayment } from "./server/services/mercadopago";
 import marketplaceRouter from "./src/server/modules/marketplace/routes";
 import { initEscrowReleaserCron } from "./src/server/modules/marketplace/cron/escrow-releaser.cron";
+import academyRouter from "./server/academyRouter";
 
 
 
@@ -2552,6 +2553,9 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       isBanned: dbUser.isBanned,
       lastLoginAt: dbUser.lastLoginAt,
       isVerified: dbUser.isVerified,
+      globalTeamId: dbUser.globalTeamId,
+      branchId: dbUser.branchId,
+      independentAcademyId: dbUser.independentAcademyId,
       subscription,
       inventory: inMemoryUserInventories.get(dbUser.id) || []
     };
@@ -2934,7 +2938,8 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
     profilePhoto, coverPhoto, instagram, youtube, facebook, website,
     birthDate, phone, englishLevel, spanishLevel, frenchLevel,
     onboardingDone, username, beltRank, favoriteTechnique, favoriteAthlete,
-    privacyLevel, themeColor, avatarFrame
+    privacyLevel, themeColor, avatarFrame,
+    globalTeamId, branchId, independentAcademyId
   } = req.body;
   
   try {
@@ -3004,6 +3009,9 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
       privacyLevel: privacyLevel !== undefined ? privacyLevel : undefined,
       themeColor: themeColor !== undefined ? themeColor : undefined,
       avatarFrame: avatarFrame !== undefined ? avatarFrame : undefined,
+      globalTeamId: globalTeamId !== undefined ? (globalTeamId || null) : undefined,
+      branchId: branchId !== undefined ? (branchId || null) : undefined,
+      independentAcademyId: independentAcademyId !== undefined ? (independentAcademyId || null) : undefined,
     };
     
     if (beltRank !== undefined && beltRank !== null) {
@@ -3075,6 +3083,9 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
         themeColor: u.themeColor,
         avatarFrame: u.avatarFrame,
         isVerified: u.isVerified,
+        globalTeamId: u.globalTeamId,
+        branchId: u.branchId,
+        independentAcademyId: u.independentAcademyId,
         belt: u.belt,
         stripes: u.stripes,
         xp: u.xp,
@@ -13876,6 +13887,9 @@ async function startServer() {
 
   // Mount Teacher Marketplace router
   app.use("/api/marketplace", marketplaceRouter);
+
+  // Mount Academy Hierarchy router
+  app.use("/api/academy", academyRouter);
 
   // Global Express Error-handling logging middleware
   app.use((err: any, req: any, res: any, next: any) => {

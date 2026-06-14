@@ -1,6 +1,7 @@
 import { prisma, assertDatabaseConnection } from "../server/db";
 import { seedInitialUsers, seedStoreProducts } from "../server/authStore";
 import { seedQuestionsInDb } from "../server/pvp/questions";
+import { seedAcademyHierarchy } from "./seedAcademies";
 import { Rarity } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
@@ -258,6 +259,9 @@ async function runSeed() {
 
     console.log("⏳ [5/5] Semeando Portal Acadêmico (AcademyModules)...");
     await seedAcademyInDb();
+
+    console.log("⏳ [6/6] Semeando Hierarquia de Academias (50 Equipes, 500 Filiais, 1000 Independentes)...");
+    await seedAcademyHierarchy(prisma);
 
     console.log("==================================================");
     console.log("🎉  SISTEMA JIUSPEAK SEMEADO COM ABSOLUTO SUCESSO! ");

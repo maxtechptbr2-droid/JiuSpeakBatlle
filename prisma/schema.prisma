@@ -117,9 +117,20 @@ model User {
   marketplaceEnrollments MarketplaceEnrollment[]
   marketplaceReviews     MarketplaceReview[]
 
+  globalTeamId            String?
+  branchId                String?
+  independentAcademyId    String?
+
+  globalTeam              GlobalTeam?         @relation(fields: [globalTeamId], references: [id], onDelete: SetNull)
+  branch                  AcademyBranch?      @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  independentAcademy      IndependentAcademy? @relation(fields: [independentAcademyId], references: [id], onDelete: SetNull)
+
   @@index([belt])
   @@index([level])
   @@index([elo])
+  @@index([globalTeamId])
+  @@index([branchId])
+  @@index([independentAcademyId])
 }
 
 model Wallet {
@@ -1177,6 +1188,73 @@ model ProductReviewHistory {
   product   MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
+}
+
+// ==========================================
+// ACADEMY AND TEAM HIERARCHY SYSTEM
+// ==========================================
+
+model GlobalTeam {
+  id            String          @id @default(uuid())
+  name          String
+  slug          String          @unique
+  logo          String?
+  countryOrigin String?
+  website       String?
+  instagram     String?
+  description   String?
+  foundedYear   Int?
+  totalMembers  Int             @default(0)
+  totalPoints   Int             @default(0)
+  verified      Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  branches      AcademyBranch[]
+  users         User[]
+}
+
+model AcademyBranch {
+  id            String          @id @default(uuid())
+  globalTeamId  String
+  name          String
+  slug          String          @unique
+  country       String?
+  state         String?
+  city          String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  headProfessor String?
+  logo          String?
+  membersCount  Int             @default(0)
+  points        Int             @default(0)
+  verified      Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  globalTeam    GlobalTeam      @relation(fields: [globalTeamId], references: [id], onDelete: Cascade)
+  users         User[]
+
+  @@index([globalTeamId])
+}
+
+model IndependentAcademy {
+  id            String          @id @default(uuid())
+  name          String
+  country       String?
+  state         String?
+  city          String?
+  address       String?
+  headProfessor String?
+  logo          String?
+  membersCount  Int             @default(0)
+  points        Int             @default(0)
+  verified      Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  users         User[]
 }
 
 
