@@ -1,22 +1,22 @@
 import { Router } from "express";
-import { prisma, getPrisma } from "./db";
+import { prisma, getPrisma, isDatabaseConnected } from "./db";
 import { authenticateToken } from "./middleware/auth";
 import { requireRole } from "./middleware/roles";
 
 const router = Router();
 
+console.log("⚡ [ACADEMY ROUTER] Módulo de Academias inicializado e carregado!");
+
+router.use((req, res, next) => {
+  console.log(`📡 [ACADEMY ROUTER REQUEST]: ${req.method} ${req.url}`);
+  next();
+});
+
 // ==========================================
 // UTILITY: DETECT DB OFFLINE FALLBACK
 // ==========================================
 async function isDbOnline(): Promise<boolean> {
-  try {
-    const p = getPrisma();
-    if (!p) return false;
-    await p.$queryRaw`SELECT 1`;
-    return true;
-  } catch {
-    return false;
-  }
+  return isDatabaseConnected();
 }
 
 // Global In-Memory Cache/Fallback store for offline mode
