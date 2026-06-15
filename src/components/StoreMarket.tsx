@@ -472,16 +472,11 @@ export default function StoreMarket({
     setIsStoreLoading(true);
     try {
       let apiCategory = 'Todos';
-      if (storeCategory === '🥋 Kimonos') apiCategory = 'Kimonos';
-      else if (storeCategory === '👕 Rash Guards') apiCategory = 'Rash Guards';
-      else if (storeCategory === '🎗️ Faixas') apiCategory = 'Faixas';
-      else if (storeCategory === '🏆 Medalhas') apiCategory = 'Medalhas';
-      else if (storeCategory === '🖼️ Molduras de Perfil') apiCategory = 'Molduras de Perfil';
-      else if (storeCategory === '👤 Avatares') apiCategory = 'Avatares';
-      else if (storeCategory === '🎨 Temas de Perfil') apiCategory = 'Temas de Perfil';
-      else if (storeCategory === '💬 Emotes') apiCategory = 'Emotes';
-      else if (storeCategory === '✨ Efeitos Visuais') apiCategory = 'Efeitos Visuais';
-      else if (storeCategory === '📦 Packs') apiCategory = 'Packs';
+      if (storeCategory === 'Kimonos') apiCategory = 'Kimonos';
+      else if (storeCategory === 'Rash Guards') apiCategory = 'Rash Guards';
+      else if (storeCategory === 'Molduras') apiCategory = 'Molduras de Perfil';
+      else if (storeCategory === 'Medalhas') apiCategory = 'Medalhas';
+      else if (storeCategory === 'Avatares') apiCategory = 'Avatares';
 
       let apiRarity = storeRarity;
       if (storeRarity === 'Comum') apiRarity = 'COMMON';
@@ -1071,53 +1066,53 @@ export default function StoreMarket({
     <div className="space-y-6" id="bjj-store-marketplace">
       
       {/* Dynamic Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-950/40 p-6 rounded-2xl border border-slate-800 shadow-[0_0_30px_rgba(139,92,246,0.1)]">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-zinc-950/60 p-6 rounded-xl border border-zinc-900 shadow-xl" id="bjj-store-header-panel">
         <div>
-          <span className="text-[10px] bg-violet-600/20 text-violet-300 font-mono font-bold uppercase py-0.5 px-2 rounded-full tracking-wide">
-            Arsenal e Aparência Virtual
+          <span className="text-[9px] bg-red-955/20 text-red-400 border border-red-900/40 font-mono font-bold uppercase py-1 px-2.5 rounded tracking-widest block w-fit">
+            BOUTIQUE DE IDENTIDADE MARCIAL
           </span>
-          <h3 className="text-xl md:text-2xl font-display font-extrabold text-white flex items-center gap-2 mt-1">
-            <Store className="w-6 h-6 text-violet-400 animate-pulse" />
-            <span>Loja JiuSpeak</span>
+          <h3 className="text-xl md:text-2xl font-mono font-black text-white flex items-center gap-2 mt-2.5 tracking-tight uppercase">
+            <Store className="w-5 h-5 text-red-500" />
+            <span>LOJA EXCLUSIVA</span>
           </h3>
-          <p className="text-xs text-slate-430 mt-1 max-w-2xl leading-normal">
-            Adquira kimonos de elite, rash guards personalizadas, avatares lendários, boosters de XP, medalhas lendárias e efeitos de perfil com seus JiuTickets (JT).
+          <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed">
+            Personalize sua presença com armaduras digitais de elite: kimonos refinados, rash guards exclusivas, molduras de perfil e medalhas raras adquiridas exclusivamente com seus JiuTickets (JT).
           </p>
         </div>
 
         {/* Currency summary counters */}
-        <div className="flex gap-3">
-          <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-2">
-            <Coins className="w-5 h-5 text-yellow-500" />
+        <div className="flex gap-3 shrink-0">
+          <div className="bg-zinc-900/80 border border-zinc-800/80 px-5 py-3 rounded flex items-center gap-3">
+            <Coins className="w-5 h-5 text-amber-505" />
             <div>
-              <span className="block text-[9px] text-slate-500 font-mono">SEU SALDO (JT)</span>
-              <span className="text-sm font-bold text-slate-202">{user.coins} JT</span>
+              <span className="block text-[8px] text-zinc-500 font-mono tracking-wider">SALDO DISPONÍVEL</span>
+              <span className="text-base font-black font-mono text-white tracking-tight">{user.coins} <span className="text-[10px] text-amber-500 font-normal">JT</span></span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Economics selector micro tabs */}
-      <div className="flex border-b border-slate-800 gap-1 overflow-x-auto scroller-hidden">
+      <div className="flex border-b border-zinc-900 gap-1 overflow-x-auto scroller-hidden">
         {[
-          { id: 'loja', label: '🥋 Loja JiuSpeak', desc: 'Desbloquear com JT' },
-          { id: 'market', label: '🤝 Swap de Conteúdo', desc: 'Trocas entre alunos' },
-          { id: 'inventorio', label: '🎒 Mochila JiuSpeak', desc: `${user.inventory.length} itens` },
-          ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ Painel de Operações', desc: 'Gerenciar Catálogo' }] : [])
+          { id: 'loja', label: '🥋 LOJA DE ITENS', desc: 'Desbloquear com JT' },
+          { id: 'market', label: '🤝 SWAP DE CONTEÚDO', desc: 'Trocas entre alunos' },
+          { id: 'inventorio', label: '🎒 MOCHILA JIUSPEAK', desc: `${user.inventory.length} itens` },
+          ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ PAINEL DE OPERAÇÕES', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
           const isActive = activeSubTab === sub.id;
           return (
             <button
               key={sub.id}
               onClick={() => setActiveSubTab(sub.id as any)}
-              className={`px-4 py-2.5 text-xs text-left font-bold transition-all border-b-2 cursor-pointer shrink-0 ${
+              className={`px-5 py-3 text-xs text-left font-mono font-bold tracking-wider transition-all border-b-2 cursor-pointer shrink-0 ${
                 isActive 
-                  ? 'border-violet-500 text-violet-300 bg-slate-900/40 rounded-t-xl' 
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
+                  ? 'border-red-500 text-white bg-zinc-900/30 rounded-t' 
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <div>{sub.label}</div>
-              <span className="text-[9px] text-slate-500 block font-mono font-normal">{sub.desc}</span>
+              <span className="text-[8px] text-zinc-500 block font-mono font-normal tracking-wide mt-0.5">{sub.desc}</span>
             </button>
           );
         })}
@@ -1149,84 +1144,88 @@ export default function StoreMarket({
               return (
                 <div 
                   id={`featured-[${featured.id}]`} 
-                  className="relative overflow-hidden rounded-3xl bg-slate-950 border-2 border-amber-500/40 shadow-[0_0_40px_rgba(245,158,11,0.15)] flex flex-col xl:flex-row group"
+                  className="relative overflow-hidden rounded-xl bg-zinc-900/60 border border-zinc-800 shadow-[0_12px_40px_rgba(0,0,0,0.8)] flex flex-col xl:flex-row group transition-all duration-300 hover:border-zinc-700/60"
                 >
                   {/* Subtle panning background grid */}
-                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#020617_1px,transparent_1px),linear-gradient(to_bottom,#020617_1px,transparent_1px)] bg-[size:1.5rem_1.5rem] opacity-30" />
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#18181b_1px,transparent_1px),linear-gradient(to_bottom,#18181b_1px,transparent_1px)] bg-[size:1.25rem_1.25rem] opacity-30 pointer-events-none" />
                   
                   {/* Glowing core orb */}
-                  <div className="absolute -right-20 -top-20 w-85 h-85 rounded-full bg-amber-500/10 blur-3xl" />
+                  <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-red-500/10 blur-3xl opacity-60 pointer-events-none" />
 
                   {/* Left content block */}
-                  <div className="p-6 md:p-8 flex-1 flex flex-col justify-between relative z-10 space-y-6">
+                  <div className="p-8 flex-1 flex flex-col justify-between relative z-10 space-y-6">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2 mb-3">
-                        <span className="bg-amber-500 text-slate-950 text-[10px] uppercase tracking-widest font-extrabold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg shadow-amber-500/10">
-                          <Flame className="w-3.5 h-3.5 animate-pulse" />
-                          <span>Oferta Especial Limitada</span>
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
+                        <span className="bg-red-950/60 border border-red-900/40 text-red-400 text-[9px] uppercase tracking-widest font-mono font-bold px-3 py-1 rounded flex items-center gap-1.5 shadow-sm">
+                          <Flame className="w-3.5 h-3.5" />
+                          <span>EDIÇÃO DE ELITE LIMITADA</span>
                         </span>
                         
-                        <span className="bg-slate-900/90 border border-slate-800 text-slate-300 text-[10px] font-mono px-3 py-1 rounded-full flex items-center gap-1.5">
-                          <Clock className="text-violet-400 w-3.5 h-3.5 shrink-0" />
-                          <span>Expira em: <strong className="text-white font-bold">{timeLeft}</strong></span>
+                        <span className="bg-zinc-950 border border-zinc-900 text-zinc-400 text-[9px] font-mono px-3 py-1 rounded flex items-center gap-1.5">
+                          <Clock className="text-red-405 w-3.5 h-3.5 shrink-0" />
+                          <span>EXPIRA EM: <strong className="text-white font-bold font-mono">{timeLeft}</strong></span>
                         </span>
                       </div>
 
-                      <h2 className="text-2xl md:text-3xl font-display font-black text-white leading-tight tracking-tight drop-shadow-md">
+                      <h2 className="text-2xl md:text-3xl font-mono font-black text-white leading-none tracking-tight uppercase">
                         {featured.name}
                       </h2>
-                      <p className="text-xs text-slate-400 mt-2 max-w-xl leading-relaxed">
-                        {featured.description || "Consiga este cosmético elite de jiu-jitsu e personalize seu perfil com status profissional para comemorar suas vitórias na arena competitiva."}
+                      <p className="text-xs text-zinc-405 mt-2.5 max-w-xl leading-relaxed">
+                        {featured.description || "Consiga este cosmético de elite do jiu-jitsu militar e personalize seu perfil de lutador para as arenas competitivas do JiuSpeak."}
                       </p>
                     </div>
 
                     {/* Stock tracker bar */}
-                    <div className="max-w-md w-full space-y-1 bg-slate-900/50 p-3 rounded-xl border border-slate-850">
-                      <div className="flex justify-between items-center text-[10px] font-mono text-slate-455">
-                        <span className="flex items-center gap-1 text-red-400"><Flame className="w-3.5 h-3.5" /> Altíssima Demanda!</span>
-                        <span className="font-bold text-white">88% Adquirido</span>
+                    <div className="max-w-md w-full space-y-1.5 bg-zinc-950/80 p-4 rounded border border-zinc-850">
+                      <div className="flex justify-between items-center text-[9px] font-mono tracking-wider uppercase text-zinc-400">
+                        <span className="flex items-center gap-1 text-red-400 font-bold"><Flame className="w-3.5 h-3.5" /> LOTE COM ALTA PROCURA</span>
+                        <span className="font-bold text-white">88% ADQUIRIDO</span>
                       </div>
-                      <div className="h-2 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-800">
-                        <div className="h-full bg-gradient-to-r from-red-500 via-amber-500 to-yellow-400 rounded-full animate-pulse" style={{ width: '88%' }} />
+                      <div className="h-1.5 bg-zinc-950 rounded-full overflow-hidden p-0.5 border border-zinc-900">
+                        <div className="h-full bg-gradient-to-r from-red-600 via-red-500 to-amber-500 rounded-full" style={{ width: '88%' }} />
                       </div>
-                      <p className="text-[9px] text-slate-500 text-right font-mono">Restam pouquíssimas unidades de lote virtual</p>
                     </div>
 
                     {/* Purchase actions row */}
-                    <div className="flex flex-wrap items-center gap-4 pt-1 border-t border-slate-900">
+                    <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-zinc-900/80">
                       <div>
-                        <span className="text-[9px] text-slate-505 font-mono block uppercase">Valor de Desbloqueio</span>
-                        <div className="flex items-center gap-1.5">
-                          <Coins className="w-5 h-5 text-yellow-500" />
-                          <span className="text-xl font-mono font-black text-white">{featured.priceJT}</span>
-                          <span className="text-xs text-slate-500 font-mono">JT</span>
+                        <span className="text-[8px] text-zinc-500 font-mono block tracking-wider uppercase">CUSTO DE ADQUISIÇÃO</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Coins className="w-5 h-5 text-amber-500" />
+                          <span className="text-2xl font-mono font-black text-white tracking-tight">{featured.priceJT}</span>
+                          <span className="text-xs text-zinc-500 font-mono font-bold">JT</span>
                         </div>
                       </div>
 
                       <div className="flex gap-2">
                         {isAlreadyOwned ? (
-                          <div className="px-5 py-2.5 bg-emerald-950/40 border border-emerald-900/60 text-emerald-400 text-xs font-bold rounded-xl flex items-center gap-1.5 uppercase font-sans">
-                            <Check className="w-4 h-4" /> Unlocked na Mochila
+                          <div className="px-5 py-3 bg-emerald-950/30 border border-emerald-950/40 text-emerald-400 text-[10px] font-mono font-bold rounded flex items-center gap-1.5 uppercase">
+                            <Check className="w-4 h-4" /> ADQUIRIDO NA MOCHILA
                           </div>
                         ) : (
                           <>
                             <button
                               onClick={() => handlePurchaseProduct(featured)}
                               disabled={purchasingProductId === featured.id}
-                              className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-amber-500/25 flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                              className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-mono font-black text-xs uppercase tracking-wider rounded transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center gap-2"
                             >
                               {purchasingProductId === featured.id ? (
-                                <div className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
-                              ) : "RESGATAR AGORA"}
+                                <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                              ) : (
+                                <>
+                                  <ShoppingBag className="w-4 h-4" />
+                                  <span>RESGATAR ITEM</span>
+                                </>
+                              )}
                             </button>
 
                             <button
                               onClick={() => addToCart(featured)}
-                              className="p-2.5 bg-slate-900 hover:bg-slate-850 hover:text-white text-slate-300 border border-slate-800 hover:border-slate-700 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                              className="px-4 py-3 bg-zinc-950 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 hover:border-zinc-700/80 rounded transition-all cursor-pointer flex items-center gap-1.5 text-xs font-mono font-bold"
                               title="Adicionar ao Carrinho"
                             >
-                              <ShoppingCart className="w-4.5 h-4.5" />
-                              <span>+ Carrinho</span>
+                              <ShoppingCart className="w-4 h-4 text-zinc-400" />
+                              <span>+ CARRINHO</span>
                             </button>
                           </>
                         )}
@@ -1235,31 +1234,31 @@ export default function StoreMarket({
                   </div>
 
                   {/* Right massive visuals block */}
-                  <div className="xl:w-80 h-52 xl:h-auto bg-gradient-to-b from-slate-900 to-black shrink-0 flex items-center justify-center p-6 border-t xl:border-t-0 xl:border-l border-slate-900 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-radial-gradient-to-b from-amber-500/10 to-transparent opacity-80" />
+                  <div className="xl:w-80 h-52 xl:h-auto bg-gradient-to-b from-zinc-900 to-zinc-950 shrink-0 flex items-center justify-center p-8 border-t xl:border-t-0 xl:border-l border-zinc-900 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-radial-gradient-to-b from-red-500/5 to-transparent opacity-80" />
                     
                     {/* Rotating star back effect */}
-                    <div className="absolute w-40 h-40 rounded-full border border-dashed border-amber-500/20 animate-[spin_40s_linear_infinite]" />
+                    <div className="absolute w-44 h-44 rounded-full border border-dashed border-zinc-800/60 animate-[spin_60s_linear_infinite]" />
 
-                    <div className="relative group-hover:scale-110 transition-transform duration-500 flex flex-col items-center">
+                    <div className="relative group-hover:scale-105 transition-transform duration-500 flex flex-col items-center z-10">
                       {featured.imageUrl ? (
-                        <div className="w-28 h-28 rounded-2xl overflow-hidden border border-amber-500/40 p-1 bg-slate-950/70 shadow-2xl relative">
+                        <div className="w-32 h-32 rounded border border-zinc-800 p-1 bg-zinc-950/80 shadow-2xl relative overflow-hidden">
                           <img 
                             src={featured.imageUrl} 
                             alt={featured.name} 
-                            className="w-full h-full object-cover rounded-xl opacity-90"
+                            className="w-full h-full object-cover rounded-sm opacity-90"
                             referrerPolicy="no-referrer"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 to-transparent pointer-events-none" />
+                          <div className="absolute inset-0 bg-gradient-to-tr from-red-500/10 to-transparent pointer-events-none" />
                         </div>
                       ) : (
-                        <div className="text-7xl drop-shadow-[0_4px_12px_rgba(245,158,11,0.4)] filter transform hover:rotate-6 transition-transform">
+                        <div className="text-7xl filter grayscale hover:grayscale-0 transition-all duration-300 transform hover:scale-110">
                           {getCategoryIcon(featured.category)}
                         </div>
                       )}
                       
-                      <span className="mt-4 bg-amber-500/10 text-amber-400 text-[9px] font-mono font-bold tracking-widest px-2 py-0.5 rounded border border-amber-500/20 uppercase">
-                        {featured.category} Rarity Elite
+                      <span className="mt-4 bg-zinc-900 border border-zinc-800 text-zinc-400 text-[8px] font-mono font-bold tracking-widest px-2.5 py-0.5 rounded uppercase">
+                        {featured.category} PREMIUM
                       </span>
                     </div>
                   </div>
@@ -1283,12 +1282,12 @@ export default function StoreMarket({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-4 bg-emerald-500 rounded" />
-                      <h4 className="text-xs uppercase font-mono font-bold tracking-wider text-emerald-400">
-                        Sugeridos Para Você (Seu Saldo Permite)
+                      <div className="w-1 h-3.5 bg-red-500 rounded" />
+                      <h4 className="text-[10px] uppercase font-mono font-bold tracking-wider text-red-400">
+                        RECOMENDAÇÕES DE RESGATE (DISPONÍVEIS)
                       </h4>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-mono">Simulação com {user.coins} JT</span>
+                    <span className="text-[9px] text-zinc-500 font-mono">Saldo atualizado em tempo real</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="recommended-products-tray">
@@ -1296,26 +1295,26 @@ export default function StoreMarket({
                       return (
                         <div 
                           key={`rec-${p.id}`} 
-                          className="bg-emerald-950/10 hover:bg-emerald-950/20 hover:border-emerald-500/30 border border-emerald-900/20 rounded-xl p-3.5 flex justify-between items-center transition-all group"
+                          className="bg-zinc-950/40 hover:bg-zinc-900/60 hover:border-zinc-700/50 border border-zinc-900 rounded-lg p-3.5 flex justify-between items-center transition-all duration-300 group"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl">{p.imageUrl ? '🖼️' : '🥋'}</span>
+                            <span className="text-xl shrink-0 opacity-80">{p.imageUrl ? '🖼️' : '🥋'}</span>
                             <div>
-                              <h5 className="font-bold text-xs text-white line-clamp-1">{p.name}</h5>
-                              <span className="text-[9px] uppercase font-mono text-slate-500">{p.rarity}</span>
+                              <h5 className="font-mono text-[11px] font-bold text-white line-clamp-1 uppercase">{p.name}</h5>
+                              <span className="text-[8px] tracking-wider uppercase font-mono text-zinc-500">{p.rarity}</span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
                             <div className="text-right">
                               <div className="flex items-center gap-1">
                                 <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                                <span className="text-xs font-bold font-mono text-slate-101">{p.priceJT}</span>
+                                <span className="text-xs font-bold font-mono text-white">{p.priceJT}</span>
                               </div>
                             </div>
                             <button
                               onClick={() => addToCart(p)}
-                              className="p-1.5 bg-emerald-650 hover:bg-emerald-500 text-slate-950 rounded-lg transition-transform group-hover:scale-105 cursor-pointer"
+                              className="p-1.5 bg-red-650 hover:bg-red-500 text-white rounded transition-all active:scale-95 cursor-pointer"
                               title="Adicionar ao Carrinho"
                             >
                               <Plus className="w-3.5 h-3.5 stroke-[3px]" />
@@ -1331,23 +1330,18 @@ export default function StoreMarket({
           )}
 
           {/* C. GENERAL CATALOGUE TOOLBAR WITH SEARCH / FILTERS */}
-          <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-800 space-y-4 shadow-sm shadow-black">
+          <div className="bg-zinc-950/45 p-6 rounded-xl border border-zinc-900/80 backdrop-blur-md space-y-5 shadow-inner">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               
               {/* Category Pills Selector */}
-              <div className="flex flex-wrap gap-1.5 animate-fade-in" id="store-category-filters">
+              <div className="flex flex-wrap gap-1.5" id="store-category-filters">
                 {[
                   'Todos',
-                  '🥋 Kimonos',
-                  '👕 Rash Guards',
-                  '🎗️ Faixas',
-                  '🏆 Medalhas',
-                  '🖼️ Molduras de Perfil',
-                  '👤 Avatares',
-                  '🎨 Temas de Perfil',
-                  '💬 Emotes',
-                  '✨ Efeitos Visuais',
-                  '📦 Packs'
+                  'Kimonos',
+                  'Rash Guards',
+                  'Molduras',
+                  'Medalhas',
+                  'Avatares'
                 ].map((cat) => {
                   const isActive = storeCategory === cat;
                   return (
@@ -1355,10 +1349,10 @@ export default function StoreMarket({
                       key={cat}
                       id={`btn-cat-${cat.toLowerCase().replace(' ', '-')}`}
                       onClick={() => { setStoreCategory(cat); setStorePage(1); }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-4 py-2 font-mono text-[10px] uppercase tracking-wider transition-all duration-300 border relative ${
                         isActive
-                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20 border-l-2 border-violet-400 pl-2'
-                          : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-850 hover:border-slate-800 focus:outline-none'
+                          ? 'bg-red-500/10 text-white border-red-500/30 font-bold shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+                          : 'bg-zinc-950/60 text-zinc-400 border-zinc-900 hover:text-zinc-200 hover:border-zinc-800 focus:outline-none'
                       }`}
                     >
                       {cat}
@@ -1371,33 +1365,33 @@ export default function StoreMarket({
               <div className="relative group max-w-sm w-full">
                 <input
                   type="text"
-                  placeholder="Buscar cosméticos..."
+                  placeholder="DIGITE O NOME DO SEU EQUIPAMENTO DE ELITE..."
                   value={storeSearch}
                   onChange={(e) => { setStoreSearch(e.target.value); setStorePage(1); }}
-                  className="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 text-slate-100 rounded-lg border border-slate-850 focus:border-violet-500 focus:outline-none transition-all placeholder-slate-550 font-mono"
+                  className="w-full pl-9 pr-4 py-2 text-[10px] bg-zinc-950/60 text-zinc-100 rounded border border-zinc-900 focus:border-red-500 focus:outline-none transition-all placeholder-zinc-600 font-mono tracking-wider"
                 />
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500 group-focus-within:text-violet-400 transition-colors" />
+                <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-600 group-focus-within:text-red-400 transition-colors" />
               </div>
 
             </div>
 
             {/* Rarity filtration pills */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-950/40">
-              <span className="text-[10px] uppercase font-mono text-slate-500 mr-2">Filtrar por Raridade:</span>
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-zinc-900/60">
+              <span className="text-[9px] uppercase font-mono tracking-wider text-zinc-500 mr-2">FILTRAR POR CLASSE:</span>
               <div className="flex flex-wrap gap-1.5" id="store-rarity-filters">
                 {['Todos', 'Comum', 'Raro', 'Épico', 'Lendário', 'Mítico'].map((rarity) => {
                   const isActive = storeRarity === rarity;
                   
                   // Stylized gaming pill coloring
                   const pillStyle = () => {
-                    if (!isActive) return 'bg-slate-950 text-slate-400 border border-slate-850 hover:text-slate-100';
+                    if (!isActive) return 'bg-zinc-950/60 text-zinc-400 border border-zinc-900 hover:text-zinc-100 hover:border-zinc-800';
                     switch (rarity) {
-                      case 'Todos': return 'bg-slate-800 text-slate-200';
-                      case 'Comum': return 'bg-slate-700/60 text-slate-200 border border-slate-650';
-                      case 'Raro': return 'bg-blue-650/80 text-white border border-blue-500/40';
-                      case 'Épico': return 'bg-purple-650/80 text-white border border-purple-500/40';
-                      case 'Lendário': return 'bg-amber-500 text-slate-950 font-bold shadow shadow-amber-500/10';
-                      case 'Mítico': return 'bg-gradient-to-r from-red-600 to-orange-500 text-white font-extrabold shadow shadow-red-500/20';
+                      case 'Todos': return 'bg-zinc-800 text-white border border-zinc-700 font-bold';
+                      case 'Comum': return 'bg-zinc-850 text-zinc-200 border border-zinc-700';
+                      case 'Raro': return 'bg-blue-950/40 text-blue-400 border border-blue-900/50 shadow-[0_0_12px_rgba(59,130,246,0.15)]';
+                      case 'Épico': return 'bg-purple-950/40 text-purple-400 border border-purple-900/50 shadow-[0_0_12px_rgba(168,85,247,0.15)]';
+                      case 'Lendário': return 'bg-amber-500/10 text-amber-400 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.15)]';
+                      case 'Mítico': return 'bg-red-950/50 text-red-400 border border-red-900/50 shadow-[0_0_12px_rgba(239,68,68,0.2)] font-black';
                       default: return '';
                     }
                   };
@@ -1407,7 +1401,7 @@ export default function StoreMarket({
                       key={rarity}
                       id={`btn-rarity-${rarity.toLowerCase()}`}
                       onClick={() => { setStoreRarity(rarity); setStorePage(1); }}
-                      className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${pillStyle()}`}
+                      className={`px-3 py-1 rounded text-[9px] font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${pillStyle()}`}
                     >
                       {rarity}
                     </button>
@@ -1425,10 +1419,10 @@ export default function StoreMarket({
               <p className="text-xs text-slate-400 font-mono text-center">Abrindo catálogo de cosméticos na base de dados...</p>
             </div>
           ) : storeProducts.length === 0 ? (
-            <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-12 text-center text-slate-500">
-              <Sparkle className="w-8 h-8 text-slate-600 mx-auto mb-3 opacity-40 animate-pulse" />
-              <p className="text-sm font-semibold">Nenhum cosmético corresponde aos filtros escolhidos.</p>
-              <p className="text-xs text-slate-600 mt-1 font-mono">Pesquise por outro nome de item ou redefina os filtros selecionados.</p>
+            <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl p-12 text-center text-zinc-500">
+              <Sparkle className="w-6 h-6 text-zinc-700 mx-auto mb-3 opacity-50 animate-pulse" />
+              <p className="text-xs font-mono font-bold tracking-wider uppercase text-zinc-300">Nenhum equipamento militar encontrado</p>
+              <p className="text-[10px] text-zinc-500 mt-1 font-mono">Digite outro termo de busca ou selecione outra categoria.</p>
             </div>
           ) : (
             <>
@@ -1446,15 +1440,15 @@ export default function StoreMarket({
 
                   const getCategoryDisplay = (cat: string) => {
                     switch (cat?.toUpperCase()) {
-                      case 'AVATAR': return { icon: '👤', name: 'Avatar' };
-                      case 'FRAME': return { icon: '🖼️', name: 'Moldura' };
-                      case 'TITLE': return { icon: '🏷️', name: 'Título' };
-                      case 'EMOTE': return { icon: '💬', name: 'Emoji' };
-                      case 'EFFECT': return { icon: '✨', name: 'Efe. Visual' };
-                      case 'THEME': return { icon: '🎨', name: 'Tema' };
-                      case 'BELT': return { icon: '🥋', name: 'Faixa Esp.' };
-                      case 'LEGENDARY': return { icon: '👑', name: 'Lendário' };
-                      default: return { icon: '🎒', name: 'Especial' };
+                      case 'AVATAR': return { icon: '👤', name: 'AVATAR' };
+                      case 'FRAME': return { icon: '🖼️', name: 'MOLDURA' };
+                      case 'TITLE': return { icon: '🏷️', name: 'TÍTULO' };
+                      case 'EMOTE': return { icon: '💬', name: 'EMOJI' };
+                      case 'EFFECT': return { icon: '✨', name: 'EFEITO' };
+                      case 'THEME': return { icon: '🎨', name: 'TEMA' };
+                      case 'BELT': return { icon: '🥋', name: 'FAIXA' };
+                      case 'LEGENDARY': return { icon: '👑', name: 'ELITE' };
+                      default: return { icon: '🎒', name: 'KIMONO' };
                     }
                   };
 
@@ -1465,29 +1459,29 @@ export default function StoreMarket({
                     const r = rar?.toUpperCase();
                     const nameLower = name?.toLowerCase() || '';
                     if (nameLower.includes('eclipse celestial') || nameLower.includes('legado do fundador') || nameLower.includes('neon cyber') || nameLower.includes('ia master futuro')) {
-                      return 'border-fuchsia-500/50 shadow-[0_0_25px_-5px_rgba(168,85,247,0.4)] hover:border-pink-400 hover:shadow-[0_0_35px_rgba(236,72,153,0.5)] bg-gradient-to-b from-fuchsia-950/20 via-slate-950/40 to-slate-950/60 transition-all duration-300 relative';
+                      return 'border-red-500/30 bg-zinc-950/40 hover:border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.15)]';
                     }
                     switch(r) {
                       case 'DIVINE':
                       case 'DIVINO':
-                        return 'border-fuchsia-500/50 shadow-[0_0_25px_-5px_rgba(168,85,247,0.4)] hover:border-pink-400 hover:shadow-[0_0_35px_rgba(236,72,153,0.5)] bg-gradient-to-b from-fuchsia-950/20 via-slate-950/40 to-slate-950/60 transition-all duration-300 relative';
+                        return 'border-fuchsia-500/30 bg-zinc-950/40 hover:border-fuchsia-500 shadow-[0_0_20px_rgba(217,70,239,0.15)]';
                       case 'COMMON':
                       case 'COMUM': 
-                        return 'border-slate-850 hover:border-slate-700 hover:shadow-slate-900/10';
+                        return 'border-zinc-900 bg-zinc-950/20 hover:border-zinc-700/60 hover:bg-zinc-900/10';
                       case 'RARE':
                       case 'RARO':
-                        return 'border-blue-900/40 shadow-[0_0_15px_-4px_rgba(6,182,212,0.1)] hover:border-blue-500/40 hover:shadow-[0_0_20px_-3px_rgba(6,182,212,0.25)]';
+                        return 'border-blue-900/40 bg-zinc-950/30 hover:border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]';
                       case 'EPIC':
                       case 'ÉPICO':
-                        return 'border-purple-900/40 shadow-[0_0_15px_-4px_rgba(168,85,247,0.1)] hover:border-purple-500/50 hover:shadow-[0_0_20px_-3px_rgba(168,85,247,0.3)] bg-gradient-to-b from-purple-950/5 to-slate-950/10';
+                        return 'border-purple-900/45 bg-zinc-950/30 hover:border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.15)]';
                       case 'LEGENDARY':
                       case 'LENDÁRIO':
-                        return 'border-amber-500/25 shadow-[0_0_20px_-5px_rgba(245,158,11,0.15)] hover:border-amber-400/70 hover:shadow-[0_0_25px_-3px_rgba(245,158,11,0.35)] bg-gradient-to-b from-amber-950/10 to-slate-950/15';
+                        return 'border-amber-500/25 bg-zinc-950/40 hover:border-amber-500/70 shadow-[0_0_20px_rgba(245,158,11,0.15)]';
                       case 'MYTHIC':
                       case 'MÍTICO':
-                        return 'border-red-500/35 shadow-[0_0_25px_-5px_rgba(239,68,68,0.2)] hover:border-red-400 hover:shadow-[0_0_30px_-3px_rgba(239,68,68,0.45)] bg-gradient-to-b from-red-950/10 to-slate-950/20';
+                        return 'border-red-500/30 bg-zinc-950/40 hover:border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.15)]';
                       default:
-                        return 'border-slate-800';
+                        return 'border-zinc-900 bg-zinc-950/30';
                     }
                   };
 
@@ -1495,60 +1489,60 @@ export default function StoreMarket({
                     <div
                       key={product.id}
                       id={`product-card-${product.id}`}
-                      className={`bg-slate-950/65 rounded-2xl border flex flex-col justify-between overflow-hidden group hover:scale-[1.03] transition-all duration-300 relative ${getEsportsCardTheme(product.rarity, product.name)}`}
+                      className={`rounded border flex flex-col justify-between overflow-hidden group transition-all duration-300 relative ${getEsportsCardTheme(product.rarity, product.name)}`}
                     >
                       {/* Interactive shine sweep */}
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
 
                       {/* Promo tag */}
                       {isPromo && (
-                        <span className="absolute top-3 right-3 bg-red-650 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-md z-15 tracking-wider shadow-lg flex items-center gap-1">
+                        <span className="absolute top-3 right-3 bg-red-650 text-white text-[8px] font-mono font-black uppercase px-2 py-0.5 rounded tracking-wider z-15 shadow-md flex items-center gap-1">
                           <Percent className="w-2.5 h-2.5" /> -20% OFF
                         </span>
                       )}
 
                       {/* Hot limited deal badge */}
                       {isLimited && !isPromo && (
-                        <span className="absolute top-3 right-3 bg-amber-500 text-slate-950 text-[8px] font-black uppercase px-2 py-0.5 rounded-md z-15 tracking-wider flex items-center gap-1 animate-pulse">
-                          <Flame className="w-2.5 h-2.5" /> RARO LOTE
+                        <span className="absolute top-3 right-3 bg-amber-500 text-slate-950 text-[8px] font-mono font-black uppercase px-2 py-0.5 rounded tracking-wider z-15 flex items-center gap-1 animate-pulse">
+                          <Flame className="w-2.5 h-2.5" /> LIMITADO
                         </span>
                       )}
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3 relative z-10">
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-4 relative z-10">
                         <div className="cursor-pointer group/card" onClick={() => setViewItemModal(product)} title="Clique para abrir detalhes do item">
                           {/* Image Box / Visualizer with high glare */}
-                          <div className="h-32 bg-slate-900 rounded-xl overflow-hidden relative border border-slate-850 mb-3 flex items-center justify-center">
+                          <div className="h-32 bg-zinc-950/80 rounded border border-zinc-900/60 mb-3 flex items-center justify-center relative overflow-hidden">
                             {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="w-full h-full object-cover group-hover/card:scale-110 transition-all duration-500 opacity-90"
+                                className="w-full h-full object-cover group-hover/card:scale-105 transition-all duration-500 opacity-90"
                                 referrerPolicy="no-referrer"
                               />
                             ) : (
-                              <div className="text-4xl filter drop-shadow group-hover/card:animate-bounce transition-transform">{catDisplay.icon}</div>
+                              <div className="text-4xl filter grayscale opacity-70 group-hover/card:scale-110 transition-transform duration-300">{catDisplay.icon}</div>
                             )}
 
                             {/* Class Badge */}
-                            <span className="absolute bottom-2 left-2 bg-slate-950/95 backdrop-blur-md px-2 py-0.5 rounded text-[9px] font-semibold text-slate-200 border border-slate-850 flex items-center gap-1">
+                            <span className="absolute bottom-2 left-2 bg-zinc-950 border border-zinc-900 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-zinc-400 flex items-center gap-1 uppercase tracking-wider">
                               <span>{catDisplay.icon}</span>
                               <span>{catDisplay.name}</span>
                             </span>
 
                             {/* Rarity Star Badge */}
-                            <span className={`absolute top-2 left-2 text-[8px] font-extrabold px-2 py-0.5 rounded-full border tracking-wide uppercase ${getRarityBadgeColor(product.rarity, product.name)} flex items-center gap-1`}>
-                              <Sparkle className="w-2.5 h-2.5 fill-current" />
+                            <span className={`absolute top-2 left-2 text-[8px] font-mono font-extrabold px-2 py-0.5 rounded border tracking-widest uppercase ${getRarityBadgeColor(product.rarity, product.name)} flex items-center gap-1`}>
+                              <Sparkle className="w-2 h-2 fill-current" />
                               <span>{getRarityLabel(product.rarity, product.name)}</span>
                             </span>
                           </div>
 
                           {/* Titles */}
                           <div className="space-y-1">
-                            <h4 className="font-display font-black text-xs text-white leading-tight line-clamp-1 group-hover/card:text-violet-300 transition-colors">
+                            <h4 className="font-mono font-bold text-[11px] text-white tracking-tight uppercase line-clamp-1 group-hover/card:text-red-400 transition-colors">
                               {product.name}
                             </h4>
-                            <p className="text-[10px] text-slate-450 leading-relaxed font-normal line-clamp-2 h-7 overflow-hidden">
-                              {product.description || "Customização cosmética oficial para enriquecer sua jornada acadêmica na nossa sandbox de lutas."}
+                            <p className="text-[10px] text-zinc-400 leading-normal font-normal line-clamp-2 h-7 overflow-hidden">
+                              {product.description || "Customização de cosmético oficial para a sua identidade marcial no ecossistema de elite do JiuSpeak."}
                             </p>
                           </div>
                         </div>
@@ -1556,40 +1550,40 @@ export default function StoreMarket({
                         {/* Spark stock depletion meter if item is limited */}
                         {isLimited && (
                           <div className="space-y-1">
-                            <div className="flex justify-between text-[8px] font-mono text-slate-500">
-                              <span>Restam poucas unidades</span>
-                              <span className="font-bold text-red-400">Apenas 3 restam!</span>
+                            <div className="flex justify-between text-[8px] font-mono text-zinc-500 uppercase tracking-wider">
+                              <span>RESTAM POUCOS NO LOTE</span>
+                              <span className="font-bold text-red-500">ÚLTIMAS UNIDADES</span>
                             </div>
-                            <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
-                              <div className="h-full bg-red-500" style={{ width: '20%' }} />
+                            <div className="h-1 bg-zinc-950 rounded-full overflow-hidden">
+                              <div className="h-full bg-red-655" style={{ width: '20%' }} />
                             </div>
                           </div>
                         )}
 
                         {/* Dynamic purchase layout pricing */}
-                        <div className="pt-2 border-t border-slate-905 flex items-center justify-between">
+                        <div className="pt-3 border-t border-zinc-900/80 flex items-center justify-between">
                           <div>
-                            <span className="text-[8px] text-slate-500 font-mono block">RESGATE</span>
-                            <div className="flex items-center gap-1">
-                              <Coins className="w-3.5 h-3.5 text-yellow-500" />
-                              <span className="text-xs font-mono font-black text-white">{displayPrice}</span>
+                            <span className="text-[8px] text-zinc-500 font-mono block tracking-wider uppercase">CUSTO</span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Coins className="w-3.5 h-3.5 text-amber-500" />
+                              <span className="text-xs font-mono font-bold text-white">{displayPrice}</span>
                               {originalPrice && (
-                                <span className="text-[9px] text-slate-500 font-mono line-through ml-1">{originalPrice}</span>
+                                <span className="text-[9px] text-zinc-650 font-mono line-through ml-1">{originalPrice}</span>
                               )}
                             </div>
                           </div>
 
                           <div className="flex gap-1">
                             {isOwned ? (
-                              <span className="bg-slate-900 text-slate-500 border border-slate-850 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase">
-                                ADQUIRIDO
+                              <span className="bg-zinc-950 text-zinc-500 border border-zinc-900 px-2.5 py-1.5 rounded text-[8px] font-mono font-bold uppercase tracking-wider">
+                                UNLOCKED
                               </span>
                             ) : (
                               <>
                                 <button
                                   onClick={() => handlePurchaseProduct(product)}
                                   disabled={isBusy}
-                                  className="px-2.5 py-1.5 bg-violet-650 hover:bg-violet-600 active:scale-95 text-white font-bold text-[10px] uppercase rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                                  className="px-3 py-1.5 bg-red-650 hover:bg-red-500 active:scale-95 text-white font-mono font-bold text-[9px] uppercase tracking-wider rounded transition-all flex items-center gap-1 cursor-pointer"
                                   title={`Adquirir por ${product.priceJT} JT`}
                                 >
                                   {isBusy ? (
@@ -1599,7 +1593,7 @@ export default function StoreMarket({
 
                                 <button
                                   onClick={() => addToCart(product)}
-                                  className="p-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:text-white hover:border-slate-700 rounded-lg text-slate-400 transition-colors cursor-pointer flex items-center"
+                                  className="p-1.5 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 hover:text-white rounded text-zinc-400 transition-colors cursor-pointer flex items-center"
                                   title="Adicionar ao Carrinho"
                                 >
                                   <ShoppingCart className="w-3.5 h-3.5" />
@@ -1616,19 +1610,19 @@ export default function StoreMarket({
               </div>
 
               {/* Classic Pagination structure */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-900 text-xs text-slate-500 font-mono">
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-900 text-[10px] text-zinc-500 font-mono">
                 <div>
-                  Visualizando <span className="text-slate-300 font-bold">{storeProducts.length}</span> de <span className="text-slate-300 font-bold">{storeTotalItems}</span> cosméticos listados
+                  VISUALIZANDO <span className="text-zinc-350 font-bold">{storeProducts.length}</span> DE <span className="text-zinc-350 font-bold">{storeTotalItems}</span> COSMÉTICOS DISPONÍVEIS
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     disabled={storePage === 1}
                     onClick={() => setStorePage(prev => Math.max(1, prev - 1))}
-                    className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800 transition-all text-slate-300 hover:text-white cursor-pointer"
+                    className="p-1.5 rounded bg-zinc-950 border border-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-805 transition-all text-zinc-300 hover:text-white cursor-pointer"
                     id="btn-prev-page"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
 
                   {Array.from({ length: storeTotalPages }).map((_, idx) => {
@@ -1638,10 +1632,10 @@ export default function StoreMarket({
                       <button
                         key={pageNo}
                         onClick={() => setStorePage(pageNo)}
-                        className={`w-7 h-7 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        className={`w-7 h-7 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${
                           isCurrent
-                            ? 'bg-violet-600/20 text-violet-300 border border-violet-500'
-                            : 'bg-slate-900 border border-slate-850 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                            ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                            : 'bg-zinc-950 border border-zinc-900 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-850'
                         }`}
                       >
                         {pageNo}
@@ -1652,10 +1646,10 @@ export default function StoreMarket({
                   <button
                     disabled={storePage === storeTotalPages}
                     onClick={() => setStorePage(prev => Math.min(storeTotalPages, prev + 1))}
-                    className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-800 transition-all text-slate-300 hover:text-white cursor-pointer"
+                    className="p-1.5 rounded bg-zinc-950 border border-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-805 transition-all text-zinc-300 hover:text-white cursor-pointer"
                     id="btn-next-page"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1670,55 +1664,55 @@ export default function StoreMarket({
         <div className="space-y-6">
           
           {/* Safety & Commission Stats Header Card */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-zinc-950/40 p-5 rounded-lg border border-zinc-900">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-violet-500/10 rounded-lg text-violet-400">
-                <TrendingUp className="w-5 h-5" />
+              <div className="p-2.5 bg-red-500/10 rounded text-red-400 border border-red-500/15">
+                <TrendingUp className="w-4 h-4" />
               </div>
               <div>
-                <span className="block text-[10px] text-slate-500 font-mono">COMISSÃO DA PLATAFORMA</span>
-                <span className="text-sm font-bold text-slate-200">10% Retido por Transação</span>
+                <span className="block text-[9px] text-zinc-500 font-mono tracking-wider uppercase">COMISSÃO DA PLATAFORMA</span>
+                <span className="text-xs font-bold text-zinc-200">10% Retido por Transação</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-500/10 rounded-lg text-emerald-400">
-                <ShieldCheck className="w-5 h-5" />
+              <div className="p-2.5 bg-emerald-500/10 rounded text-emerald-400 border border-emerald-500/15">
+                <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
-                <span className="block text-[10px] text-slate-500 font-mono">SHIELD PROTECT ANTIFRAUDE</span>
-                <span className="text-sm font-bold text-emerald-400">Ativo & Monitorando</span>
+                <span className="block text-[9px] text-zinc-500 font-mono tracking-wider uppercase">SHIELD PROTECT ANTIFRAUDE</span>
+                <span className="text-xs font-bold text-emerald-450">Ativo & Monitorando</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-500/10 rounded-lg text-amber-400">
-                <BarChart2 className="w-5 h-5" />
+              <div className="p-2.5 bg-amber-500/10 rounded text-amber-400 border border-amber-500/15">
+                <BarChart2 className="w-4 h-4" />
               </div>
               <div>
-                <span className="block text-[10px] text-slate-500 font-mono">TETOS REGULATÓRIOS</span>
-                <span className="text-sm font-bold text-amber-400">Min: 50 JT | Max: 50k JT</span>
+                <span className="block text-[9px] text-zinc-500 font-mono tracking-wider uppercase">TETOS REGULATÓRIOS</span>
+                <span className="text-xs font-bold text-amber-450">Min: 50 | Max: 50.000 JT</span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center">
-            <h4 className="font-display font-bold text-xs text-slate-400">Anúncios de Atletas Ativos:</h4>
+          <div className="flex justify-between items-center pt-2">
+            <h4 className="font-mono font-bold text-[10px] uppercase text-zinc-400 tracking-wider">OFERTAS DE COMÉRCIO ATIVAS:</h4>
             
             <button
               onClick={() => setListModalOpen(true)}
-              className="px-3.5 py-1.5 bg-violet-650 hover:bg-violet-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow shadow-violet-600/15"
+              className="px-4 py-2 bg-red-650 hover:bg-red-500 text-white font-mono font-bold text-[10px] uppercase tracking-wider rounded transition-all cursor-pointer shadow-md"
             >
-              <PlusCircle className="w-4 h-4" /> Vender meu Item
+              <PlusCircle className="w-3.5 h-3.5" /> Vender meu Item
             </button>
           </div>
 
           {isLoading ? (
-            <div className="text-center py-6 text-xs text-slate-500 font-mono animate-pulse">
-              Consultando livro de ofertas e garantias securitárias...
+            <div className="text-center py-8 text-[10px] text-zinc-500 font-mono tracking-wider animate-pulse uppercase">
+              Consultando livro de ofertas e garantias securitárias do JiuSpeak...
             </div>
           ) : marketItems.length === 0 ? (
-            <div className="py-12 border-2 border-dashed border-slate-800 rounded-2xl text-center text-slate-500 text-xs">
+            <div className="py-12 border border-zinc-900 bg-zinc-950/30 rounded-lg text-center text-zinc-500 text-[10px] font-mono uppercase tracking-wider">
               Nenhuma oferta ativa no mercado no momento. Publique seu próprio anúncio para comercializar cosméticos!
             </div>
           ) : (
@@ -1729,37 +1723,37 @@ export default function StoreMarket({
                 return (
                   <div 
                     key={item.id}
-                    className="bg-slate-901/40 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-slate-705 transition-all group"
+                    className="bg-zinc-950/40 p-5 rounded border border-zinc-900 flex flex-col justify-between hover:border-zinc-800 transition-all duration-300 group"
                   >
                     <div className="space-y-3">
                       <div className="flex justify-between items-start">
-                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${getRarityBadgeColor(item.rarity)}`}>
+                        <span className={`text-[8px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getRarityBadgeColor(item.rarity)}`}>
                           {item.rarity}
                         </span>
-                        <span className="text-[9.5px] text-slate-500 font-mono">Vendedor: {item.sellerName}</span>
+                        <span className="text-[9px] text-zinc-500 font-mono">ID: {item.sellerName}</span>
                       </div>
 
                       <div>
-                        <h4 className="font-display font-bold text-sm text-slate-205">{item.name}</h4>
-                        <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">{item.description}</p>
+                        <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight">{item.name}</h4>
+                        <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                       </div>
                     </div>
 
-                    <div className="mt-5 pt-3 border-t border-slate-800/50 flex justify-between items-center">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-202">
-                        <Coins className="w-4 h-4 text-amber-500" />
-                        <span>{item.price} JT</span>
+                    <div className="mt-5 pt-3 border-t border-zinc-900/60 flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-white">
+                        <Coins className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{item.price} <span className="text-[9px] text-zinc-550 font-normal">JT</span></span>
                       </div>
 
                       <button
                         onClick={() => buyMarketplaceItem(item)}
-                        className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded transition-all cursor-pointer ${
                           owned 
-                            ? 'bg-slate-905 border border-slate-850 text-emerald-450' 
-                            : 'bg-indigo-650 hover:bg-indigo-600 text-white'
+                            ? 'bg-zinc-950 border border-zinc-900 text-emerald-450' 
+                            : 'bg-red-650 hover:bg-red-500 text-white'
                         }`}
                       >
-                        {owned ? 'Você já possui ✅' : 'Adquirir Item'}
+                        {owned ? 'VOCÊ TEM ✅' : 'RESGATAR'}
                       </button>
                     </div>
                   </div>
@@ -1769,54 +1763,54 @@ export default function StoreMarket({
           )}
 
           {/* Ledger of completed trades & dynamic fraud monitoring */}
-          <div className="mt-8 space-y-4 pt-6 border-t border-slate-850">
+          <div className="mt-8 space-y-4 pt-6 border-t border-zinc-900">
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-violet-405" />
-              <h5 className="font-display font-extrabold text-sm text-white">Livro de Histórico & Auditoria Antifraude</h5>
+              <History className="w-4 h-4 text-red-500" />
+              <h5 className="font-mono font-bold text-[10px] uppercase tracking-wider text-white">LIVRO DE HISTÓRICO & AUDITORIA ANTIFRAUDE</h5>
             </div>
             
-            <p className="text-[11px] text-slate-450 max-w-2xl mt-0.5 leading-relaxed">
-              Consulte faturas, comissões de 10% cobradas automaticamente pelo ecossistema SaaS de Mestres, além de Risk Scores atribuídos por nossos algoritmos de fiscalização de sessão e endereços.
+            <p className="text-[10px] text-zinc-500 max-w-2xl mt-0.5 leading-relaxed font-mono">
+              Consulte faturas, comissões de 10% cobradas automaticamente pelo ecossistema SaaS de Mestres do JiuSpeak, além de Risk Scores atribuídos por nossos algoritmos de fiscalização ativa.
             </p>
 
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 overflow-x-auto">
+            <div className="bg-zinc-950/80 p-4 rounded border border-zinc-900 overflow-x-auto">
               {salesHistory.length === 0 ? (
-                <div className="text-center py-6 text-slate-500 text-[11px] font-mono">
+                <div className="text-center py-6 text-zinc-650 text-[10px] font-mono uppercase tracking-wider">
                   Nenhuma transação registrada no ledger de auditorias.
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse text-[11px] font-semibold text-slate-350 min-w-[600px]">
+                <table className="w-full text-left border-collapse text-[10px] font-semibold text-zinc-400 min-w-[600px]">
                   <thead>
-                    <tr className="border-b border-slate-850 text-slate-500 font-mono text-[9px] uppercase">
-                      <th className="py-2">Item Negociado</th>
-                      <th className="py-2">Comprador</th>
-                      <th className="py-2">Vendedor</th>
-                      <th className="py-2">Valor Total</th>
-                      <th className="py-2">Taxa (10%)</th>
-                      <th className="py-2">Risk Score</th>
-                      <th className="py-2 text-right">Status Antifraude</th>
+                    <tr className="border-b border-zinc-900 text-zinc-500 font-mono text-[9px] uppercase tracking-wider">
+                      <th className="py-2.5">Item Negociado</th>
+                      <th className="py-2.5">Comprador</th>
+                      <th className="py-2.5">Vendedor</th>
+                      <th className="py-2.5">Valor Total</th>
+                      <th className="py-2.5">Taxa (10%)</th>
+                      <th className="py-2.5">Risk Score</th>
+                      <th className="py-2.5 text-right font-mono">Status Antifraude</th>
                     </tr>
                   </thead>
                   <tbody>
                     {salesHistory.map((sale) => (
-                      <tr key={sale.id} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-all font-mono">
-                        <td className="py-2.5 text-slate-201 font-sans">{sale.itemName}</td>
-                        <td className="py-2.5 text-slate-400">{sale.buyerName}</td>
-                        <td className="py-2.5 text-slate-400">{sale.sellerName}</td>
+                      <tr key={sale.id} className="border-b border-zinc-900/55 hover:bg-zinc-900/30 transition-all font-mono">
+                        <td className="py-2.5 text-zinc-200">{sale.itemName}</td>
+                        <td className="py-2.5 text-zinc-400">{sale.buyerName}</td>
+                        <td className="py-2.5 text-zinc-400">{sale.sellerName}</td>
                         <td className="py-2.5 text-white">{sale.pricePaidJT} JT</td>
-                        <td className="py-2.5 text-slate-500">{sale.feePaidJT} JT</td>
+                        <td className="py-2.5 text-zinc-500">{sale.feePaidJT} JT</td>
                         <td className="py-2.5 font-bold">
-                          <span className={sale.riskScore > 50 ? 'text-rose-400' : 'text-emerald-450'}>
+                          <span className={sale.riskScore > 50 ? 'text-red-400' : 'text-emerald-450'}>
                             {sale.riskScore}%
                           </span>
                         </td>
                         <td className="py-2.5 text-right font-sans">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold border uppercase ${
+                          <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-mono font-bold border uppercase tracking-wider ${
                             sale.status === 'Seguro'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              ? 'bg-emerald-950/40 text-emerald-400 border-emerald-900/40'
                               : sale.status === 'Suspeito'
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
-                              : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                              ? 'bg-amber-950/40 text-amber-400 border-amber-900/40 animate-pulse'
+                              : 'bg-red-950/40 text-red-400 border-red-900/40'
                           }`}>
                             {sale.status}
                           </span>
@@ -1831,16 +1825,16 @@ export default function StoreMarket({
 
           {/* Auditing controls and system alarm triggers */}
           {auditLogs.length > 0 && (
-            <div className="bg-slate-900/20 p-4 rounded-xl border border-slate-850 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
-                <ShieldAlert className="w-4 h-4" />
+            <div className="bg-zinc-900/10 p-4 rounded border border-zinc-900 space-y-2">
+              <div className="flex items-center gap-1.5 text-[9px] font-mono tracking-wider uppercase font-bold text-red-400">
+                <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Logs de Fiscalização e Segurança (Real-time Audit Logs)</span>
               </div>
               <div className="space-y-1 max-h-[160px] overflow-y-auto pr-2">
                 {auditLogs.map((log) => (
-                  <div key={log.id} className="text-[10px] font-mono text-slate-400 bg-slate-950/40 p-2 rounded border border-slate-900 flex justify-between gap-4 items-start">
+                  <div key={log.id} className="text-[10px] font-mono text-zinc-400 bg-zinc-950/80 p-2 rounded border border-zinc-900 flex justify-between gap-4 items-start font-mono">
                     <span>{log.description}</span>
-                    <span className="text-slate-600 block shrink-0">{new Date(log.createdAt).toLocaleTimeString()}</span>
+                    <span className="text-zinc-650 block shrink-0">{new Date(log.createdAt).toLocaleTimeString()}</span>
                   </div>
                 ))}
               </div>
@@ -1854,57 +1848,42 @@ export default function StoreMarket({
       {activeSubTab === 'inventorio' && (
         <div className="space-y-6">
           {isInventoryLoading ? (
-            <div className="h-48 flex flex-col items-center justify-center gap-2">
-              <div className="w-6 h-6 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
-              <p className="text-xs text-slate-500 font-mono">Abrindo mochila BJJ do atleta...</p>
+            <div className="h-48 flex flex-col items-center justify-center gap-3">
+              <div className="w-6 h-6 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
+              <p className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase">Inspecionando mochila do atleta...</p>
             </div>
           ) : unlockedItems.length === 0 && user.inventory.length === 0 ? (
-            <div className="py-12 border border-dashed border-slate-800 rounded-2xl text-center text-slate-500 text-xs">
+            <div className="py-12 border border-zinc-900 bg-zinc-950/30 rounded text-center text-zinc-500 text-[10px] font-mono uppercase tracking-wider">
               Sua biblioteca de materiais está vazia! Participe das lições e da arena prática para acumular JiuTickets e desbloquear materiais na loja virtual.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4" id="inventory-grid">
               {/* Database-unlocked items */}
-              {unlockedItems.map((item) => {
-                const getCategoryDisplay = (cat: string) => {
-                  const c = cat?.toUpperCase();
-                  switch (c) {
-                    case 'AVATAR': return { icon: '👤', name: 'Avatar' };
-                    case 'FRAME': return { icon: '🖼️', name: 'Moldura' };
-                    case 'TITLE': return { icon: '🏷️', name: 'Título' };
-                    case 'EMOTE': return { icon: '💬', name: 'Emote' };
-                    case 'EFFECT': return { icon: '✨', name: 'Efe. Especial' };
-                    default: return { icon: '🎒', name: 'Insígnia' };
-                  }
-                };
-                const catDisplay = getCategoryDisplay(item.rarity || item.productId);
-                
-                return (
-                  <div 
-                    key={item.id}
-                    className="bg-slate-900 border border-slate-800/80 p-4 rounded-xl flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-colors"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-500 font-mono uppercase bg-slate-950 px-2 py-0.5 rounded border border-slate-850">
-                          {getRarityLabel(item.rarity)}
-                        </span>
-                        <span className="text-xs filter drop-shadow">💎</span>
-                      </div>
-                      
-                      <h4 className="font-display font-bold text-xs text-slate-200 mt-2">{item.name}</h4>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-snug line-clamp-2">{item.description}</p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-800/40 flex justify-between items-center text-[10px]">
-                      <span className="text-slate-500 font-mono text-[9px]">ID: {item.productId?.replace('prod_', '')}</span>
-                      <span className="bg-emerald-950/40 border border-emerald-900/60 text-emerald-400 font-bold px-2 py-0.5 rounded">
-                        🎒 Na Mochila
+              {unlockedItems.map((item) => (
+                <div 
+                  key={item.id}
+                  className="bg-zinc-950/40 border border-zinc-900 p-5 rounded flex flex-col justify-between space-y-4 hover:border-zinc-800 transition-all duration-300 group"
+                >
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <span className={`text-[8px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getRarityBadgeColor(item.rarity)}`}>
+                        {item.rarity || 'ESPECIAL'}
                       </span>
+                      <span className="text-xs">🥋</span>
                     </div>
+                    
+                    <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-3">{item.name}</h4>
+                    <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                   </div>
-                );
-              })}
+
+                  <div className="pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[9px] font-mono">
+                    <span className="text-zinc-500">ID: {item.productId?.replace('prod_', '')}</span>
+                    <span className="bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider text-[8px]">
+                      🎒 EQUIPADO
+                    </span>
+                  </div>
+                </div>
+              ))}
 
               {/* Offline fallback / user profile sync */}
               {user.inventory.filter(invId => !unlockedItems.some(ui => ui.productId === invId)).map((invId) => {
@@ -1913,24 +1892,24 @@ export default function StoreMarket({
                 return (
                   <div 
                     key={invId}
-                    className="bg-slate-900 border border-slate-800/80 p-4 rounded-xl flex flex-col justify-between space-y-3 hover:border-slate-755 hover:transition-all"
+                    className="bg-zinc-950/40 border border-zinc-900 p-5 rounded flex flex-col justify-between space-y-4 hover:border-zinc-800 transition-all duration-300 group"
                   >
                     <div>
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] text-slate-500 font-mono uppercase">
-                          {getRarityLabel(item.rarity as any)}
+                        <span className={`text-[8px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getRarityBadgeColor(item.rarity as any)}`}>
+                          {item.rarity || 'ESPECIAL'}
                         </span>
-                        <span className="text-xs">🥋</span>
+                        <span className="text-xs">💎</span>
                       </div>
                       
-                      <h4 className="font-display font-bold text-xs text-slate-200 mt-2">{item.name}</h4>
-                      <p className="text-[10px] text-slate-400 mt-1 leading-snug line-clamp-2">{item.description}</p>
+                      <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-3">{item.name}</h4>
+                      <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-800/40 flex justify-between items-center text-[10px]">
-                      <span className="text-slate-500 font-mono text-[9px]">Offline Sync</span>
-                      <span className="bg-violet-950/40 border border-violet-900/60 text-violet-300 font-bold px-2 py-0.5 rounded">
-                        🎒 Ativo
+                    <div className="pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[9px] font-mono">
+                      <span className="text-zinc-500">OFFLINE SYNC</span>
+                      <span className="bg-red-950/40 border border-red-900/40 text-red-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider text-[8px]">
+                        🎒 ATIVO
                       </span>
                     </div>
                   </div>
@@ -2981,82 +2960,82 @@ export default function StoreMarket({
 
       {/* ITEM DETAILS MODAL OVERLAY */}
       {viewItemModal && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 font-sans animate-fade-in" id="bjj-item-detail-modal">
-          <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-violet-500/50 rounded-3xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(139,92,246,0.3)] relative">
+        <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 font-mono animate-fade-in" id="bjj-item-detail-modal">
+          <div className="bg-zinc-950 border border-zinc-900 rounded w-full max-w-md overflow-hidden shadow-2xl relative">
             
             {/* Glowing core background effect */}
-            <div className={`absolute -right-20 -top-20 w-48 h-48 rounded-full blur-3xl opacity-30 ${
+            <div className={`absolute -right-20 -top-20 w-48 h-48 rounded-full blur-3xl opacity-20 ${
               viewItemModal.rarity?.toUpperCase() === 'MYTHIC' ? 'bg-red-500' :
               viewItemModal.rarity?.toUpperCase() === 'LEGENDARY' ? 'bg-amber-500' :
-              viewItemModal.rarity?.toUpperCase() === 'EPIC' ? 'bg-purple-500' : 'bg-blue-500'
+              viewItemModal.rarity?.toUpperCase() === 'EPIC' ? 'bg-red-500' : 'bg-red-500'
             }`} />
 
             {/* Absolute close button */}
             <button 
               onClick={() => setViewItemModal(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-900/85 p-2 rounded-full border border-slate-800 transition-colors cursor-pointer z-50"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white bg-zinc-950 p-1.5 rounded border border-zinc-900 transition-colors cursor-pointer z-50"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
             {/* Modal Body Info Container */}
             <div className="p-6 md:p-8 space-y-6">
               
-              <div className="text-center">
-                <span className={`text-[10px] font-mono tracking-widest font-extrabold px-3 py-1 rounded-full border ${getRarityBadgeColor(viewItemModal.rarity, viewItemModal.name)} uppercase`}>
-                  🎯 DETALHES DO COSMÉTICO — {getRarityLabel(viewItemModal.rarity, viewItemModal.name)}
+              <div className="text-center pt-2">
+                <span className={`text-[8px] font-mono tracking-wider font-extrabold px-3 py-1 rounded border ${getRarityBadgeColor(viewItemModal.rarity, viewItemModal.name)} uppercase`}>
+                  🎯 CODEX — {getRarityLabel(viewItemModal.rarity, viewItemModal.name)}
                 </span>
               </div>
 
               {/* Large item image visualization chamber */}
-              <div className="w-full h-56 bg-slate-950 rounded-2xl overflow-hidden relative border border-slate-800 flex items-center justify-center group shadow-inner">
+              <div className="w-full h-48 bg-zinc-950 rounded overflow-hidden relative border border-zinc-900 flex items-center justify-center group">
                 {viewItemModal.imageUrl ? (
                   <img 
                     src={viewItemModal.imageUrl} 
                     alt={viewItemModal.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                    className="w-full h-full object-cover group-hover:scale-102 transition-all duration-300"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="text-6xl text-slate-750 drop-shadow select-none group-hover:scale-110 transition-transform">🥋</div>
+                  <div className="text-5xl text-zinc-800 drop-shadow select-none group-hover:scale-105 transition-transform">🥋</div>
                 )}
                 
-                {/* Glowing neon shadow chamber inside */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-85" />
+                {/* Glowing shadow chamber inside */}
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-90" />
                 <div className="absolute bottom-4 left-4 flex gap-2">
-                  <span className="bg-slate-900/95 border border-slate-800 text-slate-300 px-3 py-1 rounded-lg text-xs font-mono font-bold uppercase">
+                  <span className="bg-zinc-950 border border-zinc-900 text-zinc-400 px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase tracking-wider">
                     {viewItemModal.category || "Cosmético"}
                   </span>
                 </div>
               </div>
 
               {/* Item nomenclature text header */}
-              <div className="space-y-3">
-                <h3 className="text-xl md:text-2xl font-display font-black text-white text-center tracking-tight leading-tight">
+              <div className="space-y-2">
+                <h3 className="text-base font-mono font-bold text-white text-center uppercase tracking-tight">
                   {viewItemModal.name}
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed text-center font-sans max-w-sm mx-auto">
+                <p className="text-[10px] text-zinc-400 leading-relaxed text-center font-mono max-w-sm mx-auto">
                   {viewItemModal.description || "Incrível item de customização oficial. Equipando este cosmético, seu perfil e conquistas refletirão seu estilo inovador de rolar no tatame virtual."}
                 </p>
               </div>
 
               {/* Pricing & Rarity Metadata Chamber */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-xl border border-slate-900/80 text-xs">
+              <div className="grid grid-cols-2 gap-3 bg-zinc-950/80 p-4 rounded border border-zinc-900 text-[10px] font-mono">
                 <div className="space-y-0.5">
-                  <span className="block text-[9px] text-slate-500 font-mono uppercase">CLASSIFICAÇÃO</span>
-                  <span className="font-bold text-slate-200">{getRarityLabel(viewItemModal.rarity, viewItemModal.name)}</span>
+                  <span className="block text-[8px] text-zinc-650 font-mono uppercase">CLASSIFICAÇÃO</span>
+                  <span className="font-bold text-zinc-300 uppercase">{getRarityLabel(viewItemModal.rarity, viewItemModal.name)}</span>
                 </div>
                 <div className="space-y-0.5">
-                  <span className="block text-[9px] text-slate-500 font-mono uppercase">VALOR DE RESGATE</span>
+                  <span className="block text-[8px] text-zinc-650 font-mono uppercase">VALOR DE RESGATE</span>
                   <span className="font-bold text-amber-500 flex items-center gap-1">
-                    <Coins className="w-3.5 h-3.5 fill-amber-500/10" />
+                    <Coins className="w-3.5 h-3.5" />
                     {viewItemModal.priceJT || 0} JT
                   </span>
                 </div>
               </div>
 
               {/* Modal footer call actions */}
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-3 justify-center text-[9px] font-mono">
                 <button
                   onClick={() => {
                     if (user.inventory.includes(viewItemModal.id)) {
@@ -3067,14 +3046,14 @@ export default function StoreMarket({
                     setViewItemModal(null);
                   }}
                   disabled={user.inventory.includes(viewItemModal.id)}
-                  className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-mono font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-violet-500/20 cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-red-650 hover:bg-red-500 text-white font-bold uppercase tracking-wider rounded transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   {user.inventory.includes(viewItemModal.id) ? '✓ ADQUIRIDO' : '🛒 COMPRAR AGORA'}
                 </button>
 
                 <button
                   onClick={() => setViewItemModal(null)}
-                  className="px-5 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-mono font-bold rounded-xl transition-all cursor-pointer"
+                  className="px-4 py-2.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 text-zinc-400 hover:text-white rounded transition-all cursor-pointer"
                 >
                   FECHAR
                 </button>
