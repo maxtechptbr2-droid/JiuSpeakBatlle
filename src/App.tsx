@@ -75,16 +75,16 @@ export default function App() {
     name: 'Mestre Carlos 9 (ADMIN)',
     email: 'maxtechptbr9@gmail.com',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150',
-    level: 35,
-    xp: 3000,
-    xpNextLevel: 5000,
+    level: 21,
+    xp: 1200,
+    xpNextLevel: 3000,
     belt: 'Preto',
-    stripes: 4,
-    coins: 6000,
-    elo: 2300,
-    winCount: 154,
+    stripes: 2,
+    coins: 850,
+    elo: 1180,
+    winCount: 62,
     lossCount: 22,
-    streak: 45,
+    streak: 5,
     lastActiveDate: new Date().toISOString(),
     academy: 'Atama Virtual Team',
     category: 'Absoluto',
@@ -523,15 +523,25 @@ export default function App() {
 
   // 3. XP & Currency Experience upgrades
   const addXp = (amount: number, reason: string) => {
-    const currentXp = user.xp + amount;
-    let finalXp = currentXp;
+    let currentXp = user.xp + amount;
     let finalLvl = user.level;
     let finalBelt = user.belt;
     let finalStripes = user.stripes;
 
-    if (currentXp >= user.xpNextLevel) {
-      finalXp = currentXp - user.xpNextLevel;
+    // Helper to calculate realistic, slower progression thresholds (SaaS standard)
+    const getXpThresholdForLevel = (lvl: number) => {
+      if (lvl < 5) return 500;       // Nível 1 -> 5: progressão rápida
+      if (lvl < 15) return 1500;     // Nível 5 -> 15: moderada
+      if (lvl < 30) return 3000;     // Nível 15 -> 30: lenta
+      return 6000;                   // Nível 30+: difícil (SaaS premium retention)
+    };
+
+    let nextLvlXp = getXpThresholdForLevel(finalLvl);
+
+    while (currentXp >= nextLvlXp) {
+      currentXp -= nextLvlXp;
       finalLvl += 1;
+      nextLvlXp = getXpThresholdForLevel(finalLvl);
       
       // Auto upgrade belt stripe or rank based on BJJ rules
       if (finalLvl >= 30) {
@@ -572,8 +582,9 @@ export default function App() {
 
     setUser(prev => ({
       ...prev,
-      xp: finalXp,
+      xp: currentXp,
       level: finalLvl,
+      xpNextLevel: nextLvlXp,
       belt: finalBelt,
       stripes: finalStripes,
       lastActiveDate: new Date().toISOString()

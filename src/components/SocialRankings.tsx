@@ -306,14 +306,20 @@ export function SocialRankings({ user }: SocialRankingsProps) {
             >
               Recalculando matriz de pontuação competitiva...
             </motion.div>
-          ) : rankings.length === 0 ? (
+          ) : rankings.length < 5 ? (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="py-12 text-center text-xs text-slate-500 font-mono bg-slate-950 rounded-xl border border-slate-850"
+              className="py-12 px-6 text-center text-xs text-slate-400 font-sans waves bg-slate-950 rounded-xl border border-slate-850 flex flex-col items-center justify-center gap-3"
             >
-              Nenhum registro encontrado nesta categoria para o período selecionado.
+              <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xl">
+                ⏳
+              </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-slate-200">Aguardando mais atletas para liberar ranking competitivo</p>
+                <p className="text-[10px] text-slate-500">O ranking requer ao menos 5 praticantes registrados para dar início à temporada competitivo oficial.</p>
+              </div>
             </motion.div>
           ) : (
             rankings.map((ranked, idx) => {

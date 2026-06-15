@@ -62,21 +62,11 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel do Aluno', icon: GraduationCap, badge: null },
-    { id: 'profile-settings', label: 'Meu Perfil', icon: User, badge: 'Ajustes' },
-    { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Aulas' },
-    ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Sessões de Conversação', icon: Sword, badge: 'Desafios' }] : []),
-    { id: 'market', label: 'Loja JiuSpeak', icon: Store, badge: 'Loja' },
-    { id: 'inventory', label: 'Mochila JiuSpeak', icon: Award, badge: 'Mochila' },
-    { id: 'subscriptions', label: 'Central de JiuTickets', icon: Coins, badge: 'JT' },
-    { id: 'social', label: 'Comunidade', icon: Users, badge: 'Fórum' },
-    ...(hasAcademyAccess ? [{ id: 'academies', label: 'Academias BJJ', icon: Shield, badge: 'Equipes' }] : []),
-    { id: 'viral', label: 'Compartilhar Viral', icon: Share2, badge: 'Canvas' },
-    ...(user.role === 'admin' ? [
-      { id: 'finance', label: 'Finanças & Carteira', icon: Wallet, badge: 'Carteira' }
-    ] : []),
-    ...(user.role === 'admin' || user.role === 'professor' ? [
-      { id: 'creator', label: 'Painel Professor', icon: DollarSign, badge: 'Docente' }
-    ] : []),
+    { id: 'profile-settings', label: 'Configurações de Conta', icon: User, badge: 'Ajustes' },
+    { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Módulos' },
+    ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Prática Conversacional IA', icon: Sword, badge: 'Exclusivo' }] : []),
+    { id: 'market', label: 'Loja JiuSpeak (JT)', icon: Store, badge: 'Loja' },
+    { id: 'subscriptions', label: 'Central de JiuTickets', icon: Coins, badge: 'Premium' },
     ...(user.role === 'admin' ? [
       { id: 'admin', label: 'Painel Admin', icon: ShieldAlert, badge: 'Auditoria' }
     ] : []),

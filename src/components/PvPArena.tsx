@@ -548,29 +548,31 @@ export default function PvPArena({
                 const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
                 if (!isAiSubscriptionActive) {
                   return (
-                    <div className="bg-rose-950/25 border border-rose-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
-                      <span className="text-xl shrink-0">⚠️</span>
-                      <div className="space-y-1">
-                        <h5 className="font-bold text-xs text-rose-400">Assinatura de IA Inativa</h5>
-                        <p className="text-[11px] text-slate-400 leading-normal">
-                          Para ter acesso à prática de conversação com o assistente inteligente de IA e lutar na Arena PvP, ative a <strong>Prática Conversacional com IA</strong> na Central de JiuTickets por apenas <strong>2500 JT/mês</strong>.
+                    <div className="bg-gradient-to-r from-indigo-950/40 to-slate-950 border border-indigo-500/20 p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6 animate-fadeIn">
+                      <div className="space-y-1.5 flex-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[9px] bg-indigo-500/10 text-[#009dff] font-mono font-extrabold uppercase tracking-widest border border-indigo-500/20">JIUSPEAK IA COPILOT</span>
+                        </div>
+                        <h4 className="font-display font-extrabold text-sm text-slate-200">Prática Conversacional Premium IA</h4>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Acesse treinamentos avançados em inglês de tatame, simulações realistas e diálogos inteligentes integrados com nossa IA de última geração. O acesso ilimitado exige a contratação da assinatura mensal por apenas <strong className="text-[#009dff]">2500 JT (JiuTickets)</strong>.
                         </p>
-                        {setCurrentTab && (
-                          <button
-                            onClick={() => setCurrentTab('subscriptions')}
-                            className="mt-1 text-xs font-bold text-violet-400 hover:underline block"
-                          >
-                            Ir para Central de JiuTickets &rarr;
-                          </button>
-                        )}
                       </div>
+                      {setCurrentTab && (
+                        <button
+                          onClick={() => setCurrentTab('subscriptions')}
+                          className="px-5 py-2.5 bg-gradient-to-tr from-[#009dff] to-indigo-600 hover:from-indigo-600 hover:to-[#009dff] text-slate-900 hover:text-white font-mono font-extrabold uppercase tracking-wider text-xs rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(0,157,255,0.2)] shrink-0 w-full md:w-auto cursor-pointer"
+                        >
+                          Ativar Assinatura IA
+                        </button>
+                      )}
                     </div>
                   );
                 } else {
                   return (
                     <div className="bg-emerald-950/20 border border-emerald-500/20 p-4 rounded-xl flex items-start gap-3.5 animate-fadeIn">
                       <span className="text-xl shrink-0 text-emerald-400">✓</span>
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-left">
                         <h5 className="font-bold text-xs text-emerald-400">Sua Assinatura de IA está Ativa!</h5>
                         <p className="text-[11px] text-slate-400 leading-normal">
                           Aproveite o acesso completo e ilimitado para treinar seu inglês de tatame, voz natural com IA e disputar na arena PVP do JiuSpeak.

@@ -1874,23 +1874,7 @@ export let inMemoryMarketplaceItems: any[] = [
   }
 ];
 
-export let inMemoryMarketplaceSales: any[] = [
-  {
-    id: "sale_mock_1",
-    marketplaceItemId: "p2p_gi_koral_listing",
-    buyerId: "user_athlete_test_1",
-    buyerName: "Fabio Gurgel Fan (USER)",
-    sellerId: "user_4593",
-    sellerName: "Mestre_Cascão90",
-    pricePaidJT: 4500,
-    feePaidJT: 450,
-    itemName: "Kimono Koral Vintage 1998",
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    status: "Seguro",
-    riskScore: 12,
-    securityNotes: "Transação auditada em canais criptografados."
-  }
-];
+export let inMemoryMarketplaceSales: any[] = [];
 
 // Security trackers
 const purchaseVelocityTracker = new Map<string, { count: number; lastTime: number }>();
@@ -11434,119 +11418,14 @@ app.post("/api/admin/store/:id/delete", authenticateToken, requireRole(["ADMIN"]
 // SOCIAL INTERNAL NETWORK ENDPOINTS (POSTS, LIKES, COMMENTS, FOLLOWS, NOTIFS)
 // =========================================================================
 
-// Fallback memory databases
-export let inMemorySocialPosts: any[] = [
-  {
-    id: "post_initial_1",
-    authorId: "prof_gracie",
-    authorName: "Sensei Roger Gracie",
-    authorAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Preto",
-    category: "Treino",
-    content: "Hoje às 19h teremos uma masterclass online aqui na JiuSpeak focada na transição da Guarda Fechada para a Raspagem de Tesoura. Não faltem aos treinos mentais, oss!",
-    upvotes: 42,
-    hasUpvoted: false,
-    timestamp: "2 horas atrás",
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    comments: [
-      {
-        id: "c_initial_1",
-        authorName: 'Thiago "Filho do Vento"',
-        authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-        authorBelt: "Azul",
-        content: "Estarei lá com certeza Mestre! Minha raspagem está travando na altura do joelho dele, preciso de ajuda com a alavanca.",
-        timestamp: "1 hora atrás",
-        createdAt: new Date(Date.now() - 3600000).toISOString()
-      },
-      {
-        id: "c_initial_2",
-        authorName: "Mestre_Cascão90",
-        authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150",
-        authorBelt: "Preto",
-        content: "Maravilha Roger! Essa aula vale ouro. Os detalhes desse quadril salvam qualquer jogo.",
-        timestamp: "45 min atrás",
-        createdAt: new Date(Date.now() - 2700000).toISOString()
-      }
-    ]
-  },
-  {
-    id: "post_initial_2",
-    authorId: "user_4593",
-    authorName: "Guilherme Faixa Azul",
-    authorAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Azul",
-    category: "Meme",
-    content: "Aquele momento em que o faixa preta diz 'vamos dar um rolinho leve', você aceita e seu corpo vira origami em 3 minutos de massacre 😂",
-    upvotes: 89,
-    hasUpvoted: false,
-    timestamp: "5 horas atrás",
-    createdAt: new Date(Date.now() - 18000000).toISOString(),
-    comments: []
-  },
-  {
-    id: "post_initial_3",
-    authorId: "user_1199",
-    authorName: "Fabrícia Guardeira",
-    authorAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Roxa",
-    category: "Dúvida",
-    content: "Alguém mais sente muita fadiga no antebraço ao fazer pegadas na manga na Guarda De la Riva? Algum ajuste postural evita essa força excessiva dos dedos?",
-    upvotes: 18,
-    hasUpvoted: false,
-    timestamp: "1 dia atrás",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    comments: [
-      {
-        id: "c_initial_3",
-        authorName: "Claudio Chave de Pé",
-        authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150",
-        authorBelt: "Marrom",
-        content: "Tente fazer pegada de concha (gancho com 4 dedos para dentro sem torcer) em vez de estrangular o pano do quimono. Use o osso do antebraço como gancho anatômico.",
-        timestamp: "18 horas atrás",
-        createdAt: new Date(Date.now() - 64800000).toISOString()
-      }
-    ]
-  }
-];
-
+// Fallback memory databases - EMPTY (REAL DATA ONLY)
+export let inMemorySocialPosts: any[] = [];
 export let inMemoryFollowers: any[] = [];
 export let inMemorySocialNotifications: any[] = [];
 
-// Advanced Social Architecture in-memory datastores
-export let inMemoryStories: any[] = [
-  {
-    id: "story_1",
-    userId: "prof_gracie",
-    userName: "Sensei Roger Gracie",
-    userAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    userBelt: "Preto",
-    mediaUrl: "https://images.unsplash.com/photo-1517438476312-10d79c07750d?auto=format&fit=crop&q=80&w=600",
-    mediaType: "photo",
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "story_2",
-    userId: "user_1199",
-    userName: "Fabrícia Guardeira",
-    userAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
-    userBelt: "Roxa",
-    mediaUrl: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&q=80&w=600",
-    mediaType: "photo",
-    createdAt: new Date().toISOString()
-  }
-];
-
-export let inMemoryReactions: Record<string, Record<string, string[]>> = {
-  "post_initial_1": {
-    "OSS": ["user_1199"],
-    "BRABO": ["user_4593"]
-  },
-  "post_initial_2": {
-    "BRABO": ["prof_gracie"],
-    "RESPEITO": ["user_1199"]
-  }
-};
-
+// Advanced Social Architecture in-memory datastores - EMPTY (REAL DATA ONLY)
+export let inMemoryStories: any[] = [];
+export let inMemoryReactions: Record<string, Record<string, string[]>> = {};
 export let inMemorySavedPosts: Record<string, string[]> = {};
 
 // Helper to format dynamic relative time
@@ -12735,61 +12614,31 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
       });
 
       const userAcademy = getAcademyForUser(user);
-      const seed = getDeterministicSeed(user.id, category + period);
 
       // Define standard user variables
       const userLevel = user.level || 1;
       const userBaseXp = user.xp || 0;
       const userElo = user.elo || 1000;
 
-      // 1. STUDIES SCORE (completed lesson models)
-      let studiesScore = (userLevel * 3) + (seed % 5);
-      if (period !== 'todos') {
-        const dbLessons = completedLessonsByActor[user.id] || 0;
-        const fakeVal = period === 'hoje' ? (seed % 2) : period === 'semana' ? (seed % 4) + 1 : period === 'mes' ? (seed % 10) + 2 : (seed % 30) + 5;
-        studiesScore = dbLessons || fakeVal;
-      }
+      // 1. STUDIES SCORE (completed lesson models from DB)
+      const studiesScore = completedLessonsByActor[user.id] || 0;
 
-      // 2. XP SCORE
-      let xpScore = (userLevel * 1000) + userBaseXp;
-      if (period !== 'todos') {
-        const fakeVal = period === 'hoje' ? (seed % 350) + 50 : period === 'semana' ? (seed % 1800) + 300 : period === 'mes' ? (seed % 6000) + 1000 : (seed % 22000) + 4000;
-        xpScore = (completedLessonsByActor[user.id] || 0) * 150 + fakeVal;
-      }
+      // 2. XP SCORE (based purely on real user XP)
+      const xpScore = userBaseXp;
 
-      // 3. ELO SCORE
-      let eloScore = userElo;
-      if (period !== 'todos') {
-        // Dynamic active delta rating
-        const delta = (seed % 65) - 20;
-        eloScore = Math.max(1000, userElo + delta);
-      }
+      // 3. ELO SCORE (based purely on real user ELO)
+      const eloScore = userElo;
 
-      // 4. WINS (Vitórias) SCORE
-      let winsScore = Math.floor(userLevel * 2.5) + (seed % 6);
-      if (period !== 'todos') {
-        const dbWins = matchedWinsByActor[user.id] || 0;
-        const fakeVal = period === 'hoje' ? (seed % 2) : period === 'semana' ? (seed % 4) : period === 'mes' ? (seed % 12) + 1 : (seed % 35) + 5;
-        winsScore = dbWins || fakeVal;
-      }
+      // 4. WINS (Vitórias) SCORE (from DB matchmaking logs)
+      const winsScore = matchedWinsByActor[user.id] || 0;
 
-      // 5. PVP score (Arena point matches activity)
-      let pvpScore = userElo + (winsScore * 200);
-      if (period !== 'todos') {
-        const dbPvp = pvpScoreByActor[user.id] || 0;
-        const fakeVal = period === 'hoje' ? (seed % 250) + 50 : period === 'semana' ? (seed % 1200) + 200 : period === 'mes' ? (seed % 4500) + 800 : (seed % 16000) + 3000;
-        pvpScore = dbPvp || fakeVal;
-      }
+      // 5. PVP score (Arena activity counts)
+      const pvpScore = pvpScoreByActor[user.id] || 0;
 
-      // 6. REDE SOCIAL SCORE (Social points)
-      let socialScore = (userLevel * 120) + (seed % 800);
-      if (period !== 'todos') {
-        const dbSoc = socialActionsByActor[user.id] || 0;
-        const fakeVal = period === 'hoje' ? (seed % 120) + 10 : period === 'semana' ? (seed % 500) + 40 : period === 'mes' ? (seed % 1800) + 150 : (seed % 7500) + 800;
-        socialScore = dbSoc || fakeVal;
-      }
+      // 6. REDE SOCIAL SCORE (Real activities)
+      const socialScore = socialActionsByActor[user.id] || 0;
 
-      // 7. GLOBAL SCORE (Comprehensive rating)
+      // 7. GLOBAL SCORE (Comprehensive rating of real data only)
       const globalScore = Math.round(xpScore + eloScore + pvpScore + socialScore);
 
       return {

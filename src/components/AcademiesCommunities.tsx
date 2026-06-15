@@ -269,7 +269,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         showToast(data.error || "Erro ao somar pontos", "error");
       }
     } catch (error) {
-      showToast("Operação concluída com sucesso (Simulado localmente)!", "success");
+      showToast("Conexão instável de rede. Por favor, tente novamente mais tarde.", "error");
     } finally {
       setPointsAddingProgress(false);
     }
@@ -401,16 +401,6 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
             >
               <Trophy className="w-3.5 h-3.5" />
               <span>Rankings Globais & Regionais</span>
-            </button>
-            <button 
-              onClick={() => setActiveSubTab('simulator')} 
-              className={`px-4 py-2 text-xs font-mono rounded-md border tracking-wider transition-all uppercase flex items-center gap-2
-                ${activeSubTab === 'simulator' 
-                  ? 'bg-[#009dff]/10 text-[#009dff] border-[#009dff]/40 shadow-[0_0_15px_rgba(0,157,255,0.15)] font-bold' 
-                  : 'bg-slate-900/40 text-slate-400 border-transparent hover:border-slate-800 hover:text-slate-200'}`}
-            >
-              <Sword className="w-3.5 h-3.5 animate-bounce-slow" />
-              <span>Treino & Acúmulo de Pontos</span>
             </button>
             <button 
               onClick={() => setActiveSubTab('stats')} 

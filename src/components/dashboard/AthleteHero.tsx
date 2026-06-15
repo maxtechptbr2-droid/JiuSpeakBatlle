@@ -41,10 +41,10 @@ export default function AthleteHero({ user, updateUser, studySeconds, formatStud
         {/* Profile Info Row Left */}
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
           
-          {/* Avatar Container with Animated Neon Border */}
+          {/* Avatar Container with Clean Premium Border */}
           <div className="relative group">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-violet-600 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse" />
-            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border border-zinc-900 bg-zinc-950 flex items-center justify-center">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl opacity-40 group-hover:opacity-60 transition duration-300" />
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 flex items-center justify-center">
               {user.profilePhoto || user.avatar ? (
                 <img 
                   src={user.profilePhoto || user.avatar} 
@@ -58,7 +58,7 @@ export default function AthleteHero({ user, updateUser, studySeconds, formatStud
             </div>
             
             {/* Belt Rank Overlay Badge */}
-            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-blue-950 to-indigo-950 text-[10px] font-mono font-black border border-blue-500/30 text-blue-400 uppercase tracking-widest shadow-md">
+            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-zinc-950 text-[10px] font-mono font-bold border border-zinc-805 text-zinc-350 uppercase tracking-widest shadow-md">
               FAIXA {user.belt}
             </span>
           </div>
@@ -136,11 +136,10 @@ export default function AthleteHero({ user, updateUser, studySeconds, formatStud
         <div className="flex flex-row sm:flex-col gap-3.5 w-full lg:w-auto self-stretch lg:self-center justify-center items-center">
           
           {/* Streak Indicator */}
-          <div className="flex-1 lg:flex-none p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800 flex items-center gap-4.5 justify-center lg:justify-start min-w-[160px]">
+          <div className="flex-1 lg:flex-none p-4 rounded-2xl bg-zinc-900/40 border border-zinc-850 flex items-center gap-4.5 justify-center lg:justify-start min-w-[160px]">
             <div className="relative">
-              <div className="absolute -inset-1.5 bg-orange-650/10 rounded-full blur-sm opacity-75 animate-ping" />
-              <div className="relative w-11 h-11 bg-orange-950/20 rounded-xl border border-orange-500/20 flex items-center justify-center">
-                <Flame className="w-6 h-6 text-orange-500 fill-orange-500/10 animate-bounce" />
+              <div className="w-11 h-11 bg-orange-950/10 rounded-xl border border-orange-500/10 flex items-center justify-center">
+                <Flame className="w-5 h-5 text-orange-500 fill-orange-500/5 animate-pulse" />
               </div>
             </div>
             <div className="text-left">
@@ -150,9 +149,9 @@ export default function AthleteHero({ user, updateUser, studySeconds, formatStud
           </div>
 
           {/* Study clock session */}
-          <div className="flex-1 lg:flex-none p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800 flex items-center gap-4.5 justify-center lg:justify-start min-w-[160px]">
-            <div className="w-11 h-11 bg-blue-950/20 rounded-xl border border-blue-500/20 flex items-center justify-center">
-              <Clock className="w-6 h-6 text-blue-400" />
+          <div className="flex-1 lg:flex-none p-4 rounded-2xl bg-zinc-900/40 border border-zinc-850 flex items-center gap-4.5 justify-center lg:justify-start min-w-[160px]">
+            <div className="w-11 h-11 bg-blue-950/10 rounded-xl border border-blue-500/10 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-blue-400" />
             </div>
             <div className="text-left">
               <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Estudo de Hoje</p>

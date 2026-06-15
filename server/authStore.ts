@@ -78,258 +78,9 @@ export const simulatedSentEmails: Array<{
   timestamp: Date;
 }> = [];
 
-// Seed initial test administrative and athlete accounts into the PostgreSQL database.
+// Seed initial test administrative and athlete accounts - DISABLED (REAL DATA ONLY)
 export const seedInitialUsers = async (withDb: boolean = false) => {
-  const adminPassHash = await bcrypt.hash('98922678aA', 10);
-  const userPassHash = await bcrypt.hash('user123', 10);
-
-  // Set up inMemoryUsers (fallback memory store)
-  const usersToSeed: AuthUser[] = [
-    {
-      id: 'user_admin_test_1',
-      email: 'maxtechptbr@gmail.com',
-      name: 'Mestre Carlos (ADMIN)',
-      passwordHash: adminPassHash,
-      role: 'ADMIN',
-      isAdminApproved: true,
-      belt: 'BLACK',
-      stripes: 4,
-      xp: 2500,
-      level: 30,
-      elo: 2200,
-      isEmailVerified: true,
-      verificationToken: null,
-      resetToken: null,
-      resetTokenExpires: null,
-      refreshToken: null,
-      coins: 5000,
-      balanceAvailableBRL: 1500.00,
-      balancePendingBRL: 350.00,
-      totalEarnedBRL: 1850.00,
-      totalWithdrawnBRL: 0.00
-    },
-    {
-      id: 'user_admin_test_9',
-      email: 'maxtechptbr9@gmail.com',
-      name: 'Mestre Carlos 9 (ADMIN)',
-      passwordHash: adminPassHash,
-      role: 'ADMIN',
-      isAdminApproved: true,
-      belt: 'BLACK',
-      stripes: 4,
-      xp: 3000,
-      level: 35,
-      elo: 2300,
-      isEmailVerified: true,
-      verificationToken: null,
-      resetToken: null,
-      resetTokenExpires: null,
-      refreshToken: null,
-      coins: 6000,
-      balanceAvailableBRL: 2500.00,
-      balancePendingBRL: 500.00,
-      totalEarnedBRL: 3000.00,
-      totalWithdrawnBRL: 0.00
-    },
-    {
-      id: 'user_athlete_test_1',
-      email: 'usuario@jiuspeak.com',
-      name: 'Fabio Gurgel Fan (USER)',
-      passwordHash: userPassHash,
-      role: 'ATHLETE',
-      isAdminApproved: true,
-      belt: 'WHITE',
-      stripes: 1,
-      xp: 120,
-      level: 2,
-      elo: 1050,
-      isEmailVerified: false,
-      verificationToken: 'initial_verify_token_example_123',
-      resetToken: null,
-      resetTokenExpires: null,
-      refreshToken: null,
-      coins: 2200,
-      balanceAvailableBRL: 420.00,
-      balancePendingBRL: 155.00,
-      totalEarnedBRL: 575.00,
-      totalWithdrawnBRL: 0.00
-    }
-  ];
-
-  for (const u of usersToSeed) {
-    inMemoryUsers.set(u.id, u);
-  }
-
-  if (!withDb) {
-    console.log("ℹ️ Skipping user seeding in database on startup. Standalone seeder can perform this.");
-    return;
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    console.log("⚠️ Production Mode: Seeding test accounts or seed users bypassed.");
-    return;
-  }
-
-  if (!isDatabaseConnected()) {
-    console.warn("⚠️ PostgreSQL está offline ou indisponível. Pulando semeadura de usuários no banco de dados.");
-    return;
-  }
-
-  const prisma = getPrisma();
-  if (!prisma) return;
-
-  try {
-    // 1. Seed Admin Accounts
-    const adminExists = await prisma.user.findFirst({
-      where: { email: 'maxtechptbr@gmail.com' }
-    });
-
-    if (!adminExists) {
-      await prisma.user.create({
-        data: {
-          id: 'user_admin_test_1',
-          email: 'maxtechptbr@gmail.com',
-          name: 'Mestre Carlos (ADMIN)',
-          password: adminPassHash,
-          role: 'ADMIN',
-          isAdminApproved: true,
-          belt: 'BLACK',
-          stripes: 4,
-          xp: 2500,
-          level: 30,
-          elo: 2200,
-          isEmailVerified: true,
-          wallet: {
-            create: {
-              balanceJT: 5000,
-              balanceAvailable: 1500.00,
-              balanceBRL: 1500.00,
-              balancePending: 350.00,
-              totalEarned: 1850.00,
-              totalWithdrawn: 0.00,
-            }
-          },
-          inventory: {
-            create: {}
-          }
-        }
-      });
-      console.log('🌱 Admin user "maxtechptbr@gmail.com" seeded successfully inside Postgres.');
-    } else {
-      // Keep credentials perfectly in sync with requested updates
-      await prisma.user.update({
-        where: { id: adminExists.id },
-        data: {
-          email: 'maxtechptbr@gmail.com',
-          password: adminPassHash,
-          role: 'ADMIN',
-          isAdminApproved: true
-        }
-      });
-      console.log('🌱 Admin credentials updated successfully to match user intent.');
-    }
-
-    // Seed Second Admin Account maxtechptbr9@gmail.com (current workspace environment user)
-    const admin9Exists = await prisma.user.findFirst({
-      where: { email: 'maxtechptbr9@gmail.com' }
-    });
-
-    if (!admin9Exists) {
-      await prisma.user.create({
-        data: {
-          id: 'user_admin_test_9',
-          email: 'maxtechptbr9@gmail.com',
-          name: 'Mestre Carlos 9 (ADMIN)',
-          password: adminPassHash,
-          role: 'ADMIN',
-          belt: 'BLACK',
-          stripes: 4,
-          xp: 3000,
-          level: 35,
-          elo: 2300,
-          isEmailVerified: true,
-          wallet: {
-            create: {
-              balanceJT: 6000,
-              balanceAvailable: 2500.00,
-              balanceBRL: 2500.00,
-              balancePending: 500.00,
-              totalEarned: 3000.00,
-              totalWithdrawn: 0.00,
-            }
-          },
-          inventory: {
-            create: {}
-          }
-        }
-      });
-      console.log('🌱 Admin user "maxtechptbr9@gmail.com" seeded successfully inside Postgres.');
-    } else {
-      await prisma.user.update({
-        where: { id: admin9Exists.id },
-        data: {
-          role: 'ADMIN',
-          password: adminPassHash
-        }
-      });
-      console.log('🌱 Admin "maxtechptbr9" role updated safely to ADMIN.');
-    }
-
-    // 2. Seed Standard Test Athlete Account
-    const userExists = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { id: 'user_athlete_test_1' },
-          { email: 'usuario@jiuspeak.com' }
-        ]
-      }
-    });
-
-    if (!userExists) {
-      await prisma.user.create({
-        data: {
-          id: 'user_athlete_test_1',
-          email: 'usuario@jiuspeak.com',
-          name: 'Fabio Gurgel Fan (USER)',
-          password: userPassHash,
-          role: 'ATHLETE',
-          belt: 'WHITE',
-          stripes: 1,
-          xp: 120,
-          level: 2,
-          elo: 1050,
-          isEmailVerified: false,
-          verificationToken: 'initial_verify_token_example_123',
-          wallet: {
-            create: {
-              balanceJT: 2200,
-              balanceAvailable: 420.00,
-              balanceBRL: 420.00,
-              balancePending: 155.00,
-              totalEarned: 575.00,
-              totalWithdrawn: 0.00,
-            }
-          },
-          inventory: {
-            create: {}
-          }
-        }
-      });
-      console.log('🌱 Athlete user "usuario@jiuspeak.com" seeded successfully inside Postgres.');
-    } else {
-      // Keep password in sync for athlete
-      await prisma.user.update({
-        where: { id: userExists.id },
-        data: {
-          password: userPassHash
-        }
-      });
-      console.log('🌱 Athlete test credentials updated successfully.');
-    }
-
-  } catch (error) {
-    console.error('❌ Critical error seeding initial user accounts into PostgreSQL:', error);
-  }
+  console.log("ℹ️ [SEED] seedInitialUsers is disabled to ensure a 100% REAL DATA ONLY environment.");
 };
 
 // Seed initial Store cosmetics into PostgreSQL database.
@@ -1577,20 +1328,9 @@ export const authStore = {
         return uMapped;
       }
 
-      // Fallback search in-memory if not found in db but exists locally
-      for (const u of inMemoryUsers.values()) {
-        if (u.email.toLowerCase().trim() === formattedEmail) {
-          return u;
-        }
-      }
       return null;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível na consulta findByEmail. Tentando fallback em memória:", dbErr);
-      for (const u of inMemoryUsers.values()) {
-        if (u.email.toLowerCase().trim() === formattedEmail) {
-          return u;
-        }
-      }
+      console.error("✗ PostgreSQL indisponível na consulta findByEmail:", dbErr);
       return null;
     }
   },
@@ -1674,10 +1414,10 @@ export const authStore = {
         console.log("[AUTH STORE findById KEYS]", Object.keys(uMapped), "COUNT:", Object.keys(uMapped).length);
         return uMapped;
       }
-      return inMemoryUsers.get(id) || null;
+      return null;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL indisponível na consulta findById. Tentando fallback em memória:", dbErr);
-      return inMemoryUsers.get(id) || null;
+      console.error("✗ PostgreSQL indisponível na consulta findById:", dbErr);
+      return null;
     }
   },
 
@@ -1723,31 +1463,6 @@ export const authStore = {
         },
       });
 
-      const inMemUser: AuthUser = {
-        id: u.id,
-        email: formattedEmail,
-        name: data.name,
-        passwordHash: data.passwordHash,
-        role: role,
-        isAdminApproved: approved,
-        belt: 'WHITE',
-        stripes: 0,
-        xp: 0,
-        level: 1,
-        elo: 1000,
-        isEmailVerified: true,
-        verificationToken: data.verificationToken,
-        resetToken: null,
-        resetTokenExpires: null,
-        refreshToken: null,
-        coins: 200,
-        balanceAvailableBRL: 0,
-        balancePendingBRL: 0,
-        totalEarnedBRL: 0,
-        totalWithdrawnBRL: 0,
-      };
-      inMemoryUsers.set(u.id, inMemUser);
-
       return {
         id: u.id,
         email: u.email,
@@ -1757,42 +1472,13 @@ export const authStore = {
         isEmailVerified: u.isEmailVerified,
       };
     } catch (dbErr) {
-      console.error("✗ PostgreSQL na criação de usuário indisponível. Tentando em memória:", dbErr);
-      const mockId = 'user_' + Math.random().toString(36).substring(2, 11);
-      const mockUser: AuthUser = {
-        id: mockId,
-        email: formattedEmail,
-        name: data.name,
-        passwordHash: data.passwordHash,
-        role: role,
-        isAdminApproved: approved,
-        belt: 'WHITE',
-        stripes: 0,
-        xp: 0,
-        level: 1,
-        elo: 1000,
-        isEmailVerified: false,
-        verificationToken: data.verificationToken,
-        resetToken: null,
-        resetTokenExpires: null,
-        refreshToken: null,
-        coins: 200,
-        balanceAvailableBRL: 0,
-        balancePendingBRL: 0,
-        totalEarnedBRL: 0,
-        totalWithdrawnBRL: 0,
-      };
-      inMemoryUsers.set(mockId, mockUser);
-      return mockUser;
+      console.error("✗ PostgreSQL na criação de usuário indisponível:", dbErr);
+      throw dbErr;
     }
   },
 
   async updateUser(id: string, fields: Partial<AuthUser>): Promise<boolean> {
     console.log("[AUTH STORE updateUser INPUT KEYS]", Object.keys(fields), "COUNT:", Object.keys(fields).length);
-    const memUser = inMemoryUsers.get(id);
-    if (memUser) {
-      Object.assign(memUser, fields);
-    }
     try {
       const prisma = getPrisma();
       if (!prisma) {
@@ -1889,18 +1575,12 @@ export const authStore = {
       }
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL na atualização de usuário indisponível. Executado com fallback em memória:", dbErr);
-      return !!memUser;
+      console.error("✗ PostgreSQL na atualização de usuário indisponível:", dbErr);
+      return false;
     }
   },
 
   async deleteUser(id: string, deletedBy: string = "ADMIN", deleteReason: string = "Excluído por decisão administrativa"): Promise<boolean> {
-    const memUser = inMemoryUsers.get(id);
-    if (memUser) {
-      memUser.deletedAt = new Date();
-      memUser.deletedBy = deletedBy;
-      memUser.deleteReason = deleteReason;
-    }
     try {
       const prisma = getPrisma();
       if (!prisma) {
@@ -1918,18 +1598,12 @@ export const authStore = {
 
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL soft deleteUser falhou. fallback para memória:", dbErr);
-      return !!memUser;
+      console.error("✗ PostgreSQL soft deleteUser falhou:", dbErr);
+      return false;
     }
   },
 
   async restoreUser(id: string): Promise<boolean> {
-    const memUser = inMemoryUsers.get(id);
-    if (memUser) {
-      memUser.deletedAt = null;
-      memUser.deletedBy = null;
-      memUser.deleteReason = null;
-    }
     try {
       const prisma = getPrisma();
       if (!prisma) {
@@ -1947,8 +1621,8 @@ export const authStore = {
 
       return true;
     } catch (dbErr) {
-      console.error("✗ PostgreSQL restoreUser falhou. fallback para memória:", dbErr);
-      return !!memUser;
+      console.error("✗ PostgreSQL restoreUser falhou:", dbErr);
+      return false;
     }
   },
 

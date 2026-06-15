@@ -63,7 +63,7 @@ export default function HeroStats({ id, className = '' }: HeroStatsProps) {
                 <span className="block text-xs font-sans font-extrabold text-slate-200 uppercase tracking-wide">
                   {st.label}
                 </span>
-                <span className="block text-[10px] text-slate-450 font-medium leading-tight">
+                <span className="block text-[10px] text-slate-400 font-medium leading-tight">
                   {st.desc}
                 </span>
               </div>

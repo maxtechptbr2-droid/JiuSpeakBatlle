@@ -2059,7 +2059,6 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
               <div className="space-y-6 animate-scaleIn">
                 <div className="flex justify-between items-center">
                   <h3 className="font-display font-semibold text-lg text-white">Resumo Geral da Academia</h3>
-                  <span className="text-xs font-mono text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/10">● Servidor Sincronizado</span>
                 </div>
 
                 {/* KPI Metrics Cards */}
