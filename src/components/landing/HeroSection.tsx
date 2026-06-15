@@ -37,60 +37,37 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
   return (
     <section 
       id="inicio" 
-      className="relative z-10 min-h-screen flex items-center justify-center bg-[#000814] pt-24 pb-16 lg:py-32"
+      className="relative min-h-screen w-full overflow-hidden flex items-center justify-center pt-24 pb-16 lg:py-32"
     >
-      {/* Background container: Panoramic Cinematic Dark Blue Stadium Atmosphere */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none select-none">
-        {/* Soft stadium dark blue backdrop */}
-        <div className="absolute inset-0 bg-[#000814]" />
-        
-        {/* Real High-Resolution Stadium background photo */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-100"
-          style={{
-            backgroundImage: `
-              linear-gradient(
-                to right,
-                rgba(2, 6, 23, 0.95),
-                rgba(2, 6, 23, 0.82),
-                rgba(2, 6, 23, 0.55)
-              ),
-              radial-gradient(
-                circle at center,
-                transparent 0%,
-                rgba(0, 0, 0, 0.55) 100%
-              ),
-              url('https://www.jiuspeak.com.br/images/hero-bg.jpg')
-            `,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(
+              to right,
+              rgba(2, 6, 23, 0.92),
+              rgba(2, 6, 23, 0.75),
+              rgba(2, 6, 23, 0.55)
+            ),
+            radial-gradient(
+              circle at center,
+              transparent 0%,
+              rgba(0, 0, 0, 0.55) 100%
+            ),
+            url('https://www.jiuspeak.com.br/images/hero-bg.jpg')
+          `,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
 
-        {/* Perspective Blue Tatame floor of the stadium matching the mockup */}
-        <div 
-          className="absolute bottom-0 right-0 w-[100%] lg:w-[65%] h-[42%] bg-gradient-to-t from-blue-950 via-[#0a2352] to-[#071635] border-t border-blue-500/25 opacity-75 shadow-[0_0_80px_rgba(0,132,255,0.15)]"
-          style={{
-            transform: 'perspective(160px) rotateX(22deg) translateY(20px)',
-            transformOrigin: 'bottom right',
-          }}
-        >
-          {/* Internal tatame fight line */}
-          <div className="absolute inset-2 border border-blue-500/25 opacity-35" />
-          <div className="absolute inset-6 border border-yellow-500/10 opacity-20" />
-        </div>
-
-        {/* Cinematic ambient colorful glowing halos */}
-        <div className="absolute top-[-5%] right-[-10%] w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[140px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px]" />
-      </div>
-
-      {/* Extreme Vignette Overlay to ensure perfect text readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#000814]/95 via-[#000814]/75 to-[#000814]/30 z-10 pointer-events-none" />
+      {/* Ambient lighting */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-650/10 rounded-full blur-[140px] pointer-events-none mix-blend-screen z-0" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-505/5 rounded-full blur-[120px] pointer-events-none mix-blend-screen z-0" />
 
       {/* Content Container */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col justify-between h-full">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex flex-col justify-between h-full">
         
         {/* Main Grid: Left copy, Right athletic arena box */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center w-full">
