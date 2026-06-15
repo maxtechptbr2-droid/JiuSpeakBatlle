@@ -79,26 +79,26 @@ export class RankingService {
     const newEloA = Math.max(100, oldEloA + changeA);
     const newEloB = Math.max(100, oldEloB + changeB);
 
-    // 3. Rewards configuration
-    let coinsA = 15;
+    // 3. Rewards configuration (JT is exclusively bought; users gain 0 JT from PvP)
+    let coinsA = 0;
     let xpA = 20;
-    let coinsB = 15;
+    let coinsB = 0;
     let xpB = 20;
 
     if (outcome === "WIN") {
-      coinsA = 100;
+      coinsA = 0;
       xpA = 150;
-      coinsB = 25;
+      coinsB = 0;
       xpB = 30;
     } else if (outcome === "LOSS") {
-      coinsA = 25;
+      coinsA = 0;
       xpA = 30;
-      coinsB = 100;
+      coinsB = 0;
       xpB = 150;
     } else {
-      coinsA = 40;
+      coinsA = 0;
       xpA = 50;
-      coinsB = 40;
+      coinsB = 0;
       xpB = 50;
     }
 

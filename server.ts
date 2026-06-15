@@ -8186,7 +8186,7 @@ app.get("/api/payments/mock-boleto-pdf", async (req: any, res: any) => {
   `);
 });
 
-// Endpoint to active or renew 30 days of Premium AI Conversations for 2,500 JT
+// Endpoint to active or renew 30 days of Premium AI Conversations for 5,000 JT (free for TEACHERs)
 app.post("/api/conversational/activate", authenticateToken, async (req: any, res: any) => {
   try {
     const userId = req.user.id;
@@ -8206,10 +8206,13 @@ app.post("/api/conversational/activate", authenticateToken, async (req: any, res
       balanceJT = userObj.coins || 0;
     }
 
-    const cost = 2500;
+    // Rule: AI costs 5.000 JT. Exception: role === "INSTRUCTOR" is 0 JT
+    const isTeacher = userObj.role === "INSTRUCTOR";
+    const cost = isTeacher ? 0 : 5000;
+
     if (balanceJT < cost) {
       return res.status(400).json({ 
-        error: `Saldo de JiuTickets insuficiente. Você possui ${balanceJT} JT, mas são necessários ${cost} JT para ativar a Inteligência Artificial.` 
+        error: "Você precisa adquirir JT para utilizar a IA." 
       });
     }
 
@@ -8227,10 +8230,12 @@ app.post("/api/conversational/activate", authenticateToken, async (req: any, res
 
     if (prisma) {
       await prisma.$transaction(async (tx) => {
-        await tx.wallet.update({
-          where: { userId },
-          data: { balanceJT: { decrement: cost } }
-        });
+        if (cost > 0) {
+          await tx.wallet.update({
+            where: { userId },
+            data: { balanceJT: { decrement: cost } }
+          });
+        }
 
         await tx.user.update({
           where: { id: userId },
@@ -8241,23 +8246,27 @@ app.post("/api/conversational/activate", authenticateToken, async (req: any, res
           data: {
             actorId: userId,
             action: "MARKETPLACE_BUY",
-            description: `Ativação manual de 30 dias de Conversação IA por 2.500 JT. Nova expiração: ${newExpiry.toLocaleDateString("pt-BR")}`
+            description: `Ativação manual de 30 dias de Conversação IA por ${cost} JT. Nova expiração: ${newExpiry.toLocaleDateString("pt-BR")}`
           }
         });
       });
     }
 
+    const nextCoins = balanceJT - cost;
+
     // Synchronize state with unified authStore state memory fallback
     await authStore.updateUser(userId, {
-      coins: balanceJT - cost,
+      coins: nextCoins,
       aiConversationExpiresAt: newExpiry
     });
 
     return res.json({
       success: true,
       aiConversationExpiresAt: newExpiry.toISOString(),
-      coins: balanceJT - cost,
-      message: "Conversação com IA ativada com sucesso por 30 dias! Bons treinos de tatame!"
+      coins: nextCoins,
+      message: isTeacher
+        ? "Conversação com IA ativada com sucesso! Como Professor, você possui uso ilimitado e gratuito! Bons treinos!"
+        : `Conversação com IA ativada com sucesso por 30 dias! Descontados ${cost} JT do seu saldo. Bons treinos de tatame!`
     });
 
   } catch (error: any) {
@@ -13079,6 +13088,12 @@ async function startServer() {
 
       const activeProfile = updatedProfile || profile;
 
+      // Rule: Each PvP entry requires 5.000 JT. Charged upon match confirmation. Free for Teachers.
+      if (activeProfile.role !== "TEACHER" && (activeProfile.coins || 0) < 5000) {
+        socket.emit("matchmaking:error", { error: "Você precisa adquirir JT para entrar na Arena PvP. Cada combate custa 5.000 JT." });
+        return;
+      }
+
       const prisma = getPrisma();
       let equippedFrame = null;
       if (prisma) {
@@ -13121,6 +13136,11 @@ async function startServer() {
         elo: activeProfile.elo || 1000,
         socketId: socket.id,
         joinedAt: Date.now(),
+        city: activeProfile.city || null,
+        state: activeProfile.state || null,
+        country: (activeProfile as any).country || "Brasil",
+        level: activeProfile.level || 1,
+        role: activeProfile.role || "STUDENT",
         equippedFrame
       } as any);
 
@@ -13939,7 +13959,24 @@ async function startServer() {
   app.use("/api/marketplace", marketplaceRouter);
 
   // Mount Academy Hierarchy router
+  console.log("🔌 [SERVER] Carregando academyRouter...");
   app.use("/api/academy", academyRouter);
+  console.log("✅ ACADEMY ROUTER LOADED");
+
+  // Debug: Map and log registered academyRouter endpoints (Passo 7)
+  try {
+    const routes: string[] = [];
+    academyRouter.stack.forEach((middleware: any) => {
+      if (middleware.route) {
+        const methods = Object.keys(middleware.route.methods).map(m => m.toUpperCase());
+        routes.push(`[${methods.join(",")}] /api/academy${middleware.route.path}`);
+      }
+    });
+    console.log("📋 [SERVER] Rotas do academyRouter carregadas com sucesso:");
+    routes.forEach(r => console.log(`  👉 ${r}`));
+  } catch (err: any) {
+    console.warn("⚠️ [SERVER] Não foi possível listar detalhadamente as rotas do academyRouter: " + err.message);
+  }
 
   // Global Express Error-handling logging middleware
   app.use((err: any, req: any, res: any, next: any) => {

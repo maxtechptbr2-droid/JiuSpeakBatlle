@@ -321,9 +321,9 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
       // Mark completed
       setCompletedExams(prev => ({ ...prev, [activeExam.id]: true }));
       
-      // Award rewards
+      // Award rewards (JT is strictly bought; 0 JT awarded as a course reward)
       addXp(300, `Graduação do Módulo: ${activeExam.title}`);
-      addCoins(150, `Graduação do Módulo: ${activeExam.title}`);
+      addCoins(0, `Graduação do Módulo: ${activeExam.title}`);
 
       // Save certificate
       const certId = `JS-2026-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -376,9 +376,9 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
   const handleClaimMissionRewards = () => {
     if (!selectedMission) return;
     
-    // Credit rewards
+    // Credit rewards (JT is strictly bought; 0 JT awarded for mission completions)
     addXp(selectedMission.xpReward, `Conclusão de Missão: ${selectedMission.title}`);
-    addCoins(selectedMission.jtReward, `Conclusão de Missão: ${selectedMission.title}`);
+    addCoins(0, `Conclusão de Missão: ${selectedMission.title}`);
     
     // Save completion
     setCompletedMissions(prev => ({
@@ -386,7 +386,7 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
       [selectedMission.id]: true
     }));
 
-    showToast(`🎁 Recompensas Resgatadas! +${selectedMission.xpReward} XP / +${selectedMission.jtReward} JT`, 'success');
+    showToast(`🎁 Recompensas Resgatadas! +${selectedMission.xpReward} XP`, 'success');
     setSelectedMission(null);
   };
 
@@ -1001,8 +1001,46 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
                           {step.title}
                         </h3>
                         {step.content?.videoUrl && (
-                          <div className="w-full aspect-video rounded-2xl overflow-hidden border border-zinc-850 bg-black">
-                            <video src={step.content.videoUrl} controls className="w-full h-full object-cover" />
+                          <div className="space-y-2">
+                            <div className="w-full aspect-video rounded-2xl overflow-hidden border border-zinc-850 bg-black relative shadow-lg">
+                              {(step.content.videoUrl.includes('youtube.com') || step.content.videoUrl.includes('youtu.be') || step.content.videoUrl.includes('embed')) ? (
+                                <iframe
+                                  src={(() => {
+                                    const reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                                    const match = step.content.videoUrl.match(reg);
+                                    const id = (match && match[2].length === 11) ? match[2] : "";
+                                    return id ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1` : step.content.videoUrl;
+                                  })()}
+                                  title={step.title}
+                                  className="w-full h-full border-0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  referrerPolicy="no-referrer"
+                                  allowFullScreen
+                                />
+                              ) : (
+                                <video 
+                                  src={step.content.videoUrl} 
+                                  controls 
+                                  className="w-full h-full object-cover" 
+                                  onError={() => {
+                                    console.warn("CORS/HTML5 Video blocked. Recommended backup to external server media.");
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[10px] text-zinc-500 font-sans italic">
+                                🔔 Se o vídeo não carregar devido a restrições do navegador, certifique-se de estar conectado.
+                              </span>
+                              <a 
+                                href={step.content.videoUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-[10px] text-violet-400 font-semibold underline hover:text-violet-300 font-sans"
+                              >
+                                Abrir no YouTube
+                              </a>
+                            </div>
                           </div>
                         )}
                         <p className="text-xs text-zinc-400 leading-relaxed font-sans">

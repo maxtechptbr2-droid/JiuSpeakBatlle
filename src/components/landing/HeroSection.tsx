@@ -48,7 +48,20 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-100"
           style={{
-            backgroundImage: `url('https://www.jiuspeak.com.br/images/hero-bg.jpg')`,
+            backgroundImage: `
+              linear-gradient(
+                to right,
+                rgba(2, 6, 23, 0.95),
+                rgba(2, 6, 23, 0.82),
+                rgba(2, 6, 23, 0.55)
+              ),
+              radial-gradient(
+                circle at center,
+                transparent 0%,
+                rgba(0, 0, 0, 0.55) 100%
+              ),
+              url('https://www.jiuspeak.com.br/images/hero-bg.jpg')
+            `,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',

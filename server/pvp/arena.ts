@@ -102,7 +102,7 @@ export class ArenaService {
     return arena;
   }
 
-  private static getSocket(socketId: string | null): Socket | null {
+  public static getSocket(socketId: string | null): Socket | null {
     if (!socketId) return null;
     return this.io.sockets.sockets.get(socketId) || null;
   }

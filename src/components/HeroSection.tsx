@@ -19,20 +19,39 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast }:
   return (
     <section 
       id="inicio" 
-      className="relative min-h-[calc(100vh-80px)] pt-24 md:pt-36 pb-20 px-6 md:px-12 xl:px-20 bg-gradient-to-b from-[#000814] via-[#050B14] to-[#020617] overflow-hidden flex items-center"
+      className="relative min-h-screen w-full overflow-hidden flex items-center pt-24 md:pt-36 pb-20 px-6 md:px-12 xl:px-20 bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `
+          linear-gradient(
+            to right,
+            rgba(2, 6, 23, 0.95),
+            rgba(2, 6, 23, 0.82),
+            rgba(2, 6, 23, 0.55)
+          ),
+          radial-gradient(
+            circle at center,
+            transparent 0%,
+            rgba(0, 0, 0, 0.55) 100%
+          ),
+          url('https://www.jiuspeak.com.br/images/hero-bg.jpg')
+        `,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
     >
       {/* Cinematic ambient spotlight & background grids */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.1)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(15,23,42,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.1)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-35 pointer-events-none" />
       <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[120px] pointer-events-none" />
       
       {/* Soft spotlight filter simulation */}
-      <div className="absolute inset-0 bg-[#000814] -z-10 mix-blend-multiply opacity-20" />
+      <div className="absolute inset-0 bg-[#000814] -z-10 mix-blend-multiply opacity-20 pointer-events-none" />
 
       <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center relative z-10">
         
         {/* LEFT COLUMN: CRITICAL HEADLINES */}
-        <div className="lg:col-span-7 space-y-8 animate-fadeIn text-left">
+        <div className="lg:col-span-7 space-y-8 animate-fadeIn text-center lg:text-left flex flex-col items-center lg:items-start">
           
           {/* Subheading high-level indicator */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-950/40 border border-blue-500/30 text-blue-400 text-xs font-mono font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(0,132,255,0.15)] animate-pulse">
@@ -50,13 +69,13 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast }:
                 SPEAK GLOBALLY.
               </span>
             </h1>
-            <p className="text-slate-300 text-base md:text-lg max-w-xl font-normal leading-relaxed">
+            <p className="text-slate-300 text-base md:text-lg max-w-xl font-normal leading-relaxed text-center lg:text-left">
               Aprenda inglês com o jiu-jitsu e prepare-se para competir, ensinar e viver o jiu-jitsu em qualquer lugar do mundo.
             </p>
           </div>
 
           {/* Minimal features with glow */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl w-full">
             {features.map((feat, index) => (
               <div 
                 key={index} 
@@ -65,7 +84,7 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast }:
                 <div className="w-8 h-8 rounded-lg bg-blue-950/60 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(0,132,255,0.1)]">
                   <ShieldCheck className="w-4 h-4 text-blue-400" />
                 </div>
-                <div>
+                <div className="text-left">
                   <h4 className="text-xs font-bold text-white tracking-wide">{feat.text}</h4>
                   <p className="text-[10px] text-slate-400">{feat.desc}</p>
                 </div>
@@ -74,7 +93,7 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast }:
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-4.5 pt-2">
+          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4.5 pt-2 w-full">
             <button
               onClick={onStartClick}
               className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold uppercase tracking-wider transition-all duration-300 shadow-[0_0_20px_rgba(0,132,255,0.35)] hover:shadow-[0_0_30px_rgba(0,132,255,0.55)] cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.98]"

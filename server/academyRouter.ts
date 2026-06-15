@@ -115,6 +115,48 @@ const mockIndependentAcademies = [
 
 
 // ==========================================
+// TEST, COMPATIBILITY & HEALTH ENDPOINTS (Prevent falling through to index.html SPA fallback)
+// ==========================================
+router.get("/health", (req, res) => {
+  console.log("🟢 [ACADEMY ROUTER] /health endpoint reached successfully!");
+  return res.json({ ok: true, message: "Academy router is healthy and listening!", timestamp: new Date().toISOString() });
+});
+
+router.get("/", (req, res) => {
+  console.log("🟠 [ACADEMY ROUTER] Root '/' endpoint reached!");
+  return res.json({ 
+    ok: true, 
+    message: "Welcome to JiuSpeak Academy Router!", 
+    availableEndpoints: [
+      "/all-groups",
+      "/debug",
+      "/global-teams",
+      "/independent-academies",
+      "/rankings",
+      "/stats",
+      "/health"
+    ] 
+  });
+});
+
+router.get("/list", (req, res) => {
+  console.log("🟡 [ACADEMY ROUTER] '/list' alias matched!");
+  return res.json({
+    message: "Alternative list endpoint. Use /all-groups or /global-teams to retrieve data.",
+    suggestedEndpoints: ["/all-groups", "/global-teams", "/independent-academies"]
+  });
+});
+
+router.get("/public", (req, res) => {
+  console.log("🟡 [ACADEMY ROUTER] '/public' alias matched!");
+  return res.json({
+    message: "Alternative public endpoint. Use /all-groups to retrieve public academy hierarchies.",
+    suggestedEndpoints: ["/all-groups"]
+  });
+});
+
+
+// ==========================================
 // 1. GET ALL OPTIONS (Helper API for dropdowns)
 // ==========================================
 router.get("/all-groups", async (req, res) => {

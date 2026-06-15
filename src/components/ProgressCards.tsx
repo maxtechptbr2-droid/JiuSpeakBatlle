@@ -81,7 +81,7 @@ export default function ProgressCards({ user, courses, onContinueClass, showToas
             <div className="space-y-4 pt-1">
               {/* Progress info */}
               <div className="space-y-1.5">
-                <div className="flex justify-between text-[11px] font-mono text-slate-405">
+                <div className="flex justify-between text-[11px] font-mono text-slate-400">
                   <span>Progresso Geral</span>
                   <span className="text-blue-400 font-bold">{progressPercent}%</span>
                 </div>
