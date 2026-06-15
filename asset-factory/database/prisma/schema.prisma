@@ -1,0 +1,130 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../client"
+}
+
+// ==========================================
+// JIUSPEAK ASSET FACTORY V3 RELATIONAL SCHEMA
+// ==========================================
+
+model AssetCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g. "Kimonos", "Rashguards", "Medalhas", etc.
+  slug        String   @unique // e.g. "kimonos", "rashguards", "medalhas", etc.
+  description String?
+  createdAt   DateTime @default(now())
+  assets      Asset[]
+}
+
+model AssetRarity {
+  id        String   @id @default(uuid())
+  name      String   @unique // e.g. "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"
+  colorHex  String   @default("#FFFDD0")
+  priceMult Float    @default(1.0)
+  assets    Asset[]
+}
+
+model Asset {
+  id                 String               @id @default(uuid())
+  name               String
+  description        String?
+  categoryId         String
+  rarityId           String
+  priceJT            Int                  @default(500)
+  tradable           Boolean              @default(true)
+  equippable         Boolean              @default(true)
+  usableInWebsite    Boolean              @default(true)
+  usableInMobile     Boolean              @default(true)
+  usableInJiuVerse   Boolean              @default(true)
+  marketplaceEnabled Boolean              @default(true)
+  purchaseEnabled    Boolean              @default(true)
+  equipEnabled       Boolean              @default(true)
+  
+  // File System & CDN paths
+  pngPath            String?
+  webpPath           String?
+  thumbnailPath      String?
+  cdnUrl             String?
+  
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  // Relations
+  category           AssetCategory        @relation(fields: [categoryId], references: [id])
+  rarity             AssetRarity          @relation(fields: [rarityId], references: [id])
+  userAssets         UserAsset[]
+  equippedBy         AssetEquipped[]
+  transactions       AssetTransaction[]
+  listings           MarketplaceListing[]
+}
+
+model UserAsset {
+  id         String   @id @default(uuid())
+  userId     String   // Ties back to JiuSpeak primary User table
+  assetId    String
+  acquiredAt DateTime @default(now())
+
+  // Relations
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AssetInventory {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+}
+
+model AssetEquipped {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  assetId    String
+  equippedAt DateTime @default(now())
+
+  // Relations
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model AssetTransaction {
+  id              String   @id @default(uuid())
+  senderId        String?  // Nullable if purchased from system store
+  receiverId      String
+  assetId         String
+  amountJT        Int      @default(0)
+  transactionType String   // e.g. "PURCHASE", "TRADE", "LOOTBOX"
+  createdAt       DateTime @default(now())
+
+  // Relations
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model MarketplaceListing {
+  id        String            @id @default(uuid())
+  sellerId  String
+  assetId   String
+  priceJT   Int
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+
+  // Relations
+  asset     Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  sales     MarketplaceSale[]
+}
+
+model MarketplaceSale {
+  id         String             @id @default(uuid())
+  listingId  String
+  buyerId    String
+  pricePaid  Int
+  commission Int                @default(0)
+  createdAt  DateTime           @default(now())
+
+  // Relations
+  listing    MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
