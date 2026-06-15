@@ -1449,7 +1449,7 @@ export const authStore = {
           isEmailVerified: true,
           wallet: {
             create: {
-              balanceJT: 200,
+              balanceJT: 0,
               balanceAvailable: 0.00,
               balanceBRL: 0.00,
               balancePending: 0.00,

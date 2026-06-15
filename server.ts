@@ -7658,46 +7658,26 @@ app.post("/api/payments/mercadopago/create-payment", authenticateToken, async (r
     }
     let resultPayment: any;
 
-    if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
-      // Call official transparent payment
-      resultPayment = await createDirectPayment({
-        transactionAmount: amount,
-        token,
-        description: `Assinatura JiuSpeak ${targetPlan.name}`,
-        installments,
-        paymentMethodId,
-        payerEmail: email || req.user.email,
-        payerFirstName: firstName,
-        payerLastName: lastName,
-        identificationType,
-        identificationNumber,
-        metadata: { userId, planId: targetPlan.id, planType: targetPlan.name }
+    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      return res.status(400).json({
+        error: "A integração do Mercado Pago não está ativa neste servidor. Por favor, configure a chave MERCADOPAGO_ACCESS_TOKEN no arquivo .env para iniciar transações reais de assinatura."
       });
-    } else {
-      // Return high-fidelity sandbox values so the flow is testable
-      const mockTxId = "mp_direct_" + crypto.randomUUID();
-      
-      // Get the administrator's active PIX key dynamically from the loaded configuration
-      const financialConfig = loadFinancialConfig();
-      const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
-                          || financialConfig?.bankAccounts?.find((b: any) => b.active)
-                          || financialConfig?.bankAccounts?.[0];
-      const adminPixKey = process.env.PIX_KEY || primaryBank?.pixKey || "admin@jiuspeak.com.br";
-      
-      // Generate a fully compliant PIX Copia e Cola payload
-      const pixPayload = generatePixPayload(adminPixKey, amount, `Assinatura JiuSpeak ${targetPlan.name}`);
-      
-      resultPayment = {
-        id: mockTxId,
-        status: "pending",
-        statusDetail: "pending_waiting_transfer",
-        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
-        qrCodeCopyPaste: pixPayload,
-        barcode: "34191.75009 01234.567890 12345.678901 2 34560000002990",
-        transactionAmount: amount,
-        paymentMethodId,
-      };
     }
+
+    // Call official transparent payment
+    resultPayment = await createDirectPayment({
+      transactionAmount: amount,
+      token,
+      description: `Assinatura JiuSpeak ${targetPlan.name}`,
+      installments,
+      paymentMethodId,
+      payerEmail: email || req.user.email,
+      payerFirstName: firstName,
+      payerLastName: lastName,
+      identificationType,
+      identificationNumber,
+      metadata: { userId, planId: targetPlan.id, planType: targetPlan.name }
+    });
 
     // Record dynamic Subscription and Payment to DB
     if (prisma) {
@@ -7836,76 +7816,31 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
 
     const isCreditOrDebit = paymentMethodId !== "pix" && paymentMethodId !== "bolbradesco";
 
-    if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
-      // Direct payment call via official Mercado Pago SDK wrapper
-      resultPayment = await createDirectPayment({
-        transactionAmount: amount,
-        description: `JiuSpeak ${targetPackage.name}`,
-        paymentMethodId,
-        token,
-        installments: Number(installments),
-        payerEmail: req.user.email,
-        payerFirstName: payerFirstName || req.user.name?.split(" ")[0],
-        payerLastName: payerLastName || req.user.name?.split(" ").slice(1).join(" "),
-        identificationType,
-        identificationNumber,
-        metadata: { 
-          userId, 
-          jtAmount: targetPackage.jtAmount, 
-          amountBRL: amount, 
-          purchaseType: "JT_PACKAGE_PURCHASE" 
-        }
+    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
+      return res.status(400).json({
+        error: "A integração do Mercado Pago não está ativa neste servidor. Por favor, configure a chave MERCADOPAGO_ACCESS_TOKEN no arquivo .env para iniciar transações reais via Pix, Cartão ou Boleto."
       });
-    } else {
-      // High fidelity Simulated / Mock Sandbox payment
-      const mockTxId = "mp_jt_" + crypto.randomUUID();
-      const financialConfig = loadFinancialConfig();
-      const primaryBank = financialConfig?.bankAccounts?.find((b: any) => b.isPrimary && b.active)
-                          || financialConfig?.bankAccounts?.find((b: any) => b.active)
-                          || financialConfig?.bankAccounts?.[0];
-      const adminPixKey = process.env.PIX_KEY || primaryBank?.pixKey || "admin@jiuspeak.com.br";
-      
-      const pixPayload = generatePixPayload(adminPixKey, amount, `JiuSpeak ${targetPackage.name}`);
-      
-      if (isCreditOrDebit) {
-        // Credit card / debit card is accredited instantly for great user sandbox experience!
-        resultPayment = {
-          id: mockTxId,
-          status: "approved",
-          statusDetail: "accredited",
-          qrCode: "",
-          qrCodeCopyPaste: "",
-          barcode: "",
-          transactionAmount: amount,
-          paymentMethodId,
-        };
-      } else if (paymentMethodId === "bolbradesco") {
-        // Boleto bradesco response simulation
-        resultPayment = {
-          id: mockTxId,
-          status: "pending",
-          statusDetail: "pending_waiting_payment",
-          qrCode: "",
-          qrCodeCopyPaste: "",
-          barcode: "23790.50400 43000.001257 89002.500008 1 9500000000" + Math.floor(1000 + Math.random() * 9000),
-          transactionAmount: amount,
-          paymentMethodId,
-          boletoUrl: `${process.env.APP_URL || window?.location?.origin || ""}/api/payments/mock-boleto-pdf`
-        };
-      } else {
-        // PIX response simulation
-        resultPayment = {
-          id: mockTxId,
-          status: "pending",
-          statusDetail: "pending_waiting_transfer",
-          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
-          qrCodeCopyPaste: pixPayload,
-          barcode: "",
-          transactionAmount: amount,
-          paymentMethodId,
-        };
-      }
     }
+
+    // Direct payment call via official Mercado Pago SDK wrapper
+    resultPayment = await createDirectPayment({
+      transactionAmount: amount,
+      description: `JiuSpeak ${targetPackage.name}`,
+      paymentMethodId,
+      token,
+      installments: Number(installments),
+      payerEmail: req.user.email,
+      payerFirstName: payerFirstName || req.user.name?.split(" ")[0],
+      payerLastName: payerLastName || req.user.name?.split(" ").slice(1).join(" "),
+      identificationType,
+      identificationNumber,
+      metadata: { 
+        userId, 
+        jtAmount: targetPackage.jtAmount, 
+        amountBRL: amount, 
+        purchaseType: "JT_PACKAGE_PURCHASE" 
+      }
+    });
 
     // Save purchase context to our global map for webhook reconciliation 
     pendingJtPayments.set(String(resultPayment.id), {
@@ -8192,7 +8127,7 @@ app.post("/api/conversational/activate", authenticateToken, async (req: any, res
 
     // Rule: AI costs 5.000 JT. Exception: role === "INSTRUCTOR" is 0 JT
     const isTeacher = userObj.role === "INSTRUCTOR";
-    const cost = isTeacher ? 0 : 5000;
+    const cost = isTeacher ? 0 : 2500;
 
     if (balanceJT < cost) {
       return res.status(400).json({ 
