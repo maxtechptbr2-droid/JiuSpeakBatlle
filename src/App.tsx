@@ -150,6 +150,12 @@ export default function App() {
       if (path === '/dashboard') {
         return 'dashboard';
       }
+      if (path === '/community' || path === '/comunidade') {
+        return 'social';
+      }
+      if (path === '/academies' || path === '/academias-bjj' || path === '/academias') {
+        return 'academies';
+      }
       if (path === '/professor') {
         return 'creator';
       }
@@ -218,6 +224,10 @@ export default function App() {
         setCurrentTab(isLoggedIn ? 'dashboard' : 'landing');
       } else if (path === '/dashboard') {
         setCurrentTab('dashboard');
+      } else if (path === '/community' || path === '/comunidade') {
+        setCurrentTab('social');
+      } else if (path === '/academies' || path === '/academias-bjj' || path === '/academias') {
+        setCurrentTab('academies');
       } else if (path === '/professor') {
         setCurrentTab('creator');
       } else if (path === '/admin') {
@@ -285,6 +295,14 @@ export default function App() {
     } else if (currentTab === 'profile-settings') {
       if (window.location.pathname !== '/dashboard/profile') {
         window.history.pushState(null, '', '/dashboard/profile');
+      }
+    } else if (currentTab === 'social') {
+      if (window.location.pathname !== '/community' && window.location.pathname !== '/comunidade') {
+        window.history.pushState(null, '', '/community');
+      }
+    } else if (currentTab === 'academies') {
+      if (window.location.pathname !== '/academies' && window.location.pathname !== '/academias-bjj' && window.location.pathname !== '/academias') {
+        window.history.pushState(null, '', '/academies');
       }
     } else if (currentTab.startsWith('profile-public-')) {
       const username = currentTab.replace('profile-public-', '');

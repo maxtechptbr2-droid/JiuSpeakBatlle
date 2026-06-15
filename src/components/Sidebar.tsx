@@ -23,7 +23,8 @@ import {
   CreditCard,
   Share2,
   Shield,
-  GraduationCap
+  GraduationCap,
+  Building2
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
@@ -62,6 +63,8 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel do Aluno', icon: GraduationCap, badge: null },
+    { id: 'social', label: 'Comunidade', icon: Users, badge: null },
+    { id: 'academies', label: 'Academias BJJ', icon: Building2, badge: null },
     { id: 'profile-settings', label: 'Configurações de Conta', icon: User, badge: 'Ajustes' },
     { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Módulos' },
     ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Prática Conversacional IA', icon: Sword, badge: 'Exclusivo' }] : []),
