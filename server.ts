@@ -1707,6 +1707,397 @@ export const inMemoryFrozenUserIds = new Set<string>();
 
 export let inMemoryStoreProducts: any[] = [
   {
+    id: "prod_kimono_imperial_black",
+    name: "Imperial Black Gi",
+    description: "Forjado para atletas de elite.",
+    priceJT: 12000,
+    priceBRL: null,
+    category: "Kimonos",
+    rarity: "LEGENDARY",
+    imageUrl: "/store/kimonos/imperial-black-gi.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_kimono_kyoto_shadow",
+    name: "Kyoto Shadow Gi",
+    description: "Elegância silenciosa do tatame.",
+    priceJT: 9500,
+    priceBRL: null,
+    category: "Kimonos",
+    rarity: "EPIC",
+    imageUrl: "/store/kimonos/kyoto-shadow.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_kimono_tatame_royal",
+    name: "Tatame Royal Gi",
+    description: "Reservado aos competidores de alto nível.",
+    priceJT: 8500,
+    priceBRL: null,
+    category: "Kimonos",
+    rarity: "EPIC",
+    imageUrl: "/store/kimonos/tatame-royal.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_kimono_dragon_elite",
+    name: "Dragon Elite Gi",
+    description: "Disciplina, honra e poder.",
+    priceJT: 15000,
+    priceBRL: null,
+    category: "Kimonos",
+    rarity: "MYTHIC",
+    imageUrl: "/store/kimonos/dragon-elite.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_rash_phantom",
+    name: "Phantom Rashguard",
+    description: "Compressão de alto desempenho para o rolar insano.",
+    priceJT: 4000,
+    priceBRL: null,
+    category: "Rash Guards",
+    rarity: "EPIC",
+    imageUrl: "/store/rashguards/phantom-rashguard.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_rash_crimson",
+    name: "Crimson Warrior",
+    description: "Guerras no sem-pano exigem a armadura perfeita.",
+    priceJT: 4500,
+    priceBRL: null,
+    category: "Rash Guards",
+    rarity: "EPIC",
+    imageUrl: "/store/rashguards/crimson-warrior.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_rash_no_gi",
+    name: "No-Gi Elite",
+    description: "Especialista em finalizações rápidas e controle.",
+    priceJT: 5000,
+    priceBRL: null,
+    category: "Rash Guards",
+    rarity: "LEGENDARY",
+    imageUrl: "/store/rashguards/no-gi-elite.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_rash_shadow",
+    name: "Shadow Compression",
+    description: "Efeito segunda pele com absorção biológica avançada.",
+    priceJT: 5500,
+    priceBRL: null,
+    category: "Rash Guards",
+    rarity: "LEGENDARY",
+    imageUrl: "/store/rashguards/shadow-compression.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_frame_bronze",
+    name: "Bronze Frame",
+    description: "Borda rústica de bronze para as conquistas iniciais.",
+    priceJT: 1000,
+    priceBRL: null,
+    category: "Molduras",
+    rarity: "COMMON",
+    imageUrl: "/store/molduras/bronze-frame.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_frame_silver",
+    name: "Silver Frame",
+    description: "Moldura de prata polida ideal para graduados.",
+    priceJT: 2500,
+    priceBRL: null,
+    category: "Molduras",
+    rarity: "RARE",
+    imageUrl: "/store/molduras/silver-frame.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_frame_gold",
+    name: "Gold Frame",
+    description: "Destaque dourado deslumbrante reservado aos campeões.",
+    priceJT: 5000,
+    priceBRL: null,
+    category: "Molduras",
+    rarity: "EPIC",
+    imageUrl: "/store/molduras/gold-frame.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_frame_diamond",
+    name: "Diamond Frame",
+    description: "Lapidado em cristal duplo com brilho iridescente.",
+    priceJT: 10000,
+    priceBRL: null,
+    category: "Molduras",
+    rarity: "LEGENDARY",
+    imageUrl: "/store/molduras/diamond-frame.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_frame_imperial",
+    name: "Imperial Frame",
+    description: "A suntuosa coroa imperial dos guerreiros do topo.",
+    priceJT: 15000,
+    priceBRL: null,
+    category: "Molduras",
+    rarity: "MYTHIC",
+    imageUrl: "/store/molduras/imperial-frame.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_medal_bronze",
+    name: "Bronze Medal",
+    description: "Seu primeiro triunfo no pódio dos grandes guerreiros.",
+    priceJT: 1500,
+    priceBRL: null,
+    category: "Medalhas",
+    rarity: "COMMON",
+    imageUrl: "/store/medalhas/bronze-medal.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_medal_silver",
+    name: "Silver Medal",
+    description: "Reconhecimento de prestígio no circuito de lutas.",
+    priceJT: 3000,
+    priceBRL: null,
+    category: "Medalhas",
+    rarity: "RARE",
+    imageUrl: "/store/medalhas/silver-medal.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_medal_gold",
+    name: "Gold Medal",
+    description: "O metal máximo cobiçado por todo competidor.",
+    priceJT: 6000,
+    priceBRL: null,
+    category: "Medalhas",
+    rarity: "EPIC",
+    imageUrl: "/store/medalhas/gold-medal.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_medal_grand_slam",
+    name: "Grand Slam Medal",
+    description: "Símbolo supremo de domínio nos quatro maiores campeonatos.",
+    priceJT: 12000,
+    priceBRL: null,
+    category: "Medalhas",
+    rarity: "LEGENDARY",
+    imageUrl: "/store/medalhas/grand-slam-medal.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_medal_world_champion",
+    name: "World Champion Medal",
+    description: "Glória eterna gravada na história mundial do jiu-jitsu.",
+    priceJT: 20000,
+    priceBRL: null,
+    category: "Medalhas",
+    rarity: "MYTHIC",
+    imageUrl: "/store/medalhas/world-champion-medal.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_avatar_samurai",
+    name: "Samurai",
+    description: "Calma absoluta sob o choque inevitável dos golpes.",
+    priceJT: 2500,
+    priceBRL: null,
+    category: "Avatares",
+    rarity: "RARE",
+    imageUrl: "/store/avatares/samurai.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_avatar_sensei",
+    name: "Sensei",
+    description: "Sua técnica pura supera qualquer força física.",
+    priceJT: 5000,
+    priceBRL: null,
+    category: "Avatares",
+    rarity: "EPIC",
+    imageUrl: "/store/avatares/sensei.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_avatar_prof_elite",
+    name: "Professor Elite",
+    description: "Mentoria de alto rendimento para a nova era do tatame.",
+    priceJT: 8000,
+    priceBRL: null,
+    category: "Avatares",
+    rarity: "EPIC",
+    imageUrl: "/store/avatares/professor-elite.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_avatar_champion",
+    name: "Champion",
+    description: "O espírito vencedor moldado pela repetição eterna.",
+    priceJT: 12000,
+    priceBRL: null,
+    category: "Avatares",
+    rarity: "LEGENDARY",
+    imageUrl: "/store/avatares/champion.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
+    id: "prod_avatar_master_bb",
+    name: "Black Belt Master",
+    description: "A maestria absoluta do faixa preta lendária do dojo.",
+    priceJT: 15000,
+    priceBRL: null,
+    category: "Avatares",
+    rarity: "MYTHIC",
+    imageUrl: "/store/avatares/black-belt-master.webp",
+    stock: null,
+    active: true,
+    isPromo: false,
+    promoPriceJT: null,
+    isBundle: false,
+    isSeasonal: false,
+    isExclusive: false
+  },
+  {
     id: "prod_avatar_guerreiro_bjj1",
     name: "Avatar: Samurai do Asfalto",
     description: "Um samurai moderno trajado de kimono reforçado para rolar nas calçadas virtuais.",
@@ -8191,6 +8582,173 @@ app.post("/api/conversational/activate", authenticateToken, async (req: any, res
   } catch (error: any) {
     console.error("Error activating conversational section:", error);
     res.status(500).json({ error: "Erro ao realizar ativação da conversa com IA." });
+  }
+});
+
+// =========================================================================
+// PREMIUM ENTERPRISE CONVERSATIONAL VOICE SPARRING & TTS STREAM ENGINE
+// =========================================================================
+
+// GET /api/conversational/sessions - Lists user conversation sessions
+app.get("/api/conversational/sessions", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const { loadUserConversations } = await import("./server/services/openaiChat");
+    const sessions = loadUserConversations(userId);
+    res.json({ success: true, sessions });
+  } catch (err: any) {
+    console.error("Error fetching sessions:", err);
+    res.status(500).json({ error: "Falha ao obter histórico de sessões." });
+  }
+});
+
+// POST /api/conversational/sessions/create - Creates a new session
+app.post("/api/conversational/sessions/create", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const { scenario, partnerKey } = req.body;
+
+    if (!scenario || !partnerKey) {
+      return res.status(400).json({ error: "cenário e parceiro são obrigatórios." });
+    }
+
+    const userObj = await authStore.findById(userId);
+    const profile = {
+      name: userObj?.name || "Lutador",
+      belt: userObj?.belt || "WHITE",
+      elo: userObj?.elo || 1000,
+      goal: userObj?.learningGoal || "Be confident training BJJ globally"
+    };
+
+    const { createSession } = await import("./server/services/openaiChat");
+    const session = await createSession(userId, scenario, partnerKey, profile);
+
+    res.json({ success: true, session });
+  } catch (err: any) {
+    console.error("Error creating session:", err);
+    res.status(500).json({ error: err.message || "Erro ao instanciar sessão conversacional." });
+  }
+});
+
+// POST /api/conversational/sessions/delete - Deletes a session
+app.post("/api/conversational/sessions/delete", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId é obrigatório." });
+    }
+
+    const { loadUserConversations, saveUserConversations } = await import("./server/services/openaiChat");
+    const sessions = loadUserConversations(userId);
+    const updated = sessions.filter(s => s.id !== sessionId);
+    saveUserConversations(userId, updated);
+
+    res.json({ success: true, message: "Sessão removida do histórico." });
+  } catch (err: any) {
+    console.error("Error deleting session:", err);
+    res.status(500).json({ error: "Erro ao descartar sessão." });
+  }
+});
+
+// POST /api/conversational/chat - Send message and get BJJ response + audio + feedback
+app.post("/api/conversational/chat", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user.id;
+    const { sessionId, text } = req.body;
+
+    if (!sessionId || !text) {
+      return res.status(400).json({ error: "Sessão e mensagem de texto são obrigatórias." });
+    }
+
+    const userObj = await authStore.findById(userId);
+    const profile = {
+      name: userObj?.name || "Lutador",
+      belt: userObj?.belt || "WHITE",
+      elo: userObj?.elo || 1000,
+      goal: userObj?.learningGoal || "Be confident training BJJ globally"
+    };
+
+    const { getGPTResponse } = await import("./server/services/openaiChat");
+    const updatedSession = await getGPTResponse(userId, sessionId, text, profile);
+
+    // Dynamic ELO Update support based on bot response evaluation
+    const latestMsg = updatedSession.history[updatedSession.history.length - 1];
+    if (latestMsg && latestMsg.eloDelta && latestMsg.eloDelta > 0) {
+      const currentElo = userObj?.elo || 1000;
+      const nextElo = currentElo + latestMsg.eloDelta;
+      await authStore.updateUser(userId, { elo: nextElo });
+      
+      // Update Prisma profile ELO for persistence too
+      const prisma = getPrisma();
+      if (prisma) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { elo: nextElo }
+        }).catch(e => console.warn("[DB ELO UNSYNCED] Ignored:", e));
+      }
+    }
+
+    res.json({ success: true, session: updatedSession });
+  } catch (err: any) {
+    console.error("Error in conversational conversation:", err);
+    res.status(500).json({ error: err.message || "Erro no motor cognitivo da conversa." });
+  }
+});
+
+// GET /api/conversational/stream-tts - Blazing fast audio streaming with automatic on-disk caching
+app.get("/api/conversational/stream-tts", async (req: any, res: any) => {
+  try {
+    const text = req.query.text as string;
+    const voice = (req.query.voice as string) || "nova";
+
+    if (!text) {
+      return res.status(400).send("text parameter is required");
+    }
+
+    const { sanitizeText, generateHash } = await import("./server/services/openaiTTS");
+    const cleanText = sanitizeText(text);
+    const hash = generateHash(cleanText, voice);
+
+    const cacheDir = path.join(process.cwd(), "server", "cache", "audio");
+    const cacheFilePath = path.join(cacheDir, `${hash}.mp3`);
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Transfer-Encoding", "chunked");
+
+    // Check disk cache first (Fast Stream pipe)
+    if (fs.existsSync(cacheFilePath)) {
+      const fileStream = fs.createReadStream(cacheFilePath);
+      fileStream.pipe(res);
+      return;
+    }
+
+    // Dynamic OpenAI TTS call
+    const { getOpenAIClient } = await import("./server/services/openaiChat");
+    const openai = getOpenAIClient();
+
+    const mp3Response = await openai.audio.speech.create({
+      model: "tts-1",
+      voice: voice as any,
+      input: cleanText,
+    });
+
+    const buffer = Buffer.from(await mp3Response.arrayBuffer());
+
+    // Asynchronously write to disk cache
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    fs.writeFile(cacheFilePath, buffer, (err) => {
+      if (err) console.error("[TTS STREAM DISK CACHE WRITE WARNING] Invalid file write:", err);
+    });
+
+    res.write(buffer);
+    res.end();
+  } catch (error: any) {
+    console.error("[TTS STREAM ERROR]", error);
+    res.status(500).send("TTS Streaming failed: " + error.message);
   }
 });
 

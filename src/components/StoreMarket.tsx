@@ -126,6 +126,202 @@ export function ConfettiRain() {
   return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[999] w-full h-full" />;
 }
 
+// Interactive custom high-fidelity vector graphics for the 23 Premium AAA Items
+export function PremiumItemVisual({ id, category, rarity }: { id: string; category: string; rarity: string }) {
+  const r = rarity?.toUpperCase();
+  const cat = category?.toUpperCase();
+
+  // Color theme variables based on rarity
+  let themeColor = "text-zinc-400";
+  let bgGradient = "from-zinc-950 via-zinc-900/60 to-zinc-950";
+  let glowColor = "rgba(113, 113, 122, 0.15)";
+  
+  if (r === "RARE" || r === "RARO") {
+    themeColor = "text-blue-400";
+    bgGradient = "from-zinc-950 via-blue-950/20 to-zinc-950";
+    glowColor = "rgba(59, 130, 246, 0.35)";
+  } else if (r === "EPIC" || r === "ÉPICO") {
+    themeColor = "text-purple-400";
+    bgGradient = "from-zinc-950 via-purple-950/25 to-zinc-950";
+    glowColor = "rgba(168, 85, 247, 0.35)";
+  } else if (r === "LEGENDARY" || r === "LENDÁRIO") {
+    themeColor = "text-amber-400";
+    bgGradient = "from-zinc-950 via-amber-950/25 to-zinc-950";
+    glowColor = "rgba(245, 158, 11, 0.45)";
+  } else if (r === "MYTHIC" || r === "MÍTICO") {
+    themeColor = "text-red-500";
+    bgGradient = "from-zinc-950 via-red-950/30 to-zinc-950";
+    glowColor = "rgba(239, 68, 68, 0.55)";
+  }
+
+  // Draw customized SVGs for 23 unique products
+  if (id === "prod_kimono_imperial_black") {
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-3 group-hover:scale-105 transition-transform duration-500`}>
+        <div className="absolute w-20 h-20 rounded-full bg-amber-500/10 blur-xl animate-pulse" />
+        <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-[0_0_12px_rgba(245,158,11,0.4)]">
+          <path d="M25,20 L75,20 L85,45 L70,45 L68,32 L50,65 L32,32 L30,45 L15,45 Z" fill="#111" stroke="#F5A623" strokeWidth="2" strokeLinejoin="miter" />
+          <path d="M50,20 L35,65 L50,90 L65,65 Z" fill="#222" stroke="#F5A623" strokeWidth="1.5" />
+          <path d="M50,20 L50,90" stroke="#F5A623" strokeWidth="1" strokeDasharray="2,2" />
+          <circle cx="50" cy="40" r="4" fill="#F5A623" />
+          <polygon points="48,44 52,44 50,48" fill="#F5A623" />
+          <rect x="34" y="60" width="32" height="6" fill="#000" stroke="#F5A623" strokeWidth="1" />
+          <rect x="42" y="60" width="6" height="6" fill="#E63946" />
+        </svg>
+      </div>
+    );
+  }
+  
+  if (id === "prod_kimono_kyoto_shadow") {
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-3 group-hover:scale-105 transition-transform duration-500`}>
+        <div className="absolute w-20 h-20 rounded-full bg-purple-500/15 blur-xl" />
+        <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+          <path d="M25,20 L75,20 L85,45 L70,45 L68,32 L50,65 L32,32 L30,45 L15,45 Z" fill="#0A0A16" stroke="#A855F7" strokeWidth="2" />
+          <path d="M50,20 L35,65 L50,90 L65,65 Z" fill="#13132B" stroke="#C084FC" strokeWidth="1" />
+          <rect x="34" y="60" width="32" height="6" fill="#1e1b4b" stroke="#A855F7" strokeWidth="1" />
+          <circle cx="50" cy="38" r="3" fill="#F472B6" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (id === "prod_kimono_tatame_royal") {
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-3`}>
+        <div className="absolute w-20 h-20 rounded-full bg-blue-500/10 blur-xl" />
+        <svg viewBox="0 0 100 100" className="w-24 h-24 drop-shadow-[0_0_10px_rgba(59,130,246,0.3)]">
+          <path d="M25,20 L75,20 L85,45 L70,45 L68,32 L50,65 L32,32 L30,45 L15,45 Z" fill="#1E3A8A" stroke="#3B82F6" strokeWidth="2" />
+          <path d="M50,20 L35,65 L50,90 L65,65 Z" fill="#2563EB" stroke="#93C5FD" strokeWidth="1.5" />
+          <rect x="34" y="60" width="32" height="6" fill="#000" stroke="#3B82F6" strokeWidth="1" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (id === "prod_kimono_dragon_elite") {
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-3`}>
+        <div className="absolute w-24 h-24 rounded-full bg-red-500/15 blur-xl animate-pulse" />
+        <svg viewBox="0 0 100 100" className="w-26 h-26 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+          <path d="M25,20 L75,20 L85,45 L70,45 L68,32 L50,65 L32,32 L30,45 L15,45 Z" fill="#1E0B0B" stroke="#EF4444" strokeWidth="2.5" />
+          <path d="M50,20 L35,65 L50,90 L65,65 Z" fill="#3A0D0D" stroke="#FB7185" strokeWidth="1.5" />
+          <path d="M44,40 Q50,30 56,40 T62,55" fill="none" stroke="#F5A623" strokeWidth="1.5" strokeLinecap="round" />
+          <rect x="34" y="60" width="32" height="6" fill="#111" stroke="#EF4444" strokeWidth="1" />
+          <rect x="52" y="60" width="6" height="6" fill="#E63946" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (cat === "RASH GUARDS" || id.startsWith("prod_rash_")) {
+    let strokeColor = "#A855F7";
+    let bodyColor = "#111";
+    let accentColor = "#D8B4FE";
+
+    if (id === "prod_rash_phantom") {
+      strokeColor = "#A855F7"; bodyColor = "#0D0B14"; accentColor = "#C084FC";
+    } else if (id === "prod_rash_crimson") {
+      strokeColor = "#EF4444"; bodyColor = "#1C0D0D"; accentColor = "#F87171";
+    } else if (id === "prod_rash_no_gi") {
+      strokeColor = "#F5A623"; bodyColor = "#121212"; accentColor = "#FDE047";
+    } else if (id === "prod_rash_shadow") {
+      strokeColor = "#64748B"; bodyColor = "#050505"; accentColor = "#94A3B8";
+    }
+
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-3`}>
+        <div className="absolute w-16 h-16 rounded-full bg-purple-500/5 blur-lg" />
+        <svg viewBox="0 0 100 100" className="w-18 h-18">
+          <path d="M30,22 L70,22 L82,40 L72,44 L68,34 L66,80 L34,80 L32,34 L28,44 L18,40 Z" fill={bodyColor} stroke={strokeColor} strokeWidth="2.5" />
+          <path d="M50,22 L50,80" stroke={accentColor} strokeWidth="1" strokeDasharray="3,3" />
+          <path d="M37,32 C42,42 42,60 37,76" fill="none" stroke={strokeColor} strokeWidth="1" />
+          <path d="M63,32 C58,42 58,60 63,76" fill="none" stroke={strokeColor} strokeWidth="1" />
+          <polygon points="46,45 54,45 50,52" fill={accentColor} />
+        </svg>
+      </div>
+    );
+  }
+
+  if (cat === "MOLDURAS" || id.startsWith("prod_frame_")) {
+    let fBorderColor = "#CD7F32";
+    let gemColor = "#CD7F32";
+    if (id === "prod_frame_silver") { fBorderColor = "#94A3B8"; gemColor = "#E2E8F0"; }
+    else if (id === "prod_frame_gold") { fBorderColor = "#F59E0B"; gemColor = "#FEF08A"; }
+    else if (id === "prod_frame_diamond") { fBorderColor = "#06B6D4"; gemColor = "#99F6E4"; }
+    else if (id === "prod_frame_imperial") { fBorderColor = "#EF4444"; gemColor = "#F43F5E"; }
+
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-4`}>
+        <div className="w-14 h-14 rounded-full bg-zinc-950 flex items-center justify-center border border-zinc-900 shadow-inner">
+          <span className="text-lg opacity-40">👤</span>
+        </div>
+        <div className="absolute inset-0 p-4 flex items-center justify-center pointer-events-none">
+          <svg viewBox="0 0 100 100" className="w-20 h-20 absolute">
+            <rect x="15" y="15" width="70" height="70" rx="8" fill="none" stroke={fBorderColor} strokeWidth="3" />
+            <rect x="13" y="13" width="10" height="10" rx="2" fill={gemColor} stroke={fBorderColor} strokeWidth="1" />
+            <rect x="77" y="13" width="10" height="10" rx="2" fill={gemColor} stroke={fBorderColor} strokeWidth="1" />
+            <rect x="13" y="77" width="10" height="10" rx="2" fill={gemColor} stroke={fBorderColor} strokeWidth="1" />
+            <rect x="77" y="77" width="10" height="10" rx="2" fill={gemColor} stroke={fBorderColor} strokeWidth="1" />
+            {id === "prod_frame_imperial" && (
+              <polygon points="38,15 44,5 50,13 56,5 62,15" fill="#F59E0B" stroke="#EF4444" strokeWidth="1" />
+            )}
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  if (cat === "MEDALHAS" || id.startsWith("prod_medal_")) {
+    let ribbonColor = "#CD7F32";
+    let medalColor = "#CD7F32";
+    let coreGlow = "rgba(205, 127, 50, 0.2)";
+
+    if (id === "prod_medal_silver") { ribbonColor = "#3B82F6"; medalColor = "#94A3B8"; }
+    else if (id === "prod_medal_gold") { ribbonColor = "#EF4444"; medalColor = "#F59E0B"; }
+    else if (id === "prod_medal_grand_slam") { ribbonColor = "#8B5CF6"; medalColor = "#FCE7F3"; coreGlow = "rgba(139, 92, 246, 0.35)"; }
+    else if (id === "prod_medal_world_champion") { ribbonColor = "#EF1010"; medalColor = "#F59E0B"; coreGlow = "rgba(239, 68, 68, 0.45)"; }
+
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center relative p-3`}>
+        <div className="absolute w-16 h-16 rounded-full blur-xl opacity-60" style={{ backgroundColor: coreGlow }} />
+        <svg viewBox="0 0 100 100" className="w-18 h-18">
+          <polygon points="35,20 50,55 65,20" fill={ribbonColor} stroke="#111" strokeWidth="1" />
+          <polygon points="43,20 50,55 57,20" fill="#FFF" opacity="0.3" />
+          <circle cx="50" cy="62" r="18" fill={medalColor} stroke="#111" strokeWidth="1.5" />
+          <circle cx="50" cy="62" r="14" fill="none" stroke="#111" strokeWidth="1" strokeDasharray="2,2" />
+          <polygon points="50,52 53,58 60,59 55,64 56,71 50,67 44,71 45,64 40,59 47,58" fill="#FFF" opacity="0.9" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (cat === "AVATARES" || id.startsWith("prod_avatar_")) {
+    let iconEmoji = "👤";
+    if (id === "prod_avatar_samurai") iconEmoji = "🥷";
+    else if (id === "prod_avatar_sensei") iconEmoji = "👴";
+    else if (id === "prod_avatar_prof_elite") iconEmoji = "👨‍🏫";
+    else if (id === "prod_avatar_champion") iconEmoji = "👑";
+    else if (id === "prod_avatar_master_bb") iconEmoji = "🥋";
+
+    return (
+      <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center p-3 relative group-hover:scale-110 transition-transform duration-500`}>
+        <div className="absolute w-16 h-16 rounded-full blur-lg opacity-40" style={{ backgroundColor: glowColor }} />
+        <div className="w-14 h-14 rounded-full border border-zinc-850 flex items-center justify-center bg-zinc-950/90 shadow-inner">
+          <span className="text-3.5xl filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">{iconEmoji}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback
+  return (
+    <div className={`w-full h-full bg-gradient-to-b ${bgGradient} flex items-center justify-center p-4`}>
+      <span className="text-3xl">🎒</span>
+    </div>
+  );
+}
+
 interface StoreMarketProps {
   user: UserProfile;
   updateUser: (newUser: Partial<UserProfile>) => void;
@@ -971,6 +1167,34 @@ export default function StoreMarket({
     showToast('Processamento exclusivo via aba de Assinaturas.', 'info');
   };
 
+  const getProductIdByName = (name: string) => {
+    const nameLower = name?.toLowerCase() || '';
+    if (nameLower.includes("imperial black")) return "prod_kimono_imperial_black";
+    if (nameLower.includes("kyoto shadow")) return "prod_kimono_kyoto_shadow";
+    if (nameLower.includes("tatame royal")) return "prod_kimono_tatame_royal";
+    if (nameLower.includes("dragon elite")) return "prod_kimono_dragon_elite";
+    if (nameLower.includes("phantom")) return "prod_rash_phantom";
+    if (nameLower.includes("crimson warrior")) return "prod_rash_crimson";
+    if (nameLower.includes("no-gi elite")) return "prod_rash_no_gi";
+    if (nameLower.includes("shadow compression")) return "prod_rash_shadow";
+    if (nameLower.includes("bronze frame")) return "prod_frame_bronze";
+    if (nameLower.includes("silver frame")) return "prod_frame_silver";
+    if (nameLower.includes("gold frame")) return "prod_frame_gold";
+    if (nameLower.includes("diamond frame")) return "prod_frame_diamond";
+    if (nameLower.includes("imperial frame")) return "prod_frame_imperial";
+    if (nameLower.includes("bronze medal")) return "prod_medal_bronze";
+    if (nameLower.includes("silver medal")) return "prod_medal_silver";
+    if (nameLower.includes("gold medal")) return "prod_medal_gold";
+    if (nameLower.includes("grand slam")) return "prod_medal_grand_slam";
+    if (nameLower.includes("world champion")) return "prod_medal_world_champion";
+    if (nameLower.includes("samurai")) return "prod_avatar_samurai";
+    if (nameLower.includes("sensei")) return "prod_avatar_sensei";
+    if (nameLower.includes("professor elite")) return "prod_avatar_prof_elite";
+    if (nameLower.includes("champion")) return "prod_avatar_champion";
+    if (nameLower.includes("black belt master")) return "prod_avatar_master_bb";
+    return "";
+  };
+
   const getRarityBadgeColor = (rarity: string, productName?: string) => {
     const nameLower = productName?.toLowerCase() || '';
     if (nameLower.includes('eclipse celestial') || nameLower.includes('legado do fundador') || nameLower.includes('neon cyber') || nameLower.includes('ia master futuro')) {
@@ -1240,8 +1464,12 @@ export default function StoreMarket({
                     {/* Rotating star back effect */}
                     <div className="absolute w-44 h-44 rounded-full border border-dashed border-zinc-800/60 animate-[spin_60s_linear_infinite]" />
 
-                    <div className="relative group-hover:scale-105 transition-transform duration-500 flex flex-col items-center z-10">
-                      {featured.imageUrl ? (
+                    <div className="relative group-hover:scale-105 transition-transform duration-500 flex flex-col items-center z-10 w-full max-w-[140px]">
+                      {featured.id.startsWith('prod_') ? (
+                        <div className="w-32 h-32 rounded border border-zinc-800 p-0.5 bg-zinc-950 shadow-2xl relative overflow-hidden flex items-center justify-center">
+                          <PremiumItemVisual id={featured.id} category={featured.category} rarity={featured.rarity} />
+                        </div>
+                      ) : featured.imageUrl ? (
                         <div className="w-32 h-32 rounded border border-zinc-800 p-1 bg-zinc-950/80 shadow-2xl relative overflow-hidden">
                           <img 
                             src={featured.imageUrl} 
@@ -1512,7 +1740,9 @@ export default function StoreMarket({
                         <div className="cursor-pointer group/card" onClick={() => setViewItemModal(product)} title="Clique para abrir detalhes do item">
                           {/* Image Box / Visualizer with high glare */}
                           <div className="h-32 bg-zinc-950/80 rounded border border-zinc-900/60 mb-3 flex items-center justify-center relative overflow-hidden">
-                            {product.imageUrl ? (
+                            {product.id.startsWith('prod_') ? (
+                              <PremiumItemVisual id={product.id} category={product.category} rarity={product.rarity} />
+                            ) : product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
@@ -1733,8 +1963,15 @@ export default function StoreMarket({
                         <span className="text-[9px] text-zinc-500 font-mono">ID: {item.sellerName}</span>
                       </div>
 
+                      {/* Small visual thumbnail in Marketplace */}
+                      {getProductIdByName(item.name) && (
+                        <div className="h-24 bg-zinc-950/80 rounded border border-zinc-900 overflow-hidden flex items-center justify-center">
+                          <PremiumItemVisual id={getProductIdByName(item.name)} category="" rarity={item.rarity} />
+                        </div>
+                      )}
+
                       <div>
-                        <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight">{item.name}</h4>
+                        <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-1">{item.name}</h4>
                         <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                       </div>
                     </div>
@@ -1865,14 +2102,18 @@ export default function StoreMarket({
                   className="bg-zinc-950/40 border border-zinc-900 p-5 rounded flex flex-col justify-between space-y-4 hover:border-zinc-800 transition-all duration-300 group"
                 >
                   <div>
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start mb-3">
                       <span className={`text-[8px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getRarityBadgeColor(item.rarity)}`}>
                         {item.rarity || 'ESPECIAL'}
                       </span>
-                      <span className="text-xs">🥋</span>
+                    </div>
+
+                    {/* Compact Image chamber in backpack */}
+                    <div className="h-24 bg-zinc-950/80 rounded border border-zinc-900 overflow-hidden flex items-center justify-center mb-3">
+                      <PremiumItemVisual id={item.productId || item.id} category={item.category || ""} rarity={item.rarity || ""} />
                     </div>
                     
-                    <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-3">{item.name}</h4>
+                    <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-1">{item.name}</h4>
                     <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                   </div>
 
@@ -1895,14 +2136,18 @@ export default function StoreMarket({
                     className="bg-zinc-950/40 border border-zinc-900 p-5 rounded flex flex-col justify-between space-y-4 hover:border-zinc-800 transition-all duration-300 group"
                   >
                     <div>
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start mb-3">
                         <span className={`text-[8px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${getRarityBadgeColor(item.rarity as any)}`}>
                           {item.rarity || 'ESPECIAL'}
                         </span>
-                        <span className="text-xs">💎</span>
+                      </div>
+
+                      {/* Compact Image chamber in backpack */}
+                      <div className="h-24 bg-zinc-950/80 rounded border border-zinc-900 overflow-hidden flex items-center justify-center mb-3">
+                        <PremiumItemVisual id={invId} category={item.category} rarity={item.rarity} />
                       </div>
                       
-                      <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-3">{item.name}</h4>
+                      <h4 className="font-mono font-bold text-xs uppercase text-zinc-100 tracking-tight mt-1">{item.name}</h4>
                       <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                     </div>
 
@@ -2699,7 +2944,11 @@ export default function StoreMarket({
               {/* Custom card showcase inside animation itembox */}
               <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-850 relative z-10 flex flex-col items-center gap-2">
                 
-                {successAnimationItem.imageUrl ? (
+                {successAnimationItem.id?.startsWith('prod_') ? (
+                  <div className="w-20 h-20 rounded-xl overflow-hidden border border-slate-850 shadow-md flex items-center justify-center">
+                    <PremiumItemVisual id={successAnimationItem.id} category={successAnimationItem.category} rarity={successAnimationItem.rarity} />
+                  </div>
+                ) : successAnimationItem.imageUrl ? (
                   <img
                     src={successAnimationItem.imageUrl}
                     alt={successAnimationItem.name}
@@ -2989,7 +3238,9 @@ export default function StoreMarket({
 
               {/* Large item image visualization chamber */}
               <div className="w-full h-48 bg-zinc-950 rounded overflow-hidden relative border border-zinc-900 flex items-center justify-center group">
-                {viewItemModal.imageUrl ? (
+                {viewItemModal.id?.startsWith('prod_') ? (
+                  <PremiumItemVisual id={viewItemModal.id} category={viewItemModal.category} rarity={viewItemModal.rarity} />
+                ) : viewItemModal.imageUrl ? (
                   <img 
                     src={viewItemModal.imageUrl} 
                     alt={viewItemModal.name} 

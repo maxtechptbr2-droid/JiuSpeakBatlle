@@ -203,6 +203,285 @@ export default function PvPArena({
   const matchmakingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
 
+  // =========================================================================
+  // PREMIUM ENTERPRISE BJJ VOICE SPARRING STATES & HANDLERS
+  // =========================================================================
+  const [arenaTab, setArenaTab] = useState<'quiz' | 'voice_sparring'>('quiz');
+  const [voiceSessions, setVoiceSessions] = useState<any[]>([]);
+  const [activeVoiceSession, setActiveVoiceSession] = useState<any | null>(null);
+  const [selectedScenario, setSelectedScenario] = useState<'competição' | 'seminário' | 'sparring' | 'viagem' | 'privada'>('competição');
+  const [selectedPartner, setSelectedPartner] = useState<'thomas' | 'tyler' | 'yuki' | 'roberto' | 'john'>('thomas');
+  const [voiceChatOpen, setVoiceChatOpen] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
+  const [aiThinking, setAiThinking] = useState<boolean>(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+  const [micErrorText, setMicErrorText] = useState<string>('');
+  const [voiceDraftText, setVoiceDraftText] = useState<string>('');
+  const [audioUrlCache, setAudioUrlCache] = useState<Record<string, string>>({});
+  const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(false);
+  const [nowPlayingText, setNowPlayingText] = useState<string | null>(null);
+  const [waveformBars, setWaveformBars] = useState<number[]>(Array.from({ length: 15 }, () => 4));
+
+  const recognitionRef = useRef<any>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  // Poll random bars for live visual waveform animation when audio is playing or mic is recording
+  useEffect(() => {
+    let interval: any = null;
+    if (isPlayingAudio || isRecording || aiThinking) {
+      interval = setInterval(() => {
+        setWaveformBars(Array.from({ length: 15 }, () => {
+          if (isPlayingAudio) return Math.floor(Math.random() * 25) + 5;
+          if (isRecording) return Math.floor(Math.random() * 18) + 3;
+          if (aiThinking) return Math.floor(Math.random() * 10) + 2;
+          return 4;
+        }));
+      }, 100);
+    } else {
+      setWaveformBars(Array.from({ length: 15 }, () => 4));
+    }
+    return () => clearInterval(interval);
+  }, [isPlayingAudio, isRecording, aiThinking]);
+
+  // Clean audio players on unmount
+  useEffect(() => {
+    return () => {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+    };
+  }, []);
+
+  const fetchVoiceSessions = async () => {
+    setIsLoadingHistory(true);
+    try {
+      const res = await fetch("/api/conversational/sessions");
+      if (res.ok) {
+        const data = await res.json();
+        setVoiceSessions(data.sessions || []);
+      }
+    } catch (e) {
+      console.error("Error fetching voice sessions history:", e);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const startNewVoiceSession = async () => {
+    setAiThinking(true);
+    setMicErrorText('');
+    setVoiceChatOpen(true);
+    try {
+      const res = await fetch("/api/conversational/sessions/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario: selectedScenario, partnerKey: selectedPartner })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveVoiceSession(data.session);
+        setVoiceSessions(prev => [data.session, ...prev]);
+        
+        // Auto play the opening coach response
+        const newestMsg = data.session.history[data.session.history.length - 1];
+        if (newestMsg && newestMsg.role === 'assistant') {
+          playVoiceSpeech(newestMsg.text, data.session.partnerVoice);
+        }
+      } else {
+        const errData = await res.json();
+        setMicErrorText(errData.error || "Não foi possível iniciar o robô de voz BJJ.");
+      }
+    } catch (e) {
+      setMicErrorText("Falha técnica de conexão com o servidor de voz.");
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const deleteVoiceSession = async (sid: string) => {
+    try {
+      const res = await fetch("/api/conversational/sessions/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sid })
+      });
+      if (res.ok) {
+        setVoiceSessions(prev => prev.filter(s => s.id !== sid));
+        if (activeVoiceSession?.id === sid) {
+          setActiveVoiceSession(null);
+          setVoiceChatOpen(false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const sendVoiceChatMessage = async (typedText?: string) => {
+    const finalMsg = typedText || voiceDraftText;
+    if (!finalMsg.trim() || !activeVoiceSession) return;
+
+    setAiThinking(true);
+    setVoiceDraftText('');
+    setMicErrorText('');
+    
+    // Add user message to UI immediately for lightning-fast optimistic UX responsive visual
+    const tempUserMsg = { role: 'user', text: finalMsg, timestamp: new Date().toISOString() };
+    setActiveVoiceSession((prev: any) => ({
+      ...prev,
+      history: [...prev.history, tempUserMsg]
+    }));
+
+    try {
+      const res = await fetch("/api/conversational/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: activeVoiceSession.id, text: finalMsg })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveVoiceSession(data.session);
+        
+        // Dynamic ELO visual sync in UI
+        const latestMsg = data.session.history[data.session.history.length - 1];
+        if (latestMsg && latestMsg.eloDelta) {
+          // Optimistically update parent profile data
+          user.elo = (user.elo || 1000) + latestMsg.eloDelta;
+          if (updateUser) {
+            updateUser({ elo: user.elo });
+          }
+          if (addXp) {
+            addXp(latestMsg.eloDelta * 2, "Voice Sparring Victory");
+          }
+        }
+
+        // Auto speak the companion response
+        if (latestMsg && latestMsg.role === 'assistant') {
+          playVoiceSpeech(latestMsg.text, data.session.partnerVoice);
+        }
+        
+        setVoiceSessions(prev => prev.map(s => s.id === data.session.id ? data.session : s));
+      } else {
+        const errData = await res.json();
+        setMicErrorText(errData.error || "IA falhou ao projetar contraguarda verbal.");
+      }
+    } catch (e) {
+      setMicErrorText("Conexão perdida com o quartel-general cognitivo BJJ.");
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const playVoiceSpeech = (text: string, voice: string) => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+    }
+
+    setNowPlayingText(text);
+    setIsPlayingAudio(true);
+
+    const cacheKey = `${text}_${voice}`;
+    if (audioUrlCache[cacheKey]) {
+      const audio = new Audio(audioUrlCache[cacheKey]);
+      audioPlayerRef.current = audio;
+      audio.onended = () => {
+        setIsPlayingAudio(false);
+        setNowPlayingText(null);
+      };
+      audio.play().catch(e => {
+        console.warn("Cached run ended in bypass fallbacks:", e);
+        setIsPlayingAudio(false);
+        setNowPlayingText(null);
+      });
+      return;
+    }
+
+    // Direct stream connection
+    const audioUrl = `/api/conversational/stream-tts?text=${encodeURIComponent(text)}&voice=${voice}`;
+    const audio = new Audio(audioUrl);
+    audioPlayerRef.current = audio;
+    audio.onended = () => {
+      setIsPlayingAudio(false);
+      setNowPlayingText(null);
+    };
+    audio.play().catch(e => {
+      console.warn("Audio streaming failed fallback:", e);
+      // Client-side visual fallback speech synthesis
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.95;
+        utterance.onend = () => {
+          setIsPlayingAudio(false);
+          setNowPlayingText(null);
+        };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setIsPlayingAudio(false);
+        setNowPlayingText(null);
+      }
+    });
+
+    // Save playing url reference to memory cache for instantaneous subsequent replays
+    setAudioUrlCache(prev => ({ ...prev, [cacheKey]: audioUrl }));
+  };
+
+  const startListening = () => {
+    setMicErrorText('');
+    const SpeechLib = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechLib) {
+      setMicErrorText("Seu navegador não possui suporte ao Speech API por voz. Utilize o campo de digitação.");
+      return;
+    }
+
+    try {
+      const rec = new SpeechLib();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+
+      rec.onstart = () => {
+        setIsRecording(true);
+        setVoiceDraftText('');
+      };
+
+      rec.onresult = (event: any) => {
+        const result = event.results[0][0].transcript;
+        setVoiceDraftText(result);
+      };
+
+      rec.onerror = (e: any) => {
+        if (e.error === 'no-speech') {
+          setMicErrorText("Nenhuma voz detectada. Encaixe sua pegada e fale perto do microfone!");
+        } else if (e.error === 'not-allowed') {
+          setMicErrorText("Permissão do microfone bloqueada pelo navegador.");
+        } else {
+          setMicErrorText(`Erro de captação verbal: ${e.error}`);
+        }
+        setIsRecording(false);
+      };
+
+      rec.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = rec;
+      rec.start();
+    } catch (err: any) {
+      console.error(err);
+      setMicErrorText("Falha ao preparar o driver de gravação.");
+      setIsRecording(false);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
   // Fetch PostgreSQL active matches PvP ELO Leaderboard
   const fetchLeaderboard = async (type: string = rankingType, region: string = rankingRegion) => {
     setIsLoadingLeaderboard(true);
@@ -225,6 +504,7 @@ export default function PvPArena({
 
   useEffect(() => {
     fetchLeaderboard(rankingType, rankingRegion);
+    fetchVoiceSessions();
   }, [rankingType, rankingRegion]);
 
   // 1. Initialize Socket.IO connection and bind event loops of matches
@@ -510,7 +790,37 @@ export default function PvPArena({
           STATE LOBBY - PORTAL INICIAL STYLE CHESS.COM
           ========================================== */}
       {arenaState === 'lobby' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="space-y-6">
+          {/* Main Mode Tabs */}
+          <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-900 max-w-sm">
+            <button
+              onClick={() => setArenaTab('quiz')}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold font-display tracking-wider transition-all duration-200 gap-1.5 flex items-center justify-center cursor-pointer ${
+                arenaTab === 'quiz'
+                  ? 'bg-gradient-to-r from-indigo-600 to-indigo-750 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Sword className="w-3 h-3" /> Duelos / PvP
+            </button>
+            <button
+              onClick={() => {
+                setArenaTab('voice_sparring');
+                fetchVoiceSessions();
+              }}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold font-display tracking-wider transition-all duration-200 gap-1.5 flex items-center justify-center cursor-pointer ${
+                arenaTab === 'voice_sparring'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-650 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span className="relative flex h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 mr-0.5"></span>
+              Voice Sparring 🗣️
+            </button>
+          </div>
+
+          {arenaTab === 'quiz' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Esquerda: Painel de Jogo */}
           <div className="lg:col-span-2 space-y-6">
@@ -858,6 +1168,202 @@ export default function PvPArena({
             </div>
           </div>
 
+        </div>
+          ) : (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Voice Sparring Header Banner */}
+              <div className="bg-slate-950/70 p-6 rounded-2xl border border-slate-850 space-y-4 relative overflow-hidden backdrop-blur-md text-left">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-650/5 rounded-full blur-3xl -z-10" />
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                  <div>
+                    <span className="text-[10px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold tracking-wider uppercase">
+                      Pioneiro em IA Conversacional
+                    </span>
+                    <h3 className="text-xl font-display font-black text-white leading-tight mt-1">
+                      Voice Sparring BJJ 🗣️
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                      Dobre seus reflexos verbais e de pronúncia em inglês! Treine conversando de viva voz com professores e adversários internacionais sob cenários reais do jiu-jitsu profissional.
+                    </p>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-2xl text-center shrink-0 w-full sm:w-auto">
+                    <span className="block text-[8px] text-slate-500 font-mono tracking-wider">SEU ELO ATUAL</span>
+                    <span className="text-xl font-black text-emerald-400 font-mono">{user.elo || 1000}</span>
+                  </div>
+                </div>
+
+                {/* Scenario Select Row */}
+                <div className="space-y-3 pt-2">
+                  <label className="block text-[10px] font-mono uppercase text-slate-400 font-extrabold tracking-wider">
+                    Passo 1: Selecione o Cenário do Rolo
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[
+                      { key: 'competição', label: 'Match Day', icon: '🏆', desc: 'Finais da IBJJF' },
+                      { key: 'seminário', label: 'Seminário', icon: '📖', desc: 'Detalhes mecânicos' },
+                      { key: 'sparring', label: 'Sparring', icon: '🥋', desc: 'Durante o rolo' },
+                      { key: 'viagem', label: 'Intercâmbio', icon: '✈️', desc: 'White gi policy & fees' },
+                      { key: 'privada', label: 'Aula Privada', icon: '🎯', desc: '1-on-1 premium coaching' }
+                    ].map((scenario) => {
+                      const isSelected = selectedScenario === scenario.key;
+                      return (
+                        <button
+                          key={scenario.key}
+                          onClick={() => setSelectedScenario(scenario.key as any)}
+                          className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all duration-200 cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-950/30 border-emerald-500/60 text-white shadow-md shadow-emerald-950/10'
+                              : 'bg-slate-900/40 border-slate-850 text-slate-400 hover:border-slate-800 hover:text-slate-205'
+                          }`}
+                        >
+                          <span className="text-lg mb-1">{scenario.icon}</span>
+                          <span className="text-[10px] font-bold font-display leading-tight truncate w-full">{scenario.label}</span>
+                          <span className="text-[8px] text-slate-500 overflow-hidden text-ellipsis whitespace-nowrap w-full">{scenario.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Companion/Partner Selector row */}
+                <div className="space-y-3 pt-2">
+                  <label className="block text-[10px] font-mono uppercase text-slate-400 font-extrabold tracking-wider">
+                    Passo 2: Escolha seu Companheiro de Treino
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                    {[
+                      { key: 'thomas', name: 'Thomas (White Belt)', origin: 'USA', difficulty: 'Fácil', attr: 'Thomas_USA', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=thomas_usa' },
+                      { key: 'tyler', name: 'Tyler (Média)', origin: 'Cali', difficulty: 'Média', attr: 'Tyler_Cali', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=tyler_cali' },
+                      { key: 'yuki', name: 'Yuki (Guarda)', origin: 'Tokyo', difficulty: 'Alta', attr: 'Yuki_Tokyo', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=yuki_tokyo' },
+                      { key: 'roberto', name: 'Roberto (Intenso)', origin: 'London', difficulty: 'Média', attr: 'Roberto_BJJ', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=roberto_bjj' },
+                      { key: 'john', name: 'John (Preta)', origin: 'Austin', difficulty: 'Preta', attr: 'John_Austin', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=john_austin' }
+                    ].map((p) => {
+                      const isSelected = selectedPartner === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          onClick={() => setSelectedPartner(p.key as any)}
+                          className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all duration-200 cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-950/30 border-indigo-500/60 text-white shadow-md shadow-indigo-950/10'
+                              : 'bg-slate-900/40 border-slate-850 text-slate-400 hover:border-slate-800 hover:text-slate-205'
+                          }`}
+                        >
+                          <img src={p.avatar} alt={p.name} className="w-8 h-8 rounded-md bg-slate-950 mb-1.5 border border-slate-850" referrerPolicy="no-referrer" />
+                          <span className="text-[10px] font-bold font-display leading-tight">{p.name}</span>
+                          <span className="text-[8px] text-indigo-400 font-mono mt-0.5">{p.difficulty}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Subscribed Access rules logic verification */}
+                {(() => {
+                  const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+                  if (!isAiSubscriptionActive) {
+                    return (
+                      <div className="pt-4 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <span className="text-[10px] text-amber-500 font-mono flex items-center gap-1">
+                          ⚠️ Assinatura IA necessária para treinar com áudio em tempo real.
+                        </span>
+                        {setCurrentTab && (
+                          <button
+                            onClick={() => setCurrentTab('subscriptions')}
+                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-[10px] font-mono uppercase tracking-wider font-extrabold text-white cursor-pointer"
+                          >
+                            Ir para Assinatura IA
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="pt-4 border-t border-slate-905 flex justify-end">
+                      <button
+                        onClick={startNewVoiceSession}
+                        disabled={aiThinking}
+                        className="px-6 py-2.5 bg-gradient-to-tr from-emerald-500 to-teal-600 hover:from-teal-600 hover:to-emerald-500 text-slate-950 font-display font-black text-xs uppercase tracking-wider rounded-xl transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {aiThinking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>🗣️ Iniciar Treino de Voz</span>}
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* History list of current voice sessions */}
+              <div className="space-y-3 text-left">
+                <div className="flex items-center gap-2 font-display text-sm font-extrabold text-slate-200">
+                  <span>🕰️ Seus Treinos de Voz Anteriores</span>
+                  <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded text-slate-400 font-normal font-mono">
+                    {voiceSessions.length} sessões salvas
+                  </span>
+                </div>
+
+                {isLoadingHistory ? (
+                  <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
+                    Carregando tatame conversacional...
+                  </div>
+                ) : voiceSessions.length === 0 ? (
+                  <div className="bg-slate-950/20 p-8 rounded-xl border border-dashed border-slate-850 text-center text-xs text-slate-500">
+                    Nenhum simulado de voz recente. Selecione as diretrizes acima e entre no tatame de voz!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {voiceSessions.map((session) => (
+                      <div key={session.id} className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 hover:border-slate-800 transition flex items-center justify-between gap-4">
+                        <div className="space-y-1.5 min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-mono uppercase bg-emerald-955 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">
+                              {session.scenario}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono font-bold">
+                              {new Date(session.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-white truncate">{session.partnerName}</span>
+                            <span className="text-[9px] text-indigo-400">({session.history?.length || 0} turnos)</span>
+                          </div>
+                          {session.history?.length > 0 && (
+                            <p className="text-[11px] text-slate-400 truncate italic">
+                              "{session.history[session.history.length - 1].text}"
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              setActiveVoiceSession(session);
+                              setVoiceChatOpen(true);
+                              const lastMsg = session.history.filter((m: any) => m.role === 'assistant').pop();
+                              if (lastMsg) {
+                                playVoiceSpeech(lastMsg.text, session.partnerVoice);
+                              }
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-mono px-3 py-1.5 rounded-lg font-bold cursor-pointer transition uppercase"
+                          >
+                            Retomar
+                          </button>
+                          <button
+                            onClick={() => deleteVoiceSession(session.id)}
+                            className="p-1.5 bg-slate-900 hover:bg-red-950/50 hover:text-red-400 text-slate-500 rounded-lg cursor-pointer transition-all border border-slate-850"
+                            title="Excluir histórico"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1399,6 +1905,335 @@ export default function PvPArena({
             >
               Voltar ao Saguão da Arena
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ==============================================
+          IMERSIVE VOICE SPARRING MODAL OVERLAY
+          ============================================== */}
+      {voiceChatOpen && activeVoiceSession && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800/80 rounded-2xl w-full max-w-4xl h-[95vh] md:h-[80vh] flex flex-col overflow-hidden shadow-2xl relative">
+            
+            {/* Modal Header */}
+            <div className="bg-slate-950/80 border-b border-slate-850 px-5 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img 
+                    src={activeVoiceSession.partnerAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${activeVoiceSession.partnerKey}`} 
+                    alt={activeVoiceSession.partnerName} 
+                    className="w-10 h-10 rounded-lg border border-slate-850 bg-slate-900"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute -bottom-1 -right-1 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  </span>
+                </div>
+                
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-display font-black text-white text-sm">
+                      Treino com {activeVoiceSession.partnerName}
+                    </h4>
+                    <span className="text-[9px] bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded uppercase font-mono font-bold border border-emerald-500/20">
+                      {activeVoiceSession.scenario}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                    PVP Sparring de Voz • Conectado à IA Copilot
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="bg-slate-900 border border-slate-850 px-3 py-1 rounded-xl text-center hidden sm:block">
+                  <span className="text-[8px] text-slate-500 block font-mono">SEU ELO</span>
+                  <span className="text-xs font-black text-indigo-400 font-mono leading-none">{user.elo || 1000} ELO</span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (audioPlayerRef.current) {
+                      audioPlayerRef.current.pause();
+                    }
+                    setVoiceChatOpen(false);
+                    setActiveVoiceSession(null);
+                  }}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg text-xs font-mono transition cursor-pointer"
+                >
+                  Sair do Tatame
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Split-Screen Layout */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              
+              {/* Left Panel: Active Status, Waveform Visualizer & Coaching Insights */}
+              <div className="w-full md:w-80 bg-slate-950/40 p-5 border-b md:border-b-0 md:border-r border-slate-850 flex flex-col justify-between space-y-4 shrink-0">
+                
+                {/* Micro animation waveform card */}
+                <div className="bg-slate-950/80 border border-slate-850/60 p-4 rounded-xl space-y-4 text-center">
+                  <span className="block text-[8px] font-mono text-slate-500 uppercase tracking-widest">
+                    RECORTE DE FREQUÊNCIA VERBAL
+                  </span>
+                  
+                  {/* Waveform graphic bars */}
+                  <div className="h-10 flex items-center justify-center gap-[4px] px-4">
+                    {waveformBars.map((h, i) => (
+                      <div 
+                        key={i} 
+                        className={`w-1 rounded-full transition-all duration-100 ${
+                          isPlayingAudio 
+                            ? 'bg-emerald-500' 
+                            : isRecording 
+                            ? 'bg-red-500' 
+                            : aiThinking 
+                            ? 'bg-indigo-500 animate-pulse' 
+                            : 'bg-slate-700'
+                        }`}
+                        style={{ height: `${h * 1.5}px` }} 
+                      />
+                    ))}
+                  </div>
+
+                  <div className="text-left py-1">
+                    {isPlayingAudio ? (
+                      <div className="text-center text-xs text-emerald-400 font-mono font-bold animate-pulse">
+                        🔊 Ouvindo {activeVoiceSession.partnerName}...
+                      </div>
+                    ) : isRecording ? (
+                      <div className="text-center text-xs text-red-500 font-mono font-bold animate-pulse">
+                        🎙️ Gravando seu inglês... Fale agora!
+                      </div>
+                    ) : aiThinking ? (
+                      <div className="text-center text-xs text-indigo-400 font-mono font-bold flex items-center justify-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Coach está formulando conselho...
+                      </div>
+                    ) : (
+                      <div className="text-center text-xs text-slate-500 font-mono">
+                        Silêncio no Tatame. Aperte o microfone para falar!
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Technical coaching summary details */}
+                <div className="bg-slate-900 border border-slate-850/60 p-4 rounded-xl flex-1 text-left overflow-y-auto space-y-3.5 max-h-[180px] md:max-h-none">
+                  <span className="block text-[9px] font-mono text-[#009dff] uppercase tracking-wider font-extrabold">
+                    COACHING ANALYTICS IA
+                  </span>
+
+                  {/* Interactive display of last assistant feedback */}
+                  {(() => {
+                    const assistantMsgs = activeVoiceSession.history.filter((m: any) => m.role === 'assistant');
+                    const lastBotMsg = assistantMsgs[assistantMsgs.length - 1];
+                    if (!lastBotMsg) {
+                      return (
+                        <p className="text-[10px] text-slate-400 italic">
+                          Fale seu primeiro input para habilitar as métricas de análise de tom, precisão de vocábulos e pronúncia americana.
+                        </p>
+                      );
+                    }
+                    return (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-mono text-slate-500 uppercase block">Pronúncia & Fonética:</span>
+                          <p className="text-[11px] text-slate-300 leading-normal bg-slate-950 p-2 rounded border border-slate-900 font-mono">
+                            {lastBotMsg.pronunciationTips || 'Feedback fonético indisponível.'}
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="text-[8px] font-mono text-slate-500 uppercase block">Análise de Performance:</span>
+                          <p className="text-[11px] text-slate-300 leading-normal italic">
+                            {lastBotMsg.performanceAnalysis || 'Perfeito! Conteúdo e tom perfeitamente adequados ao tatame.'}
+                          </p>
+                        </div>
+
+                        {lastBotMsg.keyVocabulary && lastBotMsg.keyVocabulary.length > 0 && (
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-mono text-slate-500 uppercase block">Vocabulário Chave:</span>
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {lastBotMsg.keyVocabulary.map((word: string, i: number) => (
+                                <span key={i} className="text-[9px] text-[#009dff] bg-indigo-950/60 border border-indigo-900/40 px-2 py-0.5 rounded font-bold font-mono">
+                                  {word}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Mic error / instructions block */}
+                {micErrorText && (
+                  <div className="bg-red-950/20 border border-red-500/20 px-3 py-2 rounded-xl text-left">
+                    <span className="block text-[8px] text-red-400 font-mono uppercase font-bold">AVISO TÉCNICO:</span>
+                    <p className="text-[10px] text-slate-300 leading-relaxed mt-0.5">{micErrorText}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Panel: Immersive Transcript Chronology of this sparring session */}
+              <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-955">
+                
+                {/* Scrolling transcripts area */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 text-left font-sans">
+                  {activeVoiceSession.history.map((msg: any, idx: number) => {
+                    const isBot = msg.role === 'assistant';
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`flex gap-3 max-w-[85%] ${
+                          isBot ? 'mr-auto items-start' : 'ml-auto flex-row-reverse items-end'
+                        } animate-fadeIn`}
+                      >
+                        {isBot && (
+                          <img 
+                            src={activeVoiceSession.partnerAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${activeVoiceSession.partnerKey}`} 
+                            alt={activeVoiceSession.partnerName} 
+                            className="w-7 h-7 rounded-md border border-slate-800 bg-slate-900 shrink-0 select-none" 
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+
+                        <div className="space-y-1.5 min-w-0">
+                          {/* Chat bubble body */}
+                          <div 
+                            className={`p-3.5 rounded-2xl relative ${
+                              isBot 
+                                ? 'bg-slate-900 border border-slate-850 text-slate-100 rounded-tl-none' 
+                                : 'bg-indigo-600 text-white rounded-br-none'
+                            }`}
+                          >
+                            <p className="text-xs leading-relaxed font-sans select-all">{msg.text}</p>
+                            
+                            {/* Embedded Portuguese Translation Accordion inside the bubble */}
+                            {isBot && msg.translation && (
+                              <details className="mt-2 text-[11px] text-slate-405 border-t border-slate-800 pt-2 cursor-pointer select-none">
+                                <summary className="hover:text-indigo-400 transition font-bold font-mono text-[9px] list-none flex items-center gap-1">
+                                  <span>🇧🇷 Ver Tradução</span>
+                                </summary>
+                                <p className="mt-1 text-[11px] text-slate-300 leading-normal animate-fadeIn font-normal select-all">
+                                  {msg.translation}
+                                </p>
+                              </details>
+                            )}
+                          </div>
+
+                          {/* Extra feedback labels under bubble */}
+                          {isBot && (
+                            <div className="flex flex-wrap items-center gap-1.5 px-1 font-mono text-[9px]">
+                              {/* Audio Repeat Button */}
+                              <button
+                                onClick={() => playVoiceSpeech(msg.text, activeVoiceSession.partnerVoice)}
+                                className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer font-bold shrink-0"
+                              >
+                                🔊 Ouvir Novamente
+                              </button>
+
+                              {/* Awarded ELO highlight */}
+                              {msg.eloDelta > 0 && (
+                                <span className="bg-yellow-950/80 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-0.5">
+                                  🏆 +{msg.eloDelta} ELO (Faixa)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Typing/Thinking indicator */}
+                  {aiThinking && (
+                    <div className="flex gap-3 max-w-[80%] mr-auto items-center animate-pulse">
+                      <img 
+                        src={activeVoiceSession.partnerAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${activeVoiceSession.partnerKey}`} 
+                        alt="Bot Avatar" 
+                        className="w-7 h-7 rounded-md border border-slate-800 bg-slate-900 shrink-0"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="bg-slate-900 border border-slate-850 p-3 rounded-2xl rounded-tl-none flex items-center gap-1.5 text-xs text-slate-400">
+                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Controls Area */}
+                <div className="bg-slate-950/80 border-t border-slate-850 p-4 shrink-0 space-y-3">
+                  
+                  {/* Option 1: Live Voice Recording Trigger (Preferred standard) */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 flex items-center bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 min-h-[44px]">
+                      {isRecording ? (
+                        <div className="flex-1 flex items-center gap-2 text-red-400 font-mono text-xs">
+                          <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                          </span>
+                          Gravando áudio de voz... Fale agora em Inglês!
+                        </div>
+                      ) : (
+                        <input 
+                          type="text" 
+                          value={voiceDraftText} 
+                          onChange={(e) => setVoiceDraftText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              sendVoiceChatMessage();
+                            }
+                          }}
+                          placeholder={isRecording ? "Listening..." : "Escreva em inglês ou fale no microfone..."}
+                          className="w-full bg-transparent border-0 text-white placeholder-slate-500 outline-none text-xs"
+                          disabled={aiThinking}
+                        />
+                      )}
+                    </div>
+
+                    {/* Microphone trigger Button */}
+                    <button
+                      type="button"
+                      onMouseDown={startListening}
+                      onMouseUp={stopListening}
+                      onTouchStart={startListening}
+                      onTouchEnd={stopListening}
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-300 transform select-none cursor-pointer ${
+                        isRecording 
+                          ? 'bg-red-600 border-red-500 text-white animate-pulse scale-105 shadow-md shadow-red-950/50' 
+                          : 'bg-indigo-600 hover:bg-indigo-400 border-indigo-505 text-white shadow-md shadow-indigo-950/50'
+                      }`}
+                      title="Segure para falar (🇺🇸)"
+                    >
+                      🗣️
+                    </button>
+
+                    {/* Submit text query trigger */}
+                    <button
+                      onClick={() => sendVoiceChatMessage()}
+                      disabled={!voiceDraftText.trim() || aiThinking}
+                      className="px-4 py-2.5 bg-slate-950 border border-slate-850 hover:bg-slate-800 disabled:opacity-40 text-[#009dff] hover:text-white font-mono font-bold text-xs uppercase rounded-xl tracking-wider transition cursor-pointer"
+                    >
+                      Enviar
+                    </button>
+                  </div>
+
+                  <p className="text-[10px] text-slate-500 font-mono text-center">
+                    📢 Segure o botão do microfone 🗣  para falar em Inglês. Solte para enviar automaticamente!
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}

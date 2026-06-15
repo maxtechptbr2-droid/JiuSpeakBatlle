@@ -89,6 +89,242 @@ export const seedStoreProducts = async () => {
   if (!prisma) return;
 
   try {
+    // ALWAYS seed the 23 exclusive Premium AAA Store items first
+    const premiumStoreItems = [
+      {
+        id: "prod_kimono_imperial_black",
+        name: "Imperial Black Gi",
+        description: "Forjado para atletas de elite.",
+        priceJT: 12000,
+        category: "Kimonos",
+        rarity: Rarity.LEGENDARY,
+        imageUrl: "/store/kimonos/imperial-black-gi.webp"
+      },
+      {
+        id: "prod_kimono_kyoto_shadow",
+        name: "Kyoto Shadow Gi",
+        description: "Elegância silenciosa do tatame.",
+        priceJT: 9500,
+        category: "Kimonos",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/kimonos/kyoto-shadow.webp"
+      },
+      {
+        id: "prod_kimono_tatame_royal",
+        name: "Tatame Royal Gi",
+        description: "Reservado aos competidores de alto nível.",
+        priceJT: 8500,
+        category: "Kimonos",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/kimonos/tatame-royal.webp"
+      },
+      {
+        id: "prod_kimono_dragon_elite",
+        name: "Dragon Elite Gi",
+        description: "Disciplina, honra e poder.",
+        priceJT: 15000,
+        category: "Kimonos",
+        rarity: Rarity.MYTHIC,
+        imageUrl: "/store/kimonos/dragon-elite.webp"
+      },
+      {
+        id: "prod_rash_phantom",
+        name: "Phantom Rashguard",
+        description: "Compressão de alto desempenho para o rolar insano.",
+        priceJT: 4000,
+        category: "Rash Guards",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/rashguards/phantom-rashguard.webp"
+      },
+      {
+        id: "prod_rash_crimson",
+        name: "Crimson Warrior",
+        description: "Guerras no sem-pano exigem a armadura perfeita.",
+        priceJT: 4500,
+        category: "Rash Guards",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/rashguards/crimson-warrior.webp"
+      },
+      {
+        id: "prod_rash_no_gi",
+        name: "No-Gi Elite",
+        description: "Especialista em finalizações rápidas e controle.",
+        priceJT: 5000,
+        category: "Rash Guards",
+        rarity: Rarity.LEGENDARY,
+        imageUrl: "/store/rashguards/no-gi-elite.webp"
+      },
+      {
+        id: "prod_rash_shadow",
+        name: "Shadow Compression",
+        description: "Efeito segunda pele com absorção biológica avançada.",
+        priceJT: 5500,
+        category: "Rash Guards",
+        rarity: Rarity.LEGENDARY,
+        imageUrl: "/store/rashguards/shadow-compression.webp"
+      },
+      {
+        id: "prod_frame_bronze",
+        name: "Bronze Frame",
+        description: "Borda rústica de bronze para as conquistas iniciais.",
+        priceJT: 1000,
+        category: "Molduras",
+        rarity: Rarity.COMMON,
+        imageUrl: "/store/molduras/bronze-frame.webp"
+      },
+      {
+        id: "prod_frame_silver",
+        name: "Silver Frame",
+        description: "Moldura de prata polida ideal para graduados.",
+        priceJT: 2500,
+        category: "Molduras",
+        rarity: Rarity.RARE,
+        imageUrl: "/store/molduras/silver-frame.webp"
+      },
+      {
+        id: "prod_frame_gold",
+        name: "Gold Frame",
+        description: "Destaque dourado deslumbrante reservado aos campeões.",
+        priceJT: 5000,
+        category: "Molduras",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/molduras/gold-frame.webp"
+      },
+      {
+        id: "prod_frame_diamond",
+        name: "Diamond Frame",
+        description: "Lapidado em cristal duplo com brilho iridescente.",
+        priceJT: 10000,
+        category: "Molduras",
+        rarity: Rarity.LEGENDARY,
+        imageUrl: "/store/molduras/diamond-frame.webp"
+      },
+      {
+        id: "prod_frame_imperial",
+        name: "Imperial Frame",
+        description: "A suntuosa coroa imperial dos guerreiros do topo.",
+        priceJT: 15000,
+        category: "Molduras",
+        rarity: Rarity.MYTHIC,
+        imageUrl: "/store/molduras/imperial-frame.webp"
+      },
+      {
+        id: "prod_medal_bronze",
+        name: "Bronze Medal",
+        description: "Seu primeiro triunfo no pódio dos grandes guerreiros.",
+        priceJT: 1500,
+        category: "Medalhas",
+        rarity: Rarity.COMMON,
+        imageUrl: "/store/medalhas/bronze-medal.webp"
+      },
+      {
+        id: "prod_medal_silver",
+        name: "Silver Medal",
+        description: "Reconhecimento de prestígio no circuito de lutas.",
+        priceJT: 3000,
+        category: "Medalhas",
+        rarity: Rarity.RARE,
+        imageUrl: "/store/medalhas/silver-medal.webp"
+      },
+      {
+        id: "prod_medal_gold",
+        name: "Gold Medal",
+        description: "O metal máximo cobiçado por todo competidor.",
+        priceJT: 6000,
+        category: "Medalhas",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/medalhas/gold-medal.webp"
+      },
+      {
+        id: "prod_medal_grand_slam",
+        name: "Grand Slam Medal",
+        description: "Símbolo supremo de domínio nos quatro maiores campeonatos.",
+        priceJT: 12000,
+        category: "Medalhas",
+        rarity: Rarity.LEGENDARY,
+        imageUrl: "/store/medalhas/grand-slam-medal.webp"
+      },
+      {
+        id: "prod_medal_world_champion",
+        name: "World Champion Medal",
+        description: "Glória eterna gravada na história mundial do jiu-jitsu.",
+        priceJT: 20000,
+        category: "Medalhas",
+        rarity: Rarity.MYTHIC,
+        imageUrl: "/store/medalhas/world-champion-medal.webp"
+      },
+      {
+        id: "prod_avatar_samurai",
+        name: "Samurai",
+        description: "Calma absoluta sob o choque inevitável dos golpes.",
+        priceJT: 2500,
+        category: "Avatares",
+        rarity: Rarity.RARE,
+        imageUrl: "/store/avatares/samurai.webp"
+      },
+      {
+        id: "prod_avatar_sensei",
+        name: "Sensei",
+        description: "Sua técnica pura supera qualquer força física.",
+        priceJT: 5000,
+        category: "Avatares",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/avatares/sensei.webp"
+      },
+      {
+        id: "prod_avatar_prof_elite",
+        name: "Professor Elite",
+        description: "Mentoria de alto rendimento para a nova era do tatame.",
+        priceJT: 8000,
+        category: "Avatares",
+        rarity: Rarity.EPIC,
+        imageUrl: "/store/avatares/professor-elite.webp"
+      },
+      {
+        id: "prod_avatar_champion",
+        name: "Champion",
+        description: "O espírito vencedor moldado pela repetição eterna.",
+        priceJT: 12000,
+        category: "Avatares",
+        rarity: Rarity.LEGENDARY,
+        imageUrl: "/store/avatares/champion.webp"
+      },
+      {
+        id: "prod_avatar_master_bb",
+        name: "Black Belt Master",
+        description: "A maestria absoluta do faixa preta lendária do dojo.",
+        priceJT: 15000,
+        category: "Avatares",
+        rarity: Rarity.MYTHIC,
+        imageUrl: "/store/avatares/black-belt-master.webp"
+      }
+    ];
+
+    for (const item of premiumStoreItems) {
+      await prisma.storeProduct.upsert({
+        where: { id: item.id },
+        update: {
+          name: item.name,
+          description: item.description,
+          priceJT: item.priceJT,
+          category: item.category,
+          rarity: item.rarity,
+          imageUrl: item.imageUrl,
+          active: true
+        },
+        create: {
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          priceJT: item.priceJT,
+          category: item.category,
+          rarity: item.rarity,
+          imageUrl: item.imageUrl,
+          active: true
+        }
+      });
+    }
+
     const count = await prisma.storeProduct.count();
     if (count >= 130) {
       console.log('✅ Store already has at least 130 seeded products. Skipping product seeding.');
