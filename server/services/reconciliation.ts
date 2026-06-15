@@ -86,27 +86,49 @@ export class PaymentReconciliationService {
         if (isApproved) {
           report.approvedCount++;
           
-          // CRITICAL: Idempotência check to prevent double credits!
+          // CRITICAL: Idempotência check with atomic database transition to prevent parallel race conditions!
           let alreadyProcessed = false;
           if (prisma) {
-            const freshTx = await prisma.paymentTransaction.findUnique({
-              where: { mercadoPagoId: tx.mercadoPagoId }
-            });
-            if (freshTx && freshTx.processed) {
+            try {
+              const freshTx = await prisma.paymentTransaction.findUnique({
+                where: { mercadoPagoId: tx.mercadoPagoId }
+              });
+              if (!freshTx) {
+                const memFreshTx = inMemoryPaymentTransactions.get(tx.mercadoPagoId);
+                if (!memFreshTx) {
+                  console.warn(`[RECONCILIATION FRAUD BLOCKED] Uninitiated transaction ${tx.mercadoPagoId} rejected.`);
+                  continue;
+                }
+              }
+
+              const updateCount = await prisma.paymentTransaction.updateMany({
+                where: { mercadoPagoId: tx.mercadoPagoId, processed: false },
+                data: { status: 'approved', processed: true }
+              });
+              if (updateCount.count === 0) {
+                alreadyProcessed = true;
+              }
+            } catch (errCheck) {
+              console.error("[RECONCILIATION IDEMPOTENCY ERR] Database checking failed, using safety memory check:", errCheck);
+              const memFreshTx = inMemoryPaymentTransactions.get(tx.mercadoPagoId);
+              if (memFreshTx && memFreshTx.processed) {
+                alreadyProcessed = true;
+              }
+            }
+          } else {
+            const memFreshTx = inMemoryPaymentTransactions.get(tx.mercadoPagoId);
+            if (memFreshTx && memFreshTx.processed) {
               alreadyProcessed = true;
             }
           }
-          const memFreshTx = inMemoryPaymentTransactions.get(tx.mercadoPagoId);
-          if (memFreshTx && memFreshTx.processed) {
-            alreadyProcessed = true;
-          }
 
           if (alreadyProcessed) {
-            console.log(`[RECONCILIATION IDEMPOTÈNCIA] Transaction ${tx.mercadoPagoId} already processed. Skipping balance credit.`);
+            console.log(`[RECONCILIATION IDEMPOTÈNCIA] Transaction ${tx.mercadoPagoId} already processed (atomic state check). Skipping double balance credit.`);
             continue;
           }
 
-          // Mark as processed & approved
+          // Mark as processed & approved in local cache
+          const memFreshTx = inMemoryPaymentTransactions.get(tx.mercadoPagoId);
           if (memFreshTx) {
             memFreshTx.processed = true;
             memFreshTx.status = 'approved';
@@ -118,20 +140,6 @@ export class PaymentReconciliationService {
               processed: true,
               updatedAt: new Date()
             });
-          }
-
-          if (prisma) {
-            try {
-              await prisma.paymentTransaction.update({
-                where: { mercadoPagoId: tx.mercadoPagoId },
-                data: {
-                  status: 'approved',
-                  processed: true
-                }
-              });
-            } catch (dbErr) {
-              console.warn('[RECONCILIATION] Failed to update PaymentTransaction status in DB:', dbErr);
-            }
           }
 
           // Credit JT Coins to User Wallet
