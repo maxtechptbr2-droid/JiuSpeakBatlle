@@ -3885,6 +3885,13 @@ app.post("/api/profile/follow", authenticateToken, async (req: any, res: any) =>
       });
     });
     
+    // GET updated stats for log
+    const curUser = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const targetUserUpdated = await prisma.user.findUnique({ where: { id: targetUserId } });
+    console.log(`[FOLLOW AUDIT] Follow criado: de ${req.user.id} para ${targetUserId}`);
+    console.log(`[FOLLOW AUDIT] Following de ${req.user.id} atualizado para: ${curUser?.followingCount || 0}`);
+    console.log(`[FOLLOW AUDIT] Followers de ${targetUserId} atualizados para: ${targetUserUpdated?.followersCount || 0}`);
+
     res.json({ success: true, message: "Você começou a seguir este atleta!" });
   } catch (err) {
     console.error("POST /api/profile/follow error:", err);
@@ -3935,6 +3942,13 @@ app.delete("/api/profile/follow", authenticateToken, async (req: any, res: any) 
       });
     });
     
+    // GET updated stats for log
+    const curUser = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const targetUserUpdated = await prisma.user.findUnique({ where: { id: targetUserId } });
+    console.log(`[FOLLOW AUDIT] Follow removido: de ${req.user.id} para ${targetUserId}`);
+    console.log(`[FOLLOW AUDIT] Following de ${req.user.id} atualizado para: ${curUser?.followingCount || 0}`);
+    console.log(`[FOLLOW AUDIT] Followers de ${targetUserId} atualizados para: ${targetUserUpdated?.followersCount || 0}`);
+
     res.json({ success: true, message: "Você deixou de seguir este atleta." });
   } catch (err) {
     console.error("DELETE /api/profile/follow error:", err);
@@ -12205,11 +12219,6 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
     const frameLookup = result.frameMap || {};
 
     const mergedPostsList = [...result.dbPosts];
-    inMemorySocialPosts.forEach((memPost: any) => {
-      if (!mergedPostsList.some((p: any) => p.id === memPost.id)) {
-        mergedPostsList.push(memPost);
-      }
-    });
 
     // Sort descending
     mergedPostsList.sort((a: any, b: any) => {
@@ -12312,108 +12321,64 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
 
     const targetCategory = category || "Treino";
     const prisma = getPrisma();
-    let savedPost: any = null;
-
-    if (prisma) {
-      try {
-        const created = await prisma.socialPost.create({
-          data: {
-            authorId: userId,
-            content: content.trim(),
-            category: targetCategory,
-            imageUrl: imageUrl || null,
-            videoUrl: videoUrl || null
-          },
-          include: {
-            author: {
-              select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
-            }
-          }
-        }) as any;
-
-        // Trigger dynamic system notifications to followers
-        try {
-          const followersList = await prisma.follower.findMany({
-            where: { followingId: userId },
-            select: { followerId: true }
-          });
-
-          for (const followObj of followersList) {
-            await prisma.notification.create({
-              data: {
-                userId: followObj.followerId,
-                title: "Nova publicação de atleta",
-                content: `${req.user.name} publicou um novo post no canal #${targetCategory.toLowerCase()}`,
-                type: "SOCIAL_INTERACTION",
-                linkTo: "social"
-              }
-            });
-          }
-        } catch (notifErr) {
-          console.warn("Follower notification failed for new post:", notifErr);
-        }
-
-        savedPost = {
-          id: created.id,
-          authorId: created.authorId,
-          authorName: created.author?.name || req.user.name,
-          authorAvatar: created.author?.avatar || req.user.avatar,
-          authorBelt: created.author?.belt || req.user.belt,
-          authorVerified: created.author?.isVerified || false,
-          authorRole: created.author?.role || "ATHLETE",
-          category: created.category,
-          content: created.content,
-          imageUrl: created.imageUrl || null,
-          videoUrl: created.videoUrl || null,
-          upvotes: 0,
-          hasUpvoted: false,
-          timestamp: "Agora mesmo",
-          comments: []
-        };
-      } catch (dbErr) {
-        console.warn("Prisma social post insertion failed, falling back to memory:", dbErr);
-      }
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
     }
 
-    if (!savedPost) {
-      // Memory fallback insertion
-      const mockPost = {
-        id: `post_mem_${Date.now()}`,
+    const created = await prisma.socialPost.create({
+      data: {
         authorId: userId,
-        authorName: req.user.name,
-        authorAvatar: req.user.avatar,
-        authorBelt: req.user.belt,
-        authorVerified: req.user.isVerified || false,
-        authorRole: req.user.role || "ATHLETE",
-        category: targetCategory,
         content: content.trim(),
+        category: targetCategory,
         imageUrl: imageUrl || null,
-        videoUrl: videoUrl || null,
-        upvotes: 0,
-        hasUpvoted: false,
-        timestamp: "Agora mesmo",
-        createdAt: new Date().toISOString(),
-        likedByUsers: [],
-        comments: []
-      };
-      inMemorySocialPosts.unshift(mockPost);
-      savedPost = mockPost;
+        videoUrl: videoUrl || null
+      },
+      include: {
+        author: {
+          select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
+        }
+      }
+    }) as any;
 
-      // Notify memory followers
-      const followersToNotify = inMemoryFollowers.filter(f => f.followingId === userId);
-      for (const f of followersToNotify) {
-        inMemorySocialNotifications.unshift({
-          id: `notif_${Date.now()}_${Math.random()}`,
-          userId: f.followerId,
-          title: "Nova publicação de atleta",
-          content: `${req.user.name} publicou um novo post no canal #${targetCategory.toLowerCase()}`,
-          type: "SOCIAL_INTERACTION",
-          isRead: false,
-          linkTo: "social",
-          createdAt: new Date().toISOString()
+    // Trigger dynamic system notifications to followers
+    try {
+      const followersList = await prisma.follower.findMany({
+        where: { followingId: userId },
+        select: { followerId: true }
+      });
+
+      for (const followObj of followersList) {
+        await prisma.notification.create({
+          data: {
+            userId: followObj.followerId,
+            title: "Nova publicação de atleta",
+            content: `${req.user.name} publicou um novo post no canal #${targetCategory.toLowerCase()}`,
+            type: "SOCIAL_INTERACTION",
+            linkTo: "social"
+          }
         });
       }
+    } catch (notifErr) {
+      console.warn("Follower notification failed for new post:", notifErr);
     }
+
+    const savedPost = {
+      id: created.id,
+      authorId: created.authorId,
+      authorName: created.author?.name || req.user.name,
+      authorAvatar: created.author?.avatar || req.user.avatar,
+      authorBelt: created.author?.belt || req.user.belt,
+      authorVerified: created.author?.isVerified || false,
+      authorRole: created.author?.role || "ATHLETE",
+      category: created.category,
+      content: created.content,
+      imageUrl: created.imageUrl || null,
+      videoUrl: created.videoUrl || null,
+      upvotes: 0,
+      hasUpvoted: false,
+      timestamp: "Agora mesmo",
+      comments: []
+    };
 
     // Invalidate the first page social feed cache combinations to ensure real-time consistency
     await invalidateCache("social:posts:p_1_sz_10");
@@ -12435,105 +12400,65 @@ app.post("/api/social/posts/:postId/like", authenticateToken, async (req: any, r
     let isLikedNow = false;
     let upvoteCount = 0;
 
-    if (prisma) {
-      try {
-        const existingLike = await prisma.like.findFirst({
-          where: { postId, userId }
-        });
-
-        const postObj = await prisma.socialPost.findUnique({
-          where: { id: postId }
-        });
-
-        if (postObj) {
-          if (existingLike) {
-            await prisma.like.delete({
-              where: { id: existingLike.id }
-            });
-            isLikedNow = false;
-          } else {
-            await prisma.like.create({
-              data: { postId, userId }
-            });
-            isLikedNow = true;
-
-            // Notify author of post
-            if (postObj.authorId !== userId) {
-              await prisma.notification.create({
-                data: {
-                  userId: postObj.authorId,
-                  title: "Sua publicação recebeu uma curtida!",
-                  content: `${req.user.name} curtiu seu post no canal #${postObj.category.toLowerCase()}`,
-                  type: "SOCIAL_INTERACTION",
-                  linkTo: "social"
-                }
-              });
-            }
-          }
-
-          const updatedLikes = await prisma.like.count({
-            where: { postId }
-          });
-
-          // Sync count to socialPost too
-          await prisma.socialPost.update({
-            where: { id: postId },
-            data: { upvotesCount: updatedLikes }
-          });
-
-          upvoteCount = updatedLikes;
-          await invalidateCache("social:posts:p_1_sz_10");
-          await invalidateCache("social:posts:p_1_sz_20");
-          await invalidateCache("social:posts:p_1_sz_30");
-          return res.json({ hasUpvoted: isLikedNow, upvotes: upvoteCount });
-        }
-      } catch (dbErr) {
-        console.warn("Prisma like toggling failed, falling back to memory:", dbErr);
-      }
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
     }
 
-    // Memory Fallback
-    const targetPost = inMemorySocialPosts.find(p => p.id === postId);
-    if (!targetPost) {
-      return res.status(404).json({ error: "Postagem não localizada." });
+    const postObj = await prisma.socialPost.findUnique({
+      where: { id: postId }
+    });
+
+    if (!postObj) {
+      return res.status(404).json({ error: "Postagem não localizada no banco de dados." });
     }
 
-    if (!targetPost.likedByUsers) {
-      targetPost.likedByUsers = [];
-    }
+    const existingLike = await prisma.like.findFirst({
+      where: { postId, userId }
+    });
 
-    const idx = targetPost.likedByUsers.indexOf(userId);
-    if (idx > -1) {
-      targetPost.likedByUsers.splice(idx, 1);
-      targetPost.upvotes = Math.max(0, targetPost.upvotes - 1);
+    if (existingLike) {
+      await prisma.like.delete({
+        where: { id: existingLike.id }
+      });
       isLikedNow = false;
     } else {
-      targetPost.likedByUsers.push(userId);
-      targetPost.upvotes += 1;
+      await prisma.like.create({
+        data: { postId, userId }
+      });
       isLikedNow = true;
 
-      // Notify memory author
-      if (targetPost.authorId !== userId) {
-        inMemorySocialNotifications.unshift({
-          id: `notif_${Date.now()}_${Math.random()}`,
-          userId: targetPost.authorId,
-          title: "Sua publicação recebeu uma curtida!",
-          content: `${req.user.name} curtiu seu post no canal #${targetPost.category.toLowerCase()}`,
-          type: "SOCIAL_INTERACTION",
-          isRead: false,
-          linkTo: "social",
-          createdAt: new Date().toISOString()
+      // Notify author of post
+      if (postObj.authorId !== userId) {
+        await prisma.notification.create({
+          data: {
+            userId: postObj.authorId,
+            title: "Sua publicação recebeu uma curtida!",
+            content: `${req.user.name} curtiu seu post no canal #${postObj.category.toLowerCase()}`,
+            type: "SOCIAL_INTERACTION",
+            linkTo: "social"
+          }
         });
       }
     }
 
-    upvoteCount = targetPost.upvotes;
+    const updatedLikes = await prisma.like.count({
+      where: { postId }
+    });
+
+    // Sync count to socialPost too
+    await prisma.socialPost.update({
+      where: { id: postId },
+      data: { upvotesCount: updatedLikes }
+    });
+
+    upvoteCount = updatedLikes;
     await invalidateCache("social:posts:p_1_sz_10");
     await invalidateCache("social:posts:p_1_sz_20");
     await invalidateCache("social:posts:p_1_sz_30");
-    res.json({ hasUpvoted: isLikedNow, upvotes: upvoteCount });
+    return res.json({ hasUpvoted: isLikedNow, upvotes: upvoteCount });
   } catch (error) {
-    res.status(500).json({ error: "Erro ao alternar curtida da postagem." });
+    console.error("Like toggle error:", error);
+    res.status(500).json({ error: "Erro ao alternar curtida da postagem no PostgreSQL." });
   }
 });
 
@@ -12549,96 +12474,57 @@ app.post("/api/social/posts/:postId/comment", authenticateToken, async (req: any
     }
 
     const prisma = getPrisma();
-    let commentResponse: any = null;
-
-    if (prisma) {
-      try {
-        const postObj = await prisma.socialPost.findUnique({
-          where: { id: postId }
-        });
-
-        if (postObj) {
-          const createdComment = await prisma.comment.create({
-            data: {
-              postId,
-              authorId: userId,
-              content: content.trim()
-            },
-            include: {
-              author: {
-                select: { name: true, avatar: true, belt: true }
-              }
-            }
-          });
-
-          // Notify author of post
-          if (postObj.authorId !== userId) {
-            await prisma.notification.create({
-              data: {
-                userId: postObj.authorId,
-                title: "Novo comentário no seu post",
-                content: `${req.user.name} respondeu: "${content.trim().length > 30 ? content.trim().slice(0, 30) + '...' : content.trim()}"`,
-                type: "SOCIAL_INTERACTION",
-                linkTo: "social"
-              }
-            });
-          }
-
-          commentResponse = {
-            id: createdComment.id,
-            authorName: createdComment.author?.name || req.user.name,
-            authorAvatar: createdComment.author?.avatar || req.user.avatar,
-            authorBelt: createdComment.author?.belt || req.user.belt,
-            content: createdComment.content,
-            timestamp: "Agora mesmo"
-          };
-        }
-      } catch (dbErr) {
-        console.warn("Prisma comment creation failed, falling back to memory:", dbErr);
-      }
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
     }
 
-    if (!commentResponse) {
-      // Memory Fallback
-      const targetPost = inMemorySocialPosts.find(p => p.id === postId);
-      if (!targetPost) {
-        return res.status(404).json({ error: "Postagem não localizada." });
-      }
+    const postObj = await prisma.socialPost.findUnique({
+      where: { id: postId }
+    });
 
-      const mockComment = {
-        id: `comment_mem_${Date.now()}`,
-        authorName: req.user.name,
-        authorAvatar: req.user.avatar,
-        authorBelt: req.user.belt,
-        content: content.trim(),
-        timestamp: "Agora mesmo",
-        createdAt: new Date().toISOString()
-      };
-      
-      if (!targetPost.comments) {
-        targetPost.comments = [];
-      }
-      targetPost.comments.push(mockComment);
-      commentResponse = mockComment;
+    if (!postObj) {
+      return res.status(404).json({ error: "Postagem não localizada no banco de dados." });
+    }
 
-      // Notify memory author
-      if (targetPost.authorId !== userId) {
-        inMemorySocialNotifications.unshift({
-          id: `notif_${Date.now()}_${Math.random()}`,
-          userId: targetPost.authorId,
+    const createdComment = await prisma.comment.create({
+      data: {
+        postId,
+        authorId: userId,
+        content: content.trim()
+      },
+      include: {
+        author: {
+          select: { name: true, avatar: true, belt: true }
+        }
+      }
+    });
+
+    // Notify author of post
+    if (postObj.authorId !== userId) {
+      await prisma.notification.create({
+        data: {
+          userId: postObj.authorId,
           title: "Novo comentário no seu post",
           content: `${req.user.name} respondeu: "${content.trim().length > 30 ? content.trim().slice(0, 30) + '...' : content.trim()}"`,
           type: "SOCIAL_INTERACTION",
-          isRead: false,
-          linkTo: "social",
-          createdAt: new Date().toISOString()
-        });
-      }
+          linkTo: "social"
+        }
+      });
     }
 
-    res.status(201).json({ message: "Comentário publicado!", comment: commentResponse });
+    const commentResponse = {
+      id: createdComment.id,
+      authorName: createdComment.author?.name || req.user.name,
+      authorAvatar: createdComment.author?.avatar || req.user.avatar,
+      authorBelt: createdComment.author?.belt || req.user.belt,
+      content: createdComment.content,
+      timestamp: "Agora mesmo"
+    };
+
+    res.status(201).json({ message: "Comentário publicado com sucesso!", comment: commentResponse });
   } catch (error) {
-    res.status(500).json({ error: "Erro interno ao salvar comentário." });
+    console.error("Comment creation error:", error);
+    res.status(500).json({ error: "Erro interno ao salvar comentário no PostgreSQL." });
   }
 });
 
@@ -12744,6 +12630,13 @@ app.post("/api/social/users/:userId/follow", authenticateToken, async (req: any,
         });
       });
       isFollowingNow = false;
+
+      // GET updated stats for log
+      const curUser = await prisma.user.findUnique({ where: { id: currentUserId } });
+      const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      console.log(`[FOLLOW AUDIT] Follow removido: de ${currentUserId} para ${userId}`);
+      console.log(`[FOLLOW AUDIT] Following de ${currentUserId} atualizado para: ${curUser?.followingCount || 0}`);
+      console.log(`[FOLLOW AUDIT] Followers de ${userId} atualizados para: ${targetUser?.followersCount || 0}`);
     } else {
       // Follow Transaction Securely
       await prisma.$transaction(async (tx) => {
@@ -12776,6 +12669,13 @@ app.post("/api/social/users/:userId/follow", authenticateToken, async (req: any,
         });
       });
       isFollowingNow = true;
+
+      // GET updated stats for log
+      const curUser = await prisma.user.findUnique({ where: { id: currentUserId } });
+      const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      console.log(`[FOLLOW AUDIT] Follow criado: de ${currentUserId} para ${userId}`);
+      console.log(`[FOLLOW AUDIT] Following de ${currentUserId} atualizado para: ${curUser?.followingCount || 0}`);
+      console.log(`[FOLLOW AUDIT] Followers de ${userId} atualizados para: ${targetUser?.followersCount || 0}`);
     }
 
     return res.json({ 

@@ -73,9 +73,6 @@ interface SocialNotification {
   createdAt: string;
 }
 
-// PREMIUM HIGH-FIDELITY PRE-SEEDED POSTS for absolute richness under high-profile Premium filters
-const PREMIUM_SEEDED_POSTS: any[] = [];
-
 export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   const [posts, setPosts] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<NetworkUser[]>([]);
@@ -500,14 +497,9 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
 
   const unreadNotifsCount = notifications.filter(n => !n.isRead).length;
 
-  // 1. Combine server posts with Premium Seeded Posts for a high-end timeline experience
+  // 1. Map posts from database directly
   const getExtendedAndEnrichedPosts = () => {
     const combined = [...posts];
-    PREMIUM_SEEDED_POSTS.forEach((seed) => {
-      if (!combined.some(p => String(p.id).toLowerCase() === String(seed.id).toLowerCase())) {
-        combined.push(seed);
-      }
-    });
 
     // Dynamically assign friend, champion and academy markers for premium feed filtering
     return combined.map(p => {
