@@ -116,6 +116,8 @@ model User {
   marketplacePurchases   MarketplacePurchase[]
   marketplaceEnrollments MarketplaceEnrollment[]
   marketplaceReviews     MarketplaceReview[]
+  affiliationHistories   AffiliationHistory[]
+  governanceAuditLogs    GovernanceAuditLog[]
 
   globalTeamId            String?
   branchId                String?
@@ -958,17 +960,20 @@ model MarketplaceSettingsHistory {
 }
 
 model TeacherProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  bio       String
-  academy   String
-  approved  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String               @id @default(uuid())
+  userId         String               @unique
+  bio            String
+  academy        String
+  approved       Boolean              @default(false)
+  deletedAt      DateTime?
+  deletedBy      String?
+  deletionReason String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   // Relationships
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products  MarketplaceProduct[]
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products       MarketplaceProduct[]
 
   @@index([approved])
 }
@@ -1196,66 +1201,198 @@ model ProductReviewHistory {
 // ==========================================
 
 model GlobalTeam {
-  id            String          @id @default(uuid())
-  name          String
-  slug          String          @unique
-  logo          String?
-  countryOrigin String?
-  website       String?
-  instagram     String?
-  description   String?
-  foundedYear   Int?
-  totalMembers  Int             @default(0)
-  totalPoints   Int             @default(0)
-  verified      Boolean         @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                     String               @id @default(uuid())
+  name                   String
+  slug                   String               @unique
+  logo                   String?
+  countryOrigin          String?
+  website                String?
+  instagram              String?
+  description            String?
+  foundedYear            Int?
+  totalMembers           Int                  @default(0)
+  totalPoints            Int                  @default(0)
+  verified               Boolean              @default(false)
+  founders               String?
+  headquartersInstructor String?
+  headquartersCountry    String?
+  headquartersState      String?
+  headquartersCity       String?
+  verifiedOfficial       Boolean              @default(false)
+  deletedAt              DateTime?
+  deletedBy              String?
+  deletionReason         String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
-  branches      AcademyBranch[]
-  users         User[]
+  branches               AcademyBranch[]
+  users                  User[]
+  affiliationHistories   AffiliationHistory[]
 }
 
 model AcademyBranch {
-  id            String          @id @default(uuid())
-  globalTeamId  String
-  name          String
-  slug          String          @unique
-  country       String?
-  state         String?
-  city          String?
-  address       String?
-  latitude      Float?
-  longitude     Float?
-  headProfessor String?
-  logo          String?
-  membersCount  Int             @default(0)
-  points        Int             @default(0)
-  verified      Boolean         @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                   String               @id @default(uuid())
+  globalTeamId         String
+  name                 String
+  slug                 String               @unique
+  country              String?
+  state                String?
+  city                 String?
+  address              String?
+  latitude             Float?
+  longitude            Float?
+  headProfessor        String?
+  logo                 String?
+  membersCount         Int                  @default(0)
+  points               Int                  @default(0)
+  verified             Boolean              @default(false)
+  deletedAt            DateTime?
+  deletedBy            String?
+  deletionReason       String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
-  globalTeam    GlobalTeam      @relation(fields: [globalTeamId], references: [id], onDelete: Cascade)
-  users         User[]
+  globalTeam           GlobalTeam           @relation(fields: [globalTeamId], references: [id], onDelete: Cascade)
+  users                User[]
+  affiliationHistories AffiliationHistory[]
 
   @@index([globalTeamId])
 }
 
 model IndependentAcademy {
-  id            String          @id @default(uuid())
-  name          String
-  country       String?
-  state         String?
-  city          String?
-  address       String?
-  headProfessor String?
-  logo          String?
-  membersCount  Int             @default(0)
-  points        Int             @default(0)
-  verified      Boolean         @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                   String               @id @default(uuid())
+  name                 String
+  country              String?
+  state                String?
+  city                 String?
+  address              String?
+  headProfessor        String?
+  logo                 String?
+  membersCount         Int                  @default(0)
+  points               Int                  @default(0)
+  verified             Boolean              @default(false)
+  deletedAt            DateTime?
+  deletedBy            String?
+  deletionReason       String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
-  users         User[]
+  users                User[]
+  affiliationHistories AffiliationHistory[]
+}
+
+// ==========================================
+// GEOGRAPHY GLOBAL SYSTEM (FASE 5)
+// ==========================================
+
+model Country {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique // e.g. "BR", "US"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  states    State[]
+}
+
+model State {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   // e.g. "SP", "RJ"
+  countryId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities    City[]
+
+  @@unique([countryId, code])
+  @@index([countryId])
+}
+
+model City {
+  id        String   @id @default(uuid())
+  name      String
+  stateId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  state         State          @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  neighborhoods Neighborhood[]
+
+  @@index([stateId])
+}
+
+model Neighborhood {
+  id        String   @id @default(uuid())
+  name      String
+  cityId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@index([cityId])
+}
+
+// ==========================================
+// GOVERNANCE OF AFFILIATIONS SYSTEM (FASE 7)
+// ==========================================
+
+enum AffiliationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+  TRANSFERRED
+  INACTIVE
+}
+
+model AffiliationHistory {
+  id                   String            @id @default(uuid())
+  userId               String
+  globalTeamId         String?
+  branchId             String?
+  independentAcademyId String?
+  status               AffiliationStatus @default(PENDING)
+  startDate            DateTime          @default(now())
+  endDate              DateTime?
+  changeReason         String?
+  performedBy          String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  globalTeam           GlobalTeam?       @relation(fields: [globalTeamId], references: [id], onDelete: SetNull)
+  branch               AcademyBranch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  independentAcademy   IndependentAcademy? @relation(fields: [independentAcademyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([globalTeamId])
+  @@index([branchId])
+  @@index([independentAcademyId])
+}
+
+// ==========================================
+// GOVERNANCE AUDITING (FASE 8)
+// ==========================================
+
+model GovernanceAuditLog {
+  id            String   @id @default(uuid())
+  userId        String
+  userRole      String
+  action        String
+  entityType    String
+  entityId      String
+  previousValue Json?
+  newValue      Json?
+  notes         String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 

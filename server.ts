@@ -3184,6 +3184,99 @@ app.get("/api/debug/uploads", async (req: any, res: any) => {
   }
 });
 
+// =========================================================================
+// AUTOMATIC AFFILIATION SYNCHRONIZATION ENGINE (USER, ACADEMY, TEAM, TEACHER)
+// =========================================================================
+export async function syncUserAffiliations(userId: string): Promise<any> {
+  const prisma = getPrisma();
+  if (!prisma) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) return null;
+
+    let updatedTeamId = user.globalTeamId;
+    let updatedAcademyName = "";
+    let updatedCity = user.city || "";
+    let updatedCountry = user.country || "";
+
+    // 1. Connection: User -> Academy & Academy -> Team
+    if (user.branchId) {
+      const branch = await prisma.academyBranch.findUnique({
+        where: { id: user.branchId },
+        include: { globalTeam: true }
+      });
+      if (branch) {
+        updatedTeamId = branch.globalTeamId;
+        updatedAcademyName = branch.name;
+        if (branch.city) updatedCity = branch.city;
+        if (branch.country) updatedCountry = branch.country;
+      }
+    } else if (user.independentAcademyId) {
+      const indy = await prisma.independentAcademy.findUnique({
+        where: { id: user.independentAcademyId }
+      });
+      if (indy) {
+        updatedTeamId = null;
+        updatedAcademyName = indy.name;
+        if (indy.city) updatedCity = indy.city;
+        if (indy.country) updatedCountry = indy.country;
+      }
+    }
+
+    // 2. Connection: Professor -> Academy & Professor -> Team
+    const isProfessor = user.role?.toUpperCase() === 'PROFESSOR' || user.role?.toUpperCase() === 'TEACHER' || user.role?.toUpperCase() === 'INSTRUCTOR' || user.role?.toLowerCase() === 'professor';
+    
+    // Update User details
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        globalTeamId: updatedTeamId,
+        city: updatedCity,
+        country: updatedCountry
+      }
+    });
+
+    const finalResult = {
+      ...updatedUser,
+      academy: updatedAcademyName || "Independente"
+    };
+
+    // Sync Teacher Profile if exists
+    const teacherProfile = await prisma.teacherProfile.findUnique({
+      where: { userId }
+    });
+    
+    if (teacherProfile) {
+      await prisma.teacherProfile.update({
+        where: { id: teacherProfile.id },
+        data: {
+          academy: updatedAcademyName || "Independente"
+        }
+      });
+    } else if (isProfessor) {
+      // If user is a professor, auto-create fallback TeacherProfile to keep bounds safe!
+      await prisma.teacherProfile.create({
+        data: {
+          userId,
+          bio: user.bio || "Professor credenciado da comunidade JiuSpeak.",
+          academy: updatedAcademyName || "Independente",
+          approved: true
+        }
+      }).catch(() => {});
+    }
+
+    console.log(`✓ [AFFILIATION SYNC] Automated affiliations synchronized for User ${user.name} (${userId}) -> Academy: "${updatedAcademyName}", TeamId: "${updatedTeamId}"`);
+    return finalResult;
+  } catch (error: any) {
+    console.error(`⚠️ [AFFILIATION SYNC ERROR] Failed to perform automatic linkage on user ${userId}:`, error.message || error);
+    return null;
+  }
+}
+
 // UPDATE CURRENT USER PROFILE
 app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
   console.log(`[PROFILE UPDATE] Initialized profile update request for User: ${req.user.id}, fields:`, Object.keys(req.body));
@@ -3296,28 +3389,35 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
       data: updateData,
       include: { wallet: true }
     });
+
+    const synced = await syncUserAffiliations(req.user.id);
+    const finalUser = synced || u;
     
-    console.log("[PRISMA PROFILE UPDATED] User ID:", u.id, "ProfilePhoto:", u.profilePhoto, "Avatar:", u.avatar, "CoverPhoto:", u.coverPhoto);
+    console.log("[PRISMA PROFILE UPDATED] User ID:", finalUser.id, "ProfilePhoto:", finalUser.profilePhoto, "Avatar:", finalUser.avatar, "CoverPhoto:", finalUser.coverPhoto);
 
     await authStore.updateUser(req.user.id, {
       ...updateData,
-      avatar: u.avatar
+      avatar: finalUser.avatar,
+      academy: finalUser.academy,
+      globalTeamId: finalUser.globalTeamId,
+      city: finalUser.city,
+      country: finalUser.country
     });
     
     res.json({
       success: true,
       profile: {
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        bio: u.bio,
-        city: u.city,
-        country: u.country,
-        nativeLanguage: u.nativeLanguage,
-        learningGoal: u.learningGoal,
-        profilePhoto: u.profilePhoto || u.avatar,
-        coverPhoto: u.coverPhoto,
-        instagram: u.instagram,
+        id: finalUser.id,
+        name: finalUser.name,
+        email: finalUser.email,
+        bio: finalUser.bio,
+        city: finalUser.city,
+        country: finalUser.country,
+        nativeLanguage: finalUser.nativeLanguage,
+        learningGoal: finalUser.learningGoal,
+        profilePhoto: finalUser.profilePhoto || finalUser.avatar,
+        coverPhoto: finalUser.coverPhoto,
+        instagram: finalUser.instagram,
         youtube: u.youtube,
         facebook: u.facebook,
         website: u.website,
@@ -3447,10 +3547,17 @@ app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
       data: updateData,
       include: { wallet: true }
     });
+
+    const synced = await syncUserAffiliations(req.user.id);
+    const finalUser = synced || u;
     
     await authStore.updateUser(req.user.id, {
       ...updateData,
-      avatar: u.avatar
+      avatar: finalUser.avatar,
+      academy: finalUser.academy,
+      globalTeamId: finalUser.globalTeamId,
+      city: finalUser.city,
+      country: finalUser.country
     });
     
     res.json({
@@ -12091,14 +12198,40 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
             take,
             include: {
               author: {
-                select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
+                select: { 
+                  id: true, 
+                  name: true, 
+                  avatar: true, 
+                  belt: true, 
+                  isVerified: true, 
+                  role: true, 
+                  globalTeamId: true, 
+                  branchId: true, 
+                  independentAcademyId: true, 
+                  city: true, 
+                  branch: { select: { name: true } }, 
+                  independentAcademy: { select: { name: true } } 
+                }
               },
               likes: true,
               comments: {
                 orderBy: { createdAt: "asc" },
                 include: {
                   author: {
-                    select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
+                    select: { 
+                      id: true, 
+                      name: true, 
+                      avatar: true, 
+                      belt: true, 
+                      isVerified: true, 
+                      role: true, 
+                      globalTeamId: true, 
+                      branchId: true, 
+                      independentAcademyId: true, 
+                      city: true, 
+                      branch: { select: { name: true } }, 
+                      independentAcademy: { select: { name: true } } 
+                    }
                   }
                 }
               }
@@ -12202,6 +12335,11 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
         authorFrame,
         authorVerified: post.author?.isVerified || false,
         authorRole: post.author?.role || "ATHLETE",
+        authorGlobalTeamId: post.author?.globalTeamId || null,
+        authorBranchId: post.author?.branchId || null,
+        authorIndependentAcademyId: post.author?.independentAcademyId || null,
+        authorCity: post.author?.city || null,
+        authorAcademyName: post.author?.branch?.name || post.author?.independentAcademy?.name || null,
         category: post.category,
         content: post.content,
         imageUrl: post.imageUrl || null,

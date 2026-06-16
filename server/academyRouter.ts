@@ -61,14 +61,17 @@ router.get("/all-groups", async (req, res) => {
   try {
     const [globalTeams, branches, independentAcademies] = await Promise.all([
       prisma.globalTeam.findMany({ 
+        where: { deletedAt: null },
         select: { id: true, name: true, logo: true, totalPoints: true, countryOrigin: true, verified: true }, 
         orderBy: { name: "asc" } 
       }).catch(() => []),
       prisma.academyBranch.findMany({ 
+        where: { deletedAt: null },
         select: { id: true, globalTeamId: true, name: true, city: true, state: true, verified: true }, 
         orderBy: { name: "asc" } 
       }).catch(() => []),
       prisma.independentAcademy.findMany({ 
+        where: { deletedAt: null },
         select: { id: true, name: true, city: true, state: true, verified: true }, 
         orderBy: { name: "asc" } 
       }).catch(() => [])
@@ -118,7 +121,7 @@ router.get("/global-teams", async (req, res) => {
   try {
     const { search } = req.query;
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (search) {
       where.name = { contains: String(search), mode: "insensitive" };
     }
@@ -160,7 +163,7 @@ router.get("/global-teams/:id/branches", async (req, res) => {
     const teamId = req.params.id;
 
     const branchList = await prisma.academyBranch.findMany({
-      where: { globalTeamId: teamId },
+      where: { globalTeamId: teamId, deletedAt: null },
       orderBy: { points: "desc" }
     }).catch(() => []);
 
@@ -192,7 +195,7 @@ router.get("/independent-academies", async (req, res) => {
   try {
     const { search } = req.query;
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (search) {
       where.name = { contains: String(search), mode: "insensitive" };
     }
@@ -230,12 +233,14 @@ router.get("/rankings", async (req, res) => {
 
     const [worldTeamsData, branchesData, independentData] = await Promise.all([
       prisma.globalTeam.findMany({
+        where: { deletedAt: null },
         orderBy: { totalPoints: "desc" },
         take: 20
       }).catch(() => []),
       
       prisma.academyBranch.findMany({
         where: {
+          deletedAt: null,
           ...(country ? { country: String(country) } : {}),
           ...(state ? { state: String(state) } : {}),
           ...(city ? { city: String(city) } : {})
@@ -247,6 +252,7 @@ router.get("/rankings", async (req, res) => {
 
       prisma.independentAcademy.findMany({
         where: {
+          deletedAt: null,
           ...(country ? { country: String(country) } : {}),
           ...(state ? { state: String(state) } : {}),
           ...(city ? { city: String(city) } : {})
@@ -623,31 +629,525 @@ router.put("/independent-academies/:id", authenticateToken, requireRole(["ADMIN"
   }
 });
 
-// Delete Global Team
-router.delete("/global-teams/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+// ==========================================
+// SOFT DELETE AND GOVERNANCE MANAGEMENT ENDPOINTS
+// ==========================================
+
+// Delete Global Team (Soft Delete)
+router.delete("/global-teams/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
-    await prisma.globalTeam.delete({ where: { id: req.params.id } });
-    res.json({ success: true, message: "Equipe deletada com sucesso!" });
+    const reason = String(req.body.reason || "Exclusão lógica realizada pela administração");
+    
+    // Fetch previous state for audit log
+    const prev = await prisma.globalTeam.findUnique({ where: { id: req.params.id } });
+    if (!prev) return res.status(404).json({ error: "Equipe não encontrada." });
+
+    const team = await prisma.globalTeam.update({
+      where: { id: req.params.id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: req.user?.id || "admin",
+        deletionReason: reason
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: req.user?.id || "admin",
+        userRole: req.user?.role || "ADMIN",
+        action: "TEAM_ARCHIVED",
+        entityType: "GlobalTeam",
+        entityId: req.params.id,
+        previousValue: prev as any,
+        newValue: team as any,
+        notes: `Equipe '${prev.name}' arquivada logicamente. Razão: ${reason}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Equipe '${team.name}' arquivada com sucesso!`, team });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Delete Branch
-router.delete("/branches/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+// Delete Branch (Soft Delete)
+router.delete("/branches/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
-    await prisma.academyBranch.delete({ where: { id: req.params.id } });
-    res.json({ success: true, message: "Filial deletada com sucesso!" });
+    const reason = String(req.body.reason || "Exclusão lógica realizada pela administração");
+    
+    // Fetch previous state for audit log
+    const prev = await prisma.academyBranch.findUnique({ where: { id: req.params.id } });
+    if (!prev) return res.status(404).json({ error: "Filial não encontrada." });
+
+    const branch = await prisma.academyBranch.update({
+      where: { id: req.params.id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: req.user?.id || "admin",
+        deletionReason: reason
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: req.user?.id || "admin",
+        userRole: req.user?.role || "ADMIN",
+        action: "BRANCH_ARCHIVED",
+        entityType: "AcademyBranch",
+        entityId: req.params.id,
+        previousValue: prev as any,
+        newValue: branch as any,
+        notes: `Filial '${prev.name}' arquivada logicamente. Razão: ${reason}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Filial '${branch.name}' arquivada com sucesso!`, branch });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Delete Independent Academy
-router.delete("/independent-academies/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+// Delete Independent Academy (Soft Delete)
+router.delete("/independent-academies/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
-    await prisma.independentAcademy.delete({ where: { id: req.params.id } });
-    res.json({ success: true, message: "Academia independente deletada com sucesso!" });
+    const reason = String(req.body.reason || "Exclusão lógica realizada pela administração");
+    
+    // Fetch previous state for audit log
+    const prev = await prisma.independentAcademy.findUnique({ where: { id: req.params.id } });
+    if (!prev) return res.status(404).json({ error: "Academia não encontrada." });
+
+    const academy = await prisma.independentAcademy.update({
+      where: { id: req.params.id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: req.user?.id || "admin",
+        deletionReason: reason
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: req.user?.id || "admin",
+        userRole: req.user?.role || "ADMIN",
+        action: "INDEPENDENT_ARCHIVED",
+        entityType: "IndependentAcademy",
+        entityId: req.params.id,
+        previousValue: prev as any,
+        newValue: academy as any,
+        notes: `Academia independente '${prev.name}' arquivada logicamente. Razão: ${reason}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Academia independente '${academy.name}' arquivada com sucesso!`, academy });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Professor (Soft Delete / Archive)
+router.delete("/professors/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const reason = String(req.body.reason || "Descredenciamento realizado pela administração");
+    
+    // Fetch previous state
+    const prev = await prisma.teacherProfile.findUnique({ where: { id: req.params.id } });
+    if (!prev) return res.status(404).json({ error: "Perfil de professor não encontrado." });
+
+    const teacher = await prisma.teacherProfile.update({
+      where: { id: req.params.id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: req.user?.id || "admin",
+        deletionReason: reason
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: req.user?.id || "admin",
+        userRole: req.user?.role || "ADMIN",
+        action: "PROFESSOR_ARCHIVED",
+        entityType: "TeacherProfile",
+        entityId: req.params.id,
+        previousValue: prev as any,
+        newValue: teacher as any,
+        notes: `Professor (ID: ${req.params.id}) arquivado logicamente. Razão: ${reason}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Professor arquivado com sucesso!`, teacher });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// ==========================================
+// GEOGRAPHY GLOBAL ENDPOINTS (FASE 5)
+// ==========================================
+
+// List Countries
+router.get("/geography/countries", async (req, res) => {
+  try {
+    const list = await prisma.country.findMany({ orderBy: { name: "asc" } });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List States
+router.get("/geography/states", async (req, res) => {
+  try {
+    const { countryId } = req.query;
+    const list = await prisma.state.findMany({
+      where: countryId ? { countryId: String(countryId) } : {},
+      orderBy: { name: "asc" }
+    });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List Cities
+router.get("/geography/cities", async (req, res) => {
+  try {
+    const { stateId } = req.query;
+    const list = await prisma.city.findMany({
+      where: stateId ? { stateId: String(stateId) } : {},
+      orderBy: { name: "asc" }
+    });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List Neighborhoods
+router.get("/geography/neighborhoods", async (req, res) => {
+  try {
+    const { cityId } = req.query;
+    const list = await prisma.neighborhood.findMany({
+      where: cityId ? { cityId: String(cityId) } : {},
+      orderBy: { name: "asc" }
+    });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// ==========================================
+// AFFILIATION GOVERNANCE ENDPOINTS (FASE 7 & 8)
+// ==========================================
+
+// Request Affiliation
+router.post("/affiliations/request", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { globalTeamId, branchId, independentAcademyId, reason } = req.body;
+    const userId = req.user.id;
+
+    // Check user role (only professors or verified users can use governance flows, but let's support any platform athlete)
+    const existingActive = await prisma.affiliationHistory.findFirst({
+      where: { userId, status: "APPROVED" }
+    });
+
+    // Mark previous active affiliations as Inactive/Transferred if approved directly,
+    // but this is a NEW PENDING Request.
+    const request = await prisma.affiliationHistory.create({
+      data: {
+        userId,
+        globalTeamId: globalTeamId || null,
+        branchId: branchId || null,
+        independentAcademyId: independentAcademyId || null,
+        status: "PENDING",
+        changeReason: reason || "Solicitação inicial de afiliação pelo usuário"
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId,
+        userRole: req.user.role || "USER",
+        action: "AFFILIATION_REQUEST_SENT",
+        entityType: "AffiliationHistory",
+        entityId: request.id,
+        newValue: request as any,
+        notes: `Solicitação de afiliação enviada pelo usuário. Motivo: ${reason || "Nenhum"}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.status(201).json({ success: true, message: "Solicitação de afiliação criada e aguardando aprovação oficial!", request });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Decide on Affiliation Request (Admin decides)
+router.post("/affiliations/:id/decide", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { approved, comment } = req.body;
+    const adminId = req.user.id;
+
+    const reqData = await prisma.affiliationHistory.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!reqData || reqData.status !== "PENDING") {
+      return res.status(400).json({ error: "Solicitação não encontrada ou não está mais pendente." });
+    }
+
+    const nextStatus = approved ? "APPROVED" : "REJECTED";
+
+    // Update Request status
+    const request = await prisma.affiliationHistory.update({
+      where: { id: req.params.id },
+      data: {
+        status: nextStatus,
+        changeReason: comment || `Decidido pela administração de segurança.`,
+        performedBy: adminId
+      }
+    });
+
+    if (approved) {
+      // Invalidate other previous approvals
+      await prisma.affiliationHistory.updateMany({
+        where: {
+          userId: reqData.userId,
+          id: { not: req.params.id },
+          status: "APPROVED"
+        },
+        data: {
+          status: "INACTIVE",
+          endDate: new Date()
+        }
+      });
+
+      // Update actual user parameters
+      await prisma.user.update({
+        where: { id: reqData.userId },
+        data: {
+          globalTeamId: reqData.globalTeamId,
+          branchId: reqData.branchId,
+          independentAcademyId: reqData.independentAcademyId
+        }
+      });
+
+      // Lazy trigger dynamic affiliation sync to avoid circular load dependency
+      import("../server").then(m => {
+        m.syncUserAffiliations(reqData.userId).catch(() => {});
+      }).catch(() => {});
+    }
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: adminId,
+        userRole: req.user.role || "ADMIN",
+        action: approved ? "AFFILIATION_APPROVED" : "AFFILIATION_REJECTED",
+        entityType: "AffiliationHistory",
+        entityId: request.id,
+        previousValue: reqData as any,
+        newValue: request as any,
+        notes: `Afiliação resolvida para: ${nextStatus}. Comentário: ${comment || "Nenhum"}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: `Solicitação atualizada para ${nextStatus} e cadastros sincronizados!`, request });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Revoke Affiliation
+router.post("/affiliations/:id/revoke", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { reason } = req.body;
+    const adminId = req.user.id;
+
+    const request = await prisma.affiliationHistory.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!request || request.status !== "APPROVED") {
+      return res.status(400).json({ error: "Afiliação ativa não encontrada para revogação." });
+    }
+
+    const updated = await prisma.affiliationHistory.update({
+      where: { id: req.params.id },
+      data: {
+        status: "REVOKED",
+        endDate: new Date(),
+        changeReason: reason || "Vínculo revogado administrativamente",
+        performedBy: adminId
+      }
+    });
+
+    // Reset actual user
+    await prisma.user.update({
+      where: { id: request.userId },
+      data: {
+        globalTeamId: null,
+        branchId: null,
+        independentAcademyId: null
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: adminId,
+        userRole: req.user.role || "ADMIN",
+        action: "AFFILIATION_REVOKED",
+        entityType: "AffiliationHistory",
+        entityId: updated.id,
+        previousValue: request as any,
+        newValue: updated as any,
+        notes: `Afiliação revocada com sucesso. Motivo: ${reason}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: "Afiliação revogada e desvinculação concluída!", request: updated });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Transfer Affiliation
+router.post("/affiliations/:id/transfer", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { newTeamId, newBranchId, newIndependentId, reason } = req.body;
+    const adminId = req.user.id;
+
+    const request = await prisma.affiliationHistory.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!request || request.status !== "APPROVED") {
+      return res.status(400).json({ error: "Vínculo ativo de origem não encontrado." });
+    }
+
+    // Mark current as TRANSFERRED
+    const prevModel = await prisma.affiliationHistory.update({
+      where: { id: req.params.id },
+      data: {
+        status: "TRANSFERRED",
+        endDate: new Date(),
+        changeReason: reason || "Transferido estruturalmente para novas afiliações",
+        performedBy: adminId
+      }
+    });
+
+    // Create new APPROVED record for the target safely
+    const transferee = await prisma.affiliationHistory.create({
+      data: {
+        userId: request.userId,
+        globalTeamId: newTeamId || null,
+        branchId: newBranchId || null,
+        independentAcademyId: newIndependentId || null,
+        status: "APPROVED",
+        changeReason: `Transferência de vínculo a partir de afiliação ID: ${request.id}. Justificativa: ${reason || "não listada"}`,
+        performedBy: adminId
+      }
+    });
+
+    // Sincronizar dados físicos do User
+    await prisma.user.update({
+      where: { id: request.userId },
+      data: {
+        globalTeamId: newTeamId || null,
+        branchId: newBranchId || null,
+        independentAcademyId: newIndependentId || null
+      }
+    });
+
+    // Create Audit Log
+    await prisma.governanceAuditLog.create({
+      data: {
+        userId: adminId,
+        userRole: req.user.role || "ADMIN",
+        action: "AFFILIATION_TRANSFERRED",
+        entityType: "AffiliationHistory",
+        entityId: transferee.id,
+        previousValue: request as any,
+        newValue: transferee as any,
+        notes: `Afiliação transferida com sucesso. Razão: ${reason}`,
+        ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1"
+      }
+    }).catch(() => {});
+
+    res.json({ success: true, message: "Afiliação transferida e atualizada!", transfer: transferee });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// View Trajectory History for user
+router.get("/affiliations/history/:userId", async (req, res) => {
+  try {
+    const list = await prisma.affiliationHistory.findMany({
+      where: { userId: req.params.userId },
+      include: {
+        globalTeam: { select: { name: true } },
+        branch: { select: { name: true } },
+        independentAcademy: { select: { name: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// View pending and processed requests lists (Admins only)
+router.get("/affiliations/requests", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter: any = {};
+    if (status) {
+      filter.status = status;
+    }
+    const list = await prisma.affiliationHistory.findMany({
+      where: filter,
+      include: {
+        user: { select: { id: true, name: true, email: true, role: true } },
+        globalTeam: { select: { name: true } },
+        branch: { select: { name: true } },
+        independentAcademy: { select: { name: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// View general administrative logs (Admins only)
+router.get("/governance/logs", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const list = await prisma.governanceAuditLog.findMany({
+      include: {
+        user: { select: { name: true, email: true, role: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    res.json(list);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

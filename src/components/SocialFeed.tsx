@@ -84,7 +84,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   const [showOnlySaved, setShowOnlySaved] = useState<boolean>(false);
   
   // Timeline Premium Feed & Sorters States
-  const [activeFeedTab, setActiveFeedTab] = useState<'global' | 'amigos' | 'academia' | 'campeoes' | 'pretas'>('global');
+  const [activeFeedTab, setActiveFeedTab] = useState<'global' | 'amigos' | 'academia' | 'campeoes' | 'pretas' | 'team' | 'city'>('global');
   const [activeSort, setActiveSort] = useState<'recente' | 'curtido' | 'comentado' | 'emalta'>('recente');
   
   const [newPostContent, setNewPostContent] = useState<string>('');
@@ -550,7 +550,22 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   if (activeFeedTab === 'amigos') {
     feedFilteredPosts = allTimelinePosts.filter(p => p.isFriend);
   } else if (activeFeedTab === 'academia') {
-    feedFilteredPosts = allTimelinePosts.filter(p => p.authorAcademy === (user.academy || 'Independente'));
+    feedFilteredPosts = allTimelinePosts.filter(p => {
+      if (user.branchId && p.authorBranchId === user.branchId) return true;
+      if (user.independentAcademyId && p.authorIndependentAcademyId === user.independentAcademyId) return true;
+      return p.authorAcademyName === user.academy || p.authorAcademy === (user.academy || 'Independente');
+    });
+  } else if (activeFeedTab === 'team') {
+    feedFilteredPosts = allTimelinePosts.filter(p => {
+      if (!user.globalTeamId) return false;
+      return p.authorGlobalTeamId === user.globalTeamId;
+    });
+  } else if (activeFeedTab === 'city') {
+    feedFilteredPosts = allTimelinePosts.filter(p => {
+      const authorCityClean = String(p.authorCity || p.city || "").toLowerCase().trim();
+      const userCityClean = String(user.city || "").toLowerCase().trim();
+      return userCityClean && authorCityClean === userCityClean;
+    });
   } else if (activeFeedTab === 'campeoes') {
     feedFilteredPosts = allTimelinePosts.filter(p => p.isChampion);
   } else if (activeFeedTab === 'pretas') {
@@ -808,13 +823,14 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
           {activeSubTab === 'feed' && (
             <>
               {/* Premium Feeds Switcher Tab Bar */}
-              <div className="p-1 bg-slate-900 rounded-2xl border border-slate-800 grid grid-cols-5 gap-1 shadow-lg">
+              <div className="p-1 bg-slate-900 rounded-2xl border border-slate-800 grid grid-cols-6 gap-1 shadow-lg">
                 {[
                   { id: 'global', label: 'Global', icon: Globe, desc: 'Feed Global' },
+                  { id: 'team', label: 'Equipe', icon: Users, desc: 'Comunidade da Equipe' },
+                  { id: 'academia', label: 'Academia', icon: Shield, desc: 'Comunidade da Academia' },
+                  { id: 'city', label: 'Cidade', icon: Compass, desc: 'Comunidade da Cidade' },
                   { id: 'amigos', label: 'Amigos', icon: Heart, desc: 'Atletas Seguidos' },
-                  { id: 'academia', label: 'Academia', icon: Shield, desc: 'Seu Tatame' },
-                  { id: 'campeoes', label: 'Campeões', icon: Crown, desc: 'Atletas Elite' },
-                  { id: 'pretas', label: 'Faixas Pretas', icon: Award, desc: 'Mestres' },
+                  { id: 'pretas', label: 'Mestres', icon: Award, desc: 'Faixas Pretas' },
                 ].map((fd) => {
                   const isActive = activeFeedTab === fd.id;
                   const IconComp = fd.icon;
@@ -936,7 +952,14 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-violet-400 animate-pulse" />
                     <span className="font-mono font-black text-xs text-slate-300 uppercase tracking-widest">
-                      MURAL PREMIUM {activeFeedTab.toUpperCase()}: {activeCategory === 'Todos' ? '🌐 Visão Geral' : `# ${activeCategory.toUpperCase()}`}
+                      MURAL {[
+                        { id: 'global', label: 'GLOBAL' },
+                        { id: 'team', label: 'COMUNIDADE DA EQUIPE' },
+                        { id: 'academia', label: 'COMUNIDADE DA ACADEMIA' },
+                        { id: 'city', label: 'COMUNIDADE DA CIDADE' },
+                        { id: 'amigos', label: 'AMIGOS SEGUIDOS' },
+                        { id: 'pretas', label: 'FAIXAS PRETAS' }
+                      ].find(f => f.id === activeFeedTab)?.label || activeFeedTab.toUpperCase()}: {activeCategory === 'Todos' ? '🌐 Visão Geral' : `# ${activeCategory.toUpperCase()}`}
                     </span>
                   </div>
                   
