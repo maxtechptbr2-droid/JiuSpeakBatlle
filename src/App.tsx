@@ -465,7 +465,7 @@ export default function App() {
         
         let mappedRole: 'athlete' | 'professor' | 'admin' = 'athlete';
         if (apiUser.role === 'ADMIN') mappedRole = 'admin';
-        else if (apiUser.role === 'INSTRUCTOR') mappedRole = 'professor';
+        else if (apiUser.role === 'INSTRUCTOR' || apiUser.role === 'TEACHER' || apiUser.role === 'teacher') mappedRole = 'professor';
 
         let beltString: BeltRank = 'Branca';
         if (apiUser.belt) {

@@ -73,143 +73,7 @@ interface SocialNotification {
 }
 
 // PREMIUM HIGH-FIDELITY PRE-SEEDED POSTS for absolute richness under high-profile Premium filters
-const PREMIUM_SEEDED_POSTS = [
-  {
-    id: "premium_seed_1",
-    authorId: "prof_gracie",
-    authorName: "Sensei Roger Gracie",
-    authorAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Preto",
-    authorAcademy: "Atama Virtual Team",
-    isChampion: true,
-    category: "Promoções",
-    content: "Grande honra promover hoje o atleta Guilherme ao seu segundo grau na faixa azul! Disciplina exemplar e consistência nos sparrings de inglês técnico do JiuSpeak estão dando frutos excelentes. Oss! 🥋🔥 #promocao #family",
-    upvotes: 142,
-    hasUpvoted: false,
-    timestamp: "2 horas atrás",
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    comments: [
-      {
-        id: "c_seed_1",
-        authorName: 'Thiago "Filho do Vento"',
-        authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-        authorBelt: "Azul",
-        content: "Parabéns Guilherme! Ele é um guerreiro de verdade nos tatames ingleses.",
-        timestamp: "1 hora atrás"
-      }
-    ],
-    reactions: { OSS: 18, BRABO: 24, FAIXAPRETA: 15, CAMPEAO: 12 },
-    userReactions: []
-  },
-  {
-    id: "premium_seed_2",
-    authorId: "user_fabricia",
-    authorName: "Fabrícia Guardeira",
-    authorAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Roxa",
-    authorAcademy: "Atama Virtual Team",
-    isFriend: true,
-    category: "Estudos",
-    content: "Concluí o plano de estudos avançado 'Arbitragem Internacional: Termos de Vantagem e Punições' na JiuSpeak! Agora me sinto extremamente confiante para discutir as regras com os gringos nos tatames mundiais. Próxima parada: Sparring de Voice AI! 📚✈️ #estudo #arbitragem",
-    upvotes: 56,
-    hasUpvoted: false,
-    timestamp: "5 horas atrás",
-    createdAt: new Date(Date.now() - 18000000).toISOString(),
-    comments: [],
-    reactions: { OSS: 12, GUERREIRO: 8 },
-    userReactions: []
-  },
-  {
-    id: "premium_seed_3",
-    authorId: "user_thiago",
-    authorName: 'Thiago "Filho do Vento"',
-    authorAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Azul",
-    authorAcademy: "Atama Virtual Team",
-    isFriend: true,
-    category: "PVP",
-    content: "Que luta sensacional na Arena PVP contra o gringo 'John_BJJ_Nyc'! Consegui aplicar com sucesso a finalização no estrangulamento de gola rodada ('loop choke') falando em inglês no momento exato! Subi para 1250 LP na liga! ⚔️🔥 #pvparena #win",
-    upvotes: 98,
-    hasUpvoted: false,
-    timestamp: "1 dia atrás",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    comments: [
-      {
-        id: "c_seed_2",
-        authorName: "Mestre Cascão",
-        authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150",
-        authorBelt: "Preto",
-        content: "Brabo demais! Aquele ajuste no loop choke foi cirúrgico.",
-        timestamp: "18 horas atrás"
-      }
-    ],
-    reactions: { OSS: 15, BRABO: 22, CAMPEAO: 10 },
-    userReactions: []
-  },
-  {
-    id: "premium_seed_4",
-    authorId: "user_claudio",
-    authorName: "Claudio Chave de Pé",
-    authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Marrom",
-    authorAcademy: "Gracie Barra",
-    isChampion: true,
-    category: "Conquistas",
-    content: "DESBLOQUEADO! Obtive a insígnia lendária 'Embaixador de Abu Dhabi' no JiuSpeak após completar 10 simulações de conversas difíceis de seminário sem errar nenhuma pronúncia! Rumo à fluência de tatame! 🏆💎 #conquista #bjjfluency",
-    upvotes: 112,
-    hasUpvoted: false,
-    timestamp: "2 dias atrás",
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    comments: [],
-    reactions: { CAMPEAO: 18, RESPEITO: 15, BRABO: 10 },
-    userReactions: []
-  },
-  {
-    id: "premium_seed_5",
-    authorId: "prof_leticia",
-    authorName: "Letícia Sparring",
-    authorAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Preto",
-    authorAcademy: "Atama Virtual Team",
-    isChampion: true,
-    category: "Campeonatos",
-    content: "Inscrições abertas para o Campeonato Europeu IBJJF 2026 em Lisboa! Quem da Atama Virtual Team vai embarcar comigo? Importante focar no glossário inglês de pesagem e check do quimono aqui na plataforma para evitar surpresas! 🥇🌍 #campeonato #euro2026",
-    upvotes: 215,
-    hasUpvoted: false,
-    timestamp: "3 dias atrás",
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    comments: [
-      {
-        id: "c_seed_3",
-        authorName: "Guilherme Faixa Azul",
-        authorAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=150",
-        authorBelt: "Azul",
-        content: "Estou me preparando duro aqui no aplicativo pra falar sem travar em Portugal!",
-        timestamp: "2 dias atrás"
-      }
-    ],
-    reactions: { OSS: 35, CAMPEAO: 25, RESPEITO: 19 },
-    userReactions: []
-  },
-  {
-    id: "premium_seed_6",
-    authorId: "prof_jacare",
-    authorName: "Professor Jacaré",
-    authorAvatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150",
-    authorBelt: "Preto",
-    authorAcademy: "Alliance",
-    isChampion: true,
-    category: "Eventos",
-    content: "Atenção galera! Neste sábado teremos o nosso seminário presencial avançado focalizando em 'Leg Drag & Guard Passing Mechanics'. O briefing de regras e termos de arbitragem internacional já está sendo praticado aqui no módulo de Estudos. Oss! 🗺️🥋 #eventobjj #seminar",
-    upvotes: 85,
-    hasUpvoted: false,
-    timestamp: "4 dias atrás",
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    comments: [],
-    reactions: { OSS: 20, RESPEITO: 12 },
-    userReactions: []
-  }
-];
+const PREMIUM_SEEDED_POSTS: any[] = [];
 
 export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   const [posts, setPosts] = useState<any[]>([]);
@@ -227,6 +91,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   
   const [newPostContent, setNewPostContent] = useState<string>('');
   const [newPostCategory, setNewPostCategory] = useState<string>('Estudos');
+  const [newPostVideoUrl, setNewPostVideoUrl] = useState<string>('');
   
   // Custom interactive overlays
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
@@ -336,7 +201,8 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
         },
         body: JSON.stringify({
           content: newPostContent,
-          category: newPostCategory
+          category: newPostCategory,
+          videoUrl: newPostVideoUrl || undefined
         })
       });
 
@@ -344,6 +210,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       if (response.ok && data.post) {
         setPosts(prev => [data.post, ...prev]);
         setNewPostContent('');
+        setNewPostVideoUrl('');
         showToast("Sua jornada de rolamento foi publicada com sucesso!", "success");
         loadSocialData();
       } else {
@@ -1008,6 +875,20 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                       className="w-full bg-slate-950 border border-slate-755 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-semibold resize-none"
                     />
 
+                    {/* Exclusivo Professores & Admin */}
+                    {((user.role as string) === 'admin' || (user.role as string) === 'professor' || (user.role as string) === 'instructor' || (user.role as string) === 'teacher' || (user.role as string) === 'ADMIN' || (user.role as string) === 'TEACHER' || (user.role as string) === 'INSTRUCTOR') && (
+                      <div className="mt-2 text-left">
+                        <label className="text-[9px] font-mono text-indigo-400 uppercase font-black tracking-wider block mb-1">📽️ Vincular Vídeo (Link YouTube, Vimeo, etc):</label>
+                        <input 
+                          type="text"
+                          value={newPostVideoUrl}
+                          onChange={(e) => setNewPostVideoUrl(e.target.value)}
+                          placeholder="Cole o link do vídeo aqui (ex: https://www.youtube.com/watch?v=...)"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 px-3 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                        />
+                      </div>
+                    )}
+
                     {/* Mentions Auto-Complete Dropdown list overlay */}
                     {showMentionsPanel && matchedMentions.length > 0 && (
                       <div className="absolute left-0 right-0 top-full mt-1 bg-slate-950 border border-slate-800 rounded-xl max-h-[140px] overflow-y-auto z-50 p-1.5 space-y-1 shadow-2xl">
@@ -1178,6 +1059,15 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                             <div>
                               <h4 className="font-display font-semibold text-xs text-slate-201 flex items-center gap-1.5 flex-wrap">
                                 {post.authorName}
+                                {post.authorVerified && (
+                                  <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0 inline-block align-middle" title="Verificado Oficial" />
+                                )}
+                                {post.authorRole === 'TEACHER' && (
+                                  <span className="text-[8px] bg-indigo-500/10 border border-indigo-505/20 text-indigo-400 font-mono font-bold px-1 rounded">PROFESSOR</span>
+                                )}
+                                {post.authorRole === 'ADMIN' && (
+                                  <span className="text-[8px] bg-red-650/15 border border-red-550/20 text-red-500 font-mono font-bold px-1 rounded">STAFF</span>
+                                )}
                                 <span className={`text-[8px] px-1.5 py-0.2 rounded font-black uppercase tracking-wider ${getBeltBg(post.authorBelt)}`}>
                                   Faixa {translateBelt(post.authorBelt)}
                                 </span>
@@ -1221,6 +1111,57 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                         <div className="text-xs text-slate-300 leading-relaxed font-sans bg-slate-950/40 p-4 rounded-xl border border-slate-850/50 whitespace-pre-wrap select-text">
                           {formatPostBody(post.content)}
                         </div>
+
+                        {/* Video Attachment Player */}
+                        {post.videoUrl && (
+                          <div className="mt-3 aspect-video bg-black rounded-xl border border-slate-800 overflow-hidden relative shadow-lg">
+                            {(() => {
+                              const url = post.videoUrl.trim();
+                              if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+                                const match = url.match(regExp);
+                                const id = (match && match[2].length === 11) ? match[2] : "";
+                                if (id) {
+                                  return (
+                                    <iframe 
+                                      src={`https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&enablejsapi=1`}
+                                      title="Embedded video"
+                                      className="w-full h-full border-0"
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                      allowFullScreen
+                                    />
+                                  );
+                                }
+                              } else if (url.includes('vimeo.com')) {
+                                const match = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/);
+                                const id = match ? match[3] : '';
+                                if (id) {
+                                  return (
+                                    <iframe 
+                                      src={`https://player.vimeo.com/video/${id}`}
+                                      className="w-full h-full border-0"
+                                      allow="autoplay; fullscreen; picture-in-picture"
+                                      allowFullScreen
+                                    />
+                                  );
+                                }
+                              } else if (url.startsWith('http://') || url.startsWith('https://')) {
+                                return (
+                                  <video 
+                                    src={url}
+                                    controls
+                                    className="w-full h-full object-contain"
+                                  />
+                                );
+                              }
+                              return (
+                                <div className="w-full h-full flex flex-col items-center justify-center p-4 text-slate-500 font-mono text-center">
+                                  <span className="text-xs">Link de vídeo inválido ou inseguro.</span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
 
                         {/* REACTION PREVIEWS */}
                         {post.reactions && Object.keys(post.reactions).length > 0 && (

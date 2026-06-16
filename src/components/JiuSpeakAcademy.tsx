@@ -295,7 +295,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
 
       const lesson = { ...activeLesson, videoUrl: activeLesson.youtubeUrl };
       const yId = parseYoutubeId(activeLesson.youtubeUrl);
-      const embedUrl = yId ? `https://www.youtube.com/embed/${yId}?autoplay=1&mute=1&rel=0&modestbranding=1` : "";
+      const embedUrl = yId ? `https://www.youtube-nocookie.com/embed/${yId}?autoplay=1&mute=1&rel=0&modestbranding=1&enablejsapi=1` : "";
 
       console.log("Lessons Source:", lessonsData);
       console.log("Current Lesson:", lesson);
@@ -3115,7 +3115,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
                     <div className="aspect-video bg-black rounded-2xl border border-slate-800 overflow-hidden relative shadow-lg shadow-black/40">
                       {getYoutubeId(previewLesson.youtubeUrl) ? (
                         <iframe 
-                          src={`https://www.youtube.com/embed/${getYoutubeId(previewLesson.youtubeUrl)}?autoplay=1&mute=${previewMuted ? 1 : 0}&rel=0&modestbranding=1&enablejsapi=1`}
+                          src={`https://www.youtube-nocookie.com/embed/${getYoutubeId(previewLesson.youtubeUrl)}?autoplay=1&mute=${previewMuted ? 1 : 0}&rel=0&modestbranding=1&enablejsapi=1`}
                           title={previewLesson.title}
                           className="w-full h-full"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

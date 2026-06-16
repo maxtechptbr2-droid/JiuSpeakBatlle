@@ -472,4 +472,185 @@ router.put("/independent-academies/:id/verify", authenticateToken, requireRole([
   }
 });
 
+// ==========================================
+// ADMIN CAPABILITIES (POST, PUT, DELETE) FOR TEAMS AND ACADEMIES
+// ==========================================
+
+// Create Global Team
+router.post("/global-teams", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { name, countryOrigin, website, instagram, description, foundedYear, verified } = req.body;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const team = await prisma.globalTeam.create({
+      data: {
+        name,
+        slug,
+        logo: `https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=150`,
+        countryOrigin: countryOrigin || "Brasil",
+        website: website || "",
+        instagram: instagram || "",
+        description: description || "",
+        foundedYear: Number(foundedYear) || new Date().getFullYear(),
+        verified: verified !== undefined ? !!verified : true
+      }
+    });
+    res.status(201).json({ success: true, message: `Equipe '${name}' criada com sucesso!`, team });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create Academy Branch
+router.post("/branches", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { globalTeamId, name, country, state, city, address, headProfessor, verified } = req.body;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const branch = await prisma.academyBranch.create({
+      data: {
+        globalTeamId,
+        name,
+        slug,
+        country: country || "Brasil",
+        state: state || "",
+        city: city || "",
+        address: address || "",
+        headProfessor: headProfessor || "",
+        logo: `https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=150`,
+        verified: verified !== undefined ? !!verified : true
+      }
+    });
+    res.status(201).json({ success: true, message: `Filial '${name}' criada com sucesso!`, branch });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create Independent Academy
+router.post("/independent-academies", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { name, country, state, city, address, headProfessor, verified } = req.body;
+    const academy = await prisma.independentAcademy.create({
+      data: {
+        name,
+        country: country || "Brasil",
+        state: state || "",
+        city: city || "",
+        address: address || "",
+        headProfessor: headProfessor || "",
+        logo: `https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=150`,
+        verified: verified !== undefined ? !!verified : true
+      }
+    });
+    res.status(201).json({ success: true, message: `Academia independente '${name}' criada!`, academy });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Edit Global Team
+router.put("/global-teams/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { name, countryOrigin, website, instagram, description, foundedYear, verified } = req.body;
+    const data: any = {};
+    if (name !== undefined) {
+      data.name = name;
+      data.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    }
+    if (countryOrigin !== undefined) data.countryOrigin = countryOrigin;
+    if (website !== undefined) data.website = website;
+    if (instagram !== undefined) data.instagram = instagram;
+    if (description !== undefined) data.description = description;
+    if (foundedYear !== undefined) data.foundedYear = Number(foundedYear);
+    if (verified !== undefined) data.verified = !!verified;
+
+    const team = await prisma.globalTeam.update({
+      where: { id: req.params.id },
+      data
+    });
+    res.json({ success: true, message: `Equipe '${team.name}' atualizada!`, team });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Edit Branch (Support for Transferring Branch via globalTeamId updates)
+router.put("/branches/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { globalTeamId, name, country, state, city, address, headProfessor, verified } = req.body;
+    const data: any = {};
+    if (globalTeamId !== undefined) data.globalTeamId = globalTeamId;
+    if (name !== undefined) {
+      data.name = name;
+      data.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    }
+    if (country !== undefined) data.country = country;
+    if (state !== undefined) data.state = state;
+    if (city !== undefined) data.city = city;
+    if (address !== undefined) data.address = address;
+    if (headProfessor !== undefined) data.headProfessor = headProfessor;
+    if (verified !== undefined) data.verified = !!verified;
+
+    const branch = await prisma.academyBranch.update({
+      where: { id: req.params.id },
+      data
+    });
+    res.json({ success: true, message: `Filial '${branch.name}' atualizada!`, branch });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Edit Independent Academy
+router.put("/independent-academies/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    const { name, country, state, city, address, headProfessor, verified } = req.body;
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (country !== undefined) data.country = country;
+    if (state !== undefined) data.state = state;
+    if (city !== undefined) data.city = city;
+    if (address !== undefined) data.address = address;
+    if (headProfessor !== undefined) data.headProfessor = headProfessor;
+    if (verified !== undefined) data.verified = !!verified;
+
+    const academy = await prisma.independentAcademy.update({
+      where: { id: req.params.id },
+      data
+    });
+    res.json({ success: true, message: `Academia '${academy.name}' atualizada!`, academy });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Global Team
+router.delete("/global-teams/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    await prisma.globalTeam.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: "Equipe deletada com sucesso!" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Branch
+router.delete("/branches/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    await prisma.academyBranch.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: "Filial deletada com sucesso!" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete Independent Academy
+router.delete("/independent-academies/:id", authenticateToken, requireRole(["ADMIN"]), async (req, res) => {
+  try {
+    await prisma.independentAcademy.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: "Academia independente deletada com sucesso!" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

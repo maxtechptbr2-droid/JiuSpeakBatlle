@@ -3660,14 +3660,135 @@ app.get("/api/profile/:username", async (req: any, res: any) => {
           { name: { equals: username } }
         ]
       },
-      include: { wallet: true }
+      include: {
+        wallet: true,
+        globalTeam: true,
+        branch: true,
+        independentAcademy: true
+      }
     });
     
     if (!u) {
       return res.status(404).json({ error: "Perfil não encontrado." });
     }
-    
+
+    // Dynamic academy identification and check if verified
+    let academyName = "";
+    let academyVerified = false;
+    if (u.independentAcademy) {
+      academyName = u.independentAcademy.name;
+      academyVerified = u.independentAcademy.verified || false;
+    } else if (u.branch) {
+      academyName = u.globalTeam ? `${u.globalTeam.name} - ${u.branch.name}` : u.branch.name;
+      academyVerified = u.branch.verified || false;
+    } else if (u.globalTeam) {
+      academyName = u.globalTeam.name;
+      academyVerified = u.globalTeam.verified || false;
+    }
+
+    // Real-time followers/following counters
+    const followersCount = await prisma.follower.count({ where: { followingId: u.id } });
+    const followingCount = await prisma.follower.count({ where: { followerId: u.id } });
+
+    // Optional authentication check to determine follow status and mutual friend status
+    let isFollowing = false;
+    let isFriend = false;
+    let requesterId: string | null = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        const decoded: any = jwt.verify(token, JWT_ACCESS_SECRET);
+        requesterId = decoded.id;
+      } catch (e) {
+        // Safe token parsing failover
+      }
+    }
+
+    if (requesterId) {
+      const followObj = await prisma.follower.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: requesterId,
+            followingId: u.id
+          }
+        }
+      });
+      isFollowing = !!followObj;
+
+      if (isFollowing) {
+        const mutualObj = await prisma.follower.findUnique({
+          where: {
+            followerId_followingId: {
+              followerId: u.id,
+              followingId: requesterId
+            }
+          }
+        });
+        isFriend = !!mutualObj;
+      }
+    }
+
+    // Fetch user's latest social feed publications directly from PostgreSQL
+    const userPosts = await prisma.socialPost.findMany({
+      where: { authorId: u.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: {
+        author: {
+          select: { id: true, name: true, avatar: true, belt: true, role: true, isVerified: true }
+        },
+        likes: true,
+        comments: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            author: { select: { id: true, name: true, avatar: true, belt: true } }
+          }
+        }
+      }
+    });
+
+    const formattedPosts = userPosts.map((p: any) => ({
+      id: p.id,
+      authorId: p.authorId,
+      authorName: p.author?.name || u.name,
+      authorAvatar: p.author?.avatar || u.avatar || "",
+      authorBelt: p.author?.belt || u.belt,
+      category: p.category,
+      content: p.content,
+      upvotes: p.likes ? p.likes.length : 0,
+      hasUpvoted: p.likes ? p.likes.some((l: any) => l.userId === requesterId) : false,
+      timestamp: getRelativeTime(p.createdAt),
+      createdAt: p.createdAt,
+      comments: p.comments.map((c: any) => ({
+        id: c.id,
+        authorName: c.author?.name || "Atleta",
+        authorAvatar: c.author?.avatar || "",
+        authorBelt: c.author?.belt || "WHITE",
+        content: c.content,
+        timestamp: getRelativeTime(c.createdAt)
+      })),
+      reactions: p.reactions || {},
+      userReactions: []
+    }));
+
+    // Fetch real follower lists and following lists
+    const followersRel = await prisma.follower.findMany({
+      where: { followingId: u.id },
+      include: {
+        follower: { select: { id: true, name: true, avatar: true, belt: true, username: true, isVerified: true } }
+      }
+    });
+    const followingRel = await prisma.follower.findMany({
+      where: { followerId: u.id },
+      include: {
+        following: { select: { id: true, name: true, avatar: true, belt: true, username: true, isVerified: true } }
+      }
+    });
+
     res.json({
+      isFollowing,
+      isFriend,
       profile: {
         id: u.id,
         name: u.name,
@@ -3695,16 +3816,22 @@ app.get("/api/profile/:username", async (req: any, res: any) => {
         favoriteTechnique: u.favoriteTechnique || "",
         favoriteAthlete: u.favoriteAthlete || "",
         privacyLevel: u.privacyLevel || "public",
-        followersCount: u.followersCount || 0,
-        followingCount: u.followingCount || 0,
+        followersCount,
+        followingCount,
         themeColor: u.themeColor || "",
         avatarFrame: u.avatarFrame || "",
         isVerified: u.isVerified || false,
+        role: u.role,
         belt: u.belt,
         stripes: u.stripes,
         xp: u.xp,
         level: u.level,
-        elo: u.elo
+        elo: u.elo,
+        academy: academyName,
+        academyVerified,
+        posts: formattedPosts,
+        followersList: followersRel.map((fr: any) => fr.follower),
+        followingList: followingRel.map((fr: any) => fr.following)
       }
     });
   } catch (err: any) {
@@ -12006,14 +12133,14 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
             take,
             include: {
               author: {
-                select: { id: true, name: true, avatar: true, belt: true }
+                select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
               },
               likes: true,
               comments: {
                 orderBy: { createdAt: "asc" },
                 include: {
                   author: {
-                    select: { id: true, name: true, avatar: true, belt: true }
+                    select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
                   }
                 }
               }
@@ -12120,8 +12247,12 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
         authorAvatar: patchedAuthor.avatar,
         authorBelt: post.author?.belt || post.authorBelt || "WHITE",
         authorFrame,
+        authorVerified: post.author?.isVerified || false,
+        authorRole: post.author?.role || "ATHLETE",
         category: post.category,
         content: post.content,
+        imageUrl: post.imageUrl || null,
+        videoUrl: post.videoUrl || null,
         upvotes: post.likes ? post.likes.length : (post.upvotes || 0),
         hasUpvoted: hasLiked,
         timestamp: getRelativeTime(post.createdAt || new Date()),
@@ -12166,11 +12297,17 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
 // 2. CREATE A SOCIAL POST
 app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
   try {
-    const { content, category, imageUrl } = req.body;
+    const { content, category, imageUrl, videoUrl } = req.body;
     const userId = req.user.id;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: "O conteúdo da publicação não pode ser vazio." });
+    }
+
+    // Role-check constraint for video publishing
+    const isTeacherOrAdmin = req.user.role === 'ADMIN' || req.user.role === 'TEACHER' || req.user.role === 'INSTRUCTOR' || req.user.role === 'teacher' || req.user.role === 'professor';
+    if (videoUrl && !isTeacherOrAdmin) {
+      return res.status(403).json({ error: "Apenas professores, instritores credenciados ou administradores têm permissão para publicar recursos audiovisuais no feed social!" });
     }
 
     const targetCategory = category || "Treino";
@@ -12184,14 +12321,15 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
             authorId: userId,
             content: content.trim(),
             category: targetCategory,
-            imageUrl: imageUrl || null
+            imageUrl: imageUrl || null,
+            videoUrl: videoUrl || null
           },
           include: {
             author: {
-              select: { id: true, name: true, avatar: true, belt: true }
+              select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
             }
           }
-        });
+        }) as any;
 
         // Trigger dynamic system notifications to followers
         try {
@@ -12221,8 +12359,12 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
           authorName: created.author?.name || req.user.name,
           authorAvatar: created.author?.avatar || req.user.avatar,
           authorBelt: created.author?.belt || req.user.belt,
+          authorVerified: created.author?.isVerified || false,
+          authorRole: created.author?.role || "ATHLETE",
           category: created.category,
           content: created.content,
+          imageUrl: created.imageUrl || null,
+          videoUrl: created.videoUrl || null,
           upvotes: 0,
           hasUpvoted: false,
           timestamp: "Agora mesmo",
@@ -12241,8 +12383,12 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
         authorName: req.user.name,
         authorAvatar: req.user.avatar,
         authorBelt: req.user.belt,
+        authorVerified: req.user.isVerified || false,
+        authorRole: req.user.role || "ATHLETE",
         category: targetCategory,
         content: content.trim(),
+        imageUrl: imageUrl || null,
+        videoUrl: videoUrl || null,
         upvotes: 0,
         hasUpvoted: false,
         timestamp: "Agora mesmo",

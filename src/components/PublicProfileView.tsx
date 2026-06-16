@@ -81,7 +81,7 @@ export default function PublicProfileView({ username, currentUser, showToast, on
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ targetUsername: username })
+        body: JSON.stringify({ targetUserId: profileData.id })
       });
 
       if (res.ok) {
@@ -490,6 +490,119 @@ export default function PublicProfileView({ username, currentUser, showToast, on
                   <Sparkles className="w-6 h-6 text-amber-500 mx-auto" />
                   <span className="block text-lg font-black text-white">{profileData?.elo || 1000}</span>
                   <span className="text-[10px] font-mono text-slate-500">PONTOS ELO</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline of Social Posts */}
+            <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6 shadow-md" id="profile-posts-timeline">
+              <div>
+                <h3 className="text-sm font-display font-black text-white uppercase tracking-wider">
+                  📝 TIMELINE DE PUBLICAÇÕES DO ATLETA
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">Últimas postagens compartilhadas por este lutador de BJJ na comunidade JiuSpeak.</p>
+              </div>
+
+              <div className="space-y-4">
+                {profileData?.posts && profileData.posts.length > 0 ? (
+                  profileData.posts.map((post: any) => (
+                    <div key={post.id} className="bg-slate-950 p-5 rounded-2xl border border-slate-900 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-violet-400 font-bold uppercase">#{post.category || 'Geral'}</span>
+                        <span className="text-[10px] font-mono text-slate-500">{post.timestamp}</span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed font-sans">{post.content}</p>
+                      <div className="flex items-center gap-4 text-[11px] text-slate-500 font-mono pt-1">
+                        <span className="flex items-center gap-1">❤️ {post.upvotes} {post.upvotes === 1 ? 'Curtida' : 'Curtidas'}</span>
+                        <span className="flex items-center gap-1">💬 {post.comments ? post.comments.length : 0} {post.comments?.length === 1 ? 'Comentário' : 'Comentários'}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-500 italic text-center py-4">Este atleta ainda não publicou nenhuma postagem na Comunidade.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Followers and Following lists */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6" id="profile-connections-section">
+              {/* Followers List */}
+              <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 shadow-md space-y-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-violet-400" />
+                  <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                    Seguidores ({profileData?.followersCount || 0})
+                  </h4>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {profileData?.followersList && profileData.followersList.length > 0 ? (
+                    profileData.followersList.map((f: any) => (
+                      <div 
+                        key={f.id}
+                        onClick={() => onNavigate(`profile-public-${f.username || f.name}`)}
+                        className="flex items-center gap-3 p-2 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-xl cursor-pointer transition-all"
+                      >
+                        <img 
+                          src={f.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150'} 
+                          alt={f.name}
+                          className="w-8 h-8 rounded-full border border-slate-800 object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs font-bold text-slate-200 truncate">{f.name}</p>
+                            {f.isVerified && <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 inline" />}
+                          </div>
+                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.2 border rounded ${getBeltColorStyle(f.belt)}`}>
+                            {f.belt || 'WHITE'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-slate-500 italic text-center py-2">Nenhum seguidor até o momento.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Following List */}
+              <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 shadow-md space-y-4">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-violet-400" />
+                  <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                    Seguindo ({profileData?.followingCount || 0})
+                  </h4>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {profileData?.followingList && profileData.followingList.length > 0 ? (
+                    profileData.followingList.map((f: any) => (
+                      <div 
+                        key={f.id}
+                        onClick={() => onNavigate(`profile-public-${f.username || f.name}`)}
+                        className="flex items-center gap-3 p-2 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded-xl cursor-pointer transition-all"
+                      >
+                        <img 
+                          src={f.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150'} 
+                          alt={f.name}
+                          className="w-8 h-8 rounded-full border border-slate-800 object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs font-bold text-slate-200 truncate">{f.name}</p>
+                            {f.isVerified && <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 inline" />}
+                          </div>
+                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.2 border rounded ${getBeltColorStyle(f.belt)}`}>
+                            {f.belt || 'WHITE'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[11px] text-slate-500 italic text-center py-2">Não segue ninguém até o momento.</p>
+                  )}
                 </div>
               </div>
             </div>

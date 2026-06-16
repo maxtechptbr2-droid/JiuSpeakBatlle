@@ -641,6 +641,7 @@ model SocialPost {
   content      String
   category     String // "#treinos", "#duvidas-posicoes", "#memes-tatame", "#campeonatos"
   imageUrl     String?
+  videoUrl     String?
   upvotesCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
