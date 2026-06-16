@@ -517,7 +517,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       return {
         ...p,
         isFriend: p.isFriend || isFollowing || p.authorId === user.id,
-        authorAcademy: p.authorAcademy || (matchingUser?.role === 'admin' ? 'Atama Virtual Team' : p.authorId === user.id ? (user.academy || 'Atama Virtual Team') : 'Atama Virtual Team'),
+        authorAcademy: p.authorAcademy || (matchingUser?.role === 'admin' ? 'Independente' : p.authorId === user.id ? (user.academy || 'Independente') : 'Independente'),
         isChampion: p.isChampion || isBlackOrMarrom || p.upvotes >= 70,
         totalReactionsCount: reactionsCount + (p.upvotes || 0)
       };
@@ -550,7 +550,7 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
   if (activeFeedTab === 'amigos') {
     feedFilteredPosts = allTimelinePosts.filter(p => p.isFriend);
   } else if (activeFeedTab === 'academia') {
-    feedFilteredPosts = allTimelinePosts.filter(p => p.authorAcademy === (user.academy || 'Atama Virtual Team'));
+    feedFilteredPosts = allTimelinePosts.filter(p => p.authorAcademy === (user.academy || 'Independente'));
   } else if (activeFeedTab === 'campeoes') {
     feedFilteredPosts = allTimelinePosts.filter(p => p.isChampion);
   } else if (activeFeedTab === 'pretas') {

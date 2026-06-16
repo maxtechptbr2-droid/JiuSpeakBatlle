@@ -798,7 +798,7 @@ export default function CreatorPanel({
               <div className="space-y-1">
                 <h4 className="text-white font-bold font-display text-base">Candidatura em Triagem de Segurança</h4>
                 <p className="text-slate-300 text-xs leading-relaxed max-w-md mx-auto">
-                  Sua ficha cadastral para a CT Alliance está em verificação técnica pela mesa administrativa (Mestre Carlos 9). Isso garante o controle de direitos autorais de todos os cursos vendidos.
+                  Sua ficha cadastral para a CT Alliance está em verificação técnica pela mesa administrativa (Conselho Editorial). Isso garante o controle de direitos autorais de todos os cursos vendidos.
                 </p>
               </div>
               <div className="text-xs text-slate-500 font-mono">

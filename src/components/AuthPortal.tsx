@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { avatarMappingList } from '../avatarMapping';
 import HomePage from './HomePage';
-import { COURSES } from '../data';
+const COURSES: any[] = [];
 
 interface AuthPortalProps {
   onLoginSuccess: (session: { accessToken: string; refreshToken: string; user: any }) => void;
@@ -531,22 +531,22 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
         user={{
           id: 'visitor',
           name: 'Visitante do Dojo',
-          email: 'visitante@jiuspeak.com',
+          email: '',
           avatar: '/avatars/default.png',
-          level: 15,
+          level: 1,
           belt: 'Branca',
-          stripes: 2,
-          xp: 750,
-          xpNextLevel: 1000,
-          coins: 100,
+          stripes: 0,
+          xp: 0,
+          xpNextLevel: 100,
+          coins: 0,
           elo: 1000,
           winCount: 0,
           lossCount: 0,
-          streak: 1,
-          academy: 'Gracie Barra',
-          category: 'Médio',
-          guardsPreference: 'Guarda Fechada',
-          submitsPreference: 'Armlock',
+          streak: 0,
+          academy: '',
+          category: '',
+          guardsPreference: '',
+          submitsPreference: '',
           inventory: [],
           enrolledCourses: [],
           unlockedAchievements: [],

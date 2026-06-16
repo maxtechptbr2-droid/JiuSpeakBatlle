@@ -20,40 +20,17 @@ export default function PublicCertificateView({ hash, onNavigate, showToast }: P
         const res = await fetch(`/api/certificates/${hash}`);
         if (res.ok) {
           const data = await res.json();
-          setCert(data.certificate);
+          if (data && data.certificate) {
+            setCert(data.certificate);
+          } else {
+            setErrorMsg("Certificado não encontrado no banco de dados.");
+          }
         } else {
-          // If server fails or table not yet active, fall back to robust generated simulation
-          // based on hash character sequence for visual completeness and offline readiness
-          const simulatedStudent = "Alessandro 'The Strangler' Silva";
-          const simulatedModule = "BJJ English Terminology - White Belt Module 1";
-          const simulatedBelt = "BRANCA";
-          
-          setCert({
-            studentName: simulatedStudent,
-            moduleTitle: simulatedModule,
-            beltLevel: simulatedBelt,
-            hash: hash,
-            issueDate: new Date().toLocaleDateString('pt-BR'),
-            instructor: "Mestre Carlos Gracie Jr.",
-            englishProfessor: "Prof. Sarah Jenkins, PhD",
-            academy: "Atama Virtual Team",
-            qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://www.jiuspeak.com.br/certificate/${hash}`
-          });
+          setErrorMsg("Certificado inválido ou não localizado.");
         }
       } catch (err) {
-        console.warn("Cert fetch failed, utilizing custom cryptographic simulator:", err);
-        // Robust fallback
-        setCert({
-          studentName: "Guilherme S. Cavalcanti",
-          moduleTitle: "Inglês para Entrevistas de MMA & ADCC - Blue Belt",
-          beltLevel: "AZUL",
-          hash: hash,
-          issueDate: "12/06/2026",
-          instructor: "Sensei Roger Gracie",
-          englishProfessor: "Prof. Tyler Durden",
-          academy: "Atama Virtual Team",
-          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://www.jiuspeak.com.br/certificate/${hash}`
-        });
+        console.error("Cert fetch failed:", err);
+        setErrorMsg("Erro ao verificar certificado.");
       } finally {
         setLoading(false);
       }
@@ -63,12 +40,13 @@ export default function PublicCertificateView({ hash, onNavigate, showToast }: P
   }, [hash]);
 
   const handlePrint = () => {
+    if (!cert) return;
     window.print();
   };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
-    showToast("Link do certificado copiado! Pronto para viralizar no LinkedIn & Instagram.", "success");
+    showToast("Link do certificado copiado! Pronto para compartilhar no LinkedIn.", "success");
   };
 
   if (loading) {
@@ -76,6 +54,23 @@ export default function PublicCertificateView({ hash, onNavigate, showToast }: P
       <div className="flex flex-col items-center justify-center min-h-[460px] gap-3 text-slate-400 font-mono" id="cert-view-loading">
         <RefreshCw className="w-8 h-8 text-violet-500 animate-spin" />
         <span className="text-xs uppercase tracking-wider">Verificando Assinatura Digital do Registro...</span>
+      </div>
+    );
+  }
+
+  if (errorMsg || !cert) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-slate-900/40 border border-slate-800 rounded-2xl max-w-md mx-auto my-12" id="cert-view-error">
+        <Award className="w-12 h-12 text-rose-500 mb-4" />
+        <h3 className="text-base font-bold text-white mb-2">Erro de Verificação</h3>
+        <p className="text-xs text-slate-400 mb-6">{errorMsg || "Este certificado não existe na nossa base de dados oficial ou foi revogado."}</p>
+        <button
+          onClick={() => onNavigate('dashboard')}
+          type="button"
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-mono font-bold cursor-pointer transition-all"
+        >
+          Voltar para o Dojô
+        </button>
       </div>
     );
   }

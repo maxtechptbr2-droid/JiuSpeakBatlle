@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lossCount: apiUser.lossCount || 0,
       streak: apiUser.streak || 0,
       lastActiveDate: apiUser.lastActiveDate || new Date().toISOString(),
-      academy: apiUser.academy || 'Atama Virtual Team',
+      academy: apiUser.academy || '',
       category: apiUser.category || 'Pena (-70kg)',
       guardsPreference: apiUser.guardsPreference || 'Guarda Fechada de Aço',
       submitsPreference: apiUser.submitsPreference || 'Estrangulamento Cruzado',

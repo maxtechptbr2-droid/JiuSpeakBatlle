@@ -2235,35 +2235,7 @@ export let inMemoryStoreProducts: any[] = [
   }
 ];
 
-export let inMemoryMarketplaceItems: any[] = [
-  {
-    id: "p2p_gi_koral_listing",
-    inventoryItemId: "p2p_gi_koral",
-    sellerId: "user_4593",
-    sellerName: "Mestre_Cascão90",
-    priceJT: 4500,
-    active: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "p2p_title_canela_listing",
-    inventoryItemId: "p2p_title_canela",
-    sellerId: "user_7733",
-    sellerName: "GuardaAranhaGuy",
-    priceJT: 1500,
-    active: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: "p2p_title_leao_listing",
-    inventoryItemId: "p2p_title_leao",
-    sellerId: "user_2288",
-    sellerName: "LeãoDoTatame",
-    priceJT: 6000,
-    active: true,
-    createdAt: new Date().toISOString()
-  }
-];
+export let inMemoryMarketplaceItems: any[] = [];
 
 export let inMemoryMarketplaceSales: any[] = [];
 
@@ -4056,20 +4028,7 @@ app.get("/api/certificates/:hash", async (req: any, res: any) => {
       return res.json({ certificate: dbCert });
     }
 
-    // High fidelity dynamic deterministic generation fallback
-    res.json({
-      certificate: {
-        studentName: "Alessandro 'The Strangler' Silva",
-        moduleTitle: "BJJ English Terminology - White Belt Module 1",
-        beltLevel: "BRANCA",
-        hash: hash,
-        issueDate: new Date().toLocaleDateString('pt-BR'),
-        instructor: "Mestre Carlos Gracie Jr.",
-        englishProfessor: "Prof. Sarah Jenkins, PhD",
-        academy: "Atama Virtual Team",
-        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://www.jiuspeak.com.br/certificate/${hash}`
-      }
-    });
+    return res.status(404).json({ error: "Certificado não localizado." });
   } catch (err: any) {
     res.status(500).json({ error: "Erro ao buscar registro do certificado." });
   }
@@ -4078,19 +4037,33 @@ app.get("/api/certificates/:hash", async (req: any, res: any) => {
 // GET ADMIN VIRAL & REFERRALS TELEMETRY
 app.get("/api/admin/social-dashboard", authenticateToken, requireRole(["ADMIN", "admin"]), async (req: any, res: any) => {
   try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
+    const totalReferrals = await prisma.userReferral.count();
+    const sumRewarded = await prisma.userReferral.aggregate({
+      _sum: { rewardAmount: true }
+    });
+    const rewardedJT = (sumRewarded._sum.rewardAmount || 0).toLocaleString('pt-BR') + " JT";
+
+    const shares = await prisma.socialShare.findMany();
+    const sharesCount = {
+      whatsapp: shares.filter((s: { platform: string; }) => s.platform.toUpperCase() === 'WHATSAPP').length,
+      twitter: shares.filter((s: { platform: string; }) => s.platform.toUpperCase() === 'TWITTER' || s.platform.toUpperCase() === 'X').length,
+      instagram: shares.filter((s: { platform: string; }) => s.platform.toUpperCase() === 'INSTAGRAM' || s.platform.toUpperCase() === 'TIKTOK').length,
+      facebook: shares.filter((s: { platform: string; }) => s.platform.toUpperCase() === 'FACEBOOK').length
+    };
+    const conversionEfficiency = shares.length > 0 ? ((totalReferrals / shares.length) * 100).toFixed(1) + "%" : "0.0%";
+
     res.json({
-      totalReferrals: "349 Cadastros",
-      rewardedJT: "69,800 JT",
-      sharesCount: {
-        whatsapp: 2150,
-        twitter: 954,
-        instagram: 1823,
-        facebook: 442
-      },
-      conversionEfficiency: "74.8%"
+      totalReferrals: `${totalReferrals} Cadastros`,
+      rewardedJT,
+      sharesCount,
+      conversionEfficiency
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Erro ao obter indicadores virais." });
+    res.status(500).json({ error: "Erro ao obter indicadores virais reais do PostgreSQL." });
   }
 });
 
@@ -10246,39 +10219,10 @@ app.get("/api/marketplace/items", async (req: any, res: any) => {
             imageUrl: list.inventoryItem?.imageUrl || ""
           }));
         } catch (dbErr) {
-          console.warn("Prisma failed to load marketplace, using fallback:", dbErr);
+          console.error("Prisma failed to load marketplace:", dbErr);
+          items = [];
+          totalCount = 0;
         }
-      }
-
-      if (items.length === 0) {
-        const activeMemory = inMemoryMarketplaceItems.filter(li => li.active);
-        totalCount = activeMemory.length;
-        const slicedMem = activeMemory.slice(skip, skip + take);
-
-        items = slicedMem.map(li => {
-          const details = ALL_ITEMS_CATALOG[li.inventoryItemId] || {
-            id: li.inventoryItemId,
-            name: "Equipamento de Competição",
-            description: "Equipamento oficial de torneios.",
-            category: "gi",
-            price: li.priceJT,
-            rarity: "Comum",
-            imageUrl: ""
-          };
-          return {
-            id: li.id,
-            inventoryItemId: li.inventoryItemId,
-            sellerId: li.sellerId,
-            sellerName: li.sellerName || "Atleta Virtual",
-            price: li.priceJT,
-            currency: 'JT',
-            name: details.name,
-            description: details.description,
-            category: details.category?.toLowerCase() || "gi",
-            rarity: details.rarity,
-            imageUrl: details.imageUrl
-          };
-        });
       }
 
       return { items, totalCount };
@@ -13139,27 +13083,20 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
       return r === 'INSTRUCTOR' || r === 'PROFESSOR' || r === 'ADMIN';
     };
 
-    const academiesList = [
-      { id: 'atama_team', name: 'Atama Virtual Team', crest: '🥋' },
-      { id: 'gracie_barra', name: 'Gracie Barra', crest: '🔺' },
-      { id: 'alliance', name: 'Alliance BJJ', crest: '🦅' },
-      { id: 'checkmat', name: 'Checkmat', crest: '♟️' },
-      { id: 'nova_uniao', name: 'Nova União', crest: '⚡' }
-    ];
+    const dbGlobalTeams = await prisma.globalTeam.findMany({ select: { id: true, name: true } });
+    const academiesList = dbGlobalTeams.length > 0
+      ? dbGlobalTeams.map(t => ({ id: t.id, name: t.name, crest: '🥋' }))
+      : [{ id: 'independent', name: 'Independente', crest: '🥋' }];
 
     const getAcademyForUser = (user: any) => {
       if (user.academy && String(user.academy).trim()) {
-        const raw = String(user.academy).toLowerCase();
-        if (raw.includes("atama")) return academiesList[0];
-        if (raw.includes("gracie") || raw.includes("barra")) return academiesList[1];
-        if (raw.includes("alliance")) return academiesList[2];
-        if (raw.includes("checkmat")) return academiesList[3];
-        if (raw.includes("nova") || raw.includes("união") || raw.includes("uniao")) return academiesList[4];
+        const matchingTeam = dbGlobalTeams.find(t => t.name.toLowerCase().includes(user.academy.toLowerCase()));
+        if (matchingTeam) {
+          return { id: matchingTeam.id, name: matchingTeam.name, crest: '🥋' };
+        }
+        return { id: 'other', name: user.academy, crest: '🥋' };
       }
-      // Deterministic fallback using user name charSum
-      const nameStr = user.name || "Atleta";
-      const charSum = nameStr.charCodeAt(0) + (nameStr.charCodeAt(nameStr.length - 1) || 0);
-      return academiesList[charSum % academiesList.length];
+      return academiesList[0];
     };
 
     const getDeterministicSeed = (userIdStr: string, seedTerm: string): number => {
@@ -14230,17 +14167,10 @@ async function startServer() {
             where: { userId }
           });
         } catch (dbErr: any) {
-          console.warn("⚠️ [ACADEMY DB ERROR] Falhou na leitura do SQL, usando in-memory fallback:", dbErr.message);
+          console.error("⚠️ [ACADEMY DB ERROR] Falhou na leitura do SQL:", dbErr.message);
           modules = [];
+          progress = [];
         }
-      }
-
-      if (modules.length === 0) {
-        modules = JSON.parse(JSON.stringify(inMemoryAcademyModules)).map((mod: any) => {
-          mod.lessons = inMemoryAcademyLessons.filter((l: any) => l.moduleId === mod.id);
-          return mod;
-        });
-        progress = inMemoryAcademyProgress.filter((p: any) => p.userId === userId);
       }
 
       // Merge completion status for current user
@@ -14282,56 +14212,29 @@ async function startServer() {
       }
 
       const prisma = getPrisma() as any;
-      let lesson: any = null;
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Conexão com PostgreSQL indisponível." });
+      }
 
-      if (isDatabaseConnected() && prisma) {
-        try {
-          lesson = await prisma.academyLesson.findUnique({ where: { id: lessonId } });
-        } catch (e) {}
-      }
+      const lesson = await prisma.academyLesson.findUnique({ where: { id: lessonId } });
       if (!lesson) {
-        lesson = inMemoryAcademyLessons.find((l: any) => l.id === lessonId);
-      }
-      if (!lesson) {
-        return res.status(404).json({ success: false, error: "Lição não encontrada." });
+        return res.status(404).json({ success: false, error: "Lição não encontrada no banco." });
       }
 
       const xpReward = lesson.xpReward || 100;
-      let completedRecord: any = null;
-
-      if (isDatabaseConnected() && prisma) {
-        try {
-          completedRecord = await prisma.academyProgress.findFirst({
-            where: { userId, lessonId }
-          });
-
-          if (!completedRecord) {
-            completedRecord = await prisma.academyProgress.create({
-              data: {
-                userId,
-                lessonId,
-                completed: true,
-                completedAt: new Date()
-              }
-            });
-          }
-        } catch (dbErr) {
-          console.warn("⚠️ Falha ao salvar progresso no PostgreSQL. Usando in-memory:", dbErr);
-        }
-      }
+      let completedRecord = await prisma.academyProgress.findFirst({
+        where: { userId, lessonId }
+      });
 
       if (!completedRecord) {
-        completedRecord = inMemoryAcademyProgress.find((p: any) => p.userId === userId && p.lessonId === lessonId);
-        if (!completedRecord) {
-          completedRecord = {
-            id: "prog_" + Math.random().toString(36).substring(2),
+        completedRecord = await prisma.academyProgress.create({
+          data: {
             userId,
             lessonId,
             completed: true,
-            completedAt: new Date().toISOString()
-          };
-          inMemoryAcademyProgress.push(completedRecord);
-        }
+            completedAt: new Date()
+          }
+        });
       }
 
       // Add XP using AuthStore updateUser to maintain synchronicity
@@ -14381,38 +14284,25 @@ async function startServer() {
       }
 
       const prisma = getPrisma() as any;
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Serviço de dados indisponível." });
+      }
+
       const lessonId = "less_white_10";
       const extraXp = 1000;
 
       // Save progression
-      if (isDatabaseConnected() && prisma) {
-        try {
-          const exist = await prisma.academyProgress.findFirst({
-            where: { userId, lessonId }
-          });
-          if (!exist) {
-            await prisma.academyProgress.create({
-              data: {
-                userId,
-                lessonId,
-                completed: true,
-                completedAt: new Date()
-              }
-            });
+      const exist = await prisma.academyProgress.findFirst({
+        where: { userId, lessonId }
+      });
+      if (!exist) {
+        await prisma.academyProgress.create({
+          data: {
+            userId,
+            lessonId,
+            completed: true,
+            completedAt: new Date()
           }
-        } catch (dbErr) {
-          console.warn("⚠️ Falha ao salvar final challenge no Prisma. Usando fallback em memória:", dbErr);
-        }
-      }
-
-      const inMemoryExist = inMemoryAcademyProgress.find((p: any) => p.userId === userId && p.lessonId === lessonId);
-      if (!inMemoryExist) {
-        inMemoryAcademyProgress.push({
-          id: "prog_" + Math.random().toString(36).substring(2),
-          userId,
-          lessonId,
-          completed: true,
-          completedAt: new Date().toISOString()
         });
       }
 
@@ -14468,7 +14358,22 @@ async function startServer() {
         timestamp: new Date().toISOString()
       };
 
-      inMemoryPvpStats.push(statsRecord);
+      const prisma = getPrisma() as any;
+      if (prisma) {
+        try {
+          await prisma.auditLog.create({
+            data: {
+              actorId: userId,
+              actorName: "Atleta",
+              action: "PVP_MATCH_COMPLETE",
+              category: "PVP",
+              notes: `Pontuação: ${correctCount}/${totalCount}. Belt: ${belt || "WHITE"}. XP Earned: ${xpEarned}`
+            }
+          });
+        } catch (e) {
+          console.error("Erro ao registrar log de PvP no PostgreSQL:", e);
+        }
+      }
 
       // Reward XP
       if (xpEarned > 0) {
@@ -14508,16 +14413,14 @@ async function startServer() {
       const prisma = getPrisma() as any;
       let completedLessonsCount = 0;
 
-      if (isDatabaseConnected() && prisma) {
+      if (prisma) {
         try {
           completedLessonsCount = await prisma.academyProgress.count({
             where: { userId, completed: true }
           });
-        } catch (e) {}
-      }
-
-      if (completedLessonsCount === 0) {
-        completedLessonsCount = inMemoryAcademyProgress.filter(p => p.userId === userId && p.completed).length;
+        } catch (e) {
+          console.error("Erro ao ler progresso acadêmico no PostgreSQL:", e);
+        }
       }
 
       const user = (await authStore.findById(userId)) as any;
@@ -14540,20 +14443,31 @@ async function startServer() {
   app.get("/api/admin/academy/progress", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
     try {
       const prisma = getPrisma() as any;
-      const allUsers = (authStore as any).getAllUsers ? await (authStore as any).getAllUsers() : Array.from((await import("./server/authStore")).inMemoryUsers.values());
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Serviço de dados indisponível." });
+      }
+
+      const allUsers = await prisma.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          level: true,
+          xp: true
+        }
+      });
       
-      let progressRecords: any[] = [];
-      if (isDatabaseConnected() && prisma) {
-        try {
-          progressRecords = await prisma.academyProgress.findMany();
-        } catch (e) {}
-      }
-      if (progressRecords.length === 0) {
-        progressRecords = inMemoryAcademyProgress;
-      }
+      const progressRecords = await prisma.academyProgress.findMany();
+      const dbModules = await prisma.academyModule.findMany({
+        orderBy: { orderIndex: "asc" }
+      });
+      const dbLessons = await prisma.academyLesson.findMany({
+        orderBy: { orderIndex: "asc" }
+      });
 
       const studentsProgress = allUsers.map((u: any) => {
         const uProg = progressRecords.filter((p: any) => p.userId === u.id);
+        const hasWhiteBeltGraduate = uProg.length >= dbLessons.filter((l: any) => l.moduleId === "mod_white").length;
         return {
           id: u.id,
           name: u.name,
@@ -14561,19 +14475,20 @@ async function startServer() {
           level: u.level || 1,
           xp: u.xp || 0,
           completedLessons: uProg.length,
-          isWhiteBeltGraduate: (u.unlockedAchievements || []).includes("White Belt Graduate")
+          isWhiteBeltGraduate: hasWhiteBeltGraduate
         };
       });
 
       res.json({
         success: true,
         studentsProgress,
-        totalModules: inMemoryAcademyModules.length,
-        totalLessons: inMemoryAcademyLessons.length,
-        modules: inMemoryAcademyModules,
-        lessons: inMemoryAcademyLessons
+        totalModules: dbModules.length,
+        totalLessons: dbLessons.length,
+        modules: dbModules,
+        lessons: dbLessons
       });
     } catch (err) {
+      console.error("Erro no carregamento do painel administrativo da Academy:", err);
       res.status(200).json({ success: false, studentsProgress: [], error: "Erro no carregamento do painel administrativo da Academy." });
     }
   });
@@ -14583,60 +14498,37 @@ async function startServer() {
     try {
       const { id, title, description, beltLevel, orderIndex, active } = req.body;
       const prisma = getPrisma() as any;
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Conexão com banco de dados indisponível." });
+      }
+
       let updatedModule: any = null;
 
       if (id) {
-        // Edit
-        const existing = inMemoryAcademyModules.find(m => m.id === id);
-        if (existing) {
-          existing.title = title || existing.title;
-          existing.description = description || existing.description;
-          existing.beltLevel = beltLevel || existing.beltLevel;
-          existing.orderIndex = orderIndex !== undefined ? Number(orderIndex) : existing.orderIndex;
-          existing.active = active !== undefined ? !!active : existing.active;
-          updatedModule = existing;
-        }
-        
-        if (isDatabaseConnected() && prisma) {
-          try {
-            await prisma.academyModule.update({
-              where: { id },
-              data: { title, description, beltLevel, orderIndex: Number(orderIndex), active: !!active }
-            });
-          } catch (e) {}
-        }
+        // Edit module directly in PostgreSQL
+        updatedModule = await prisma.academyModule.update({
+          where: { id },
+          data: { title, description, beltLevel, orderIndex: Number(orderIndex), active: !!active }
+        });
       } else {
-        // Create
+        // Create module directly in PostgreSQL
         const newId = "mod_" + Math.random().toString(36).substring(2);
-        updatedModule = {
-          id: newId,
-          title,
-          description,
-          beltLevel,
-          orderIndex: Number(orderIndex) || 1,
-          active: active !== undefined ? !!active : true
-        };
-        inMemoryAcademyModules.push(updatedModule);
-
-        if (isDatabaseConnected() && prisma) {
-          try {
-            await prisma.academyModule.create({
-              data: {
-                id: newId,
-                title,
-                description,
-                beltLevel,
-                orderIndex: Number(orderIndex) || 1,
-                active: active !== undefined ? !!active : true
-              }
-            });
-          } catch (e) {}
-        }
+        updatedModule = await prisma.academyModule.create({
+          data: {
+            id: newId,
+            title,
+            description,
+            beltLevel,
+            orderIndex: Number(orderIndex) || 1,
+            active: active !== undefined ? !active : true
+          }
+        });
       }
 
       res.json({ success: true, updatedModule });
     } catch (err) {
-      res.status(200).json({ success: false, error: "Falha ao gravar módulo." });
+      console.error("Erro ao salvar módulo no banco:", err);
+      res.status(500).json({ success: false, error: "Falha ao gravar módulo no banco PostgreSQL." });
     }
   });
 
@@ -14645,70 +14537,45 @@ async function startServer() {
     try {
       const { id, moduleId, title, description, youtubeUrl, xpReward, orderIndex } = req.body;
       const prisma = getPrisma() as any;
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Conexão com banco de dados indisponível." });
+      }
+
       let updatedLesson: any = null;
 
       if (id) {
-        // Edit
-        const existing = inMemoryAcademyLessons.find(l => l.id === id);
-        if (existing) {
-          existing.moduleId = moduleId || existing.moduleId;
-          existing.title = title || existing.title;
-          existing.description = description || existing.description;
-          existing.youtubeUrl = youtubeUrl || existing.youtubeUrl;
-          existing.xpReward = xpReward !== undefined ? Number(xpReward) : existing.xpReward;
-          existing.orderIndex = orderIndex !== undefined ? Number(orderIndex) : existing.orderIndex;
-          updatedLesson = existing;
-        }
-
-        if (isDatabaseConnected() && prisma) {
-          try {
-            await prisma.academyLesson.update({
-              where: { id },
-              data: {
-                moduleId,
-                title,
-                description,
-                youtubeUrl,
-                xpReward: Number(xpReward),
-                orderIndex: Number(orderIndex)
-              }
-            });
-          } catch (e) {}
-        }
+        // Edit lesson directly in PostgreSQL
+        updatedLesson = await prisma.academyLesson.update({
+          where: { id },
+          data: {
+            moduleId,
+            title,
+            description,
+            youtubeUrl,
+            xpReward: Number(xpReward),
+            orderIndex: Number(orderIndex)
+          }
+        });
       } else {
-        // Create
+        // Create lesson directly in PostgreSQL
         const newId = "less_" + Math.random().toString(36).substring(2);
-        updatedLesson = {
-          id: newId,
-          moduleId,
-          title,
-          description,
-          youtubeUrl,
-          xpReward: Number(xpReward) || 100,
-          orderIndex: Number(orderIndex) || 1
-        };
-        inMemoryAcademyLessons.push(updatedLesson);
-
-        if (isDatabaseConnected() && prisma) {
-          try {
-            await prisma.academyLesson.create({
-              data: {
-                id: newId,
-                moduleId,
-                title,
-                description,
-                youtubeUrl,
-                xpReward: Number(xpReward) || 100,
-                orderIndex: Number(orderIndex) || 1
-              }
-            });
-          } catch (e) {}
-        }
+        updatedLesson = await prisma.academyLesson.create({
+          data: {
+            id: newId,
+            moduleId,
+            title,
+            description,
+            youtubeUrl,
+            xpReward: Number(xpReward) || 100,
+            orderIndex: Number(orderIndex) || 1
+          }
+        });
       }
 
       res.json({ success: true, updatedLesson });
     } catch (err) {
-      res.status(200).json({ success: false, error: "Falha ao salvar lição." });
+      console.error("Erro ao salvar lição no banco:", err);
+      res.status(500).json({ success: false, error: "Falha ao salvar lição no banco PostgreSQL." });
     }
   });
 
@@ -14717,32 +14584,27 @@ async function startServer() {
     try {
       const { id } = req.body;
       const prisma = getPrisma() as any;
-
-      // Remove lessons under this module
-      for (let i = inMemoryAcademyLessons.length - 1; i >= 0; i--) {
-        if (inMemoryAcademyLessons[i].moduleId === id) {
-          inMemoryAcademyLessons.splice(i, 1);
-        }
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Conexão com banco de dados indisponível." });
       }
 
-      // Remove module
-      const idx = inMemoryAcademyModules.findIndex(m => m.id === id);
-      if (idx !== -1) {
-        inMemoryAcademyModules.splice(idx, 1);
-      }
-
-      if (isDatabaseConnected() && prisma) {
-        try {
-          await prisma.academyLesson.deleteMany({ where: { moduleId: id } });
-          await prisma.academyModule.delete({ where: { id } });
-        } catch (e) {
-          console.error("Error deleting module/lessons in DB:", e);
-        }
-      }
+      // Cascading deletion of lessons and then module
+      await prisma.$transaction(async (tx: any) => {
+        await tx.academyProgress.deleteMany({
+          where: {
+            lesson: {
+              moduleId: id
+            }
+          }
+        });
+        await tx.academyLesson.deleteMany({ where: { moduleId: id } });
+        await tx.academyModule.delete({ where: { id } });
+      });
 
       res.json({ success: true });
     } catch (err) {
-      res.status(200).json({ success: false, error: "Falha ao excluir módulo." });
+      console.error("Erro ao excluir módulo do banco:", err);
+      res.status(500).json({ success: false, error: "Falha ao excluir módulo no PostgreSQL." });
     }
   });
 
@@ -14751,23 +14613,19 @@ async function startServer() {
     try {
       const { id } = req.body;
       const prisma = getPrisma() as any;
-
-      const idx = inMemoryAcademyLessons.findIndex(l => l.id === id);
-      if (idx !== -1) {
-        inMemoryAcademyLessons.splice(idx, 1);
+      if (!prisma) {
+        return res.status(520).json({ success: false, error: "Conexão com banco de dados indisponível." });
       }
 
-      if (isDatabaseConnected() && prisma) {
-        try {
-          await prisma.academyLesson.delete({ where: { id } });
-        } catch (e) {
-          console.error("Error deleting lesson in DB:", e);
-        }
-      }
+      await prisma.$transaction(async (tx: any) => {
+        await tx.academyProgress.deleteMany({ where: { lessonId: id } });
+        await tx.academyLesson.delete({ where: { id } });
+      });
 
       res.json({ success: true });
     } catch (err) {
-      res.status(200).json({ success: false, error: "Falha ao excluir lição." });
+      console.error("Erro ao excluir lição do banco:", err);
+      res.status(500).json({ success: false, error: "Falha ao excluir lição no PostgreSQL." });
     }
   });
 
