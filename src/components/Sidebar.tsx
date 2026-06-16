@@ -70,6 +70,9 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Prática Conversacional IA', icon: Sword, badge: 'Exclusivo' }] : []),
     { id: 'market', label: 'Loja JiuSpeak (JT)', icon: Store, badge: 'Loja' },
     { id: 'subscriptions', label: 'Central de JiuTickets', icon: Coins, badge: 'Premium' },
+    ...(user.role === 'professor' || user.role === 'teacher' || user.role === 'admin' || user.role === 'INSTRUCTOR' || user.role === 'TEACHER' ? [
+      { id: 'creator', label: 'Painel do Professor', icon: Award, badge: 'Docente' }
+    ] : []),
     ...(user.role === 'admin' ? [
       { id: 'admin', label: 'Painel Admin', icon: ShieldAlert, badge: 'Auditoria' }
     ] : []),

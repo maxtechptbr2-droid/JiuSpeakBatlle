@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { UserProfile, SocialPost, Comment, BeltRank } from '../types';
+import { normalizeYoutubeUrl } from '../utils/youtube';
 import { AvatarWithFrame } from './AvatarWithFrame';
 import { SocialStories } from './SocialStories';
 import { SocialRankings } from './SocialRankings';
@@ -1118,20 +1119,15 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                             {(() => {
                               const url = post.videoUrl.trim();
                               if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                                const match = url.match(regExp);
-                                const id = (match && match[2].length === 11) ? match[2] : "";
-                                if (id) {
-                                  return (
-                                    <iframe 
-                                      src={`https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&enablejsapi=1`}
-                                      title="Embedded video"
-                                      className="w-full h-full border-0"
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                      allowFullScreen
-                                    />
-                                  );
-                                }
+                                return (
+                                  <iframe 
+                                    src={`${normalizeYoutubeUrl(url)}?rel=0&modestbranding=1&enablejsapi=1`}
+                                    title="Embedded video"
+                                    className="w-full h-full border-0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                  />
+                                );
                               } else if (url.includes('vimeo.com')) {
                                 const match = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/);
                                 const id = match ? match[3] : '';

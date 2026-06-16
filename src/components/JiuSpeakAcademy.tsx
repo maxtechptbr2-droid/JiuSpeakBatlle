@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import * as lessonsData from '../data/lessonsData';
+import { normalizeYoutubeUrl, getYoutubeId } from '../utils/youtube';
 
 interface JiuSpeakAcademyProps {
   activeSubTab: string;
@@ -286,16 +287,8 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
 
   useEffect(() => {
     if (activeLesson) {
-      const parseYoutubeId = (url: string | undefined): string => {
-        if (!url) return "";
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : "";
-      };
-
       const lesson = { ...activeLesson, videoUrl: activeLesson.youtubeUrl };
-      const yId = parseYoutubeId(activeLesson.youtubeUrl);
-      const embedUrl = yId ? `https://www.youtube-nocookie.com/embed/${yId}?autoplay=1&mute=1&rel=0&modestbranding=1&enablejsapi=1` : "";
+      const embedUrl = normalizeYoutubeUrl(activeLesson.youtubeUrl) ? `${normalizeYoutubeUrl(activeLesson.youtubeUrl)}?autoplay=1&mute=1&rel=0&modestbranding=1&enablejsapi=1` : "";
 
       console.log("Lessons Source:", lessonsData);
       console.log("Current Lesson:", lesson);

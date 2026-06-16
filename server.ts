@@ -12695,83 +12695,97 @@ app.get("/api/social/network", authenticateToken, async (req: any, res: any) => 
   }
 });
 
-// 6. TOGGLE FOLLOW OF ANOTHER PROFILE
+// 6. TOGGLE FOLLOW OF ANOTHER PROFILE (Unified Database-Authoritative Implementation)
 app.post("/api/social/users/:userId/follow", authenticateToken, async (req: any, res: any) => {
   try {
     const { userId } = req.params;
     const currentUserId = req.user.id;
     const prisma = getPrisma();
-    let isFollowingNow = false;
+
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
 
     if (currentUserId === userId) {
       return res.status(400).json({ error: "Você não pode seguir a si mesmo!" });
     }
 
-    if (prisma) {
-      try {
-        const existingFollow = await prisma.follower.findFirst({
-          where: { followerId: currentUserId, followingId: userId }
+    const existingFollow = await prisma.follower.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: userId
+        }
+      }
+    });
+
+    let isFollowingNow = false;
+
+    if (existingFollow) {
+      // Unfollow Transaction Securely
+      await prisma.$transaction(async (tx) => {
+        await tx.follower.delete({
+          where: {
+            followerId_followingId: {
+              followerId: currentUserId,
+              followingId: userId
+            }
+          }
         });
 
-        if (existingFollow) {
-          await prisma.follower.delete({
-            where: { id: existingFollow.id }
-          });
-          isFollowingNow = false;
-        } else {
-          await prisma.follower.create({
-            data: { followerId: currentUserId, followingId: userId }
-          });
-          isFollowingNow = true;
+        await tx.user.update({
+          where: { id: currentUserId },
+          data: { followingCount: { decrement: 1 } }
+        });
 
-          // Notify target user
-          await prisma.notification.create({
-            data: {
-              userId: userId,
-              title: "Novo Seguidor!",
-              content: `${req.user.name} começou a seguir seu perfil e treinos.`,
-              type: "FOLLOWER",
-              linkTo: "social"
-            }
-          });
-        }
-
-        return res.json({ isFollowing: isFollowingNow, message: isFollowingNow ? "Você começou a seguir este atleta!" : "Você parou de seguir este atleta." });
-      } catch (dbErr) {
-        console.warn("Prisma follow execution failed, falling back to memory:", dbErr);
-      }
-    }
-
-    // Memory Fallback
-    const existingIdx = inMemoryFollowers.findIndex(f => f.followerId === currentUserId && f.followingId === userId);
-    if (existingIdx > -1) {
-      inMemoryFollowers.splice(existingIdx, 1);
+        await tx.user.update({
+          where: { id: userId },
+          data: { followersCount: { decrement: 1 } }
+        });
+      });
       isFollowingNow = false;
     } else {
-      inMemoryFollowers.push({
-        id: `follow_${Date.now()}`,
-        followerId: currentUserId,
-        followingId: userId,
-        createdAt: new Date().toISOString()
+      // Follow Transaction Securely
+      await prisma.$transaction(async (tx) => {
+        await tx.follower.create({
+          data: {
+            followerId: currentUserId,
+            followingId: userId
+          }
+        });
+
+        await tx.user.update({
+          where: { id: currentUserId },
+          data: { followingCount: { increment: 1 } }
+        });
+
+        await tx.user.update({
+          where: { id: userId },
+          data: { followersCount: { increment: 1 } }
+        });
+
+        // Save real-time DB notification for target user inside tx
+        await tx.notification.create({
+          data: {
+            userId: userId,
+            title: "Novo Seguidor!",
+            content: `${req.user.name} começou a seguir seu perfil e treinos.`,
+            type: "FOLLOWER",
+            linkTo: "social"
+          }
+        });
       });
       isFollowingNow = true;
-
-      // Notify memory target user
-      inMemorySocialNotifications.unshift({
-        id: `notif_${Date.now()}_${Math.random()}`,
-        userId: userId,
-        title: "Novo Seguidor!",
-        content: `${req.user.name} começou a seguir seu perfil e treinos.`,
-        type: "FOLLOWER",
-        isRead: false,
-        linkTo: "social",
-        createdAt: new Date().toISOString()
-      });
     }
 
-    res.json({ isFollowing: isFollowingNow, message: isFollowingNow ? "Você começou a seguir este atleta!" : "Você parou de seguir este atleta." });
+    return res.json({ 
+      isFollowing: isFollowingNow, 
+      message: isFollowingNow ? "Você começou a seguir este atleta!" : "Você parou de seguir este atleta." 
+    });
+
   } catch (error) {
-    res.status(500).json({ error: "Erro ao atualizar relacionamento de seguidor." });
+    console.error("✗ Error toggling social follow in database:", error);
+    res.status(500).json({ error: "Erro ao atualizar relacionamento de seguidor no PostgreSQL." });
   }
 });
 
@@ -12885,10 +12899,54 @@ app.post("/api/social/posts/:postId/react", authenticateToken, async (req: any, 
     } else {
       usersList.push(userId);
       reactedNow = true;
+    }
 
+    // Persist to PostgreSQL Likes database to prevent any loss, enforce uniqueness and update counters
+    const prisma = getPrisma();
+    if (prisma) {
+      try {
+        const existingLike = await prisma.like.findUnique({
+          where: {
+            postId_userId: { postId, userId }
+          }
+        });
+
+        if (reactedNow) {
+          if (!existingLike) {
+            await prisma.like.create({
+              data: { postId, userId }
+            });
+          }
+        } else {
+          // Check if user still has other interaction emojis remaining for this post
+          let hasOtherReaction = false;
+          const postRecs = inMemoryReactions[postId] || {};
+          Object.entries(postRecs).forEach(([k, val]: [string, any]) => {
+            if (val && val.includes(userId)) {
+              hasOtherReaction = true;
+            }
+          });
+          if (!hasOtherReaction && existingLike) {
+            await prisma.like.delete({
+              where: { id: existingLike.id }
+            });
+          }
+        }
+
+        // Keep upvotesCount database column fully synchronized helper
+        const totalLikes = await prisma.like.count({ where: { postId } });
+        await prisma.socialPost.update({
+          where: { id: postId },
+          data: { upvotesCount: totalLikes }
+        });
+      } catch (dbErr) {
+        console.warn("✗ Prisma reaction postgres sync failed:", dbErr);
+      }
+    }
+
+    if (reactedNow) {
       // Trigger socket real-time notifications to the author of the post
       try {
-        const prisma = getPrisma();
         let authorId: string | null = null;
         let postCategory = "treino";
 
@@ -13456,6 +13514,456 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
   } catch (error) {
     console.error("Error computing rankings in database or simulation:", error);
     res.status(500).json({ error: "Erro ao computar ratings e rankings de tatame." });
+  }
+});
+
+// =========================================================================
+// REAL ACADEMIES AND BJJ TEAMS REST ENDPOINTS (PostgreSQL + Prisma Persistent)
+// =========================================================================
+
+// Helper middleware for admin verification
+const verifyAdminUser = (req: any, res: any, next: any) => {
+  if (req.user && (req.user.role === 'ADMIN' || String(req.user.role).toUpperCase() === 'ADMIN')) {
+    return next();
+  }
+  return res.status(403).json({ error: "Acesso restrito apenas para Administradores do JiuSpeak." });
+};
+
+// 1. GLOBALS / GLOBAL TEAMS
+app.get(["/api/academy/globals", "/api/academy/global-teams"], async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ success: true, globalTeams: [] });
+    const teams = await prisma.globalTeam.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json({ success: true, globalTeams: teams });
+  } catch (error) {
+    console.error("GET global teams error:", error);
+    res.status(500).json({ error: "Erro ao obter equipes globais do banco." });
+  }
+});
+
+app.post(["/api/academy/globals", "/api/academy/global-teams"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    
+    const { name, logo, logoUrl, bio, description, website, instagram, countryOrigin, foundedYear } = req.body;
+    if (!name) return res.status(400).json({ error: "O nome da equipe é obrigatório." });
+
+    const slug = name.toLowerCase().trim()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, "") // remove accents
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+
+    const newTeam = await prisma.globalTeam.create({
+      data: {
+        name,
+        slug,
+        logo: logoUrl || logo || "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=200",
+        description: description || bio || "",
+        website: website || "",
+        instagram: instagram || "",
+        countryOrigin: countryOrigin || "Brasil",
+        foundedYear: foundedYear ? parseInt(foundedYear) : null,
+        verified: true
+      }
+    });
+
+    res.json({ success: true, globalTeam: newTeam });
+  } catch (error) {
+    console.error("POST global team error:", error);
+    res.status(500).json({ error: "Erro ao criar equipe global." });
+  }
+});
+
+app.put(["/api/academy/globals/:id", "/api/academy/global-teams/:id"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+    const { name, logo, logoUrl, bio, description, website, instagram, countryOrigin, foundedYear } = req.body;
+
+    const dataToUpdate: any = {};
+    if (name) {
+      dataToUpdate.name = name;
+      dataToUpdate.slug = name.toLowerCase().trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)+/g, "");
+    }
+    if (logoUrl !== undefined || logo !== undefined) dataToUpdate.logo = logoUrl || logo;
+    if (bio !== undefined || description !== undefined) dataToUpdate.description = bio || description;
+    if (website !== undefined) dataToUpdate.website = website;
+    if (instagram !== undefined) dataToUpdate.instagram = instagram;
+    if (countryOrigin !== undefined) dataToUpdate.countryOrigin = countryOrigin;
+    if (foundedYear !== undefined) dataToUpdate.foundedYear = foundedYear ? parseInt(foundedYear) : null;
+
+    const updated = await prisma.globalTeam.update({
+      where: { id },
+      data: dataToUpdate
+    });
+
+    res.json({ success: true, globalTeam: updated });
+  } catch (error) {
+    console.error("PUT global team error:", error);
+    res.status(500).json({ error: "Erro ao atualizar equipe global." });
+  }
+});
+
+app.delete(["/api/academy/globals/:id", "/api/academy/global-teams/:id"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+
+    await prisma.globalTeam.delete({ where: { id } });
+    res.json({ success: true, message: "Equipe global removida com sucesso!" });
+  } catch (error) {
+    console.error("DELETE global team error:", error);
+    res.status(500).json({ error: "Erro ao remover equipe global." });
+  }
+});
+
+app.post(["/api/academy/globals/:id/verify", "/api/academy/global-teams/:id/verify"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+
+    const team = await prisma.globalTeam.findUnique({ where: { id } });
+    if (!team) return res.status(404).json({ error: "Equipe não encontrada." });
+
+    const updated = await prisma.globalTeam.update({
+      where: { id },
+      data: { verified: !team.verified }
+    });
+
+    res.json({ success: true, verified: updated.verified });
+  } catch (error) {
+    console.error("POST verify team error:", error);
+    res.status(500).json({ error: "Erro ao alternar verificação da equipe." });
+  }
+});
+
+
+// 2. ACADEMY BRANCHES
+app.get("/api/academy/branches", async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ success: true, branches: [] });
+    const branches = await prisma.academyBranch.findMany({
+      include: { globalTeam: true },
+      orderBy: { name: 'asc' }
+    });
+    res.json({ success: true, branches });
+  } catch (error) {
+    console.error("GET branches error:", error);
+    res.status(500).json({ error: "Erro ao obter filiais do banco." });
+  }
+});
+
+app.get("/api/academy/global-teams/:id/branches", async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json([]);
+    const { id } = req.params;
+    const branches = await prisma.academyBranch.findMany({
+      where: { globalTeamId: id },
+      orderBy: { name: 'asc' }
+    });
+    res.json(branches);
+  } catch (error) {
+    console.error("GET team branches error:", error);
+    res.status(500).json({ error: "Erro ao carregar filiais." });
+  }
+});
+
+app.post("/api/academy/branches", authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    
+    const { name, city, state, country, headProfessor, globalTeamId, address, logo, website } = req.body;
+    if (!name || !globalTeamId) return res.status(400).json({ error: "Nome e Equipe Global são obrigatórios." });
+
+    const slug = `${name.toLowerCase().trim()}-${Date.now().toString().slice(-4)}`
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-");
+
+    const newBranch = await prisma.academyBranch.create({
+      data: {
+        name,
+        slug,
+        globalTeamId,
+        city: city || "",
+        state: state || "",
+        country: country || "Brasil",
+        headProfessor: headProfessor || "",
+        address: address || "",
+        logo: logo || "",
+        verified: true
+      },
+      include: { globalTeam: true }
+    });
+
+    res.json({ success: true, branch: newBranch });
+  } catch (error) {
+    console.error("POST branch error:", error);
+    res.status(500).json({ error: "Erro ao criar filial de academia." });
+  }
+});
+
+app.put("/api/academy/branches/:id", authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+    const { name, city, state, country, headProfessor, address, logo } = req.body;
+
+    const dataToUpdate: any = {};
+    if (name) {
+      dataToUpdate.name = name;
+      dataToUpdate.slug = `${name.toLowerCase().trim()}-${id.slice(-4)}`
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-");
+    }
+    if (city !== undefined) dataToUpdate.city = city;
+    if (state !== undefined) dataToUpdate.state = state;
+    if (country !== undefined) dataToUpdate.country = country;
+    if (headProfessor !== undefined) dataToUpdate.headProfessor = headProfessor;
+    if (address !== undefined) dataToUpdate.address = address;
+    if (logo !== undefined) dataToUpdate.logo = logo;
+
+    const updated = await prisma.academyBranch.update({
+      where: { id },
+      data: dataToUpdate,
+      include: { globalTeam: true }
+    });
+
+    res.json({ success: true, branch: updated });
+  } catch (error) {
+    console.error("PUT branch error:", error);
+    res.status(500).json({ error: "Erro ao atualizar filial de academia." });
+  }
+});
+
+app.delete("/api/academy/branches/:id", authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+
+    await prisma.academyBranch.delete({ where: { id } });
+    res.json({ success: true, message: "Filial removida com sucesso!" });
+  } catch (error) {
+    console.error("DELETE branch error:", error);
+    res.status(500).json({ error: "Erro ao remover filial." });
+  }
+});
+
+app.post("/api/academy/branches/:id/verify", authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+
+    const branch = await prisma.academyBranch.findUnique({ where: { id } });
+    if (!branch) return res.status(404).json({ error: "Filial não encontrada." });
+
+    const updated = await prisma.academyBranch.update({
+      where: { id },
+      data: { verified: !branch.verified }
+    });
+
+    res.json({ success: true, verified: updated.verified });
+  } catch (error) {
+    console.error("POST verify branch error:", error);
+    res.status(500).json({ error: "Erro ao alternar verificação da filial." });
+  }
+});
+
+app.post("/api/academy/branches/:id/transfer", authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+    const { targetGlobalId } = req.body;
+
+    if (!targetGlobalId) {
+      return res.status(400).json({ error: "Id da equipe alvo é obrigatório." });
+    }
+
+    const updated = await prisma.academyBranch.update({
+      where: { id },
+      data: { globalTeamId: targetGlobalId },
+      include: { globalTeam: true }
+    });
+
+    res.json({ success: true, branch: updated });
+  } catch (error) {
+    console.error("POST transfer branch error:", error);
+    res.status(500).json({ error: "Erro ao transferir filial para outra escuderia." });
+  }
+});
+
+
+// 3. INDEPENDENT ACADEMIES
+app.get(["/api/academy/independents", "/api/academy/independent-academies"], async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ success: true, independentAcademies: [] });
+    const independents = await prisma.independentAcademy.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json({ success: true, independentAcademies: independents });
+  } catch (error) {
+    console.error("GET independents error:", error);
+    res.status(500).json({ error: "Erro ao obter academias independentes do banco." });
+  }
+});
+
+app.post(["/api/academy/independents", "/api/academy/independent-academies"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    
+    const { name, city, state, country, headProfessor, address, logo, website } = req.body;
+    if (!name) return res.status(400).json({ error: "Nome da academia é obrigatório." });
+
+    const newInd = await prisma.independentAcademy.create({
+      data: {
+        name,
+        city: city || "",
+        state: state || "",
+        country: country || "Brasil",
+        headProfessor: headProfessor || "",
+        address: address || "",
+        logo: logo || "",
+        verified: true
+      }
+    });
+
+    res.json({ success: true, independentAcademy: newInd });
+  } catch (error) {
+    console.error("POST independent error:", error);
+    res.status(500).json({ error: "Erro ao criar academia independente." });
+  }
+});
+
+app.put(["/api/academy/independents/:id", "/api/academy/independent-academies/:id"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+    const { name, city, state, country, headProfessor, address, logo } = req.body;
+
+    const dataToUpdate: any = {};
+    if (name) dataToUpdate.name = name;
+    if (city !== undefined) dataToUpdate.city = city;
+    if (state !== undefined) dataToUpdate.state = state;
+    if (country !== undefined) dataToUpdate.country = country;
+    if (headProfessor !== undefined) dataToUpdate.headProfessor = headProfessor;
+    if (address !== undefined) dataToUpdate.address = address;
+    if (logo !== undefined) dataToUpdate.logo = logo;
+
+    const updated = await prisma.independentAcademy.update({
+      where: { id },
+      data: dataToUpdate
+    });
+
+    res.json({ success: true, independentAcademy: updated });
+  } catch (error) {
+    console.error("PUT independent error:", error);
+    res.status(500).json({ error: "Erro ao atualizar academia independente." });
+  }
+});
+
+app.delete(["/api/academy/independents/:id", "/api/academy/independent-academies/:id"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+
+    await prisma.independentAcademy.delete({ where: { id } });
+    res.json({ success: true, message: "Academia independente removida com sucesso!" });
+  } catch (error) {
+    console.error("DELETE independent error:", error);
+    res.status(500).json({ error: "Erro ao remover academia independente." });
+  }
+});
+
+app.post(["/api/academy/independents/:id/verify", "/api/academy/independent-academies/:id/verify"], authenticateToken, verifyAdminUser, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
+    const { id } = req.params;
+
+    const ind = await prisma.independentAcademy.findUnique({ where: { id } });
+    if (!ind) return res.status(404).json({ error: "Academia não encontrada." });
+
+    const updated = await prisma.independentAcademy.update({
+      where: { id },
+      data: { verified: !ind.verified }
+    });
+
+    res.json({ success: true, verified: updated.verified });
+  } catch (error) {
+    console.error("POST verify independent error:", error);
+    res.status(500).json({ error: "Erro ao alternar verificação da academia." });
+  }
+});
+
+
+// 4. AGGREGATED GROUPS AND STATS
+app.get("/api/academy/all-groups", async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.json({ success: true, globalTeams: [], independentAcademies: [] });
+
+    const globalTeams = await prisma.globalTeam.findMany({ orderBy: { name: 'asc' } });
+    const independentAcademies = await prisma.independentAcademy.findMany({ orderBy: { name: 'asc' } });
+
+    res.json({
+      success: true,
+      globalTeams,
+      independentAcademies
+    });
+  } catch (error) {
+    console.error("GET all groups error:", error);
+    res.status(500).json({ error: "Erro ao carregar equipes e academias do banco." });
+  }
+});
+
+app.get("/api/academy/stats", async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.json({
+        success: true,
+        totalEquipes: 10,
+        totalFiliais: 42,
+        totalCompetidores: 125,
+        totalPostagens: 48
+      });
+    }
+
+    const totalEquipes = await prisma.globalTeam.count();
+    const totalFiliais = await prisma.academyBranch.count();
+    const totalCompetidores = await prisma.user.count();
+    const totalPostagens = await prisma.socialPost.count();
+
+    res.json({
+      success: true,
+      totalEquipes,
+      totalFiliais,
+      totalCompetidores,
+      totalPostagens
+    });
+  } catch (error) {
+    console.error("GET stats error:", error);
+    res.status(500).json({ error: "Erro ao carregar estatísticas." });
   }
 });
 

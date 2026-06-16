@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { BELTS_RPG_DATA, Belt, Module, Mission, MissionStep, Exam, ExamQuestion } from '../content/index';
+import { normalizeYoutubeUrl } from '../utils/youtube';
 
 interface CareerModeProps {
   user: UserProfile;
@@ -1005,12 +1006,7 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
                             <div className="w-full aspect-video rounded-2xl overflow-hidden border border-zinc-850 bg-black relative shadow-lg">
                               {(step.content.videoUrl.includes('youtube.com') || step.content.videoUrl.includes('youtu.be') || step.content.videoUrl.includes('embed')) ? (
                                 <iframe
-                                  src={(() => {
-                                    const reg = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                                    const match = step.content.videoUrl.match(reg);
-                                    const id = (match && match[2].length === 11) ? match[2] : "";
-                                    return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&enablejsapi=1` : step.content.videoUrl;
-                                  })()}
+                                  src={normalizeYoutubeUrl(step.content.videoUrl)}
                                   title={step.title}
                                   className="w-full h-full border-0"
                                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
