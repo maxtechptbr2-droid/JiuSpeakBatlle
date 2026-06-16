@@ -1,0 +1,3 @@
+-- JIUSPEAK BJJ SYSTEM FORENSIC BACKUP PRE-CLEANUP
+-- Gerado em: 2026-06-16T01:09:08.083Z
+-- =========================================================

@@ -78,6 +78,10 @@ async function seedAcademyInDb() {
 }
 
 async function runSeed() {
+  if (process.env.ALLOW_DATABASE_SEED !== 'true') {
+    console.log('Seed bloqueado em produção');
+    process.exit(0);
+  }
   console.log("==================================================");
   console.log("   JIUSPEAK ENTERPRISE CENTRALIZED DATABASE SEED   ");
   console.log("==================================================");

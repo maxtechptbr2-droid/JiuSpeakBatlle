@@ -3,6 +3,10 @@ import { PrismaClient } from '../client';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.ALLOW_DATABASE_SEED !== 'true') {
+    console.log('Seed bloqueado em produção');
+    process.exit(0);
+  }
   console.log('--- SEEDING JIUSPEAK ASSET FACTORY RECOGNIZED VALUES ---');
 
   // 1. Seed Categories

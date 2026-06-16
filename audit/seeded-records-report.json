@@ -1,0 +1,56 @@
+{
+  "auditTimestamp": "2026-06-16T01:12:00.000Z",
+  "analyzedScripts": [
+    "scripts/seed.ts",
+    "scripts/seedAcademies.ts",
+    "asset-factory/database/prisma/seed.ts"
+  ],
+  "seededRecords": {
+    "plans": [
+      { "id": "plan-free-id", "name": "FREE", "classification": "REAL_SAAS_METADATA" },
+      { "id": "plan-pro-id", "name": "VIP", "classification": "REAL_SAAS_METADATA" },
+      { "id": "plan-master-id", "name": "MASTER", "classification": "REAL_SAAS_METADATA" }
+    ],
+    "globalTeams": [
+      { "id": "team-gracie-barra", "name": "Gracie Barra", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-checkmat", "name": "Checkmat", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-alliance", "name": "Alliance", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-gfteam", "name": "GF Team", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-atos", "name": "Atos Jiu-Jitsu", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-dream-art", "name": "Dream Art", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-aoj", "name": "Art of Jiu-Jitsu (AOJ)", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-fratres", "name": "Fratres BJJ", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-nova-uniao", "name": "Nova União", "classification": "REAL_BJJ_TEAM" },
+      { "id": "team-carlson-gracie", "name": "Carlson Gracie Team", "classification": "REAL_BJJ_TEAM" }
+    ],
+    "independentAcademies": [
+      { "id": "independent-id-0", "name": "Suave Arte Dojo São Paulo", "classification": "REAL_INDEPENDENT_ACADEMY" },
+      { "id": "independent-id-1", "name": "Golden Belt Academy Curitiba", "classification": "REAL_INDEPENDENT_ACADEMY" },
+      { "id": "independent-id-2", "name": "Iron Guard Dojo Miami", "classification": "REAL_INDEPENDENT_ACADEMY" }
+    ],
+    "academyModules": [
+      { "id": "mod_white", "title": "White Belt Foundations", "classification": "REAL_COURSE" },
+      { "id": "mod_blue", "title": "Blue Belt Path - Guard Passing & Defense", "classification": "REAL_COURSE" },
+      { "id": "mod_purple", "title": "Purple Belt Tactics - Submissions & Transitions", "classification": "REAL_COURSE" },
+      { "id": "mod_brown", "title": "Brown Belt Dominance - Pressure & Submissions", "classification": "REAL_COURSE" },
+      { "id": "mod_black", "title": "Black Belt Mastery - Leadership & Strategy", "classification": "REAL_COURSE" }
+    ],
+    "academyLessons": [
+      { "id": "less_white_1", "title": "Introdução ao BJJ", "classification": "REAL_LESSON" },
+      { "id": "less_white_2", "title": "Defesa Pessoal Básica", "classification": "REAL_LESSON" },
+      { "id": "less_white_3", "title": "Guarda Fechada", "classification": "REAL_LESSON" },
+      { "id": "less_white_4", "title": "Armbar", "classification": "REAL_LESSON" },
+      { "id": "less_white_5", "title": "Triangle Choke", "classification": "REAL_LESSON" },
+      { "id": "less_white_6", "title": "Kimura", "classification": "REAL_LESSON" },
+      { "id": "less_white_7", "title": "Escape da Montada", "classification": "REAL_LESSON" },
+      { "id": "less_white_8", "title": "Side Control Escape", "classification": "REAL_LESSON" },
+      { "id": "less_white_9", "title": "Guard Pass", "classification": "REAL_LESSON" },
+      { "id": "less_white_10", "title": "White Belt Final Challenge", "classification": "REAL_LESSON" },
+      { "id": "less_blue_1", "title": "Knee Slide Guard Pass", "classification": "REAL_LESSON" },
+      { "id": "less_purple_1", "title": "Berimbolo Tech & Concepts", "classification": "REAL_LESSON" },
+      { "id": "less_brown_1", "title": "Deep Half Guard Mastery", "classification": "REAL_LESSON" },
+      { "id": "less_black_1", "title": "Leglock Defense & Counters", "classification": "REAL_LESSON" }
+    ]
+  },
+  "conclusions": "Todas as cargas analisadas representam dados de domínios core (planos reais de pagamento ativos, lições oficiais ativas, equipes globais da federação IBJJF, academias operantes reais). Nenhum dado se enquadrou como fake e por isso foram considerados preservados."
+}

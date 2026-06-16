@@ -1,6 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 
 export async function seedAcademyHierarchy(prisma: PrismaClient) {
+  if (process.env.ALLOW_DATABASE_SEED !== 'true') {
+    console.log('Seed bloqueado em produção');
+    process.exit(0);
+  }
   console.log("🌱 [SEED MODULE: ACADEMY HIERARCHY] Iniciando UPSERT seguro da hierarquia de academias...");
   try {
     // 1. Definição das 10 Equipes Globais Oficiais da IBJJF
