@@ -1669,6 +1669,19 @@ export const authStore = {
     const role = data.role || 'ATHLETE';
     const approved = data.isAdminApproved !== undefined ? data.isAdminApproved : (role !== 'ADMIN');
 
+    const nameLower = String(data.name || "").toLowerCase().trim();
+    const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+    const isForbidden = forbiddenPatterns.some(pat => {
+      if (pat.endsWith("_")) {
+        return nameLower.startsWith(pat) || formattedEmail.startsWith(pat) || nameLower.includes(pat) || formattedEmail.includes(pat);
+      }
+      return nameLower.includes(pat) || formattedEmail.includes(pat);
+    });
+
+    if (isForbidden) {
+      throw new Error("Uso de termos fictícios, robôs ou contas de testes é permanentemente proibido no sistema oficial.");
+    }
+
     try {
       const prisma = getPrisma();
       if (!prisma) {

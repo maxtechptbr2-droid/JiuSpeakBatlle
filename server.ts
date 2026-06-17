@@ -4759,6 +4759,20 @@ app.post("/api/admin/users/create", authenticateToken, requireRole(["ADMIN"]), a
     const hash = await bcrypt.hash(password, 10);
     const lowercaseEmail = email.toLowerCase().trim();
     
+    // permanent blocking patterns for bot/test/fake accounts
+    const nameLower = String(name).toLowerCase().trim();
+    const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+    const isForbidden = forbiddenPatterns.some(pat => {
+      if (pat.endsWith("_")) {
+        return nameLower.startsWith(pat) || lowercaseEmail.startsWith(pat) || nameLower.includes(pat) || lowercaseEmail.includes(pat);
+      }
+      return nameLower.includes(pat) || lowercaseEmail.includes(pat);
+    });
+
+    if (isForbidden) {
+      return res.status(400).json({ error: "Nome ou e-mail inválido. Uso de termos fictícios, robôs ou contas de testes é permanentemente proibido no sistema oficial." });
+    }
+
     // Check duplication
     const userExists = await prisma.user.findFirst({ where: { email: lowercaseEmail } });
     if (userExists) {

@@ -317,7 +317,7 @@ export function SocialRankings({ user }: SocialRankingsProps) {
                 ⏳
               </div>
               <div className="space-y-1">
-                <p className="font-semibold text-slate-200">Ranking ainda não possui atletas cadastrados.</p>
+                <p className="font-semibold text-slate-200">Ranking ainda não possui atletas.</p>
                 <p className="text-[10px] text-slate-500">Registre os primeiros praticantes reais no tatame virtual para iniciar o ranking oficial da temporada.</p>
               </div>
             </motion.div>

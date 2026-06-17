@@ -201,6 +201,7 @@ export class RankingService {
             select: {
               id: true,
               name: true,
+              email: true,
               elo: true,
               belt: true,
               level: true,
@@ -209,6 +210,20 @@ export class RankingService {
             }
           });
           queryUsers = rawUsers.map((u) => patchUserObjectWithDeterministicAvatar({ ...u }));
+
+          const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+          queryUsers = queryUsers.filter((u: any) => {
+            const nameLower = String(u.name || "").toLowerCase();
+            const emailLower = String(u.email || "").toLowerCase();
+            
+            const isForbidden = forbiddenPatterns.some(pat => {
+              if (pat.endsWith("_")) {
+                return nameLower.startsWith(pat) || emailLower.startsWith(pat) || nameLower.includes(pat) || emailLower.includes(pat);
+              }
+              return nameLower.includes(pat) || emailLower.includes(pat);
+            });
+            return !isForbidden;
+          });
 
           // 2. Fetch cosmetic frames currently equipped (batch request)
           const userIds = queryUsers.map((u) => u.id);
