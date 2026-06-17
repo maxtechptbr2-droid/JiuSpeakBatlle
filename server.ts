@@ -12310,6 +12310,81 @@ function getRelativeTime(timestampStr: string | Date): string {
   }
 }
 
+// GET GLOBAL COMMUNITY STATS (REAL DATA)
+app.get("/api/social/global-stats", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(500).json({ error: "Banco de dados indisponível." });
+    }
+
+    // 1. Count online users from userSession
+    const onlineAtletasCount = await prisma.userSession.count({
+      where: { isOnline: true }
+    });
+
+    // 2. Count active countries from User table where country is not null and not empty
+    const countriesGroup = await prisma.user.groupBy({
+      by: ["country"],
+      where: {
+        country: { not: null },
+        OR: [
+          { country: { not: "" } }
+        ]
+      }
+    });
+
+    const activeCountriesCount = countriesGroup.filter(c => c.country && c.country.trim() !== "").length;
+
+    // 3. Get recent activities from SocialPost table
+    const recentPosts = await prisma.socialPost.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            belt: true,
+            profilePhoto: true,
+            avatar: true
+          }
+        }
+      }
+    });
+
+    const recentActivities = recentPosts.map((post: any) => {
+      let actionText = "";
+      const contentExcerpt = post.content.trim().length > 30 
+        ? `${post.content.trim().slice(0, 30)}...` 
+        : post.content.trim();
+      
+      if (post.category && post.category.startsWith("#")) {
+        actionText = `publicou em ${post.category}: "${contentExcerpt}"`;
+      } else {
+        actionText = `publicou: "${contentExcerpt}"`;
+      }
+
+      return {
+        id: post.id,
+        name: post.author?.name || "Atleta Anônimo",
+        action: actionText,
+        time: getRelativeTime(post.createdAt || new Date()),
+        belt: post.author?.belt || "WHITE"
+      };
+    });
+
+    res.json({
+      onlineAtletasCount,
+      activeCountries: activeCountriesCount,
+      recentActivities
+    });
+  } catch (error: any) {
+    console.error("Error retrieving global social stats:", error);
+    res.status(500).json({ error: "Erro interno ao obter estatísticas globais." });
+  }
+});
+
 // 1. GET ALL SOCIAL POSTS
 app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
   try {

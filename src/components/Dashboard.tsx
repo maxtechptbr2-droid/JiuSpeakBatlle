@@ -159,14 +159,6 @@ export default function Dashboard({
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
 
-  const STATIC_LEADERBOARD = [
-    { id: '1', name: 'Rafael Almeida', elo: 2450, belt: 'Preto', level: 32, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Rafael%20Almeida&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant01' },
-    { id: '2', name: 'Ana Beatriz', elo: 2320, belt: 'Marrom', level: 28, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Ana%20Beatriz&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant02' },
-    { id: '3', name: 'Matheus Lima', elo: 2210, belt: 'Marrom', level: 25, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Matheus%20Lima&backgroundColor=ffffff&radius=50&mouth=smile&eyebrows=variant06' },
-    { id: '4', name: 'Maria Clara', elo: 2190, belt: 'Preto', level: 35, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Maria%20Clara&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant03' },
-    { id: '5', name: 'Lucas Monteiro', elo: 2120, belt: 'Preto', level: 30, avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Lucas%20Monteiro&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant08' }
-  ];
-
   useEffect(() => {
     const fetchBoard = async () => {
       setLoadingLeaderboard(true);
@@ -177,13 +169,13 @@ export default function Dashboard({
           if (data.leaderboard && data.leaderboard.length > 0) {
             setLeaderboard(data.leaderboard.slice(0, 5));
           } else {
-            setLeaderboard(STATIC_LEADERBOARD);
+            setLeaderboard([]);
           }
         } else {
-          setLeaderboard(STATIC_LEADERBOARD);
+          setLeaderboard([]);
         }
       } catch (e) {
-        setLeaderboard(STATIC_LEADERBOARD);
+        setLeaderboard([]);
       } finally {
         setLoadingLeaderboard(false);
       }
@@ -653,75 +645,81 @@ export default function Dashboard({
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {leaderboard.map((player, idx) => {
-                    const isUser = player.name === user.name;
-                    const rankIcons = ['🥇', '🥈', '🥉'];
-                    const isTop3 = idx < 3;
-                    
-                    return (
-                      <div 
-                        key={player.id || idx}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 font-sans ${
-                          isUser 
-                            ? 'bg-blue-500/10 border-blue-500/35 ring-1 ring-blue-500/20' 
-                            : 'bg-zinc-950/60 border-zinc-900/60 hover:border-zinc-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {/* Position Indicator */}
-                          <div className="w-6 h-6 flex items-center justify-center font-mono text-xs font-black text-zinc-400">
-                            {isTop3 ? rankIcons[idx] : `#${idx + 1}`}
-                          </div>
-                          
-                          {/* Avatar picture */}
-                          <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-sm border border-zinc-700 shadow-sm relative shrink-0 overflow-hidden">
-                            {(player.profilePhoto || player.avatar) && ((player.profilePhoto || player.avatar).startsWith('http') || (player.profilePhoto || player.avatar).startsWith('/') || (player.profilePhoto || player.avatar).includes('.') || (player.profilePhoto || player.avatar).includes('api.dicebear.com')) ? (
-                              <img 
-                                src={player.profilePhoto || player.avatar} 
-                                alt={player.name} 
-                                className="w-full h-full object-cover rounded-full" 
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              player.profilePhoto || player.avatar || '🥋'
-                            )}
-                            {/* Belt status badge overlay */}
-                            <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-950 ${
-                              (player.belt === 'Branca' || String(player.belt).toUpperCase() === 'WHITE') ? 'bg-zinc-100 border-zinc-300' :
-                              (player.belt === 'Azul' || String(player.belt).toUpperCase() === 'BLUE') ? 'bg-blue-500' :
-                              (player.belt === 'Roxa' || String(player.belt).toUpperCase() === 'PURPLE') ? 'bg-purple-600' :
-                              (player.belt === 'Marrom' || String(player.belt).toUpperCase() === 'BROWN') ? 'bg-amber-700' : 'bg-red-650'
-                            }`} />
+                  {leaderboard.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-zinc-500 font-sans italic" id="empty-leaderboard-dojo">
+                      Nenhum atleta ranqueado ainda.
+                    </div>
+                  ) : (
+                    leaderboard.map((player, idx) => {
+                      const isUser = player.name === user.name;
+                      const rankIcons = ['🥇', '🥈', '🥉'];
+                      const isTop3 = idx < 3;
+                      
+                      return (
+                        <div 
+                          key={player.id || idx}
+                          className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 transition-all duration-300 font-sans ${
+                            isUser 
+                              ? 'bg-blue-500/10 border-blue-500/35 ring-1 ring-blue-500/20' 
+                              : 'bg-zinc-950/60 border-zinc-900/60 hover:border-zinc-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {/* Position Indicator */}
+                            <div className="w-6 h-6 flex items-center justify-center font-mono text-xs font-black text-zinc-400">
+                              {isTop3 ? rankIcons[idx] : `#${idx + 1}`}
+                            </div>
+                            
+                            {/* Avatar picture */}
+                            <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-sm border border-zinc-700 shadow-sm relative shrink-0 overflow-hidden">
+                              {(player.profilePhoto || player.avatar) && ((player.profilePhoto || player.avatar).startsWith('http') || (player.profilePhoto || player.avatar).startsWith('/') || (player.profilePhoto || player.avatar).includes('.') || (player.profilePhoto || player.avatar).includes('api.dicebear.com')) ? (
+                                <img 
+                                  src={player.profilePhoto || player.avatar} 
+                                  alt={player.name} 
+                                  className="w-full h-full object-cover rounded-full" 
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                player.profilePhoto || player.avatar || '🥋'
+                              )}
+                              {/* Belt status badge overlay */}
+                              <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-950 ${
+                                (player.belt === 'Branca' || String(player.belt).toUpperCase() === 'WHITE') ? 'bg-zinc-100 border-zinc-300' :
+                                (player.belt === 'Azul' || String(player.belt).toUpperCase() === 'BLUE') ? 'bg-blue-500' :
+                                (player.belt === 'Roxa' || String(player.belt).toUpperCase() === 'PURPLE') ? 'bg-purple-600' :
+                                (player.belt === 'Marrom' || String(player.belt).toUpperCase() === 'BROWN') ? 'bg-amber-700' : 'bg-red-650'
+                              }`} />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className={`text-xs font-bold truncate ${isUser ? 'text-blue-300' : 'text-zinc-200'}`}>
+                                {player.name}
+                                {isUser && <span className="ml-1 text-[8px] font-black uppercase text-blue-400 bg-blue-500/10 px-1 rounded font-mono">Você</span>}
+                              </p>
+                              <span className="text-[9px] text-zinc-500 block font-mono">
+                                Nível {player.level || 1} • {
+                                  (() => {
+                                    const b = String(player.belt || '').toUpperCase();
+                                    if (b === 'WHITE') return 'Branca';
+                                    if (b === 'BLUE') return 'Azul';
+                                    if (b === 'PURPLE') return 'Roxa';
+                                    if (b === 'BROWN') return 'Marrom';
+                                    if (b === 'BLACK') return 'Preta';
+                                    return player.belt || 'Branca';
+                                  })()
+                                }
+                              </span>
+                            </div>
                           </div>
 
-                          <div className="min-w-0">
-                            <p className={`text-xs font-bold truncate ${isUser ? 'text-blue-300' : 'text-zinc-200'}`}>
-                              {player.name}
-                              {isUser && <span className="ml-1 text-[8px] font-black uppercase text-blue-400 bg-blue-500/10 px-1 rounded font-mono">Você</span>}
-                            </p>
-                            <span className="text-[9px] text-zinc-500 block font-mono">
-                              Nível {player.level || 1} • {
-                                (() => {
-                                  const b = String(player.belt || '').toUpperCase();
-                                  if (b === 'WHITE') return 'Branca';
-                                  if (b === 'BLUE') return 'Azul';
-                                  if (b === 'PURPLE') return 'Roxa';
-                                  if (b === 'BROWN') return 'Marrom';
-                                  if (b === 'BLACK') return 'Preta';
-                                  return player.belt || 'Branca';
-                                })()
-                              }
-                            </span>
+                          {/* score ELO */}
+                          <div className="text-right whitespace-nowrap bg-blue-500/5 px-2 py-1 rounded border border-blue-500/10 font-bold text-xs text-blue-400 font-mono">
+                            {player.elo} <span className="text-[9px] text-zinc-500">ELO</span>
                           </div>
                         </div>
-
-                        {/* score ELO */}
-                        <div className="text-right whitespace-nowrap bg-blue-500/5 px-2 py-1 rounded border border-blue-500/10 font-bold text-xs text-blue-400 font-mono">
-                          {player.elo} <span className="text-[9px] text-zinc-500">ELO</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               )}
             </div>

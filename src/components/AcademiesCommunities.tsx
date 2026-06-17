@@ -91,6 +91,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
 
   // Loading/Fetching state
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Data retrieved from backend API
   const [globalTeams, setGlobalTeams] = useState<GlobalTeam[]>([]);
@@ -129,6 +130,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
   // Fetch initial option lists on focus
   const loadDataFromBackend = async () => {
     setLoading(true);
+    setError(null);
     try {
       // 1. Fetch dropdown options
       const optRes = await fetch('/api/academy/all-groups');
@@ -154,7 +156,8 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         setBranches(optData.branches);
       }
     } catch (error: any) {
-      console.warn("Could not load backend academy groups natively, utilizing premium client-side engine:", error);
+      console.warn("Could not load backend academy groups natively:", error);
+      setError("Falha ao carregar os dados das Academias de BJJ. Verifique sua conexão ou tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -433,7 +436,21 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
           </div>
         )}
 
-        {!loading && (
+        {/* ERROR SCREEN CONTAINER */}
+        {error && !loading && (
+          <div className="bg-red-950/20 border border-red-900/40 p-12 rounded-xl flex flex-col justify-center items-center gap-4 text-slate-300">
+            <div className="text-red-500 font-bold">&#9888; Erro ao Carregar Dados</div>
+            <div className="text-xs font-mono text-center max-w-md">{error}</div>
+            <button 
+              onClick={loadDataFromBackend}
+              className="mt-2 px-4 py-2 bg-red-950/40 border border-red-500/30 text-red-200 text-xs rounded hover:bg-red-900/50 transition-all font-mono uppercase"
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && (
           <div>
             <AnimatePresence mode="wait">
               
@@ -843,6 +860,11 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
 
                     <div className="divide-y divide-slate-900">
                       {/* CATEGORY: GLOBAL TEAMS */}
+                      {activeRankCategory === 'global' && (rankingsPayload?.worldTeams || globalTeams).length === 0 && (
+                        <div className="p-8 text-center text-sm text-slate-500 font-mono">
+                          Nenhuma academia encontrada.
+                        </div>
+                      )}
                       {activeRankCategory === 'global' && (rankingsPayload?.worldTeams || globalTeams).map((item, idx) => {
                         const specs = getBadgeSpecs(item.verified, item.totalPoints);
                         return (
@@ -881,6 +903,11 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                       })}
 
                       {/* CATEGORY: BRANCHES */}
+                      {activeRankCategory === 'regional' && (rankingsPayload?.branchesFiltered || branches).length === 0 && (
+                        <div className="p-8 text-center text-sm text-slate-500 font-mono">
+                          Nenhuma academia encontrada.
+                        </div>
+                      )}
                       {activeRankCategory === 'regional' && (rankingsPayload?.branchesFiltered || branches).map((item, idx) => {
                         const specs = getBadgeSpecs(item.verified, item.points);
                         return (
@@ -919,6 +946,11 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                       })}
 
                       {/* CATEGORY: INDEPENDENT ACADEMIES */}
+                      {activeRankCategory === 'independent' && (rankingsPayload?.independentAcademies || independentAcademies).length === 0 && (
+                        <div className="p-8 text-center text-sm text-slate-500 font-mono">
+                          Nenhuma academia encontrada.
+                        </div>
+                      )}
                       {activeRankCategory === 'independent' && (rankingsPayload?.independentAcademies || independentAcademies).map((item, idx) => {
                         const specs = getBadgeSpecs(item.verified, item.points);
                         return (
