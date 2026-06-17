@@ -108,6 +108,7 @@ model User {
   following               Follower[]        @relation("UserFollowing")
   refreshTokens           RefreshToken[]
   academyProgress         AcademyProgress[]
+  examAttempts            ExamAttempt[]
   paymentTransactions     PaymentTransaction[]
 
   // Marketplace Domain Virtual Relations (Additive, no physical User columns added)
@@ -746,6 +747,10 @@ model AcademyLesson {
   title       String
   description String
   youtubeUrl  String
+  pdfUrl      String?
+  audioUrl    String?
+  attachments String?
+  exercises   String?
   xpReward    Int    @default(100)
   orderIndex  Int
 
@@ -760,6 +765,39 @@ model AcademyProgress {
   completedAt DateTime?
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model AcademyExam {
+  id              String         @id @default(cuid())
+  moduleId        String         @unique
+  title           String
+  minPassingGrade Float          @default(70.0)
+  maxAttempts     Int            @default(3)
+  questions       ExamQuestion[]
+  attempts        ExamAttempt[]
+}
+
+model ExamQuestion {
+  id            String      @id @default(cuid())
+  examId        String
+  questionText  String
+  options       String[]
+  correctAnswer String
+  exam          AcademyExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model ExamAttempt {
+  id          String      @id @default(cuid())
+  examId      String
+  userId      String
+  score       Float
+  passed      Boolean
+  attemptedAt DateTime    @default(now())
+  exam        AcademyExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([examId])
 }
 
 model UserSession {

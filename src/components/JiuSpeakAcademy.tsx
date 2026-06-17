@@ -331,6 +331,15 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
   const [quizScore, setQuizScore] = useState<number | null>(null);
 
+  // Official Modular Exams states
+  const [activeExam, setActiveExam] = useState<any>(null);
+  const [examActive, setExamActive] = useState(false);
+  const [examQuestionIndex, setExamQuestionIndex] = useState(0);
+  const [examAnswers, setExamAnswers] = useState<Record<string, string>>({});
+  const [examScore, setExamScore] = useState<number | null>(null);
+  const [examPassed, setExamPassed] = useState<boolean | null>(null);
+  const [examLoading, setExamLoading] = useState(false);
+
   // Arena PvP State
   const [pvpQuizActive, setPvpQuizActive] = useState(false);
   const [pvpQuestionIndex, setPvpQuestionIndex] = useState(0);
@@ -702,6 +711,87 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
       showToast(`▶ Modo Curso Iniciado: ${target.title}`, "success");
     } else {
       showToast("Aulas indisponíveis neste módulo.", "error");
+    }
+  };
+
+  const startOfficialModuleExam = async (moduleId: string) => {
+    try {
+      setExamLoading(true);
+      showToast("📝 Carregando Exame Oficial do Módulo...", "info");
+      const res = await fetch(`/api/academy/exams/${moduleId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && data.exam) {
+        setActiveExam(data.exam);
+        setExamQuestionIndex(0);
+        setExamAnswers({});
+        setExamScore(null);
+        setExamPassed(null);
+        setExamActive(true);
+        showToast("📖 Prova Oficial iniciada! Responda com atenção.", "success");
+      } else {
+        showToast(data.error || "Erro ao obter detalhes regulamentares da avaliação.", "error");
+      }
+    } catch (err) {
+      showToast("Falha técnica de conexão ao iniciar o Exame.", "error");
+    } finally {
+      setExamLoading(false);
+    }
+  };
+
+  const selectExamAnswer = (questionId: string, optionText: string) => {
+    setExamAnswers(prev => ({
+      ...prev,
+      [questionId]: optionText
+    }));
+  };
+
+  const advanceExamQuestion = (questionsCount: number) => {
+    if (examQuestionIndex + 1 < questionsCount) {
+      setExamQuestionIndex(prev => prev + 1);
+    } else {
+      submitOfficialModuleExamFinal();
+    }
+  };
+
+  const submitOfficialModuleExamFinal = async () => {
+    if (!activeExam) return;
+    try {
+      setExamLoading(true);
+      showToast("📤 Enviando gabarito de respostas...", "info");
+      const res = await fetch(`/api/academy/exams/${activeExam.id}/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ answers: examAnswers })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setExamScore(data.score);
+        setExamPassed(data.passed);
+        if (data.passed) {
+          showToast(`🏆 APROVADO! Aproveitamento de ${data.score}%! +1000 XP creditados!`, "success");
+          updateUser({
+            xp: user.xp + 1000,
+            unlockedAchievements: [...(user.unlockedAchievements || []), data.unlockedBadge || (activeExam.moduleId === "mod_white" ? "White Belt Graduate" : "Advanced Graduate")]
+          });
+          fetchModules();
+        } else {
+          showToast(`🚨 Reprovado! Aproveitamento de ${data.score}%. Tente novamente!`, "error");
+        }
+      } else {
+        showToast(data.error || "Erro ao computar resultados da prova.", "error");
+      }
+    } catch (err) {
+      showToast("Erro ao processar gabarito de respostas.", "error");
+    } finally {
+      setExamLoading(false);
     }
   };
 
@@ -3202,12 +3292,29 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
           <h2 className="font-display font-black text-2xl text-white tracking-tight leading-none mt-1">{currentModule.title}</h2>
           <p className="text-xs text-slate-400 font-sans max-w-2xl leading-relaxed mt-1.5">{currentModule.description}</p>
           
-          <div className="pt-3">
+          <div className="pt-3 flex items-center gap-3 flex-wrap">
             <button
               onClick={startCourseMode}
               className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs uppercase cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform duration-100 shadow-lg shadow-violet-600/10"
             >
               ▶ Iniciar Curso
+            </button>
+
+            <button
+              onClick={() => {
+                if (completedCount < totalCount) {
+                  showToast("🚨 Bloqueado! Você deve assistir a todas as aulas do módulo antes de prestar o Exame Oficial da graduação.", "error");
+                  return;
+                }
+                startOfficialModuleExam(currentModule.id);
+              }}
+              className={`flex items-center gap-2 px-5 py-2.5 font-black rounded-xl text-xs uppercase duration-100 shadow-lg ${
+                completedCount === totalCount
+                  ? "bg-gradient-to-r from-yellow-500 via-amber-600 to-orange-500 text-slate-950 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                  : "bg-slate-800 text-slate-500 border border-slate-750 cursor-not-allowed"
+              }`}
+            >
+              🏆 Prestar Exame Oficial do Módulo
             </button>
           </div>
         </div>
@@ -3297,6 +3404,150 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
           })}
         </div>
       </div>
+
+       {/* Overlay Official Modular Exam Modal Panel */}
+      {examActive && activeExam && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4" id="official-modular-exam-panel">
+          <div className="bg-slate-900 border border-yellow-500/40 rounded-3xl max-w-2xl w-full p-6 space-y-6 animate-scaleIn shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-500 via-amber-600 to-orange-500" />
+            
+            <div className="flex justify-between items-center border-b border-slate-850 pb-4">
+              <div>
+                <span className="text-[10px] font-mono text-yellow-500 uppercase tracking-widest font-extrabold block">Exame Regulamentar Oficial de Graduação</span>
+                <h3 className="font-display font-black text-lg text-white mt-1">{activeExam.title}</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setExamActive(false);
+                  setActiveExam(null);
+                  setExamScore(null);
+                  setExamPassed(null);
+                }}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[11px] rounded-lg transition-colors cursor-pointer"
+              >
+                Desistir do Exame
+              </button>
+            </div>
+
+            {examScore !== null ? (
+              <div className="text-center space-y-6 py-8">
+                <span className="text-6xl block">🏅</span>
+                <h4 className="font-display font-black text-2xl text-white">Avaliação Concluída!</h4>
+                
+                <div className="max-w-md mx-auto space-y-2">
+                  <p className="text-sm text-slate-350">
+                    Seu aproveitamento técnico curricular foi de <strong className="text-xl text-yellow-400 font-mono">{examScore}%</strong>.
+                  </p>
+                  <p className="text-xs text-slate-500 font-sans">
+                    A nota mínima para aprovação e outorga do certificado é de <strong className="text-slate-400">{activeExam.minPassingGrade || 70}%</strong>.
+                  </p>
+                </div>
+
+                {examPassed ? (
+                  <div className="space-y-4 p-5 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl max-w-md mx-auto">
+                    <p className="text-emerald-400 text-sm font-black flex items-center justify-center gap-1.5">
+                      ✓ APROVADO COMPROVADO!
+                    </p>
+                    <p className="text-xs text-slate-400 font-sans leading-relaxed">
+                      Parabéns, guerreiro! Sua fluência e conhecimentos táticos foram validados. Você recebeu o prêmio regulamentar de <strong className="text-violet-300">+1000 XP</strong> e seu diploma oficial de graduação foi autenticado e liberado na aba <strong>Certificados</strong>!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 p-5 bg-red-950/20 border border-red-500/30 rounded-2xl max-w-md mx-auto">
+                    <p className="text-red-400 text-sm font-black flex items-center justify-center gap-1.5">
+                      🚨 REPROVAÇÃO TÁTICA
+                    </p>
+                    <p className="text-xs text-slate-400 font-sans leading-relaxed">
+                      Infelizmente você não atingiu a pontuação mínima de proficiência. Revise os termos chave do módulo, assista aos manuais de vídeo e tente novamente sua graduação!
+                    </p>
+                  </div>
+                )}
+
+                <div className="pt-4">
+                  <button
+                    onClick={() => {
+                      setExamActive(false);
+                      setActiveExam(null);
+                      setExamScore(null);
+                      setExamPassed(null);
+                    }}
+                    className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs uppercase cursor-pointer transition-all"
+                  >
+                    Voltar para o Tatame
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* Progress bar */}
+                <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-850">
+                  <div 
+                    className="bg-yellow-500 h-full transition-all duration-300"
+                    style={{ width: `${((examQuestionIndex) / (activeExam.questions || []).length) * 100}%` }}
+                  />
+                </div>
+
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-mono text-yellow-500 uppercase tracking-wider font-extrabold">QUESTÃO {examQuestionIndex + 1} DE {(activeExam.questions || []).length}</span>
+                    <span className="text-[10px] font-mono text-slate-500">Nota Mínima: {activeExam.minPassingGrade || 70}%</span>
+                  </div>
+
+                  <p className="text-sm md:text-base text-slate-200 font-bold leading-relaxed">
+                    {activeExam.questions[examQuestionIndex]?.questionText}
+                  </p>
+                  
+                  <div className="grid grid-cols-1 gap-3 pt-2">
+                    {(activeExam.questions[examQuestionIndex]?.options || []).map((option: string, idx: number) => {
+                      const isSelected = examAnswers[activeExam.questions[examQuestionIndex]?.id] === option;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => selectExamAnswer(activeExam.questions[examQuestionIndex]?.id, option)}
+                          className={`w-full text-left p-4 rounded-xl border transition-all text-xs font-sans cursor-pointer ${
+                            isSelected
+                              ? "bg-yellow-500/10 border-yellow-500/80 text-yellow-300 ring-1 ring-yellow-500/20"
+                              : "bg-slate-950 hover:bg-slate-800/80 border-slate-855 hover:border-slate-750 text-slate-300"
+                          }`}
+                        >
+                          <span className="font-mono text-[10px] text-slate-500 uppercase mr-2">[ Opção {idx + 1} ]</span>
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t border-slate-850">
+                    <button
+                      disabled={examQuestionIndex === 0}
+                      onClick={() => setExamQuestionIndex(prev => prev - 1)}
+                      className={`px-4 py-2 font-mono text-xs font-bold rounded-lg ${
+                        examQuestionIndex === 0
+                          ? "bg-slate-850/45 text-slate-650 cursor-not-allowed"
+                          : "bg-slate-800 text-slate-355 hover:bg-slate-700 cursor-pointer"
+                      }`}
+                    >
+                      ← Questão Anterior
+                    </button>
+
+                    <button
+                      disabled={examLoading || !examAnswers[activeExam.questions[examQuestionIndex]?.id]}
+                      onClick={() => advanceExamQuestion((activeExam.questions || []).length)}
+                      className={`px-6 py-2 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${
+                        !examAnswers[activeExam.questions[examQuestionIndex]?.id]
+                          ? "bg-slate-800 text-slate-550 cursor-not-allowed"
+                          : "bg-gradient-to-r from-yellow-500 to-amber-600 text-slate-950 cursor-pointer hover:scale-[1.02]"
+                      }`}
+                    >
+                      {examQuestionIndex + 1 === (activeExam.questions || []).length ? "Finalizar Avaliação 🏁" : "Avançar Questão →"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Overlay Graduation Quiz Modal Panel */}
       {quizActive && activeLesson && (

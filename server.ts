@@ -5291,6 +5291,126 @@ app.post("/api/admin/users/transfer", authenticateToken, requireRole(["ADMIN"]),
   }
 });
 
+// 13.4.1 BULK CLEANUP OF SUSPICIOUS / AUDIT / TEST / FAKE AND FIGHTER_ USERS
+app.post("/api/admin/users/cleanup-suspicious", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    let removedCount = 0;
+    const deletedUserDetails: { id: string; name: string; email: string }[] = [];
+
+    if (isDatabaseConnected() && prisma) {
+      // Find suspicious profiles that are NOT administrators
+      const suspiciousUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { name: { contains: "Fighter_", mode: "insensitive" } },
+            { name: { contains: "test", mode: "insensitive" } },
+            { email: { contains: "audit", mode: "insensitive" } },
+            { email: { contains: "test", mode: "insensitive" } },
+            { email: { contains: "fake", mode: "insensitive" } }
+          ],
+          NOT: {
+            role: { in: ["ADMIN_ROLE", "ADMIN", "admin", "SUPER_ADMIN", "super_admin"] },
+            id: req.user.id
+          }
+        },
+        select: { id: true, name: true, email: true }
+      });
+
+      if (suspiciousUsers.length > 0) {
+        const uIds = suspiciousUsers.map(u => u.id);
+
+        await prisma.$transaction(async (tx) => {
+          // Cascade and delete related dependencies first safely to handle any non-foreign-key or non-cascade constraints
+          await tx.userSession.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.academyProgress.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.userProfile.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.userModeration.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.paymentTransaction.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.userFollower.deleteMany({
+            where: {
+              OR: [
+                { followerId: { in: uIds } },
+                { followingId: { in: uIds } }
+              ]
+            }
+          });
+          await tx.socialFeed.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.socialShare.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.certificate.deleteMany({ where: { userId: { in: uIds } } });
+
+          // Interactive Social layers (Comments / Likes / Posts count cascades)
+          await tx.comment.deleteMany({ where: { authorId: { in: uIds } } });
+          await tx.like.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.socialPost.deleteMany({ where: { authorId: { in: uIds } } });
+
+          // Payment logs & balances
+          await tx.wallet.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.payment.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.paymentLog.deleteMany({ where: { userId: { in: uIds } } });
+
+          // Final User Deletion (Hard purge)
+          await tx.user.deleteMany({
+            where: {
+              id: { in: uIds }
+            }
+          });
+        });
+
+        removedCount = suspiciousUsers.length;
+        deletedUserDetails.push(...suspiciousUsers);
+
+        // Mirror cleanup inside inMemoryUsers store
+        const { inMemoryUsers } = await import("./server/authStore");
+        suspiciousUsers.forEach(u => {
+          inMemoryUsers.delete(u.id);
+        });
+      }
+    } else {
+      // In-Memory Simulation Purge
+      const { inMemoryUsers } = await import("./server/authStore");
+      const suspiciousCached = Array.from(inMemoryUsers.values()).filter(u => {
+        const hasSuspicion = u.name.toLowerCase().includes("fighter_") || 
+                            u.name.toLowerCase().includes("test") ||
+                            u.email.toLowerCase().includes("audit") ||
+                            u.email.toLowerCase().includes("test") ||
+                            u.email.toLowerCase().includes("fake");
+        const isAdmin = ["ADMIN_ROLE", "ADMIN", "admin", "SUPER_ADMIN", "super_admin"].includes(String(u.role).toUpperCase());
+        return hasSuspicion && !isAdmin && u.id !== req.user.id;
+      });
+
+      suspiciousCached.forEach(u => {
+        inMemoryUsers.delete(u.id);
+        deletedUserDetails.push({ id: u.id, name: u.name, email: u.email });
+      });
+      removedCount = suspiciousCached.length;
+    }
+
+    // Write audit log if database is connected
+    if (prisma && isDatabaseConnected()) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `PURGA DE SEGURANÇA: Administrador removeu ${removedCount} contas suspeitas, fake e de testes do tatame central de produção.`,
+          ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+          userAgent: req.headers["user-agent"]
+        }
+      }).catch(() => {});
+    }
+
+    res.json({
+      success: true,
+      message: `Auditoria e purga concluídas. Removidos ${removedCount} usuários fake/testes.`,
+      deletedUsersCount: removedCount,
+      deletedUsers: deletedUserDetails
+    });
+  } catch (error: any) {
+    console.error("Erro na purga de segurança administrativa:", error);
+    res.status(500).json({ error: "Erro ao processar purga técnica de usuários fake: " + error.message });
+  }
+});
+
 // 13.5 ADVANCED INFO (Audit + Login history + active refresh tokens + device types / IP list + Purchases & Payments)
 app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
@@ -14722,35 +14842,12 @@ async function startServer() {
         });
       }
 
-      // Add XP using AuthStore updateUser to maintain synchronicity
-      const user = (await authStore.findById(userId)) as any;
-      if (user) {
-        const currentXp = user.xp || 0;
-        const currentLevel = user.level || 1;
-        const newXp = currentXp + xpReward;
-        let newLevel = currentLevel;
-
-        while (newXp >= newLevel * 1000) {
-          newLevel += 1;
-        }
-
-        const unlockedAchievements = user.unlockedAchievements || [];
-        // Grant White Belt Graduate badge on Lesson 10 completion
-        if (lessonId === "less_white_10" && !unlockedAchievements.includes("White Belt Graduate")) {
-          unlockedAchievements.push("White Belt Graduate");
-        }
-
-        await authStore.updateUser(userId, {
-          xp: newXp,
-          level: newLevel,
-          unlockedAchievements
-        } as any);
-      }
-
+      // Add progression record but DO NOT award XP or badges immediately
+      // Alunos não recebem XP ou certificado sem a aprovação na prova obrigatória do módulo
       res.json({
         success: true,
-        message: "Progresso salvo com sucesso!",
-        xpReward,
+        message: "Aula marcada como assistida! Conclua o exame obrigatório do módulo para receber sua recompensa de XP e certificado.",
+        xpReward: 0,
         completedAt: completedRecord.completedAt
       });
     } catch (error: any) {
@@ -15020,7 +15117,7 @@ async function startServer() {
   // 8. ADMIN CREATE OR EDIT AcademyLesson
   app.post("/api/admin/academy/lessons/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
     try {
-      const { id, moduleId, title, description, youtubeUrl, xpReward, orderIndex } = req.body;
+      const { id, moduleId, title, description, youtubeUrl, pdfUrl, audioUrl, attachments, exercises, xpReward, orderIndex } = req.body;
       const prisma = getPrisma() as any;
       if (!prisma) {
         return res.status(520).json({ success: false, error: "Conexão com banco de dados indisponível." });
@@ -15037,6 +15134,10 @@ async function startServer() {
             title,
             description,
             youtubeUrl,
+            pdfUrl: pdfUrl || null,
+            audioUrl: audioUrl || null,
+            attachments: attachments || null,
+            exercises: exercises || null,
             xpReward: Number(xpReward),
             orderIndex: Number(orderIndex)
           }
@@ -15051,6 +15152,10 @@ async function startServer() {
             title,
             description,
             youtubeUrl,
+            pdfUrl: pdfUrl || null,
+            audioUrl: audioUrl || null,
+            attachments: attachments || null,
+            exercises: exercises || null,
             xpReward: Number(xpReward) || 100,
             orderIndex: Number(orderIndex) || 1
           }
@@ -15143,6 +15248,314 @@ async function startServer() {
       res.json({ success: true });
     } catch (e) {
       res.json({ success: false });
+    }
+  });
+
+  // 12.1 ACADEMY EXAMINATION SYSTEM (OBLIGATORY ASSESSMENT FOR STUDENTS)
+  let inMemoryExams: any[] = [];
+  let inMemoryExamAttempts: any[] = [];
+
+  // Submit and evaluate modular exam
+  app.post("/api/academy/exams/:examId/submit", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { examId } = req.params;
+      const { answers } = req.body; // Record<questionId, selectedAnswerText>
+      const userId = req.user.id;
+      const prisma = getPrisma() as any;
+
+      let exam: any = null;
+      let attemptsCount = 0;
+
+      if (isDatabaseConnected() && prisma) {
+        exam = await prisma.academyExam.findUnique({
+          where: { id: examId },
+          include: { questions: true }
+        });
+        if (exam) {
+          attemptsCount = await prisma.examAttempt.count({
+            where: { examId, userId }
+          });
+        }
+      } else {
+        exam = inMemoryExams.find(e => e.id === examId);
+        if (exam) {
+          attemptsCount = inMemoryExamAttempts.filter(a => a.examId === examId && a.userId === userId).length;
+        }
+      }
+
+      // Default fallback assessment if none exists
+      if (!exam) {
+        exam = {
+          id: examId,
+          moduleId: examId.includes("white") ? "mod_white" : "mod_advanced",
+          title: "Avaliação Oficial do Tatame",
+          minPassingGrade: 70.0,
+          maxAttempts: 3,
+          questions: [
+            { id: "q1_" + examId, questionText: "Qual é a postura fundamental ao defender a guarda fechada?", options: ["Posturar mantendo a coluna alinhada e as mãos controlando o quadril", "Deitar sobre o oponente", "Segurar as lapelas dele e puxar", "Cruzar os próprios braços"], correctAnswer: "Posturar mantendo a coluna alinhada e as mãos controlando o quadril" },
+            { id: "q2_" + examId, questionText: "No sistema de pontos do Jiu-Jitsu, quantos pontos vale a montada?", options: ["4 pontos", "2 pontos", "3 pontos", "5 pontos"], correctAnswer: "4 pontos" },
+            { id: "q3_" + examId, questionText: "Ao receber uma chave de braço (Armlock), qual o indicador de desistência?", options: ["Dar três tapinhas leves (Tap out) físicos ou verbais", "Gritar alto", "Apenas resistir até o fim", "Piscar repetidamente"], correctAnswer: "Dar três tapinhas leves (Tap out) físicos ou verbais" }
+          ]
+        };
+      }
+
+      const limitAttempts = exam.maxAttempts || 3;
+      if (attemptsCount >= limitAttempts) {
+        return res.status(403).json({
+          success: false,
+          error: `Você atingiu o limite regulamentar de ${limitAttempts} tentativas para esta prova.`
+        });
+      }
+
+      const questions = exam.questions || [];
+      let correctCount = 0;
+
+      questions.forEach((q: any) => {
+        const submitted = answers[q.id];
+        if (submitted && String(submitted).trim().toLowerCase() === String(q.correctAnswer).trim().toLowerCase()) {
+          correctCount += 1;
+        }
+      });
+
+      const grade = questions.length > 0 ? (correctCount / questions.length) * 100 : 100;
+      const passed = grade >= (exam.minPassingGrade || 70.0);
+
+      let attemptRecord: any = {
+        id: "att_" + Math.random().toString(36).substring(2),
+        examId,
+        userId,
+        score: grade,
+        passed,
+        attemptedAt: new Date()
+      };
+
+      if (isDatabaseConnected() && prisma) {
+        attemptRecord = await prisma.examAttempt.create({
+          data: {
+            examId,
+            userId,
+            score: grade,
+            passed
+          }
+        });
+      } else {
+        inMemoryExamAttempts.push(attemptRecord);
+      }
+
+      let xpEarned = 0;
+      let unlockedBadge = null;
+
+      if (passed) {
+        xpEarned = 1000; // Passed exam XP Reward
+
+        // Award XP and certificate badge on AuthStore
+        const user = (await authStore.findById(userId)) as any;
+        if (user) {
+          const currentXp = user.xp || 0;
+          const currentLevel = user.level || 1;
+          const newXp = currentXp + xpEarned;
+          let newLevel = currentLevel;
+
+          while (newXp >= newLevel * 1000) {
+            newLevel += 1;
+          }
+
+          const unlockedAchievements = user.unlockedAchievements || [];
+          const badgeMeta = exam.moduleId === "mod_white" ? "White Belt Graduate" : "Advanced Graduate";
+          if (!unlockedAchievements.includes(badgeMeta)) {
+            unlockedAchievements.push(badgeMeta);
+            unlockedBadge = badgeMeta;
+          }
+
+          await authStore.updateUser(userId, {
+            xp: newXp,
+            level: newLevel,
+            unlockedAchievements
+          } as any);
+
+          if (isDatabaseConnected() && prisma) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: {
+                xp: newXp,
+                level: newLevel
+              }
+            });
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        passed,
+        score: grade,
+        correctCount,
+        totalQuestions: questions.length,
+        xpEarned,
+        unlockedBadge,
+        attemptsCount: attemptsCount + 1
+      });
+    } catch (error: any) {
+      console.error("Erro ao processar envio de avaliação:", error);
+      res.status(500).json({ success: false, error: "Falha técnica ao submeter respostas: " + error.message });
+    }
+  });
+
+  // Load module assessment criteria
+  app.get("/api/academy/exams/:moduleId", authenticateToken, async (req: any, res: any) => {
+    try {
+      const { moduleId } = req.params;
+      const userId = req.user.id;
+      const prisma = getPrisma() as any;
+
+      let exam: any = null;
+      let attemptsCount = 0;
+      let hasPassed = false;
+
+      if (isDatabaseConnected() && prisma) {
+        exam = await prisma.academyExam.findUnique({
+          where: { moduleId },
+          include: { questions: true }
+        });
+        if (exam) {
+          const attempts = await prisma.examAttempt.findMany({
+            where: { examId: exam.id, userId }
+          });
+          attemptsCount = attempts.length;
+          hasPassed = attempts.some((a: any) => a.passed);
+        }
+      } else {
+        exam = inMemoryExams.find(e => e.moduleId === moduleId);
+        if (exam) {
+          const attempts = inMemoryExamAttempts.filter(a => a.examId === exam.id && a.userId === userId);
+          attemptsCount = attempts.length;
+          hasPassed = attempts.some(a => a.passed);
+        }
+      }
+
+      if (!exam) {
+        // Fallback default exam
+        const defaultExamId = "exam_" + moduleId;
+        exam = {
+          id: defaultExamId,
+          moduleId,
+          title: `Prova Seletiva: Módulo ${moduleId === "mod_white" ? "Faixa Branca" : "Avançado"}`,
+          minPassingGrade: 70.0,
+          maxAttempts: 3,
+          questions: [
+            { id: "q1_" + moduleId, questionText: "Qual é a postura fundamental ao defender a guarda fechada?", options: ["Posturar mantendo a coluna alinhada e as mãos controlando o quadril", "Deitar sobre o oponente", "Segurar as lapelas dele e puxar", "Cruzar os próprios braços"] },
+            { id: "q2_" + moduleId, questionText: "No sistema de pontos do Jiu-Jitsu, quantos pontos vale a montada?", options: ["4 pontos", "2 pontos", "3 pontos", "5 pontos"] },
+            { id: "q3_" + moduleId, questionText: "Ao receber uma chave de braço (Armlock), qual o indicador de desistência?", options: ["Dar três tapinhas leves (Tap out) físicos ou verbais", "Gritar alto", "Apenas resistir até o fim", "Piscar repetidamente"] }
+          ]
+        };
+      } else {
+        // Sanitize out correctAnswers to avoid front-end sniffing cheats
+        exam = {
+          id: exam.id,
+          moduleId: exam.moduleId,
+          title: exam.title,
+          minPassingGrade: exam.minPassingGrade,
+          maxAttempts: exam.maxAttempts,
+          questions: (exam.questions || []).map((q: any) => ({
+            id: q.id,
+            questionText: q.questionText,
+            options: q.options
+          }))
+        };
+      }
+
+      res.json({
+        success: true,
+        exam,
+        attemptsCount,
+        maxAttempts: exam.maxAttempts || 3,
+        minPassingGrade: exam.minPassingGrade || 70.0,
+        hasPassed
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: "Erro ao obter prova: " + err.message });
+    }
+  });
+
+  // Save/Create Exams Admin API
+  app.post("/api/admin/academy/exams/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id, moduleId, title, minPassingGrade, maxAttempts, questions } = req.body;
+      const prisma = getPrisma() as any;
+
+      if (isDatabaseConnected() && prisma) {
+        let savedExam: any = null;
+        if (id) {
+          savedExam = await prisma.academyExam.update({
+            where: { id },
+            data: {
+              title,
+              minPassingGrade: Float32Array ? Number(minPassingGrade) : minPassingGrade,
+              maxAttempts: Number(maxAttempts)
+            }
+          });
+          await prisma.examQuestion.deleteMany({ where: { examId: id } });
+        } else {
+          savedExam = await prisma.academyExam.create({
+            data: {
+              moduleId,
+              title,
+              minPassingGrade: Number(minPassingGrade) || 70.0,
+              maxAttempts: Number(maxAttempts) || 3
+            }
+          });
+        }
+
+        if (questions && Array.isArray(questions)) {
+          for (const q of questions) {
+            await prisma.examQuestion.create({
+              data: {
+                examId: savedExam.id,
+                questionText: q.questionText,
+                options: q.options,
+                correctAnswer: q.correctAnswer
+              }
+            });
+          }
+        }
+        res.json({ success: true, exam: savedExam });
+      } else {
+        const examId = id || "exam_" + Math.random().toString(36).substring(2);
+        const inMemExam = {
+          id: examId,
+          moduleId,
+          title,
+          minPassingGrade: Number(minPassingGrade) || 70.0,
+          maxAttempts: Number(maxAttempts) || 3,
+          questions: (questions || []).map((q: any, idx: number) => ({
+            id: q.id || `q_${examId}_${idx}`,
+            questionText: q.questionText,
+            options: q.options,
+            correctAnswer: q.correctAnswer
+          }))
+        };
+        inMemoryExams = inMemoryExams.filter(e => e.id !== examId && e.moduleId !== moduleId);
+        inMemoryExams.push(inMemExam);
+        res.json({ success: true, exam: inMemExam });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: "Falha técnica ao salvar prova: " + err.message });
+    }
+  });
+
+  app.get("/api/admin/academy/exams", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const prisma = getPrisma() as any;
+      if (isDatabaseConnected() && prisma) {
+        const exams = await prisma.academyExam.findMany({
+          include: { questions: true }
+        });
+        res.json({ success: true, exams });
+      } else {
+        res.json({ success: true, exams: inMemoryExams });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
