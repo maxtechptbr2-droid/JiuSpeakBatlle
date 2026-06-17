@@ -2358,6 +2358,21 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       return res.status(400).json({ error: "Formato de e-mail inválido." });
     }
 
+    // permanent blocking patterns for bot/test/fake accounts
+    const nameLower = String(name).toLowerCase().trim();
+    const emailLower = emailStr.toLowerCase().trim();
+    const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+    const isForbidden = forbiddenPatterns.some(pat => {
+      if (pat.endsWith("_")) {
+        return nameLower.startsWith(pat) || emailLower.startsWith(pat) || nameLower.includes(pat) || emailLower.includes(pat);
+      }
+      return nameLower.includes(pat) || emailLower.includes(pat);
+    });
+
+    if (isForbidden) {
+      return res.status(400).json({ error: "Nome ou e-mail inválido. Uso de termos fictícios, robôs ou contas de testes é permanentemente proibido no sistema oficial." });
+    }
+
     if (emailStr.endsWith(".con")) {
       return res.status(400).json({ error: "E-mail inválido: se houver erro de digitação '.con', troque por '.com'." });
     }
@@ -5347,7 +5362,6 @@ app.post("/api/admin/users/cleanup-suspicious", authenticateToken, requireRole([
           // Payment logs & balances
           await tx.wallet.deleteMany({ where: { userId: { in: uIds } } });
           await tx.payment.deleteMany({ where: { userId: { in: uIds } } });
-          await tx.paymentLog.deleteMany({ where: { userId: { in: uIds } } });
 
           // Final User Deletion (Hard purge)
           await tx.user.deleteMany({
@@ -13653,10 +13667,11 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
     let allUsers: any[] = [];
 
     try {
-      allUsers = await prisma.user.findMany({
+      const dbUsers = await prisma.user.findMany({
         select: {
           id: true,
           name: true,
+          email: true,
           avatar: true,
           belt: true,
           level: true,
@@ -13665,6 +13680,21 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
           role: true,
           createdAt: true
         }
+      });
+
+      const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+      allUsers = dbUsers.filter((u: any) => {
+        const nameLower = String(u.name || "").toLowerCase();
+        const emailLower = String(u.email || "").toLowerCase();
+        
+        const isForbidden = forbiddenPatterns.some(pat => {
+          if (pat.endsWith("_")) {
+            return nameLower.startsWith(pat) || emailLower.startsWith(pat) || nameLower.includes(pat) || emailLower.includes(pat);
+          }
+          return nameLower.includes(pat) || emailLower.includes(pat);
+        });
+        
+        return !isForbidden;
       });
     } catch (dbErr) {
       console.error("✗ PostgreSQL indisponível:", dbErr);
@@ -14408,6 +14438,93 @@ app.get("/api/academy/stats", async (req: any, res: any) => {
   }
 });
 
+async function purgeFictionalUsers() {
+  const prisma = getPrisma();
+  if (!prisma || !isDatabaseConnected()) return;
+
+  try {
+    console.log("⚡ [PURGE ENGINE] Buscando contas suspeitas de usuários e robôs no PostgreSQL...");
+    
+    // Find all matching users
+    const dbUsers = await prisma.user.findMany({
+      select: { id: true, name: true, email: true }
+    });
+
+    const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+    const suspiciousUsers = dbUsers.filter((u: any) => {
+      const nameLower = String(u.name || "").toLowerCase();
+      const emailLower = String(u.email || "").toLowerCase();
+      
+      return forbiddenPatterns.some(pat => {
+        if (pat.endsWith("_")) {
+          return nameLower.startsWith(pat) || emailLower.startsWith(pat) || nameLower.includes(pat) || emailLower.includes(pat);
+        }
+        return nameLower.includes(pat) || emailLower.includes(pat);
+      });
+    });
+
+    if (suspiciousUsers.length === 0) {
+      console.log("✓ Nenhuma conta com padrão fictício encontrada no PostgreSQL.");
+      return;
+    }
+
+    const suspiciousIds = suspiciousUsers.map((u: any) => u.id);
+    console.log(`🧹 Iniciando remoção em cascata de ${suspiciousIds.length} contas fictícias/robôs detectadas...`);
+
+    // Cascade delete in a transactional chain
+    await prisma.$transaction([
+      prisma.userSession.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.userProfile.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.wallet.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.notification.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.userFollower.deleteMany({
+        where: {
+          OR: [
+            { followerId: { in: suspiciousIds } },
+            { followingId: { in: suspiciousIds } }
+          ]
+        }
+      }),
+      prisma.follower.deleteMany({
+        where: {
+          OR: [
+            { followerId: { in: suspiciousIds } },
+            { followingId: { in: suspiciousIds } }
+          ]
+        }
+      }),
+      prisma.like.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.comment.deleteMany({ where: { authorId: { in: suspiciousIds } } }),
+      prisma.socialPost.deleteMany({ where: { authorId: { in: suspiciousIds } } }),
+      prisma.socialFeed.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.socialShare.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.pvpMatch.deleteMany({
+        where: {
+          OR: [
+            { challengerId: { in: suspiciousIds } },
+            { defenderId: { in: suspiciousIds } },
+            { winnerId: { in: suspiciousIds } }
+          ]
+        }
+      }),
+      prisma.academyProgress.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.examAttempt.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.certificate.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.userAchievement.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.inventory.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.storeSale.deleteMany({ where: { buyerId: { in: suspiciousIds } } }),
+      prisma.marketplaceSale.deleteMany({ where: { buyerId: { in: suspiciousIds } } }),
+      prisma.marketplacePurchase.deleteMany({ where: { buyerId: { in: suspiciousIds } } }),
+      prisma.refreshToken.deleteMany({ where: { userId: { in: suspiciousIds } } }),
+      prisma.user.deleteMany({ where: { id: { in: suspiciousIds } } }),
+    ]);
+
+    console.log(`✓ Ciclo de remoção concluído com sucesso. ${suspiciousIds.length} contas fictícias eliminadas permanentemente.`);
+  } catch (error) {
+    console.error("✗ Falha técnica ao purgar contas falsas do banco:", error);
+  }
+}
+
 // =========================================================================
 // VITE DEV SERVER ENGINE INTEGRATION & SOCKET.IO SERVICES
 // =========================================================================
@@ -14417,16 +14534,23 @@ async function startServer() {
     await assertDatabaseConnection();
     await auditStoreProductColumns();
     await auditSocialPostColumns();
+    await purgeFictionalUsers();
+    
     if (isDatabaseConnected()) {
       const p = getPrisma();
       if (p) {
         const count = await p.globalTeam.count().catch(() => 0);
         if (count === 0) {
-          console.log("🌱 [ACADEMY AUTO SEEDS] Nenhuma equipe global encontrada no banco. Iniciando semeamento automático de academias...");
-          const { seedAcademyHierarchy } = await import("./scripts/seedAcademies");
-          await seedAcademyHierarchy(p);
-        } else {
-          console.log(`✓ [ACADEMY CHECK] Hierarquia de academias já semeada no banco (${count} equipes encontradas).`);
+          console.log("🌱 [ACADEMY CHECK] Nenhuma equipe global encontrada no banco. Criando equipe independente padrão...");
+          await p.globalTeam.create({
+            data: {
+              name: "Independente",
+              slug: "independente",
+              logo: "🥋",
+              description: "Equipe independente padrão de Jiu-Jitsu.",
+              verified: true
+            }
+          });
         }
       }
     }

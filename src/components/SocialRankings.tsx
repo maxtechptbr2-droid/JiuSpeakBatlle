@@ -317,23 +317,8 @@ export function SocialRankings({ user }: SocialRankingsProps) {
                 ⏳
               </div>
               <div className="space-y-1">
-                <p className="font-semibold text-slate-200">Nenhum atleta ranqueado ainda.</p>
-                <p className="text-[10px] text-slate-500">Registre os primeiros praticantes para iniciar o ranking oficial da temporada competitiva.</p>
-              </div>
-            </motion.div>
-          ) : rankings.length < 5 ? (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="py-12 px-6 text-center text-xs text-slate-400 font-sans waves bg-slate-950 rounded-xl border border-slate-850 flex flex-col items-center justify-center gap-3"
-            >
-              <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-xl">
-                ⏳
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-slate-200">Aguardando mais atletas para liberar ranking competitivo</p>
-                <p className="text-[10px] text-slate-500">O ranking requer ao menos 5 praticantes registrados para dar início à temporada competitiva oficial.</p>
+                <p className="font-semibold text-slate-200">Ranking ainda não possui atletas cadastrados.</p>
+                <p className="text-[10px] text-slate-500">Registre os primeiros praticantes reais no tatame virtual para iniciar o ranking oficial da temporada.</p>
               </div>
             </motion.div>
           ) : (
