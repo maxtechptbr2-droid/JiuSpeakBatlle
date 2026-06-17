@@ -133,6 +133,94 @@ export async function auditStoreProductColumns() {
   }
 }
 
+// -------------------------------------------------------------------------
+// DYNAMIC SOCIALPOST FIELD COMPATIBILITY SYSTEM (ANTI-DRIFT AUTOPILOT)
+// -------------------------------------------------------------------------
+export let physicalSocialPostColumns: string[] = [
+  "id", "authorId", "content", "category", "imageUrl", "upvotesCount", "createdAt", "updatedAt"
+];
+
+export async function auditSocialPostColumns() {
+  if (isDatabaseConnected()) {
+    try {
+      const prisma = getPrisma();
+      const cols: any = await prisma.$queryRawUnsafe(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'SocialPost'
+      `);
+      if (Array.isArray(cols) && cols.length > 0) {
+        physicalSocialPostColumns = cols.map((c: any) => c.column_name);
+        console.log("✓ [SocialPost Audit] Colunas físicas detectadas no banco de dados:", physicalSocialPostColumns);
+      }
+    } catch (err: any) {
+      console.error("⚠️ [SocialPost Audit Error] Falha de auditoria de colunas físicas de SocialPost:", err.message || err);
+    }
+  }
+}
+
+export function getSocialPostSelect(requesterId?: string) {
+  const hasVideoUrl = physicalSocialPostColumns.includes("videoUrl");
+  const hasImageUrl = physicalSocialPostColumns.includes("imageUrl");
+
+  const selectObj: Record<string, any> = {
+    id: true,
+    authorId: true,
+    content: true,
+    category: true,
+    upvotesCount: true,
+    createdAt: true,
+    updatedAt: true,
+    author: {
+      select: { 
+        id: true, 
+        name: true, 
+        avatar: true, 
+        belt: true, 
+        isVerified: true, 
+        role: true, 
+        globalTeamId: true, 
+        branchId: true, 
+        independentAcademyId: true, 
+        city: true, 
+        branch: { select: { name: true } }, 
+        independentAcademy: { select: { name: true } } 
+      }
+    },
+    likes: true,
+    comments: {
+      orderBy: { createdAt: "asc" },
+      include: {
+        author: {
+          select: { 
+            id: true, 
+            name: true, 
+            avatar: true, 
+            belt: true, 
+            isVerified: true, 
+            role: true, 
+            globalTeamId: true, 
+            branchId: true, 
+            independentAcademyId: true, 
+            city: true, 
+            branch: { select: { name: true } }, 
+            independentAcademy: { select: { name: true } } 
+          }
+        }
+      }
+    }
+  };
+
+  if (hasVideoUrl) {
+    selectObj.videoUrl = true;
+  }
+  if (hasImageUrl) {
+    selectObj.imageUrl = true;
+  }
+
+  return selectObj;
+}
+
 export function getStoreProductSelect() {
   if (physicalStoreProductColumns.length === 0) {
     return undefined;
@@ -3813,18 +3901,7 @@ app.get("/api/profile/:username", async (req: any, res: any) => {
       where: { authorId: u.id },
       orderBy: { createdAt: "desc" },
       take: 10,
-      include: {
-        author: {
-          select: { id: true, name: true, avatar: true, belt: true, role: true, isVerified: true }
-        },
-        likes: true,
-        comments: {
-          orderBy: { createdAt: "asc" },
-          include: {
-            author: { select: { id: true, name: true, avatar: true, belt: true } }
-          }
-        }
-      }
+      select: getSocialPostSelect(requesterId || undefined)
     });
 
     const formattedPosts = userPosts.map((p: any) => ({
@@ -5873,7 +5950,10 @@ app.post("/api/admin/reports/:id/action", authenticateToken, requireRole(["ADMIN
       const prisma = getPrisma();
       if (report.contentType === "POST") {
         try {
-          await prisma.socialPost.delete({ where: { id: referenceId } });
+          await prisma.socialPost.delete({
+            where: { id: referenceId },
+            select: { id: true }
+          });
         } catch (_) {}
       } else {
         try {
@@ -12249,46 +12329,7 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
             orderBy: { createdAt: "desc" },
             skip,
             take,
-            include: {
-              author: {
-                select: { 
-                  id: true, 
-                  name: true, 
-                  avatar: true, 
-                  belt: true, 
-                  isVerified: true, 
-                  role: true, 
-                  globalTeamId: true, 
-                  branchId: true, 
-                  independentAcademyId: true, 
-                  city: true, 
-                  branch: { select: { name: true } }, 
-                  independentAcademy: { select: { name: true } } 
-                }
-              },
-              likes: true,
-              comments: {
-                orderBy: { createdAt: "asc" },
-                include: {
-                  author: {
-                    select: { 
-                      id: true, 
-                      name: true, 
-                      avatar: true, 
-                      belt: true, 
-                      isVerified: true, 
-                      role: true, 
-                      globalTeamId: true, 
-                      branchId: true, 
-                      independentAcademyId: true, 
-                      city: true, 
-                      branch: { select: { name: true } }, 
-                      independentAcademy: { select: { name: true } } 
-                    }
-                  }
-                }
-              }
-            }
+            select: getSocialPostSelect(userId)
           });
 
           const allUserIds = new Set<string>();
@@ -12464,14 +12505,20 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
       return res.status(500).json({ error: "Banco de dados indisponível." });
     }
 
+    const postData: Record<string, any> = {
+      authorId: userId,
+      content: content.trim(),
+      category: targetCategory,
+    };
+    if (physicalSocialPostColumns.includes("imageUrl")) {
+      postData.imageUrl = imageUrl || null;
+    }
+    if (physicalSocialPostColumns.includes("videoUrl")) {
+      postData.videoUrl = videoUrl || null;
+    }
+
     const created = await prisma.socialPost.create({
-      data: {
-        authorId: userId,
-        content: content.trim(),
-        category: targetCategory,
-        imageUrl: imageUrl || null,
-        videoUrl: videoUrl || null
-      },
+      data: postData as any,
       include: {
         author: {
           select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
@@ -12544,7 +12591,8 @@ app.post("/api/social/posts/:postId/like", authenticateToken, async (req: any, r
     }
 
     const postObj = await prisma.socialPost.findUnique({
-      where: { id: postId }
+      where: { id: postId },
+      select: { id: true, authorId: true, category: true }
     });
 
     if (!postObj) {
@@ -12587,7 +12635,8 @@ app.post("/api/social/posts/:postId/like", authenticateToken, async (req: any, r
     // Sync count to socialPost too
     await prisma.socialPost.update({
       where: { id: postId },
-      data: { upvotesCount: updatedLikes }
+      data: { upvotesCount: updatedLikes },
+      select: { id: true }
     });
 
     upvoteCount = updatedLikes;
@@ -12618,7 +12667,8 @@ app.post("/api/social/posts/:postId/comment", authenticateToken, async (req: any
     }
 
     const postObj = await prisma.socialPost.findUnique({
-      where: { id: postId }
+      where: { id: postId },
+      select: { id: true, authorId: true, category: true }
     });
 
     if (!postObj) {
@@ -12979,7 +13029,8 @@ app.post("/api/social/posts/:postId/react", authenticateToken, async (req: any, 
         const totalLikes = await prisma.like.count({ where: { postId } });
         await prisma.socialPost.update({
           where: { id: postId },
-          data: { upvotesCount: totalLikes }
+          data: { upvotesCount: totalLikes },
+          select: { id: true }
         });
       } catch (dbErr) {
         console.warn("✗ Prisma reaction postgres sync failed:", dbErr);
@@ -12993,7 +13044,10 @@ app.post("/api/social/posts/:postId/react", authenticateToken, async (req: any, 
         let postCategory = "treino";
 
         if (prisma) {
-          const postDb = await prisma.socialPost.findUnique({ where: { id: postId } });
+          const postDb = await prisma.socialPost.findUnique({
+            where: { id: postId },
+            select: { authorId: true, category: true }
+          }) as any;
           if (postDb) {
             authorId = postDb.authorId;
             postCategory = postDb.category;
@@ -13186,16 +13240,27 @@ app.post("/api/social/posts/:postId/repost", authenticateToken, async (req: any,
     let originalVideoUrl = null;
 
     if (prisma) {
+      const selectFields: Record<string, any> = {
+        content: true,
+        category: true,
+        author: { select: { name: true } }
+      };
+      if (physicalSocialPostColumns.includes("imageUrl")) {
+        selectFields.imageUrl = true;
+      }
+      if (physicalSocialPostColumns.includes("videoUrl")) {
+        selectFields.videoUrl = true;
+      }
       const postDb = await prisma.socialPost.findUnique({
         where: { id: postId },
-        include: { author: { select: { name: true } } }
-      });
+        select: selectFields
+      }) as any;
       if (postDb) {
         originalAuthorName = postDb.author?.name || "Autor";
         originalContent = postDb.content;
         originalCategory = postDb.category;
-        originalImageUrl = postDb.imageUrl;
-        originalVideoUrl = postDb.videoUrl;
+        originalImageUrl = postDb.imageUrl || null;
+        originalVideoUrl = postDb.videoUrl || null;
       }
     }
 
@@ -13207,14 +13272,19 @@ app.post("/api/social/posts/:postId/repost", authenticateToken, async (req: any,
 
     if (prisma) {
       // Create new social post in PostgreSQL
+      const postData: Record<string, any> = {
+        authorId: userId,
+        content: repostContent,
+        category: originalCategory,
+      };
+      if (physicalSocialPostColumns.includes("imageUrl")) {
+        postData.imageUrl = originalImageUrl;
+      }
+      if (physicalSocialPostColumns.includes("videoUrl")) {
+        postData.videoUrl = originalVideoUrl;
+      }
       createdPost = await prisma.socialPost.create({
-        data: {
-          authorId: userId,
-          content: repostContent,
-          category: originalCategory,
-          imageUrl: originalImageUrl,
-          videoUrl: originalVideoUrl
-        },
+        data: postData as any,
         include: {
           author: {
             select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
@@ -14151,6 +14221,7 @@ async function startServer() {
   try {
     await assertDatabaseConnection();
     await auditStoreProductColumns();
+    await auditSocialPostColumns();
     if (isDatabaseConnected()) {
       const p = getPrisma();
       if (p) {
