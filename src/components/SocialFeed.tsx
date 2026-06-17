@@ -45,6 +45,7 @@ import { AvatarWithFrame } from './AvatarWithFrame';
 import { SocialStories } from './SocialStories';
 import { SocialRankings } from './SocialRankings';
 import { AchievementCards } from './AchievementCards';
+import { removeFakeUsers } from '../utils/removeFakeUsers';
 
 interface SocialFeedProps {
   user: UserProfile;
@@ -131,8 +132,24 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       if (postsRes.ok) {
         const postsData = await postsRes.json();
         if (postsData && postsData.posts) {
-          setPosts(postsData.posts);
+          const cleanPosts = postsData.posts.filter((p: any) => {
+            if (!p.author) return true;
+            const nameLower = String(p.author.name || "").toLowerCase();
+            const emailLower = String(p.author.email || "").toLowerCase();
+            const forbiddenPatterns = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock"];
+            return !forbiddenPatterns.some(pat => {
+              if (pat.endsWith("_")) {
+                return nameLower.startsWith(pat) || emailLower.startsWith(pat) || nameLower.includes(pat) || emailLower.includes(pat);
+              }
+              return nameLower.includes(pat) || emailLower.includes(pat);
+            });
+          });
+          setPosts(cleanPosts);
+        } else {
+          setPosts([]);
         }
+      } else {
+        setPosts([]);
       }
 
       const networkRes = await fetch('/api/social/network', {
@@ -141,8 +158,12 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       if (networkRes.ok) {
         const networkData = await networkRes.json();
         if (networkData && networkData.network) {
-          setNetworkUsers(networkData.network);
+          setNetworkUsers(removeFakeUsers(networkData.network));
+        } else {
+          setNetworkUsers([]);
         }
+      } else {
+        setNetworkUsers([]);
       }
 
       const notifRes = await fetch('/api/social/notifications', {

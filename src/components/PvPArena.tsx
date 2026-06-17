@@ -28,6 +28,7 @@ import {
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
 import { io, Socket } from 'socket.io-client';
+import { removeFakeUsers } from '../utils/removeFakeUsers';
 
 interface LeaderboardEntry {
   id: string;
@@ -493,10 +494,13 @@ export default function PvPArena({
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setLeaderboard(data.leaderboard || []);
+        setLeaderboard(removeFakeUsers(data.leaderboard || []));
+      } else {
+        setLeaderboard([]);
       }
     } catch (e) {
       console.error(e);
+      setLeaderboard([]);
     } finally {
       setIsLoadingLeaderboard(false);
     }
@@ -1105,8 +1109,8 @@ export default function PvPArena({
                   <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
                 </div>
               ) : leaderboard.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">
-                  Nenhum registro no placar nesta categoria. Complete sparring para pontuar!
+                <div className="py-8 text-center text-xs text-slate-500 font-medium font-sans">
+                  Ranking ainda não possui atletas cadastrados.
                 </div>
               ) : (
                 <div className="divide-y divide-slate-900 max-h-96 overflow-y-auto pr-1">

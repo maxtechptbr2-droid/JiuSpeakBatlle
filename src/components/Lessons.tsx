@@ -52,10 +52,10 @@ export default function Lessons({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-display font-extrabold text-sm tracking-wider uppercase text-violet-500 font-sans">Jornada RPG de Carreira</h2>
-              <span className="p-0.5 px-2 bg-violet-600/10 border border-violet-650/30 rounded font-mono text-[9px] font-black text-violet-400 uppercase tracking-widest animate-pulse">RPG Core</span>
+              <h2 className="font-display font-extrabold text-sm tracking-wider uppercase text-violet-500 font-sans">Módulos do Curso</h2>
+              <span className="p-0.5 px-2 bg-violet-600/10 border border-violet-650/30 rounded font-mono text-[9px] font-black text-violet-400 uppercase tracking-widest animate-pulse">Cursos</span>
             </div>
-            <p className="text-[10px] text-zinc-500 font-mono">Dedicado: {user.name} • Graduação Atual: Faixa {user.belt}</p>
+            <p className="text-[10px] text-zinc-500 font-mono">Aluno: {user.name} • Graduação Atual: Faixa {user.belt}</p>
           </div>
         </div>
 

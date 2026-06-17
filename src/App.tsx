@@ -149,6 +149,10 @@ export default function App() {
       if (path === '/' || path === '/login' || path === '/register') {
         return isLoggedIn ? 'dashboard' : 'landing';
       }
+      if (path === '/academy' || path.startsWith('/academy/') || path.startsWith('/belt-path/') || path.startsWith('/learning-path/') || path === '/modules') {
+        window.history.replaceState(null, '', '/modules');
+        return 'lessons';
+      }
       if (path === '/dashboard') {
         return 'dashboard';
       }
@@ -224,6 +228,9 @@ export default function App() {
       const isLoggedIn = !!authUser;
       if (path === '/' || path === '/login' || path === '/register') {
         setCurrentTab(isLoggedIn ? 'dashboard' : 'landing');
+      } else if (path === '/academy' || path.startsWith('/academy/') || path.startsWith('/belt-path/') || path.startsWith('/learning-path/') || path === '/modules') {
+        window.history.replaceState(null, '', '/modules');
+        setCurrentTab('lessons');
       } else if (path === '/dashboard') {
         setCurrentTab('dashboard');
       } else if (path === '/community' || path === '/comunidade') {
@@ -301,6 +308,10 @@ export default function App() {
     } else if (currentTab === 'social') {
       if (window.location.pathname !== '/community' && window.location.pathname !== '/comunidade') {
         window.history.pushState(null, '', '/community');
+      }
+    } else if (currentTab === 'lessons') {
+      if (window.location.pathname !== '/modules') {
+        window.history.pushState(null, '', '/modules');
       }
     } else if (currentTab === 'academies') {
       if (window.location.pathname !== '/academies' && window.location.pathname !== '/academias-bjj' && window.location.pathname !== '/academias') {

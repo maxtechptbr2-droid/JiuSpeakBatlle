@@ -178,7 +178,7 @@ export default function PublicCertificateView({ hash, onNavigate, showToast }: P
                 <Landmark className="w-7 h-7" />
                 <div className="absolute -inset-1 rounded-full border border-yellow-500/20 animate-pulse" />
               </div>
-              <span className="text-[8px] font-mono text-indigo-900 uppercase font-bold tracking-widest block pt-1">JIUSPEAK ACADEMY</span>
+              <span className="text-[8px] font-mono text-indigo-900 uppercase font-bold tracking-widest block pt-1">JIUSPEAK SYSTEM</span>
             </div>
 
             {/* Signature 2 */}

@@ -106,7 +106,7 @@ export default function OnboardingWizard({ user, onComplete, showToast }: Onboar
       if (res.ok) {
         const data = await res.json();
         console.log("[PROFILE SAVE RESPONSE]", data);
-        showToast("Onboarding concluído com maestria! Bem-vindo ao JiuSpeak Academy.", "success");
+        showToast("Onboarding concluído com maestria! Bem-vindo ao JiuSpeak.", "success");
         
         // Ensure immediate profile context sync with Postgres
         try {

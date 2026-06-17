@@ -14817,11 +14817,11 @@ async function startServer() {
   // =========================================================================
 
   const inMemoryAcademyModules = [
-    { id: "mod_white", title: "White Belt Foundations", description: "Aprenda os fundamentos do Brazilian Jiu-Jitsu enquanto desenvolve seu inglês técnico.", beltLevel: "WHITE", orderIndex: 1, active: true },
-    { id: "mod_blue", title: "Blue Belt Path - Guard Passing & Defense", description: "Aprofunde na passagem de guarda, finalizações avançadas e nomenclaturas em inglês de alto nível.", beltLevel: "BLUE", orderIndex: 2, active: true },
-    { id: "mod_purple", title: "Purple Belt Tactics - Submissions & Transitions", description: "Conecte transições e domine termos técnicos e termos de arbitragem internacional.", beltLevel: "PURPLE", orderIndex: 3, active: true },
-    { id: "mod_brown", title: "Brown Belt Dominance - Pressure & Submissions", description: "Aperfeiçoe sua pressão de quadril e seu vocabulário de coaching internacional.", beltLevel: "BROWN", orderIndex: 4, active: true },
-    { id: "mod_black", title: "Black Belt Mastery - Leadership & Strategy", description: "Explore táticas de campeonato internacional, liderança, técnicas avançadas e mentoria de alta performance.", beltLevel: "BLACK", orderIndex: 5, active: true }
+    { id: "mod_white", title: "White Belt Foundations", description: "Aprenda os fundamentos do Brazilian Jiu-Jitsu enquanto desenvolve seu inglês técnico.", beltLevel: "WHITE", orderIndex: 1, active: false },
+    { id: "mod_blue", title: "Blue Belt Path - Guard Passing & Defense", description: "Aprofunde na passagem de guarda, finalizações avançadas e nomenclaturas em inglês de alto nível.", beltLevel: "BLUE", orderIndex: 2, active: false },
+    { id: "mod_purple", title: "Purple Belt Tactics - Submissions & Transitions", description: "Conecte transições e domine termos técnicos e termos de arbitragem internacional.", beltLevel: "PURPLE", orderIndex: 3, active: false },
+    { id: "mod_brown", title: "Brown Belt Dominance - Pressure & Submissions", description: "Aperfeiçoe sua pressão de quadril e seu vocabulário de coaching internacional.", beltLevel: "BROWN", orderIndex: 4, active: false },
+    { id: "mod_black", title: "Black Belt Mastery - Leadership & Strategy", description: "Explore táticas de campeonato internacional, liderança, técnicas avançadas e mentoria de alta performance.", beltLevel: "BLACK", orderIndex: 5, active: false }
   ];
 
   const inMemoryAcademyLessons = [

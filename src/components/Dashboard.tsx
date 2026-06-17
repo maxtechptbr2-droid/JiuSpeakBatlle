@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, Achievement, Course, BeltRank } from '../types';
 import { authFetch } from '../utils/authFetch';
+import { removeFakeUsers } from '../utils/removeFakeUsers';
 
 // Import our new cinematic athlete components
 import AthleteHero from './dashboard/AthleteHero';
@@ -167,7 +168,7 @@ export default function Dashboard({
         if (res.ok) {
           const data = await res.json();
           if (data.leaderboard && data.leaderboard.length > 0) {
-            setLeaderboard(data.leaderboard.slice(0, 5));
+            setLeaderboard(removeFakeUsers(data.leaderboard).slice(0, 5));
           } else {
             setLeaderboard([]);
           }
@@ -647,7 +648,7 @@ export default function Dashboard({
                 <div className="space-y-2.5">
                   {leaderboard.length === 0 ? (
                     <div className="py-8 text-center text-xs text-zinc-500 font-sans italic" id="empty-leaderboard-dojo">
-                      Nenhum atleta ranqueado ainda.
+                      Ranking ainda não possui atletas cadastrados.
                     </div>
                   ) : (
                     leaderboard.map((player, idx) => {

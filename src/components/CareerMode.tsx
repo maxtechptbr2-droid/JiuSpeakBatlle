@@ -135,7 +135,7 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
       setVerificationResult({
         authentic: true,
         certificate: foundLocal,
-        message: '✅ CERTIFICADO AUTÊNTICO E AUDITADO POR JIUSPEAK ACADEMY!'
+        message: '✅ CERTIFICADO AUTÊNTICO E AUDITADO POR JIUSPEAK!'
       });
       showToast('✅ Certificado validado e autêntico!', 'success');
     } else {
@@ -1768,7 +1768,7 @@ export default function CareerMode({ user, addXp, addCoins, showToast, onNavigat
 
                 {/* Diploma Content Header */}
                 <div className="space-y-1.5 pt-4">
-                  <h2 className="font-display font-black text-xs tracking-[0.25em] text-yellow-500 uppercase font-bold">JIUSPEAK ACADEMY OF BJJ ACADEMICS</h2>
+                  <h2 className="font-display font-black text-xs tracking-[0.25em] text-yellow-500 uppercase font-bold">JIUSPEAK BJJ TECHNICAL ENGLISH</h2>
                   <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">CERTIFICATE OF TECHNICAL PROFICIENCY IN BJJ ENGLISH</p>
                 </div>
 

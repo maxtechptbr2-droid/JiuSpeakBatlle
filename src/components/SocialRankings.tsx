@@ -23,6 +23,7 @@ import {
 import { io } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
+import { removeFakeUsers, clearStorageCaches } from '../utils/removeFakeUsers';
 
 interface SocialRankingsProps {
   user: UserProfile;
@@ -91,6 +92,10 @@ export function SocialRankings({ user }: SocialRankingsProps) {
   const [livePulse, setLivePulse] = useState<boolean>(false);
   const [socketStatus, setSocketStatus] = useState<'conctado' | 'desconectado'>('desconectado');
 
+  useEffect(() => {
+    clearStorageCaches();
+  }, []);
+
   const fetchRankings = async (showLoadingOverlay = true) => {
     if (showLoadingOverlay) setLoading(true);
     try {
@@ -103,14 +108,19 @@ export function SocialRankings({ user }: SocialRankingsProps) {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.rankings) {
-          setRankings(data.rankings);
+          setRankings(removeFakeUsers(data.rankings));
           // Highlight live pulse on real-time update
           setLivePulse(true);
           setTimeout(() => setLivePulse(false), 1200);
+        } else {
+          setRankings([]);
         }
+      } else {
+        setRankings([]);
       }
     } catch (err) {
       console.error("Failed to load rankings stats:", err);
+      setRankings([]);
     } finally {
       if (showLoadingOverlay) setLoading(false);
     }
@@ -317,7 +327,7 @@ export function SocialRankings({ user }: SocialRankingsProps) {
                 ⏳
               </div>
               <div className="space-y-1">
-                <p className="font-semibold text-slate-200">Ranking ainda não possui atletas.</p>
+                <p className="font-semibold text-slate-200">Ranking ainda não possui atletas cadastrados.</p>
                 <p className="text-[10px] text-slate-500">Registre os primeiros praticantes reais no tatame virtual para iniciar o ranking oficial da temporada.</p>
               </div>
             </motion.div>

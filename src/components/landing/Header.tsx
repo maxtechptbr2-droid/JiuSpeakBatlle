@@ -159,7 +159,7 @@ export default function Header({ onLoginClick, onRegisterClick, onNavigateToSect
                 }}
                 className="w-full text-center py-3 bg-blue-650 hover:bg-blue-600 text-white rounded-xl text-xs font-black tracking-widest uppercase cursor-pointer"
               >
-                ACESSAR JIUSPEAK ACADEMY
+                ÁREA DO ALUNO
               </button>
             ) : (
               <>

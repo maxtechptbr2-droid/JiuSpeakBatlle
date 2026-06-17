@@ -108,6 +108,7 @@ model User {
   following               Follower[]        @relation("UserFollowing")
   refreshTokens           RefreshToken[]
   academyProgress         AcademyProgress[]
+  courseModuleProgress    CourseModuleProgress[]
   examAttempts            ExamAttempt[]
   paymentTransactions     PaymentTransaction[]
 
@@ -1429,6 +1430,35 @@ model GovernanceAuditLog {
   createdAt     DateTime @default(now())
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ==========================================
+// COURSE MODULES & PROGRESS (MÓDULOS DO CURSO)
+// ==========================================
+
+model CourseModule {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  thumbnail   String
+  duration    String
+  xpReward    Int      @default(100)
+  order       Int
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model CourseModuleProgress {
+  id               String    @id @default(cuid())
+  userId           String
+  moduleId         String
+  xp               Int       @default(0)
+  completed        Boolean   @default(false)
+  completedAt      DateTime?
+  studyTimeSeconds Int       @default(0)
+  user             User      @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
