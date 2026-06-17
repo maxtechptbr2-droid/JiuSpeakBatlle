@@ -13,7 +13,13 @@ import {
   Award,
   ListOrdered,
   Flame,
-  Tv
+  Tv,
+  User,
+  Backpack,
+  Users,
+  Building2,
+  Store,
+  Coins
 } from 'lucide-react';
 import { UserProfile, Achievement, Course, BeltRank } from '../types';
 import { authFetch } from '../utils/authFetch';
@@ -377,6 +383,103 @@ export default function Dashboard({
               </div>
             </div>
 
+          </div>
+        </div>
+
+        {/* Quick Access Central Hub Section */}
+        <div className="space-y-4" id="bjj-student-panel-quick-access">
+          <div className="flex items-center gap-2 pb-2 border-b border-zinc-900">
+            <h2 className="text-sm font-black text-white tracking-widest uppercase font-sans flex items-center gap-2">
+              <span className="text-amber-500 animate-pulse text-base">⚡</span>
+              Acesso Rápido
+            </h2>
+            <span className="text-[10px] bg-amber-500/10 text-amber-100 border border-amber-500/20 font-mono tracking-wider font-extrabold px-2 py-0.5 rounded-full uppercase select-none animate-pulse">
+              Atalhos de Atleta
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                id: 'profile-settings',
+                title: 'Meu Perfil',
+                description: 'Gerencie suas informações pessoais, foto, preferências e configurações da conta.',
+                icon: User,
+                color: 'border-violet-500/10 text-violet-400 bg-violet-500/5',
+                hoverColor: 'border-violet-500/40 hover:shadow-violet-600/15',
+                iconBg: 'bg-violet-500/10 text-violet-400'
+              },
+              {
+                id: 'inventory',
+                title: 'Mochila do Aluno',
+                description: 'Visualize itens, recompensas, equipamentos, conquistas e benefícios obtidos na plataforma.',
+                icon: Backpack,
+                color: 'border-blue-500/10 text-blue-400 bg-blue-500/5',
+                hoverColor: 'border-blue-500/40 hover:shadow-blue-600/15',
+                iconBg: 'bg-blue-500/10 text-blue-400'
+              },
+              {
+                id: 'social',
+                title: 'Comunidade',
+                description: 'Conecte-se com outros praticantes, participe de discussões e compartilhe experiências.',
+                icon: Users,
+                color: 'border-pink-500/10 text-pink-400 bg-pink-500/5',
+                hoverColor: 'border-pink-500/40 hover:shadow-pink-600/15',
+                iconBg: 'bg-pink-500/10 text-pink-400'
+              },
+              {
+                id: 'academies',
+                title: 'Academias BJJ',
+                description: 'Encontre academias parceiras e conecte-se com a comunidade local.',
+                icon: Building2,
+                color: 'border-emerald-500/10 text-emerald-400 bg-emerald-500/5',
+                hoverColor: 'border-emerald-500/40 hover:shadow-emerald-600/15',
+                iconBg: 'bg-emerald-500/10 text-emerald-400'
+              },
+              {
+                id: 'market',
+                title: 'Loja JiuSpeak (JT)',
+                description: 'Utilize seus JiuTickets para adquirir benefícios e produtos disponíveis.',
+                icon: Store,
+                color: 'border-amber-500/10 text-amber-400 bg-amber-500/5',
+                hoverColor: 'border-amber-500/40 hover:shadow-amber-600/15',
+                iconBg: 'bg-amber-500/10 text-amber-400'
+              },
+              {
+                id: 'subscriptions',
+                title: 'Central de JiuTickets',
+                description: 'Gerencie saldo, histórico e movimentações de JiuTickets.',
+                icon: Coins,
+                color: 'border-cyan-500/10 text-cyan-400 bg-cyan-500/5',
+                hoverColor: 'border-cyan-500/40 hover:shadow-cyan-600/15',
+                iconBg: 'bg-cyan-500/10 text-cyan-400'
+              }
+            ].map((card) => {
+              const CardIcon = card.icon;
+              return (
+                <motion.div
+                  key={card.id}
+                  onClick={() => onNavigate(card.id)}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                  className={`p-5 rounded-2xl bg-[#0b101f]/70 border ${card.color} group hover:${card.hoverColor} hover:bg-slate-900/40 transition-all duration-300 cursor-pointer flex gap-4 items-start shadow-xl`}
+                >
+                  <div className={`p-3 rounded-xl ${card.iconBg} group-hover:scale-110 transition-transform duration-300 shrink-0`}>
+                    <CardIcon className="w-5 h-5 lg:w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h3 className="font-display font-bold text-sm text-zinc-100 group-hover:text-white transition-colors flex items-center gap-1.5">
+                      {card.title}
+                      <span className="text-zinc-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all">→</span>
+                    </h3>
+                    <p className="text-zinc-400 text-xs font-normal leading-relaxed font-sans">
+                      {card.description}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 

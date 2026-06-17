@@ -39,25 +39,9 @@ export default function HeroSection({ onStartClick, onExploreClick, showToast, u
       className="relative min-h-[92vh] sm:min-h-screen w-full overflow-hidden flex items-center justify-center pt-24 pb-16 lg:pt-32 lg:pb-24 bg-slate-950"
     >
       <div
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `
-            linear-gradient(
-              to right,
-              rgba(2, 6, 23, 0.94),
-              rgba(2, 6, 23, 0.78),
-              rgba(2, 6, 23, 0.50)
-            ),
-            radial-gradient(
-              circle at center,
-              transparent 0%,
-              rgba(0, 0, 0, 0.60) 100%
-            ),
-            url('https://www.jiuspeak.com.br/images/hero-bg.jpg')
-          `,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
+          backgroundImage: `linear-gradient(to right, rgba(2, 6, 23, 0.92) 0%, rgba(2, 6, 23, 0.75) 50%, rgba(2, 6, 23, 0.45) 100%), radial-gradient(circle at center, transparent 0%, rgba(2, 6, 23, 0.6) 100%), url('https://www.jiuspeak.com.br/images/hero-bg.jpg')`
         }}
       />
 

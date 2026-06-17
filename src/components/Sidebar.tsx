@@ -63,18 +63,13 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
 
   const menuItems = [
     { id: 'dashboard', label: 'Painel do Aluno', icon: GraduationCap, badge: null },
-    { id: 'social', label: 'Comunidade', icon: Users, badge: null },
-    { id: 'academies', label: 'Academias BJJ', icon: Building2, badge: null },
-    { id: 'profile-settings', label: 'Configurações de Conta', icon: User, badge: 'Ajustes' },
     { id: 'lessons', label: 'Módulos do Curso', icon: BookOpen, badge: 'Módulos' },
     ...(hasConversacaoAccess ? [{ id: 'pvp', label: 'Prática Conversacional IA', icon: Sword, badge: 'Exclusivo' }] : []),
-    { id: 'market', label: 'Loja JiuSpeak (JT)', icon: Store, badge: 'Loja' },
-    { id: 'subscriptions', label: 'Central de JiuTickets', icon: Coins, badge: 'Premium' },
     ...(user.role === 'professor' || user.role === 'admin' ? [
       { id: 'creator', label: 'Painel do Professor', icon: Award, badge: 'Docente' }
     ] : []),
     ...(user.role === 'admin' ? [
-      { id: 'admin', label: 'Painel Admin', icon: ShieldAlert, badge: 'Auditoria' }
+      { id: 'admin', label: 'Painel Administrativo', icon: ShieldAlert, badge: 'Auditoria' }
     ] : []),
   ];
 

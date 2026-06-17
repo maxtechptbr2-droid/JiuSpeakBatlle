@@ -12155,6 +12155,59 @@ export let inMemorySocialNotifications: any[] = [];
 export let inMemoryStories: any[] = [];
 export let inMemoryReactions: Record<string, Record<string, string[]>> = {};
 export let inMemorySavedPosts: Record<string, string[]> = {};
+export let inMemoryShares: Record<string, string[]> = {};
+export let inMemoryReposts: Record<string, string[]> = {};
+
+const INTERACTION_FILE = path.join(process.cwd(), "logs", "social_interactions.json");
+
+export function saveSocialInteractions() {
+  try {
+    const dir = path.dirname(INTERACTION_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const payload = {
+      reactions: inMemoryReactions,
+      savedPosts: inMemorySavedPosts,
+      shares: inMemoryShares,
+      reposts: inMemoryReposts
+    };
+    fs.writeFileSync(INTERACTION_FILE, JSON.stringify(payload, null, 2), "utf8");
+  } catch (err: any) {
+    console.warn("✗ Failed to persist social interactions:", err.message);
+  }
+}
+
+export function loadSocialInteractions() {
+  try {
+    if (fs.existsSync(INTERACTION_FILE)) {
+      const content = fs.readFileSync(INTERACTION_FILE, "utf8");
+      const parsed = JSON.parse(content);
+      if (parsed.reactions) inMemoryReactions = parsed.reactions;
+      if (parsed.savedPosts) inMemorySavedPosts = parsed.savedPosts;
+      if (parsed.shares) inMemoryShares = parsed.shares;
+      if (parsed.reposts) inMemoryReposts = parsed.reposts;
+      console.log("✓ Loaded social interactions backup from disk successfully!");
+    }
+  } catch (err: any) {
+    console.warn("✗ Failed to load social interactions backup:", err.message);
+  }
+}
+
+export async function clearSocialFeedCache() {
+  try {
+    await invalidateCache("social:posts:p_1_sz_10");
+    await invalidateCache("social:posts:p_1_sz_20");
+    await invalidateCache("social:posts:p_1_sz_30");
+    for (let page = 1; page <= 5; page++) {
+      for (const size of [10, 20, 30]) {
+        await invalidateCache(`social:posts:p_${page}_sz_${size}`);
+      }
+    }
+  } catch (err: any) {
+    console.warn("✗ Failed to invalidate social cache:", err.message);
+  }
+}
 
 // Helper to format dynamic relative time
 function getRelativeTime(timestampStr: string | Date): string {
@@ -12350,6 +12403,10 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
         reactions: reactionsFormatted,
         userReactions: userReactedTypes,
         hasSaved,
+        sharesCount: (inMemoryShares[post.id] || []).length,
+        repostsCount: (inMemoryReposts[post.id] || []).length,
+        hasShared: (inMemoryShares[post.id] || []).includes(userId),
+        hasReposted: (inMemoryReposts[post.id] || []).includes(userId),
         comments: (post.comments || []).map((comm: any) => {
           const commenterFrame = frameLookup[comm.authorId] || comm.authorFrame || null;
           const patchedCommenter = patchUserObjectWithDeterministicAvatar({
@@ -12602,6 +12659,9 @@ app.post("/api/social/posts/:postId/comment", authenticateToken, async (req: any
       content: createdComment.content,
       timestamp: "Agora mesmo"
     };
+
+    // Clear cache to reflect comment counts immediately
+    await clearSocialFeedCache();
 
     res.status(201).json({ message: "Comentário publicado com sucesso!", comment: commentResponse });
   } catch (error) {
@@ -13014,6 +13074,12 @@ app.post("/api/social/posts/:postId/react", authenticateToken, async (req: any, 
       }
     });
 
+    // Save backup of reactions
+    saveSocialInteractions();
+
+    // Clear social cache for real-time update
+    await clearSocialFeedCache();
+
     res.json({
       success: true,
       reacted: reactedNow,
@@ -13054,6 +13120,141 @@ app.post("/api/social/posts/:postId/save", authenticateToken, async (req: any, r
     });
   } catch (error) {
     res.status(500).json({ error: "Erro ao gerenciar postagem salva." });
+  }
+});
+
+// 10b. SHARE / COMPARTILHAR POST
+app.post("/api/social/posts/:postId/share", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    if (!inMemoryShares[postId]) {
+      inMemoryShares[postId] = [];
+    }
+
+    const idx = inMemoryShares[postId].indexOf(userId);
+    let sharedNow = false;
+
+    if (idx > -1) {
+      // Toggle share off to prevent duplicates if toggled back-and-forth
+      inMemoryShares[postId].splice(idx, 1);
+      sharedNow = false;
+    } else {
+      inMemoryShares[postId].push(userId);
+      sharedNow = true;
+    }
+
+    // Save backup to disk
+    saveSocialInteractions();
+
+    // Clear social cache for real-time updates
+    await clearSocialFeedCache();
+
+    res.json({
+      success: true,
+      shared: sharedNow,
+      sharesCount: inMemoryShares[postId].length,
+      message: sharedNow ? "Postagem compartilhada com sucesso!" : "Compartilhamento revogado."
+    });
+  } catch (error) {
+    console.error("Share endpoint error:", error);
+    res.status(500).json({ error: "Erro ao registrar compartilhamento." });
+  }
+});
+
+// 10c. REPOST / REPOSTAR POST
+app.post("/api/social/posts/:postId/repost", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+
+    if (!inMemoryReposts[postId]) {
+      inMemoryReposts[postId] = [];
+    }
+
+    // Strict deduplication to prevent accidental duplicate reposts
+    if (inMemoryReposts[postId].includes(userId)) {
+      return res.status(400).json({ error: "Você já repostou esta publicação no seu feed!" });
+    }
+
+    const prisma = getPrisma();
+    let originalAuthorName = "um atleta";
+    let originalContent = "";
+    let originalCategory = "Todos";
+    let originalImageUrl = null;
+    let originalVideoUrl = null;
+
+    if (prisma) {
+      const postDb = await prisma.socialPost.findUnique({
+        where: { id: postId },
+        include: { author: { select: { name: true } } }
+      });
+      if (postDb) {
+        originalAuthorName = postDb.author?.name || "Autor";
+        originalContent = postDb.content;
+        originalCategory = postDb.category;
+        originalImageUrl = postDb.imageUrl;
+        originalVideoUrl = postDb.videoUrl;
+      }
+    }
+
+    // Professional LinkedIn/Twitter style caption prepend
+    const repostHeader = `🥋 Repostado de @${originalAuthorName}:\n\n`;
+    const repostContent = repostHeader + originalContent;
+
+    let createdPost: any = null;
+
+    if (prisma) {
+      // Create new social post in PostgreSQL
+      createdPost = await prisma.socialPost.create({
+        data: {
+          authorId: userId,
+          content: repostContent,
+          category: originalCategory,
+          imageUrl: originalImageUrl,
+          videoUrl: originalVideoUrl
+        },
+        include: {
+          author: {
+            select: { id: true, name: true, avatar: true, belt: true, isVerified: true, role: true }
+          }
+        }
+      });
+    } else {
+      // In-memory fallback if DB is offline
+      createdPost = {
+        id: `post_${Date.now()}`,
+        authorId: userId,
+        content: repostContent,
+        category: originalCategory,
+        imageUrl: originalImageUrl,
+        videoUrl: originalVideoUrl,
+        createdAt: new Date(),
+        likes: [],
+        comments: []
+      };
+      inMemorySocialPosts.unshift(createdPost);
+    }
+
+    // Mark as reposted
+    inMemoryReposts[postId].push(userId);
+
+    // Save backup to disk
+    saveSocialInteractions();
+
+    // Clear cache immediately
+    await clearSocialFeedCache();
+
+    res.status(201).json({
+      success: true,
+      message: "Publicação repostada com sucesso no seu perfil!",
+      repostsCount: inMemoryReposts[postId].length,
+      post: createdPost
+    });
+  } catch (error: any) {
+    console.error("Repost handler error:", error);
+    res.status(500).json({ error: "Erro ao processar repostagem." });
   }
 });
 
@@ -14937,6 +15138,9 @@ async function startServer() {
   }
 
   server.listen(PORT, "0.0.0.0", () => {
+    // Load social interactions backup on startup
+    loadSocialInteractions();
+
     const isProd = process.env.NODE_ENV === "production";
     const startupDetails = {
       timestamp: new Date().toISOString(),

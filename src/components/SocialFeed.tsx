@@ -13,6 +13,7 @@ import {
   Sparkles, 
   Bookmark,
   Share2,
+  Repeat,
   Bell,
   BellRing,
   UserPlus,
@@ -250,6 +251,70 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
       }
     } catch (err) {
       console.error("Failed to react to post:", err);
+    }
+  };
+
+  // Share interaction handler with strict deduplication
+  const handleSharePost = async (postId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/social/posts/${postId}/share`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPosts(prev => prev.map(p => {
+            if (p.id === postId) {
+              return {
+                ...p,
+                sharesCount: data.sharesCount,
+                hasShared: data.shared
+              };
+            }
+            return p;
+          }));
+
+          // Copy link to clipboard
+          const shareUrl = `${window.location.origin}/social?post=${postId}`;
+          await navigator.clipboard.writeText(shareUrl);
+          
+          showToast("🥋 Link copiado! Compartilhe o rolo com seus parceiros de tatame.", "success");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to share post:", err);
+      showToast("Não foi possível processar o compartilhamento.", "error");
+    }
+  };
+
+  // Repost interaction handler with duplicate prevention
+  const handleRepostPost = async (postId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/social/posts/${postId}/repost`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        if (data.success) {
+          showToast("🥋 Repostagem técnica publicada com sucesso no feed!", "success");
+          loadSocialData(); // Refresh the feed completely to see the new repost!
+        }
+      } else {
+        showToast(data.error || "Erro ao fazer o repost.", "info");
+      }
+    } catch (err) {
+      console.error("Failed to repost:", err);
+      showToast("Não foi possível processar a repostagem.", "error");
     }
   };
 
@@ -1201,8 +1266,31 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                           </div>
                         )}
 
+                        {/* SOCIAL STATISTICS COUNTERS BAR */}
+                        <div className="flex justify-between items-center text-slate-400 text-[10px] font-medium font-mono pb-2 pt-1 border-b border-slate-900/30 px-1 select-none">
+                          <div className="flex items-center gap-1.5">
+                            <Heart className="w-3 h-3 text-rose-500 fill-rose-500 animate-pulse" />
+                            <span>{post.upvotes || 0} curtidas técnica</span>
+                            {Number(post.sharesCount || 0) > 0 && (
+                              <>
+                                <span className="text-slate-600">•</span>
+                                <span>{post.sharesCount} compartilhamentos</span>
+                              </>
+                            )}
+                            {Number(post.repostsCount || 0) > 0 && (
+                              <>
+                                <span className="text-slate-600">•</span>
+                                <span>{post.repostsCount} reposts</span>
+                              </>
+                            )}
+                          </div>
+                          <div>
+                            <span>{post.comments?.length || 0} respostas técnica</span>
+                          </div>
+                        </div>
+
                         {/* Post footer and reaction tools */}
-                        <div className="flex items-center gap-5 text-xs pt-2 border-t border-slate-950 relative">
+                        <div className="flex items-center justify-between gap-2 text-xs pt-2.5 relative">
                           <div 
                             className="relative"
                             onMouseEnter={() => setActiveReactionPickerPostId(post.id)}
@@ -1211,10 +1299,14 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                             <button
                               type="button"
                               onClick={() => handleReactToPost(post.id, 'OSS')}
-                              className="flex items-center gap-1.5 text-slate-500 hover:text-rose-400 cursor-pointer transition-colors font-bold py-1"
+                              className={`flex items-center gap-1.5 cursor-pointer transition-all duration-150 font-bold py-1 px-2.5 rounded-lg ${
+                                post.userReactions && post.userReactions.length > 0
+                                  ? 'text-rose-400 bg-rose-500/10'
+                                  : 'text-slate-500 hover:text-rose-400 hover:bg-slate-900'
+                              }`}
                             >
-                              <Heart className="w-4 h-4 text-rose-500" />
-                              <span>Interagir</span>
+                              <Heart className={`w-4 h-4 ${post.userReactions && post.userReactions.length > 0 ? 'text-rose-500 fill-rose-500' : 'text-slate-500'}`} />
+                              <span>{post.userReactions && post.userReactions.length > 0 ? 'Reagido' : 'Interagir'}</span>
                               <ChevronDown className="w-3 h-3 text-slate-500" />
                             </button>
 
@@ -1239,10 +1331,44 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                           <button
                             type="button"
                             onClick={() => setOpenCommentsPostId(showComments ? null : post.id)}
-                            className="flex items-center gap-1.5 text-slate-500 hover:text-slate-200 cursor-pointer transition-colors"
+                            className={`flex items-center gap-1.5 cursor-pointer transition-all duration-150 py-1 px-2.5 rounded-lg ${
+                              showComments 
+                                ? 'text-indigo-400 bg-indigo-500/10 font-bold' 
+                                : 'text-slate-500 hover:text-slate-200 hover:bg-slate-900 font-medium'
+                            }`}
                           >
                             <MessageSquare className="w-4 h-4 text-indigo-400" />
-                            <span>{post.comments?.length || 0} respostas técnica</span>
+                            <span>Comentários ({post.comments?.length || 0})</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRepostPost(post.id)}
+                            className={`flex items-center gap-1.5 cursor-pointer transition-all duration-150 py-1 px-2.5 rounded-lg ${
+                              post.hasReposted
+                                ? 'text-emerald-400 bg-emerald-500/10 font-bold'
+                                : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-900 font-medium'
+                            }`}
+                            title="Repostagem rápida no seu feed de tatame"
+                          >
+                            <Repeat className={`w-4 h-4 ${post.hasReposted ? 'text-emerald-400 font-bold' : 'text-slate-500'}`} />
+                            <span>Repostar</span>
+                            {Number(post.repostsCount || 0) > 0 && <span className="font-mono text-[10px] bg-slate-950 px-1.5 py-0.5 rounded-full border border-slate-800">{post.repostsCount}</span>}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSharePost(post.id)}
+                            className={`flex items-center gap-1.5 cursor-pointer transition-all duration-150 py-1 px-2.5 rounded-lg ${
+                              post.hasShared
+                                ? 'text-teal-400 bg-teal-500/10 font-bold'
+                                : 'text-slate-500 hover:text-teal-400 hover:bg-slate-900 font-medium'
+                            }`}
+                            title="Compartilhar link da publicação técnica"
+                          >
+                            <Share2 className="w-4 h-4 text-teal-400" />
+                            <span>Compartilhar</span>
+                            {Number(post.sharesCount || 0) > 0 && <span className="font-mono text-[10px] bg-slate-950 px-1.5 py-0.5 rounded-full border border-slate-800">{post.sharesCount}</span>}
                           </button>
                         </div>
 
