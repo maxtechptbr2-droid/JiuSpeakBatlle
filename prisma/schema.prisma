@@ -109,6 +109,8 @@ model User {
   refreshTokens           RefreshToken[]
   academyProgress         AcademyProgress[]
   courseModuleProgress    CourseModuleProgress[]
+  courseLessonProgress    CourseLessonProgress[]
+  courseExamAttempts      CourseExamAttempt[]
   examAttempts            ExamAttempt[]
   paymentTransactions     PaymentTransaction[]
 
@@ -1439,15 +1441,151 @@ model GovernanceAuditLog {
 // ==========================================
 
 model CourseModule {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  thumbnail   String
-  duration    String
-  xpReward    Int      @default(100)
-  order       Int
-  isPublished Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id             String         @id @default(cuid())
+  title          String
+  slug           String         @default("")
+  description    String
+  thumbnail      String
+  coverImage     String         @default("")
+  order          Int
+  estimatedHours Float          @default(0)
+  passingScore   Int            @default(70)
+  version        Int            @default(1)
+  isPublished    Boolean        @default(true)
+  isArchived     Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  createdBy      String         @default("")
+  updatedBy      String         @default("")
+  lessons        CourseLesson[]
+  exams          CourseExam[]
+}
+
+model CourseLesson {
+  id                  String                 @id @default(cuid())
+  moduleId            String
+  title               String
+  slug                String                 @default("")
+  description         String
+  thumbnail           String
+  videoType           String                 @default("upload") // youtube, vimeo, upload, etc.
+  videoSource         String                 @default("")
+  audioType           String                 @default("upload")
+  audioSource         String                 @default("")
+  lessonContent       String                 @default("")
+  transcript          String                 @default("")
+  duration            String                 @default("0:00")
+  xpReward            Int                    @default(100)
+  order               Int
+  version             Int                    @default(1)
+  isPublished         Boolean                @default(true)
+  isArchived          Boolean                @default(false)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  module              CourseModule           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  flashcards          CourseFlashcard[]
+  quizzes             CourseQuizQuestion[]
+  progressRecords     CourseLessonProgress[]
+
+  @@index([moduleId])
+}
+
+model CourseFlashcard {
+  id        String       @id @default(cuid())
+  lessonId  String
+  frontText String
+  backText  String
+  audioUrl  String       @default("")
+  imageUrl  String       @default("")
+  order     Int
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  lesson    CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+}
+
+model CourseQuizQuestion {
+  id            String       @id @default(cuid())
+  lessonId      String
+  question      String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctAnswer String
+  explanation   String       @default("")
+  points        Int          @default(10)
+  order         Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  lesson        CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+}
+
+model CourseLessonProgress {
+  id                  String       @id @default(cuid())
+  userId              String
+  lessonId            String
+  videoCompleted      Boolean      @default(false)
+  audioCompleted      Boolean      @default(false)
+  textCompleted       Boolean      @default(false)
+  quizCompleted       Boolean      @default(false)
+  flashcardsCompleted Boolean      @default(false)
+  completed           Boolean      @default(false)
+  completedAt         DateTime?
+  lesson              CourseLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user                User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lessonId])
+}
+
+model CourseExam {
+  id           String               @id @default(cuid())
+  moduleId     String
+  title        String
+  description  String
+  passingScore Int                  @default(70)
+  version      Int                  @default(1)
+  isPublished  Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  module       CourseModule         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions    CourseExamQuestion[]
+
+  @@index([moduleId])
+}
+
+model CourseExamQuestion {
+  id            String     @id @default(cuid())
+  examId        String
+  question      String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctAnswer String
+  points        Int        @default(10)
+  order         Int
+  exam          CourseExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+}
+
+model CourseExamAttempt {
+  id            String    @id @default(cuid())
+  userId        String
+  moduleId      String
+  score         Int
+  passed        Boolean
+  attemptedAt   DateTime  @default(now())
+  nextAttemptAt DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([moduleId])
 }
 
 model CourseModuleProgress {
@@ -1458,7 +1596,7 @@ model CourseModuleProgress {
   completed        Boolean   @default(false)
   completedAt      DateTime?
   studyTimeSeconds Int       @default(0)
-  user             User      @relation(fields: [userId], references: [id])
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

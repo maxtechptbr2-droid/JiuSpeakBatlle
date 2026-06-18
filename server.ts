@@ -14816,6 +14816,1359 @@ async function startServer() {
   // JIUSPEAK ACADEMY SYSTEM - POSTGRESQL & IN-MEMORY HYBRID DATABASE ENGINE
   // =========================================================================
 
+  // =========================================================================
+  // MÓDULOS DO CURSO (COURSE MODULES) - JIUSPEAK SYSTEM & DUAL CORE ENGINE
+  // =========================================================================
+  const inMemoryCourseModules: any[] = [];
+  const inMemoryCourseLessons: any[] = [];
+  const inMemoryCourseFlashcards: any[] = [];
+  const inMemoryCourseQuizQuestions: any[] = [];
+  const inMemoryCourseLessonProgress: any[] = [];
+  const inMemoryCourseExams: any[] = [];
+  const inMemoryCourseExamQuestions: any[] = [];
+  const inMemoryCourseExamAttempts: any[] = [];
+
+  const initializeCourses = () => {
+    if (inMemoryCourseModules.length > 0) return;
+    console.log("🌱 [COURSE SEED] Populando em memória 20 módulos com 40 aulas cada (800 aulas)...");
+    
+    for (let m = 1; m <= 20; m++) {
+      const modId = `course_mod_${m}`;
+      const bName = m <= 4 ? "Faixa Branca" : m <= 8 ? "Faixa Azul" : m <= 12 ? "Faixa Roxa" : m <= 16 ? "Faixa Marrom" : "Faixa Preta";
+      inMemoryCourseModules.push({
+        id: modId,
+        title: `English Mastery - Módulo ${String(m).padStart(2, '0')}`,
+        slug: `english-mastery-modulo-${m}`,
+        description: `Vocabulário avançado, técnicas, comandos de treino e conversação em inglês para atletas de ${bName}.`,
+        thumbnail: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?w=400&auto=format&fit=crop&q=80",
+        coverImage: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?w=800&auto=format&fit=crop&q=80",
+        order: m,
+        estimatedHours: 10 + m,
+        passingScore: 70,
+        version: 1,
+        isPublished: true,
+        isArchived: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: "admin",
+        updatedBy: "admin"
+      });
+
+      // Exams
+      const examId = `course_exam_${m}`;
+      inMemoryCourseExams.push({
+        id: examId,
+        moduleId: modId,
+        title: `Avaliação Final do Módulo ${String(m).padStart(2, '0')}`,
+        description: `Teste de proficiência completo para desbloquear o Módulo ${m + 1}`,
+        passingScore: 70,
+        version: 1,
+        isPublished: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      // 5 Exam Questions
+      for (let eq = 1; eq <= 5; eq++) {
+        inMemoryCourseExamQuestions.push({
+          id: `course_ex_q_${m}_${eq}`,
+          examId: examId,
+          question: `[Módulo ${m}] Qual é o significado correto da instrução de treino 'Tap Out'?`,
+          optionA: "Pedir pra parar batendo de leve (desistir)",
+          optionB: "Arremessar o parceiro",
+          optionC: "Atacar as costas",
+          optionD: "Inverter a posição",
+          correctAnswer: "A",
+          points: 20,
+          order: eq
+        });
+      }
+
+      // Seed 40 lessons for this module (800 total)
+      for (let l = 1; l <= 40; l++) {
+        const lesId = `course_les_${m}_${l}`;
+        inMemoryCourseLessons.push({
+          id: lesId,
+          moduleId: modId,
+          title: `Aula ${String(l).padStart(2, '0')}: Técnicas de Luta & Diálogos`,
+          slug: `aula-${l}-tecnicas-de-luta-dialogos`,
+          description: `Vocabulário específico sobre posições, transições rápidas e diálogos úteis em academias no exterior.`,
+          thumbnail: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80",
+          videoType: "youtube",
+          videoSource: l % 2 === 0 ? "dQw4w9WgXcQ" : "Wt_RyWErotc",
+          audioType: "external",
+          audioSource: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+          lessonContent: `Nesta Aula ${l} do Módulo ${m}, você vai expandir seu inglês focado em situações reais de tatame. Aprenda a expressar dores, pedir orientações e dar comandos como "underhook", "sprawl", "posture up" e muito mais.`,
+          transcript: `Transcrição de áudio e vídeo da Aula ${l} - Módulo ${m}.`,
+          duration: "12:15",
+          xpReward: 30,
+          order: l,
+          version: 1,
+          isPublished: true,
+          isArchived: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        // 1 Flashcard
+        inMemoryCourseFlashcards.push({
+          id: `course_fc_${m}_${l}`,
+          lessonId: lesId,
+          frontText: `Como se diz 'Esgrimar' em inglês?`,
+          backText: `To Underhook`,
+          audioUrl: "",
+          imageUrl: "",
+          order: 1,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        // 1 Quiz Question
+        inMemoryCourseQuizQuestions.push({
+          id: `course_quiz_q_${m}_${l}`,
+          lessonId: lesId,
+          question: `Qual destas expressões significa defender uma tentativa de queda espalhando as pernas para trás no chão?`,
+          optionA: "Sprawl",
+          optionB: "Guard Pass",
+          optionC: "Takedown",
+          optionD: "Pull Guard",
+          correctAnswer: "A",
+          explanation: "Sprawl é a técnica de defesa de quedas (double leg / single leg) jogando os quadris no chão e pernas para trás.",
+          points: 10,
+          order: 1,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
+    }
+    console.log("✓ [COURSE SEED] 800 aulas prontas em memória!");
+  };
+
+  initializeCourses();
+
+  // Try saving memory data to Postgres if empty
+  const seedCoursesInPostgres = async () => {
+    const p = getPrisma() as any;
+    if (!isDatabaseConnected() || !p) return;
+    try {
+      const count = await p.courseModule.count();
+      if (count > 0) return;
+      console.log("🌱 [POSTGRES COURSE SEED] Populando CourseModules e CourseLessons no banco de dados físico...");
+      
+      // Let's seed just the first 3 modules fully to PostgreSQL to avoid hitting timeouts,
+      // and keep the other modular contents dynamically available or created on demand
+      for (let m = 1; m <= 3; m++) {
+        const mod = inMemoryCourseModules.find(x => x.order === m);
+        if (!mod) continue;
+        const createdMod = await p.courseModule.create({
+          data: {
+            id: mod.id,
+            title: mod.title,
+            slug: mod.slug,
+            description: mod.description,
+            thumbnail: mod.thumbnail,
+            coverImage: mod.coverImage,
+            order: mod.order,
+            estimatedHours: mod.estimatedHours,
+            passingScore: mod.passingScore,
+            version: mod.version,
+            isPublished: mod.isPublished,
+            isArchived: mod.isArchived
+          }
+        });
+
+        // Seed some lessons
+        const lessons = inMemoryCourseLessons.filter(l => l.moduleId === mod.id).slice(0, 10);
+        for (const les of lessons) {
+          const createdLes = await p.courseLesson.create({
+            data: {
+              id: les.id,
+              moduleId: createdMod.id,
+              title: les.title,
+              slug: les.slug,
+              description: les.description,
+              thumbnail: les.thumbnail,
+              videoType: les.videoType,
+              videoSource: les.videoSource,
+              audioType: les.audioType,
+              audioSource: les.audioSource,
+              lessonContent: les.lessonContent,
+              transcript: les.transcript,
+              duration: les.duration,
+              xpReward: les.xpReward,
+              order: les.order,
+              version: les.version,
+              isPublished: les.isPublished,
+              isArchived: les.isArchived
+            }
+          });
+
+          // Seed 1 flashcard in DB
+          const fc = inMemoryCourseFlashcards.find(f => f.lessonId === les.id);
+          if (fc) {
+            await p.courseFlashcard.create({
+              data: {
+                id: fc.id,
+                lessonId: createdLes.id,
+                frontText: fc.frontText,
+                backText: fc.backText,
+                order: fc.order
+              }
+            });
+          }
+
+          // Seed 1 quiz in DB
+          const qz = inMemoryCourseQuizQuestions.find(q => q.lessonId === les.id);
+          if (qz) {
+            await p.courseQuizQuestion.create({
+              data: {
+                id: qz.id,
+                lessonId: createdLes.id,
+                question: qz.question,
+                optionA: qz.optionA,
+                optionB: qz.optionB,
+                optionC: qz.optionC,
+                optionD: qz.optionD,
+                correctAnswer: qz.correctAnswer,
+                explanation: qz.explanation,
+                points: qz.points,
+                order: qz.order
+              }
+            });
+          }
+        }
+
+        // Exam
+        const ex = inMemoryCourseExams.find(e => e.moduleId === mod.id);
+        if (ex) {
+          const createdEx = await p.courseExam.create({
+            data: {
+              id: ex.id,
+              moduleId: createdMod.id,
+              title: ex.title,
+              description: ex.description,
+              passingScore: ex.passingScore,
+              version: ex.version,
+              isPublished: ex.isPublished
+            }
+          });
+          const questions = inMemoryCourseExamQuestions.filter(q => q.examId === ex.id);
+          for (const q of questions) {
+            await p.courseExamQuestion.create({
+              data: {
+                id: q.id,
+                examId: createdEx.id,
+                question: q.question,
+                optionA: q.optionA,
+                optionB: q.optionB,
+                optionC: q.optionC,
+                optionD: q.optionD,
+                correctAnswer: q.correctAnswer,
+                points: q.points,
+                order: q.order
+              }
+            });
+          }
+        }
+      }
+      console.log("✓ [POSTGRES COURSE SEED] Concluído seed parcial com sucesso!");
+    } catch (err: any) {
+      console.warn("⚠️ [POSTGRES COURSE SEED ERROR] Falha no seed Postgres:", err.message);
+    }
+  };
+
+  // Run async seed decoupled
+  setTimeout(seedCoursesInPostgres, 5000);
+
+  // ==========================================
+  // API COURSE MODULES ROUTES (FOR CLIENTS)
+  // ==========================================
+
+  // GET ALL MODULES WITH STATUS
+  app.get(["/api/modules", "/api/course-modules"], authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const p = getPrisma() as any;
+      let dbModules: any[] = [];
+      let dbProgressList: any[] = [];
+      let dbAttempts: any[] = [];
+
+      if (isDatabaseConnected() && p) {
+        try {
+          dbModules = await p.courseModule.findMany({
+            where: { isArchived: false, isPublished: true },
+            orderBy: { order: "asc" }
+          });
+          dbProgressList = await p.courseLessonProgress.findMany({
+            where: { userId }
+          });
+          dbAttempts = await p.courseExamAttempt.findMany({
+            where: { userId }
+          });
+        } catch (dbErr: any) {
+          console.error("⚠️ [COURSE DB ERROR] Falhou na leitura do SQL:", dbErr.message);
+          dbModules = [];
+        }
+      }
+
+      // Merge physical & fallback
+      const modules = dbModules.length > 0 ? dbModules : inMemoryCourseModules.filter(m => !m.isArchived && m.isPublished);
+      const progress = dbProgressList.length > 0 ? dbProgressList : inMemoryCourseLessonProgress.filter(p => p.userId === userId);
+      const attempts = dbAttempts.length > 0 ? dbAttempts : inMemoryCourseExamAttempts.filter(a => a.userId === userId);
+
+      // Map progress with unlocking logic and completion status
+      const mappedModules = modules.map((mod: any, index: number) => {
+        // Fetch lessons for this module
+        const modLessons = (dbModules.length > 0 && isDatabaseConnected()) 
+          ? [] // If database, lessons are loaded individually or pre-included safely
+          : inMemoryCourseLessons.filter(l => l.moduleId === mod.id && !l.isArchived && l.isPublished);
+
+        // Calculate lesson stats
+        const lessonsCount = modLessons.length > 0 ? modLessons.length : 40; // Default count 40
+        const completedCount = progress.filter((p: any) => {
+          const inMod = modLessons.some(l => l.id === p.lessonId) || p.lessonId.startsWith(`course_les_${mod.order}_`);
+          return inMod && p.completed;
+        }).length;
+
+        const completeness = lessonsCount > 0 ? Math.round((completedCount / lessonsCount) * 100) : 0;
+
+        // Unlocking rule: Module 1 is always unlocked. Others unlock only after previous module has a passed exam.
+        let unlocked = true;
+        let lockReason = "";
+        
+        if (mod.order > 1) {
+          const prevModule = modules.find((m: any) => m.order === mod.order - 1);
+          if (prevModule) {
+            const passedPrev = attempts.some((a: any) => a.moduleId === prevModule.id && a.passed);
+            if (!passedPrev) {
+              unlocked = false;
+              lockReason = `Conclua e passe no exame final do Módulo ${prevModule.order}`;
+            }
+          }
+        }
+
+        // Check if there is a 24-hour block on this module
+        const moduleAttempts = attempts.filter((a: any) => a.moduleId === mod.id);
+        const latestAttempt = moduleAttempts.length > 0 ? moduleAttempts[moduleAttempts.length - 1] : null;
+        let blockTimeRemainingMs = 0;
+        
+        if (latestAttempt && !latestAttempt.passed && latestAttempt.nextAttemptAt) {
+          const nextTime = new Date(latestAttempt.nextAttemptAt).getTime();
+          const now = Date.now();
+          if (nextTime > now) {
+            blockTimeRemainingMs = nextTime - now;
+          }
+        }
+
+        return {
+          id: mod.id,
+          title: mod.title,
+          slug: mod.slug,
+          description: mod.description,
+          thumbnail: mod.thumbnail,
+          coverImage: mod.coverImage,
+          order: mod.order,
+          estimatedHours: mod.estimatedHours,
+          passingScore: mod.passingScore,
+          isPublished: mod.isPublished,
+          completeness,
+          completedCount,
+          lessonsCount,
+          unlocked,
+          lockReason,
+          latestAttemptScore: latestAttempt ? latestAttempt.score : null,
+          latestAttemptPassed: latestAttempt ? latestAttempt.passed : null,
+          blockTimeRemainingMs
+        };
+      });
+
+      res.json({ success: true, modules: mappedModules });
+    } catch (error: any) {
+      console.error("[GET /api/modules] - Erro:", error);
+      res.json({ success: false, error: "Falha ao processar módulos do curso." });
+    }
+  });
+
+  // GET SINGLE MODULE & ITS LESSONS (sequenced)
+  app.get(["/api/modules/:id", "/api/course-modules/:id"], authenticateToken, async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const p = getPrisma() as any;
+
+      let module: any = null;
+      let lessons: any[] = [];
+      let progressList: any[] = [];
+      let attempts: any[] = [];
+
+      if (isDatabaseConnected() && p) {
+        try {
+          module = await p.courseModule.findUnique({ where: { id } });
+          lessons = await p.courseLesson.findMany({
+            where: { moduleId: id, isArchived: false, isPublished: true },
+            orderBy: { order: "asc" }
+          });
+          progressList = await p.courseLessonProgress.findMany({ where: { userId } });
+          attempts = await p.courseExamAttempt.findMany({ where: { userId } });
+        } catch (dbErr: any) {
+          console.error("⚠️ [GET SINGLE MODULE DB ERROR] Usando fallback:", dbErr.message);
+        }
+      }
+
+      if (!module) {
+        module = inMemoryCourseModules.find(m => m.id === id);
+      }
+      if (lessons.length === 0 && module) {
+        lessons = inMemoryCourseLessons.filter(l => l.moduleId === module.id && !l.isArchived && l.isPublished);
+      }
+      if (progressList.length === 0) {
+        progressList = inMemoryCourseLessonProgress.filter(p => p.userId === userId);
+      }
+      if (attempts.length === 0) {
+        attempts = inMemoryCourseExamAttempts.filter(a => a.userId === userId);
+      }
+
+      if (!module) {
+        return res.status(200).json({ success: false, error: "Módulo não encontrado." });
+      }
+
+      // Check if unlocked sequential logic applies
+      // A lesson 'l' is unlocked if order === 1 or previous lesson is completed = true
+      const mappedLessons = lessons.map((les: any, idx: number) => {
+        const prog = progressList.find((p: any) => p.lessonId === les.id) || {
+          videoCompleted: false,
+          audioCompleted: false,
+          textCompleted: false,
+          quizCompleted: false,
+          flashcardsCompleted: false,
+          completed: false
+        };
+
+        let unlocked = true;
+        if (les.order > 1) {
+          const prevLes = lessons.find((l: any) => l.order === les.order - 1);
+          if (prevLes) {
+            const prevProg = progressList.find((p: any) => p.lessonId === prevLes.id);
+            if (!prevProg || !prevProg.completed) {
+              unlocked = false;
+            }
+          }
+        }
+
+        return {
+          ...les,
+          unlocked,
+          progress: prog
+        };
+      });
+
+      // Fetch exams count
+      const exam = inMemoryCourseExams.find(e => e.moduleId === id) || { id: `course_exam_fallback_${id}`, passingScore: 70, title: `Prova Final` };
+
+      // Latest Exam attempt status
+      const moduleAttempts = attempts.filter((a: any) => a.moduleId === id);
+      const latestAttempt = moduleAttempts.length > 0 ? moduleAttempts[moduleAttempts.length - 1] : null;
+
+      res.json({
+        success: true,
+        module,
+        lessons: mappedLessons,
+        exam,
+        latestAttempt
+      });
+    } catch (error: any) {
+      console.error("[GET SINGLE MODULE] - Erro:", error);
+      res.json({ success: false, error: "Falha ao ler módulo." });
+    }
+  });
+
+  // GET SINGLE LESSON (complete with its quizzes and flashcards)
+  app.get(["/api/lessons/:id", "/api/course-lessons/:id"], authenticateToken, async (req: any, res: any) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const p = getPrisma() as any;
+
+      let lesson: any = null;
+      let quizQuestions: any[] = [];
+      let flashcards: any[] = [];
+      let progress: any = null;
+
+      if (isDatabaseConnected() && p) {
+        try {
+          lesson = await p.courseLesson.findUnique({ where: { id } });
+          quizQuestions = await p.courseQuizQuestion.findMany({ where: { lessonId: id }, orderBy: { order: "asc" } });
+          flashcards = await p.courseFlashcard.findMany({ where: { lessonId: id }, orderBy: { order: "asc" } });
+          progress = await p.courseLessonProgress.findFirst({ where: { userId, lessonId: id } });
+        } catch (dbErr: any) {
+          console.error("⚠️ [GET SINGLE LESSON DB ERROR]:", dbErr.message);
+        }
+      }
+
+      if (!lesson) {
+        lesson = inMemoryCourseLessons.find(l => l.id === id);
+      }
+      if (quizQuestions.length === 0) {
+        quizQuestions = inMemoryCourseQuizQuestions.filter(q => q.lessonId === id);
+      }
+      if (flashcards.length === 0) {
+        flashcards = inMemoryCourseFlashcards.filter(f => f.lessonId === id);
+      }
+      if (!progress) {
+        progress = inMemoryCourseLessonProgress.find(pr => pr.userId === userId && pr.lessonId === id) || {
+          videoCompleted: false,
+          audioCompleted: false,
+          textCompleted: false,
+          quizCompleted: false,
+          flashcardsCompleted: false,
+          completed: false
+        };
+      }
+
+      if (!lesson) {
+        return res.status(200).json({ success: false, error: "Aula não encontrada." });
+      }
+
+      res.json({
+        success: true,
+        lesson,
+        quizQuestions,
+        flashcards,
+        progress
+      });
+    } catch (err: any) {
+      console.error("[GET STUDY LESSON ERROR]:", err);
+      res.json({ success: false, error: "Erro ao carregar conteúdo de estudo da aula." });
+    }
+  });
+
+  // SAVE PROGRESS FOR INDIVIDUAL LEARNING COMPONENT (Video, Audio, Text, Quiz, Flashcards)
+  app.post(["/api/lessons/progress", "/api/course-lessons/progress"], authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { lessonId, component_type } = req.body; // component_type can be: video, audio, text, quiz, flashcard
+      const p = getPrisma() as any;
+
+      if (!lessonId) return res.json({ success: false, error: "ID da aula obrigatório." });
+
+      let lessonObj = inMemoryCourseLessons.find(l => l.id === lessonId);
+      if (isDatabaseConnected() && p) {
+        try {
+          lessonObj = await p.courseLesson.findUnique({ where: { id: lessonId } }) || lessonObj;
+        } catch (dbErr) {
+          // ignore
+        }
+      }
+
+      if (!lessonObj) return res.json({ success: false, error: "Aula de referência não localizada." });
+
+      // Fetch or initialize progress
+      let currentProg: any = null;
+      if (isDatabaseConnected() && p) {
+        try {
+          currentProg = await p.courseLessonProgress.findFirst({ where: { userId, lessonId } });
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (!currentProg) {
+        currentProg = inMemoryCourseLessonProgress.find(x => x.userId === userId && x.lessonId === lessonId);
+      }
+
+      if (!currentProg) {
+        currentProg = {
+          id: `c_prog_${userId}_${lessonId}_${Date.now()}`,
+          userId,
+          lessonId,
+          videoCompleted: false,
+          audioCompleted: false,
+          textCompleted: false,
+          quizCompleted: false,
+          flashcardsCompleted: false,
+          completed: false,
+          completedAt: null
+        };
+        inMemoryCourseLessonProgress.push(currentProg);
+      }
+
+      // Update the specific component
+      if (component_type === "video") currentProg.videoCompleted = true;
+      if (component_type === "audio") currentProg.audioCompleted = true;
+      if (component_type === "text") currentProg.textCompleted = true;
+      if (component_type === "quiz") currentProg.quizCompleted = true;
+      if (component_type === "flashcard") currentProg.flashcardsCompleted = true;
+
+      // Condition of full lesson completion: All components completed
+      const allDone = currentProg.videoCompleted && currentProg.audioCompleted && currentProg.textCompleted && currentProg.quizCompleted && currentProg.flashcardsCompleted;
+      
+      let gotCompletionNow = false;
+      if (allDone && !currentProg.completed) {
+        currentProg.completed = true;
+        currentProg.completedAt = new Date();
+        gotCompletionNow = true;
+
+        // Give XP Reward to student
+        try {
+          const userObj = await p.user.findUnique({ where: { id: userId } });
+          if (userObj) {
+            const addedXp = (lessonObj.xpReward || 30);
+            await p.user.update({
+              where: { id: userId },
+              data: {
+                xp: { increment: addedXp }
+              }
+            });
+            console.log(`⭐ [STUDENT XP ADDED] +${addedXp} XP para usuário ${userId}`);
+          }
+        } catch (xpErr: any) {
+          console.warn("⚠️ Não foi possível salvar XP no Postgres, usando fallback local.");
+        }
+      }
+
+      // Save to Postgres if active
+      if (isDatabaseConnected() && p) {
+        try {
+          const upData = {
+            videoCompleted: currentProg.videoCompleted,
+            audioCompleted: currentProg.audioCompleted,
+            textCompleted: currentProg.textCompleted,
+            quizCompleted: currentProg.quizCompleted,
+            flashcardsCompleted: currentProg.flashcardsCompleted,
+            completed: currentProg.completed,
+            completedAt: currentProg.completedAt
+          };
+
+          const existingDbProg = await p.courseLessonProgress.findFirst({ where: { userId, lessonId } });
+          if (existingDbProg) {
+            await p.courseLessonProgress.update({
+              where: { id: existingDbProg.id },
+              data: upData
+            });
+          } else {
+            await p.courseLessonProgress.create({
+              data: {
+                userId,
+                lessonId,
+                ...upData
+              }
+            });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ Falhou ao persistir progresso no Postgres:", dbErr.message);
+        }
+      }
+
+      res.json({
+        success: true,
+        progress: currentProg,
+        xpReward: gotCompletionNow ? (lessonObj.xpReward || 30) : 0,
+        lessonCompleted: currentProg.completed
+      });
+    } catch (err: any) {
+      console.error("[SAVING PROGRESS ERROR]:", err);
+      res.json({ success: false, error: "Erro ao registrar seu progresso de aula." });
+    }
+  });
+
+  // GET COURSE EXAM QUESTIONS FOR FINAL MODULE TEST
+  app.get(["/api/exams/:moduleId", "/api/course-exams/:moduleId"], authenticateToken, async (req: any, res: any) => {
+    try {
+      const { moduleId } = req.params;
+      const p = getPrisma() as any;
+
+      let exam: any = null;
+      let questions: any[] = [];
+
+      if (isDatabaseConnected() && p) {
+        try {
+          exam = await p.courseExam.findFirst({ where: { moduleId } });
+          if (exam) {
+            questions = await p.courseExamQuestion.findMany({ where: { examId: exam.id }, orderBy: { order: "asc" } });
+          }
+        } catch (e: any) {
+          console.error("⚠️ [EXAM DB READ ERROR]:", e.message);
+        }
+      }
+
+      if (!exam) {
+        exam = inMemoryCourseExams.find(e => e.moduleId === moduleId);
+      }
+      if (questions.length === 0 && exam) {
+        questions = inMemoryCourseExamQuestions.filter(q => q.examId === exam.id);
+      }
+
+      if (!exam) {
+        return res.json({ success: false, error: "Nenhum exame cadastrado para este módulo ainda." });
+      }
+
+      res.json({
+        success: true,
+        exam,
+        questions
+      });
+    } catch (err: any) {
+      res.json({ success: false, error: "Falha ao ler dados da avaliação." });
+    }
+  });
+
+  // SUBMIT COURSE EXAM ATTEMPT (APROVAÇÃO VS REPROVAÇÃO COM TEMPO DE BLOQUEIO DE 24 HORAS)
+  app.post(["/api/exams/submit", "/api/course-exams/submit"], authenticateToken, async (req: any, res: any) => {
+    try {
+      const userId = req.user.id;
+      const { moduleId, answers } = req.body; // answers is record of questionId -> selectedOption (e.g., {"q1": "A"})
+      const p = getPrisma() as any;
+
+      let examObj = inMemoryCourseExams.find(e => e.moduleId === moduleId);
+      let listQuestions = inMemoryCourseExamQuestions.filter(q => q.examId === examObj?.id);
+
+      if (isDatabaseConnected() && p) {
+        try {
+          const dbExam = await p.courseExam.findFirst({ where: { moduleId } });
+          if (dbExam) {
+            examObj = dbExam;
+            listQuestions = await p.courseExamQuestion.findMany({ where: { examId: dbExam.id } });
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (!examObj || listQuestions.length === 0) {
+        return res.json({ success: false, error: "Prova de certificação indisponível." });
+      }
+
+      // Check for current 24-hour block beforehand
+      let existingAttemptsMs: any[] = [];
+      if (isDatabaseConnected() && p) {
+        try {
+          existingAttemptsMs = await p.courseExamAttempt.findMany({ where: { userId, moduleId } });
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        existingAttemptsMs = inMemoryCourseExamAttempts.filter(a => a.userId === userId && a.moduleId === moduleId);
+      }
+
+      const latestTry = existingAttemptsMs.length > 0 ? existingAttemptsMs[existingAttemptsMs.length - 1] : null;
+      if (latestTry && !latestTry.passed && latestTry.nextAttemptAt) {
+        const nextTime = new Date(latestTry.nextAttemptAt).getTime();
+        const now = Date.now();
+        if (nextTime > now) {
+          const diffMs = nextTime - now;
+          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          return res.json({
+            success: false,
+            blocked: true,
+            error: `Tentativa bloqueada por reprovação. Nova chance disponível em ${hours}h ${minutes}m.`,
+            blockTimeRemainingMs: diffMs
+          });
+        }
+      }
+
+      // Calculate the score
+      let correctCount = 0;
+      const totalCount = listQuestions.length;
+
+      listQuestions.forEach((q: any) => {
+        const userAns = answers[q.id];
+        if (userAns && String(userAns).toUpperCase().trim() === String(q.correctAnswer).toUpperCase().trim()) {
+          correctCount++;
+        }
+      });
+
+      const scoreValue = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+      const pScoreNeeded = examObj.passingScore || 70;
+      const hasPassed = scoreValue >= pScoreNeeded;
+
+      // Define attempt times
+      const attemptedAt = new Date();
+      let nextAttemptAt = null;
+
+      // Rule: LOCK OUT FOR 24 HOURS ON CRITICAL FAIL
+      if (!hasPassed) {
+        const blockDurationHours = 24;
+        nextAttemptAt = new Date(attemptedAt.getTime() + (blockDurationHours * 60 * 60 * 1000));
+      }
+
+      const attemptResult = {
+        id: `attempt_${userId}_${moduleId}_${Date.now()}`,
+        userId,
+        moduleId,
+        score: scoreValue,
+        passed: hasPassed,
+        attemptedAt,
+        nextAttemptAt
+      };
+
+      // Push to fallback
+      inMemoryCourseExamAttempts.push(attemptResult);
+
+      // Save to database
+      if (isDatabaseConnected() && p) {
+        try {
+          await p.courseExamAttempt.create({
+            data: {
+              userId,
+              moduleId,
+              score: scoreValue,
+              passed: hasPassed,
+              attemptedAt,
+              nextAttemptAt
+            }
+          });
+
+          // Award double scale XP & badge if passed!
+          if (hasPassed) {
+            await p.user.update({
+              where: { id: userId },
+              data: {
+                xp: { increment: 300 } // Bonus completion reward!
+              }
+            });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ Erro persistindo tentativa de exame:", dbErr.message);
+        }
+      }
+
+      res.json({
+        success: true,
+        passed: hasPassed,
+        score: scoreValue,
+        passingScore: pScoreNeeded,
+        correctCount,
+        totalCount,
+        nextAttemptAt
+      });
+    } catch (err: any) {
+      console.error("[SUBMIT EXAM ERROR]:", err);
+      res.json({ success: false, error: "Falha ao registrar suas respostas." });
+    }
+  });
+
+  // ==========================================
+  // ADMIN CONTROL MANAGEMENT API ENDPOINTS
+  // ==========================================
+
+  // GET MAIN LIST (ADMIN-ONLY VISIBILITY WITH STATS SUMMARY)
+  app.get("/api/admin/course-modules", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const p = getPrisma() as any;
+      let dbModules: any[] = [];
+      let dbProgressList: any[] = [];
+      let dbAttempts: any[] = [];
+
+      if (isDatabaseConnected() && p) {
+        try {
+          dbModules = await p.courseModule.findMany({ orderBy: { order: "asc" } });
+          dbProgressList = await p.courseLessonProgress.findMany();
+          dbAttempts = await p.courseExamAttempt.findMany();
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const modules = dbModules.length > 0 ? dbModules : inMemoryCourseModules;
+      const progress = dbProgressList.length > 0 ? dbProgressList : inMemoryCourseLessonProgress;
+      const attempts = dbAttempts.length > 0 ? dbAttempts : inMemoryCourseExamAttempts;
+
+      // Inject full enrollment, passing ratios, & STUDY statistics
+      const calculatedModules = modules.map((mod: any) => {
+        const modLessons = inMemoryCourseLessons.filter(l => l.moduleId === mod.id);
+        const lCount = modLessons.length || 40;
+
+        // Statistics computation
+        const completionsCount = progress.filter((p: any) => p.lessonId.startsWith(`course_les_${mod.order}_`) && p.completed).length;
+        const totalAttempts = attempts.filter(a => a.moduleId === mod.id).length;
+        const passesCount = attempts.filter(a => a.moduleId === mod.id && a.passed).length;
+
+        return {
+          ...mod,
+          lessonsCount: lCount,
+          totalStudents: Math.max(1, Math.round(completionsCount / Math.max(1, lCount))),
+          passesCount,
+          completionsCount,
+          failRatio: totalAttempts > 0 ? Math.round(((totalAttempts - passesCount) / totalAttempts) * 100) : 0,
+          passRatio: totalAttempts > 0 ? Math.round((passesCount / totalAttempts) * 100) : 100
+        };
+      });
+
+      res.json({ success: true, modules: calculatedModules });
+    } catch (error: any) {
+      res.json({ success: false, error: "Falha de controle administrativo" });
+    }
+  });
+
+  // CREATE OR BULK EDIT SAVE MODULE
+  app.post("/api/admin/course-modules/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const modData = req.body;
+      const p = getPrisma() as any;
+
+      const modId = modData.id || `course_mod_${Date.now()}`;
+      const savePayload = {
+        id: modId,
+        title: modData.title || "Novo Módulo",
+        slug: modData.slug || `module-${Date.now()}`,
+        description: modData.description || "",
+        thumbnail: modData.thumbnail || "",
+        coverImage: modData.coverImage || "",
+        order: Number(modData.order || 1),
+        estimatedHours: Number(modData.estimatedHours || 5),
+        passingScore: Number(modData.passingScore || 70),
+        version: Number(modData.version || 1) + 1,
+        isPublished: modData.isPublished !== undefined ? modData.isPublished : true,
+        isArchived: modData.isArchived !== undefined ? modData.isArchived : false,
+        updatedAt: new Date()
+      };
+
+      // Write fallback
+      const inMemIdx = inMemoryCourseModules.findIndex(m => m.id === modId);
+      if (inMemIdx >= 0) {
+        inMemoryCourseModules[inMemIdx] = { ...inMemoryCourseModules[inMemIdx], ...savePayload };
+      } else {
+        inMemoryCourseModules.push({ ...savePayload, createdAt: new Date() });
+      }
+
+      // SQLite/Postgres Write
+      if (isDatabaseConnected() && p) {
+        try {
+          const upDb = {
+            title: savePayload.title,
+            slug: savePayload.slug,
+            description: savePayload.description,
+            thumbnail: savePayload.thumbnail,
+            coverImage: savePayload.coverImage,
+            order: savePayload.order,
+            estimatedHours: savePayload.estimatedHours,
+            passingScore: savePayload.passingScore,
+            version: savePayload.version,
+            isPublished: savePayload.isPublished,
+            isArchived: savePayload.isArchived
+          };
+          const exists = await p.courseModule.findUnique({ where: { id: modId } });
+          if (exists) {
+            await p.courseModule.update({ where: { id: modId }, data: upDb });
+          } else {
+            await p.courseModule.create({ data: { id: modId, ...upDb } });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ SQL Error saving module:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, message: "Módulo gravado e atualizado perfeitamente!", module: savePayload });
+    } catch (err: any) {
+      res.json({ success: false, error: err.message });
+    }
+  });
+
+  // SOFT ARCHIVE AND DELETE MODULES
+  app.post("/api/admin/course-modules/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id } = req.body;
+      const p = getPrisma() as any;
+
+      const memIndex = inMemoryCourseModules.findIndex(m => m.id === id);
+      if (memIndex >= 0) {
+        inMemoryCourseModules[memIndex].isArchived = true;
+      }
+
+      if (isDatabaseConnected() && p) {
+        try {
+          await p.courseModule.update({
+            where: { id },
+            data: { isArchived: true }
+          });
+        } catch (dbErr: any) {
+          console.error("⚠️ SQL Error archiving module:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, message: "Módulo arquivado com sucesso!" });
+    } catch (err: any) {
+      res.json({ success: false, error: err.message });
+    }
+  });
+
+  // GET ADMIN ALL LESSONS
+  app.get("/api/admin/course-lessons", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { moduleId } = req.query;
+      const p = getPrisma() as any;
+      let lessons: any[] = [];
+
+      if (isDatabaseConnected() && p && moduleId) {
+        try {
+          lessons = await p.courseLesson.findMany({ where: { moduleId }, orderBy: { order: "asc" } });
+        } catch (e) {}
+      }
+
+      if (lessons.length === 0) {
+        lessons = moduleId 
+          ? inMemoryCourseLessons.filter(l => l.moduleId === moduleId)
+          : inMemoryCourseLessons;
+      }
+
+      res.json({ success: true, lessons });
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  // SAVE LESSON ADMINISTRATIVE CONTROLS
+  app.post("/api/admin/course-lessons/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const lesData = req.body;
+      const p = getPrisma() as any;
+
+      const id = lesData.id || `course_les_${Date.now()}`;
+      const payload = {
+        id,
+        moduleId: lesData.moduleId,
+        title: lesData.title || "Untitled Lesson",
+        description: lesData.description || "",
+        thumbnail: lesData.thumbnail || "",
+        videoType: lesData.videoType || "upload",
+        videoSource: lesData.videoSource || "",
+        audioType: lesData.audioType || "upload",
+        audioSource: lesData.audioSource || "",
+        lessonContent: lesData.lessonContent || "",
+        transcript: lesData.transcript || "",
+        duration: lesData.duration || "5:00",
+        xpReward: Number(lesData.xpReward || 50),
+        order: Number(lesData.order || 1),
+        version: Number(lesData.version || 1) + 1,
+        isPublished: lesData.isPublished !== undefined ? lesData.isPublished : true,
+        isArchived: lesData.isArchived !== undefined ? lesData.isArchived : false,
+        updatedAt: new Date()
+      };
+
+      // In Memory
+      const idx = inMemoryCourseLessons.findIndex(x => x.id === id);
+      if (idx >= 0) {
+        inMemoryCourseLessons[idx] = { ...inMemoryCourseLessons[idx], ...payload };
+      } else {
+        inMemoryCourseLessons.push({ ...payload, createdAt: new Date() });
+      }
+
+      // SQL DB
+      if (isDatabaseConnected() && p) {
+        try {
+          const upDb = {
+            moduleId: payload.moduleId,
+            title: payload.title,
+            description: payload.description,
+            thumbnail: payload.thumbnail,
+            videoType: payload.videoType,
+            videoSource: payload.videoSource,
+            audioType: payload.audioType,
+            audioSource: payload.audioSource,
+            lessonContent: payload.lessonContent,
+            transcript: payload.transcript,
+            duration: payload.duration,
+            xpReward: payload.xpReward,
+            order: payload.order,
+            version: payload.version,
+            isPublished: payload.isPublished,
+            isArchived: payload.isArchived
+          };
+          const exists = await p.courseLesson.findUnique({ where: { id } });
+          if (exists) {
+            await p.courseLesson.update({ where: { id }, data: upDb });
+          } else {
+            await p.courseLesson.create({ data: { id, ...upDb } });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ SQL Error saving lesson:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, message: "Aula gravada na coleção de estudos!", lesson: payload });
+    } catch (err: any) {
+      res.json({ success: false, error: err.message });
+    }
+  });
+
+  // SOFT DELETE LESSON ADMINISTRATIVE CONTROLS
+  app.post("/api/admin/course-lessons/delete", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { id } = req.body;
+      const p = getPrisma() as any;
+
+      const idx = inMemoryCourseLessons.findIndex(x => x.id === id);
+      if (idx >= 0) {
+        inMemoryCourseLessons[idx].isArchived = true;
+      }
+
+      if (isDatabaseConnected() && p) {
+        try {
+          await p.courseLesson.update({
+            where: { id },
+            data: { isArchived: true }
+          });
+        } catch (dbErr: any) {
+          console.error("⚠️ db soft deletion error:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, message: "Aula desativada logicamente." });
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  // GET QUIZZES & FLASHCARDS ON DEMAND FOR LESSONS
+  app.get("/api/admin/course-quizzes", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const { lessonId } = req.query;
+      const questions = inMemoryCourseQuizQuestions.filter(q => q.lessonId === lessonId);
+      res.json({ success: true, questions });
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  // QUIZZES BULK MANAGEMENT
+  app.post("/api/admin/course-quizzes/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const qData = req.body;
+      const id = qData.id || `course_qz_${Date.now()}`;
+      const payload = {
+        id,
+        lessonId: qData.lessonId,
+        question: qData.question || "Qual a resposta correta?",
+        optionA: qData.optionA || "Opção A",
+        optionB: qData.optionB || "Opção B",
+        optionC: qData.optionC || "Opção C",
+        optionD: qData.optionD || "Opção D",
+        correctAnswer: qData.correctAnswer || "A",
+        explanation: qData.explanation || "",
+        points: Number(qData.points || 10),
+        order: Number(qData.order || 1)
+      };
+
+      const idx = inMemoryCourseQuizQuestions.findIndex(x => x.id === id);
+      if (idx >= 0) {
+        inMemoryCourseQuizQuestions[idx] = { ...inMemoryCourseQuizQuestions[idx], ...payload, updatedAt: new Date() };
+      } else {
+        inMemoryCourseQuizQuestions.push({ ...payload, createdAt: new Date(), updatedAt: new Date() });
+      }
+
+      const p = getPrisma() as any;
+      if (isDatabaseConnected() && p) {
+        try {
+          const exists = await p.courseQuizQuestion.findUnique({ where: { id } });
+          const upDb = {
+            lessonId: payload.lessonId,
+            question: payload.question,
+            optionA: payload.optionA,
+            optionB: payload.optionB,
+            optionC: payload.optionC,
+            optionD: payload.optionD,
+            correctAnswer: payload.correctAnswer,
+            explanation: payload.explanation,
+            points: payload.points,
+            order: payload.order
+          };
+          if (exists) {
+            await p.courseQuizQuestion.update({ where: { id }, data: upDb });
+          } else {
+            await p.courseQuizQuestion.create({ data: { id, ...upDb } });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ db quiz save error:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, question: payload });
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  // FLASHCARDS BULK MANAGEMENT
+  app.post("/api/admin/course-flashcards/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const fcData = req.body;
+      const id = fcData.id || `course_fc_${Date.now()}`;
+      const payload = {
+        id,
+        lessonId: fcData.lessonId,
+        frontText: fcData.frontText || "Frente",
+        backText: fcData.backText || "Verso",
+        audioUrl: fcData.audioUrl || "",
+        imageUrl: fcData.imageUrl || "",
+        order: Number(fcData.order || 1)
+      };
+
+      const idx = inMemoryCourseFlashcards.findIndex(x => x.id === id);
+      if (idx >= 0) {
+        inMemoryCourseFlashcards[idx] = { ...inMemoryCourseFlashcards[idx], ...payload, updatedAt: new Date() };
+      } else {
+        inMemoryCourseFlashcards.push({ ...payload, createdAt: new Date(), updatedAt: new Date() });
+      }
+
+      const p = getPrisma() as any;
+      if (isDatabaseConnected() && p) {
+        try {
+          const exists = await p.courseFlashcard.findUnique({ where: { id } });
+          const upDb = {
+            lessonId: payload.lessonId,
+            frontText: payload.frontText,
+            backText: payload.backText,
+            audioUrl: payload.audioUrl,
+            imageUrl: payload.imageUrl,
+            order: payload.order
+          };
+          if (exists) {
+            await p.courseFlashcard.update({ where: { id }, data: upDb });
+          } else {
+            await p.courseFlashcard.create({ data: { id, ...upDb } });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ db fc save error:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, flashcard: payload });
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  // GET EXAMS
+  app.get("/api/admin/course-exams", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const p = getPrisma() as any;
+      let exams: any[] = [];
+      if (isDatabaseConnected() && p) {
+        try {
+          exams = await p.courseExam.findMany({ include: { questions: { orderBy: { order: "asc" } } } });
+        } catch (e) {}
+      }
+      if (exams.length === 0) {
+        exams = inMemoryCourseExams.map(ex => {
+          const questions = inMemoryCourseExamQuestions.filter(q => q.examId === ex.id);
+          return { ...ex, questions };
+        });
+      }
+      res.json({ success: true, exams });
+    } catch (e: any) {
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  // SAVE EXAMS
+  app.post("/api/admin/course-exams/save", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const exData = req.body;
+      const p = getPrisma() as any;
+      const examId = exData.id || `course_exam_${Date.now()}`;
+      
+      const payload = {
+        id: examId,
+        moduleId: exData.moduleId,
+        title: exData.title || "Exame Final do Módulo",
+        description: exData.description || "",
+        passingScore: Number(exData.passingScore || 70),
+        version: Number(exData.version || 1) + 1,
+        isPublished: exData.isPublished !== undefined ? exData.isPublished : true,
+        updatedAt: new Date()
+      };
+
+      const idx = inMemoryCourseExams.findIndex(x => x.id === examId);
+      if (idx >= 0) {
+        inMemoryCourseExams[idx] = { ...inMemoryCourseExams[idx], ...payload };
+      } else {
+        inMemoryCourseExams.push({ ...payload, createdAt: new Date() });
+      }
+
+      if (isDatabaseConnected() && p) {
+        try {
+          const exists = await p.courseExam.findUnique({ where: { id: examId } });
+          const upDb = {
+            moduleId: payload.moduleId,
+            title: payload.title,
+            description: payload.description,
+            passingScore: payload.passingScore,
+            version: payload.version,
+            isPublished: payload.isPublished
+          };
+          if (exists) {
+            await p.courseExam.update({ where: { id: examId }, data: upDb });
+          } else {
+            await p.courseExam.create({ data: { id: examId, ...upDb } });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ db exam save error:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, exam: payload });
+    } catch (err: any) {
+      res.json({ success: false, error: err.message });
+    }
+  });
+
+  // SAVE EXAM QUESTIONS
+  app.post("/api/admin/course-exams/save-question", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+    try {
+      const qd = req.body;
+      const p = getPrisma() as any;
+      const id = qd.id || `course_ex_q_${Date.now()}`;
+      const payload = {
+        id,
+        examId: qd.examId,
+        question: qd.question || "",
+        optionA: qd.optionA || "",
+        optionB: qd.optionB || "",
+        optionC: qd.optionC || "",
+        optionD: qd.optionD || "",
+        correctAnswer: qd.correctAnswer || "A",
+        points: Number(qd.points || 10),
+        order: Number(qd.order || 1)
+      };
+
+      const idx = inMemoryCourseExamQuestions.findIndex(x => x.id === id);
+      if (idx >= 0) {
+        inMemoryCourseExamQuestions[idx] = { ...inMemoryCourseExamQuestions[idx], ...payload };
+      } else {
+        inMemoryCourseExamQuestions.push(payload);
+      }
+
+      if (isDatabaseConnected() && p) {
+        try {
+          const exists = await p.courseExamQuestion.findUnique({ where: { id } });
+          const upDb = {
+            examId: payload.examId,
+            question: payload.question,
+            optionA: payload.optionA,
+            optionB: payload.optionB,
+            optionC: payload.optionC,
+            optionD: payload.optionD,
+            correctAnswer: payload.correctAnswer,
+            points: payload.points,
+            order: payload.order
+          };
+          if (exists) {
+            await p.courseExamQuestion.update({ where: { id }, data: upDb });
+          } else {
+            await p.courseExamQuestion.create({ data: { id, ...upDb } });
+          }
+        } catch (dbErr: any) {
+          console.error("⚠️ db exam question save error:", dbErr.message);
+        }
+      }
+
+      res.json({ success: true, question: payload });
+    } catch (err: any) {
+      res.json({ success: false, error: err.message });
+    }
+  });
+
   const inMemoryAcademyModules = [
     { id: "mod_white", title: "White Belt Foundations", description: "Aprenda os fundamentos do Brazilian Jiu-Jitsu enquanto desenvolve seu inglês técnico.", beltLevel: "WHITE", orderIndex: 1, active: false },
     { id: "mod_blue", title: "Blue Belt Path - Guard Passing & Defense", description: "Aprofunde na passagem de guarda, finalizações avançadas e nomenclaturas em inglês de alto nível.", beltLevel: "BLUE", orderIndex: 2, active: false },
