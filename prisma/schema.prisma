@@ -1287,6 +1287,10 @@ model AcademyBranch {
   membersCount         Int                  @default(0)
   points               Int                  @default(0)
   verified             Boolean              @default(false)
+  externalId           String?
+  source               String?
+  lastSyncAt           DateTime?
+  verifiedExternally   Boolean              @default(false)
   deletedAt            DateTime?
   deletedBy            String?
   deletionReason       String?
@@ -1312,6 +1316,10 @@ model IndependentAcademy {
   membersCount         Int                  @default(0)
   points               Int                  @default(0)
   verified             Boolean              @default(false)
+  externalId           String?
+  source               String?
+  lastSyncAt           DateTime?
+  verifiedExternally   Boolean              @default(false)
   deletedAt            DateTime?
   deletedBy            String?
   deletionReason       String?

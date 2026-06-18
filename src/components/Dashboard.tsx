@@ -648,7 +648,7 @@ export default function Dashboard({
                 <div className="space-y-2.5">
                   {leaderboard.length === 0 ? (
                     <div className="py-8 text-center text-xs text-zinc-500 font-sans italic" id="empty-leaderboard-dojo">
-                      Ranking ainda não possui atletas cadastrados.
+                      Nenhum atleta ranqueado ainda.
                     </div>
                   ) : (
                     leaderboard.map((player, idx) => {
