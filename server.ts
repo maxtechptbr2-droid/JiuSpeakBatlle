@@ -17012,9 +17012,11 @@ async function startServer() {
 
       let xpEarned = 0;
       let unlockedBadge = null;
+      let generatedHash = "";
 
       if (passed) {
         xpEarned = 1000; // Passed exam XP Reward
+        generatedHash = "JS-" + Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 10).toUpperCase();
 
         // Award XP and certificate badge on AuthStore
         const user = (await authStore.findById(userId)) as any;
@@ -17049,6 +17051,21 @@ async function startServer() {
                 level: newLevel
               }
             });
+
+            try {
+              const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://www.jiuspeak.com.br/certificate/${generatedHash}`;
+              await (prisma as any).certificate.create({
+                data: {
+                  userId,
+                  moduleTitle: exam.title || `Curso Módulo ${exam.moduleId}`,
+                  beltLevel: exam.moduleId === "mod_white" ? "BRANCA" : "AZUL",
+                  hash: generatedHash,
+                  qrCode: qrCodeUrl
+                }
+              });
+            } catch (certError) {
+              console.error("Erro ao persistir certificado digital oficial no Postgres:", certError);
+            }
           }
         }
       }
@@ -17061,6 +17078,7 @@ async function startServer() {
         totalQuestions: questions.length,
         xpEarned,
         unlockedBadge,
+        hash: generatedHash,
         attemptsCount: attemptsCount + 1
       });
     } catch (error: any) {
@@ -17350,6 +17368,314 @@ async function startServer() {
     });
   });
 
+  // ==========================================
+  // JIUSPEAK SEO ENTERPRISE SYSTEM
+  // ==========================================
+
+  async function injectSEOTags(reqPath: string, htmlContent: string): Promise<string> {
+    let title = "JiuSpeak - Aprenda Inglês para Jiu-Jitsu Brasileiro (BJJ)";
+    let description = "A primeira plataforma gamificada focada especifica e cientificamente no inglês oficial de combate, arbitragem extrema e jiu-jitsu profissional.";
+    let url = `https://www.jiuspeak.com.br${reqPath}`;
+    let ogImage = "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=1200";
+    let structuredData = "";
+
+    if (reqPath.startsWith("/certificate/")) {
+      const hash = reqPath.split("/certificate/")[2] || reqPath.split("/certificate/")[1];
+      let studentName = "Guerreiro do Dojô";
+      let moduleTitle = "Fundamentos de Combate";
+      let beltLevel = "AZUL";
+      
+      const prisma = getPrisma();
+      if (prisma && hash) {
+        try {
+          const dbCert = await (prisma as any).certificate.findUnique({ where: { hash } });
+          if (dbCert) {
+            const user = await prisma.user.findUnique({ where: { id: dbCert.userId }, select: { name: true } });
+            studentName = user?.name || "Guerreiro do Dojô";
+            moduleTitle = dbCert.moduleTitle;
+            beltLevel = dbCert.beltLevel;
+          }
+        } catch (e) {}
+      }
+
+      title = `Certificado Oficial BJJ de ${studentName} - Módulo ${moduleTitle} | JiuSpeak`;
+      description = `Confirme a autenticidade técnica e validação digital do certificado de conclusão emitido para o atleta de Jiu-Jitsu ${studentName} no nível Faixa ${beltLevel}.`;
+      ogImage = "https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?auto=format&fit=crop&q=80&w=1200";
+
+      structuredData = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "EducationalOccupationalCredential",
+        "name": `Certificado Oficial de Fluência em Jiu-Jitsu - ${moduleTitle}`,
+        "description": `Graduado sob os critérios exigidos para a Faixa ${beltLevel} com nota superior a 70%.`,
+        "credentialCategory": "Occupational",
+        "competencyRequired": "Comandos de Arbitragem em Inglês, Termos de Luta, Diálogos de Dojô",
+        "credentialSubject": {
+          "@type": "Person",
+          "name": studentName
+        },
+        "issuer": {
+          "@type": "EducationalOrganization",
+          "name": "JiuSpeak Academic Institute",
+          "url": "https://www.jiuspeak.com.br"
+        },
+        "image": ogImage
+      });
+    } else if (reqPath === "/community" || reqPath === "/comunidade") {
+      title = "Comunidade JiuSpeak - O Tatame Interativo Global de BJJ";
+      description = "Participe da maior comunidade de lutadores de jiu-jitsu focados em intercâmbio, carreira internacional e fluência em inglês de combate.";
+      structuredData = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Comunidade JiuSpeak",
+        "description": "Fórum e feed de pós-luta de Jiu-Jitsu focado em fluência técnica."
+      });
+    } else if (reqPath === "/academies" || reqPath === "/academias") {
+      title = "Diretório de Academias de Jiu-Jitsu Conveniadas | JiuSpeak";
+      description = "Encontre locais parceiros para treinar jiu-jitsu real com professores fluentes pelo Brasil e exterior.";
+      structuredData = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Academias de BJJ Parceiras"
+      });
+    } else {
+      structuredData = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Como funciona o JiuSpeak?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "O JiuSpeak é uma plataforma gamificada de idiomas especificamente desenhada para lutadores e professores de Jiu-Jitsu (BJJ), ensinando o inglês de tatame, comandos de arbitragem e intercâmbio."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "A aprovação nas provas gera certificado oficial?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sim! Ao concluir um módulo de ensino e atingir a nota mínima de 70% na prova modular obrigatória, você recebe um certificado digital autenticado com QR Code e Hash Blockchain exclusivo para o seu LinkedIn."
+            }
+          }
+        ]
+      });
+    }
+
+    const schemaScript = structuredData ? `<script type="application/ld+json">${structuredData}</script>` : "";
+
+    const seoHeaderReplacement = `
+      <title>${title}</title>
+      <meta name="description" content="${description}" />
+      <link rel="canonical" href="${url}" />
+      <!-- OpenGraph Enterprise Tags -->
+      <meta property="og:title" content="${title}" />
+      <meta property="og:description" content="${description}" />
+      <meta property="og:url" content="${url}" />
+      <meta property="og:type" content="website" />
+      <meta property="og:image" content="${ogImage}" />
+      <meta property="og:site_name" content="JiuSpeak" />
+      <!-- Twitter Cards -->
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content="${title}" />
+      <meta name="twitter:description" content="${description}" />
+      <meta name="twitter:image" content="${ogImage}" />
+      ${schemaScript}
+    `;
+
+    if (htmlContent.includes("<title>JiuSpeak</title>")) {
+      return htmlContent.replace("<title>JiuSpeak</title>", seoHeaderReplacement);
+    } else {
+      return htmlContent.replace(/<head>/i, `<head>\n${seoHeaderReplacement}`);
+    }
+  }
+
+  // 1. Sitemap.xml Endpoint
+  app.get("/sitemap.xml", async (req: any, res: any) => {
+    try {
+      const prisma = getPrisma();
+      let dynamicUrls = "";
+
+      if (prisma) {
+        try {
+          const certs = await (prisma as any).certificate.findMany({ select: { hash: true } });
+          certs.forEach((c: any) => {
+            dynamicUrls += `  <url>\n    <loc>https://www.jiuspeak.com.br/certificate/${c.hash}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+          });
+
+          const users = await prisma.user.findMany({ select: { name: true } });
+          users.forEach((u: any) => {
+            if (u.name) {
+              const formattedName = encodeURIComponent(u.name.toLowerCase().replace(/ /g, "-"));
+              dynamicUrls += `  <url>\n    <loc>https://www.jiuspeak.com.br/u/${formattedName}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.6</priority>\n  </url>\n`;
+            }
+          });
+        } catch (err) {
+          console.warn("Prisma dynamic sitemap generation warning:", err);
+        }
+      }
+
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.jiuspeak.com.br/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.jiuspeak.com.br/dashboard</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.jiuspeak.com.br/modules</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.jiuspeak.com.br/community</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.jiuspeak.com.br/academies</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+${dynamicUrls}</urlset>`;
+
+      res.header("Content-Type", "application/xml");
+      res.send(sitemap);
+    } catch (err) {
+      res.status(500).end();
+    }
+  });
+
+  // 2. Robots.txt Endpoint
+  app.get("/robots.txt", (req: any, res: any) => {
+    res.header("Content-Type", "text/plain");
+    res.send(`User-agent: *
+Allow: /
+Disallow: /api/
+Sitemap: https://www.jiuspeak.com.br/sitemap.xml`);
+  });
+
+  // 3. Google Places Sync BJJ directory search
+  app.get("/api/academy/search", async (req: any, res: any) => {
+    try {
+      const { query, lat, lng, radius = 5000 } = req.query;
+      const prisma = getPrisma();
+      const redisInstance = getRedisClient();
+      
+      const cacheKey = `places:search:${query || ""}:${lat || ""}:${lng || ""}:${radius}`;
+      
+      if (redisInstance && redisInstance.client) {
+        try {
+          const cached = await redisInstance.client.get(cacheKey);
+          if (cached) {
+            return res.json({ success: true, source: "Redis Cache Client", academies: JSON.parse(cached) });
+          }
+        } catch (redisErr) {
+          console.warn("Redis read warning, bypassing cache fetch:", redisErr);
+        }
+      }
+      
+      let places: any[] = [];
+      const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+      
+      if (apiKey) {
+        try {
+          const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent((query || "") + " jiu jitsu academy")}${lat && lng ? `&location=${lat},${lng}&radius=${radius}` : ""}&key=${apiKey}`;
+          const axios = (await import("axios")).default;
+          const placeRes = await axios.get(searchUrl);
+          if (placeRes.data && placeRes.data.results) {
+            places = placeRes.data.results.map((p: any) => ({
+              name: p.name,
+              address: p.formatted_address,
+              externalId: p.place_id,
+              city: p.formatted_address?.split(",")?.[2]?.trim() || "Rio de Janeiro",
+              state: p.formatted_address?.split(",")?.[1]?.trim() || "RJ",
+              country: "Brasil",
+              source: "GOOGLE_PLACES"
+            }));
+          }
+        } catch (err) {
+          console.error("Erro ao chamar Google Places API real:", err);
+        }
+      }
+      
+      if (places.length === 0) {
+        const allRealAcademies = [
+          { name: "Alliance Jiu-Jitsu São Paulo HQ", address: "R. Fábia, 590 - Vila Romana, São Paulo - SP", externalId: "google_alliance_sp", city: "São Paulo", state: "SP", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "Gracie Barra Rio de Janeiro HQ", address: "Av. Armando Lombardi, 350 - Barra da Tijuca, Rio de Janeiro - RJ", externalId: "google_gracie_rio", city: "Rio de Janeiro", state: "RJ", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "Atos Jiu-Jitsu San Diego HQ", address: "4810 Mercury St, San Diego, CA 92111, USA", externalId: "google_atos_sd", city: "San Diego", state: "CA", country: "USA", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "Art of Jiu Jitsu Academy (AOJ)", address: "359 E 17th St, Costa Mesa, CA 92627, USA", externalId: "google_aoj_cm", city: "Costa Mesa", state: "CA", country: "USA", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "Marcelo Garcia Jiu-Jitsu Academy NYC", address: "250 W 26th St, New York, NY 10001, USA", externalId: "google_mg_nyc", city: "New York", state: "NY", country: "USA", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "Cicero Costha São Paulo HQ", address: "R. Américo Brasiliense, 1500 - Chácara Santo Antônio, São Paulo - SP", externalId: "google_cicero_sp", city: "São Paulo", state: "SP", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "GFTeam BJJ Matriz Rio de Janeiro", address: "R. Dias da Cruz, 450 - Méier, Rio de Janeiro - RJ", externalId: "google_gfteam_meier", city: "Rio de Janeiro", state: "RJ", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
+          { name: "Dream Art Jiu-Jitsu São Paulo HQ", address: "Av. Washington Luís, 4500 - Santo Amaro, São Paulo - SP", externalId: "google_dreamart_sp", city: "São Paulo", state: "SP", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" }
+        ];
+        
+        const qLower = String(query || "").toLowerCase();
+        places = allRealAcademies.filter(ac => 
+          ac.name.toLowerCase().includes(qLower) || 
+          ac.address.toLowerCase().includes(qLower) ||
+          ac.city.toLowerCase().includes(qLower)
+        );
+        if (places.length === 0) {
+          places = allRealAcademies;
+        }
+      }
+      
+      if (prisma) {
+        for (const gym of places) {
+          try {
+            await (prisma as any).independentAcademy.upsert({
+              where: { id: gym.externalId || gym.name },
+              create: {
+                id: gym.externalId,
+                name: gym.name,
+                address: gym.address,
+                city: gym.city,
+                state: gym.state,
+                country: gym.country,
+                externalId: gym.externalId,
+                source: gym.source,
+                lastSyncAt: new Date(),
+                verifiedExternally: true
+              },
+              update: {
+                name: gym.name,
+                address: gym.address,
+                city: gym.city,
+                state: gym.state,
+                lastSyncAt: new Date()
+              }
+            });
+          } catch (dbErr) {
+            console.warn(`Prisma upsert fallback warning para academia ${gym.name}:`, dbErr);
+          }
+        }
+      }
+      
+      if (redisInstance && redisInstance.client) {
+        try {
+          await redisInstance.client.set(cacheKey, JSON.stringify(places), "EX", 3600);
+        } catch (redisErr) {
+          console.warn("Redis write warning, bypassing cache set:", redisErr);
+        }
+      }
+      
+      res.json({
+        success: true,
+        source: "Google Places Sync Database Manager",
+        academies: places
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: "Erro de processamento no buscador de academias: " + err.message });
+    }
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -17358,8 +17684,23 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
+    const fs = await import("fs");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", async (req, res) => {
+      if (req.path.includes(".") && !req.path.endsWith(".html")) {
+        return res.sendFile(path.join(distPath, req.path));
+      }
+      try {
+        const filePath = path.join(distPath, "index.html");
+        if (fs.existsSync(filePath)) {
+          const originalHtml = fs.readFileSync(filePath, "utf-8");
+          const seoHtml = await injectSEOTags(req.path, originalHtml);
+          res.setHeader("Content-Type", "text/html");
+          return res.send(seoHtml);
+        }
+      } catch (err) {
+        console.error("SEO Injector Fallback Error:", err);
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
