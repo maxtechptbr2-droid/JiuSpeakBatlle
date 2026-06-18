@@ -148,6 +148,8 @@ export default function Users() {
     });
   };
 
+  const [showOnlySuspicious, setShowOnlySuspicious] = useState(false);
+
   // Filters mapping
   const filteredUsers = registeredUsers.filter(u => {
     const sTerm = userSearchText.toLowerCase();
@@ -156,6 +158,14 @@ export default function Users() {
     const matchesSearch = nameMatch || emailMatch;
 
     const matchesBelt = userFilterBelt === 'ALL' || u.belt === userFilterBelt;
+
+    if (showOnlySuspicious) {
+      const nameLower = (u.name || "").toLowerCase();
+      const emailLower = (u.email || "").toLowerCase();
+      const suspMatches = ["fighter_", "bot_", "npc_", "player_", "fake", "test", "demo", "mock", "dummy"].some(pat => nameLower.includes(pat) || emailLower.includes(pat));
+      return matchesSearch && matchesBelt && suspMatches;
+    }
+
     return matchesSearch && matchesBelt;
   });
 
@@ -384,6 +394,15 @@ export default function Users() {
             <option value="Marrom">Marrom</option>
             <option value="Preto">Preto</option>
           </select>
+
+          <button
+            type="button"
+            onClick={() => setShowOnlySuspicious(!showOnlySuspicious)}
+            className={`p-2 px-3 rounded-xl text-xs font-semibold font-mono transition-all flex items-center gap-1 cursor-pointer border ${showOnlySuspicious ? 'bg-rose-950/60 border-rose-800 text-rose-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'}`}
+            title="Mostrar contas sospeitas (e.g. Fighter_, fake, test, mock, dummy)"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-rose-500" /> {showOnlySuspicious ? "Suspeitos" : "Todos"}
+          </button>
 
           {/* Export suite buttons card */}
           <div className="bg-slate-950 border border-slate-800 rounded-xl p-1 flex items-center gap-1">
