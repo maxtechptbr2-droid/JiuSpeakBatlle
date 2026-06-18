@@ -111,6 +111,25 @@ export default function Users() {
     }
   };
 
+  const handlePurgeFakes = async () => {
+    setDoubleConfirmAction({
+      actionType: 'DELETE',
+      title: '⚠️ PURGA COMPLETA DE FAKES (PRODUÇÃO)',
+      message: 'Esta ação irá EXCLUIR DEFINITIVAMENTE todos os usuários suspeitos contendo nomes/e-mails como Fighter_, test, demo, audit, mock, dummy. Todos os históricos, PVPs, posts e transações desses usuários serão limpos transacionalmente no PostgreSQL usando Prisma. Esta operação é IRREVERSÍVEL. Confirmar purga forense?',
+      onConfirm: async () => {
+        try {
+          const res = await callAdminAction('/api/admin/users/purge-fakes', 'POST', {});
+          if (res) {
+            showToast("Purga de segurança concluída com sucesso no PostgreSQL!", "success");
+            fetchUsers();
+          }
+        } catch (e: any) {
+          showToast(`Falha técnica ao purgar dados: ${e.message}`, "error");
+        }
+      }
+    });
+  };
+
   const onTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!transferPayload.targetUserId) {
@@ -399,9 +418,18 @@ export default function Users() {
             type="button"
             onClick={() => setShowOnlySuspicious(!showOnlySuspicious)}
             className={`p-2 px-3 rounded-xl text-xs font-semibold font-mono transition-all flex items-center gap-1 cursor-pointer border ${showOnlySuspicious ? 'bg-rose-950/60 border-rose-800 text-rose-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'}`}
-            title="Mostrar contas sospeitas (e.g. Fighter_, fake, test, mock, dummy)"
+            title="Mostrar contas suspeitas (e.g. Fighter_, fake, test, mock, dummy)"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-rose-500" /> {showOnlySuspicious ? "Suspeitos" : "Todos"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePurgeFakes}
+            className="p-2 px-3 bg-rose-900/40 hover:bg-rose-900 border border-rose-700/80 hover:border-rose-500 rounded-xl text-xs font-semibold text-rose-200 transition-all flex items-center gap-1 cursor-pointer"
+            title="Purgar todas as contas fakes e dados associados de forma transacional no PostgreSQL"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" /> Purgar Fakes
           </button>
 
           {/* Export suite buttons card */}

@@ -5439,6 +5439,183 @@ app.post("/api/admin/users/cleanup-suspicious", authenticateToken, requireRole([
   }
 });
 
+// 13.4.2 ADVANCED TRANSACTING FORENSIC PURGE OF FAKES & SIMULATORS (Fighter_, test, demo, audit, mock, dummy)
+app.post("/api/admin/users/purge-fakes", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    let removedCount = 0;
+    const deletedUserDetails: { id: string; name: string; email: string }[] = [];
+
+    if (isDatabaseConnected() && prisma) {
+      // Find all target profiles
+      const targetUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { name: { contains: "Fighter_", mode: "insensitive" } },
+            { name: { contains: "test", mode: "insensitive" } },
+            { name: { contains: "demo", mode: "insensitive" } },
+            { name: { contains: "audit", mode: "insensitive" } },
+            { name: { contains: "mock", mode: "insensitive" } },
+            { name: { contains: "dummy", mode: "insensitive" } },
+            { email: { contains: "fighter_", mode: "insensitive" } },
+            { email: { contains: "test", mode: "insensitive" } },
+            { email: { contains: "demo", mode: "insensitive" } },
+            { email: { contains: "audit", mode: "insensitive" } },
+            { email: { contains: "mock", mode: "insensitive" } },
+            { email: { contains: "dummy", mode: "insensitive" } }
+          ],
+          NOT: {
+            role: { in: ["ADMIN_ROLE", "ADMIN", "admin", "SUPER_ADMIN", "super_admin"] },
+            id: req.user.id
+          }
+        },
+        select: { id: true, name: true, email: true }
+      });
+
+      if (targetUsers.length > 0) {
+        const uIds = targetUsers.map(u => u.id);
+        const uEmails = targetUsers.map(u => u.email);
+
+        await prisma.$transaction(async (tx) => {
+          // 1. Session logs
+          await tx.userSession.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 2. Studies logs & results
+          await tx.courseLessonProgress.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.courseModuleProgress.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.courseExamAttempt.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.academyProgress.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.examAttempt.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 3. Game & badge records
+          await tx.userAchievement.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 4. Social structures
+          await tx.userFollower.deleteMany({
+            where: { OR: [{ followerId: { in: uIds } }, { followingId: { in: uIds } }] }
+          });
+          await tx.follower.deleteMany({
+            where: { OR: [{ followerId: { in: uIds } }, { followingId: { in: uIds } }] }
+          });
+          await tx.socialFeed.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.socialShare.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.comment.deleteMany({ where: { authorId: { in: uIds } } });
+          await tx.like.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.socialPost.deleteMany({ where: { authorId: { in: uIds } } });
+
+          // 5. PVP references
+          await tx.pvpAnswer.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.pvpMatch.deleteMany({
+            where: { OR: [{ challengerId: { in: uIds } }, { defenderId: { in: uIds } }] }
+          });
+
+          // 6. Marketplace & Teacher layer
+          await tx.teacherProfile.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.marketplaceTeacherApplication.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.marketplacePurchase.deleteMany({ where: { buyerId: { in: uIds } } });
+          await tx.marketplaceEnrollment.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.marketplaceReview.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 7. Wallet & Payments cascading
+          const userWallets = await tx.wallet.findMany({
+            where: { userId: { in: uIds } },
+            select: { id: true }
+          });
+          const walletIds = userWallets.map(w => w.id);
+          if (walletIds.length > 0) {
+            const userWithdrawals = await tx.withdrawal.findMany({
+              where: { walletId: { in: walletIds } },
+              select: { id: true }
+            });
+            const withdrawalIds = userWithdrawals.map(wd => wd.id);
+            if (withdrawalIds.length > 0) {
+              await tx.withdrawalAudit.deleteMany({
+                where: { withdrawalId: { in: withdrawalIds } }
+              });
+            }
+            await tx.withdrawal.deleteMany({ where: { walletId: { in: walletIds } } });
+            await tx.transaction.deleteMany({ where: { walletId: { in: walletIds } } });
+          }
+          await tx.bankAccount.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.wallet.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 8. Subscription layers
+          await tx.subscriptionPayment.deleteMany({
+            where: { subscription: { userId: { in: uIds } } }
+          });
+          await tx.subscription.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.payment.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.storeSale.deleteMany({ where: { buyerId: { in: uIds } } });
+          await tx.marketplaceSale.deleteMany({ where: { buyerId: { in: uIds } } });
+          await tx.paymentTransaction.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 9. Tokens, logs, credentials & profiles
+          await tx.refreshToken.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.loginAttempt.deleteMany({ where: { email: { in: uEmails } } });
+          await tx.userProfile.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.userModeration.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.certificate.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.rank.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.notification.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.affiliationHistory.deleteMany({ where: { userId: { in: uIds } } });
+          await tx.governanceAuditLog.deleteMany({ where: { userId: { in: uIds } } });
+
+          // 10. Actual Users delete
+          await tx.user.deleteMany({ where: { id: { in: uIds } } });
+        });
+
+        removedCount = targetUsers.length;
+        deletedUserDetails.push(...targetUsers);
+
+        // Mirror cache removal
+        const { inMemoryUsers } = await import("./server/authStore");
+        targetUsers.forEach(u => {
+          inMemoryUsers.delete(u.id);
+        });
+      }
+    } else {
+      // In-Memory Simulation Purge of everything in active cache
+      const { inMemoryUsers } = await import("./server/authStore");
+      const suspiciousCached = Array.from(inMemoryUsers.values()).filter(u => {
+        const nameLower = u.name.toLowerCase();
+        const emailLower = u.email.toLowerCase();
+        const matchesName = nameLower.includes("fighter_") || nameLower.includes("test") || nameLower.includes("demo") || nameLower.includes("audit") || nameLower.includes("mock") || nameLower.includes("dummy");
+        const matchesEmail = emailLower.includes("fighter_") || emailLower.includes("test") || emailLower.includes("demo") || emailLower.includes("audit") || emailLower.includes("mock") || emailLower.includes("dummy");
+        const isAdmin = ["ADMIN_ROLE", "ADMIN", "admin", "SUPER_ADMIN", "super_admin"].includes(String(u.role).toUpperCase());
+        return (matchesName || matchesEmail) && !isAdmin && u.id !== req.user.id;
+      });
+
+      suspiciousCached.forEach(u => {
+        inMemoryUsers.delete(u.id);
+        deletedUserDetails.push({ id: u.id, name: u.name, email: u.email });
+      });
+      removedCount = suspiciousCached.length;
+    }
+
+    if (prisma && isDatabaseConnected()) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user.id,
+          action: "SYSTEM_SETTING_CHANGE",
+          description: `PURGA FORENSE COMPLETA: Administrador realizou a eliminação transacional de ${removedCount} perfis fakes/testes no PostgreSQL.`,
+          ipAddress: req.ip || req.headers["x-forwarded-for"] || "127.0.0.1",
+          userAgent: req.headers["user-agent"]
+        }
+      }).catch(() => {});
+    }
+
+    res.json({
+      success: true,
+      message: `Purga forense de dados fake realizada com absoluto sucesso no PostgreSQL! ${removedCount} usuários e dependências foram eliminados transacionalmente.`,
+      purgedCount: removedCount,
+      purgedUsers: deletedUserDetails
+    });
+  } catch (error: any) {
+    console.error("Erro na purga forense de fakes:", error);
+    res.status(500).json({ error: "Erro de purga transacional: " + error.message });
+  }
+});
+
 // 13.5 ADVANCED INFO (Audit + Login history + active refresh tokens + device types / IP list + Purchases & Payments)
 app.get("/api/admin/users/:id/advanced-info", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
