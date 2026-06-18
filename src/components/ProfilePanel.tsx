@@ -1107,7 +1107,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 space-y-6 shadow-xl animate-fadeIn" id="invite-tab-panel">
           <div className="border-b border-slate-800 pb-4">
             <h3 className="text-base font-display font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" /> SISTEMA DE INDICAÇÕES JIUSPEAK (GANHE 200 JT)
+              <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" /> SISTEMA DE INDICAÇÕES JIUSPEAK (RECOMPENSA EM JT)
             </h3>
             <p className="text-[11px] text-slate-400">Ajude nossa comunidade de Jiu-Jitsu e Inglês a crescer pelo mundo e receba créditos oficiais em JiuTickets!</p>
           </div>
@@ -1163,7 +1163,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                   <button
                     type="button"
                     onClick={() => {
-                      const shareText = `Acabei de receber conquistas na JiuSpeak. Use meu link de indicação para receber 200 JT ao se registrar: ${window.location.origin}/invite/${profile.username || user.username || user.id}`;
+                      const shareText = `Acabei de receber conquistas na JiuSpeak. Use meu link de indicação para obter recompensas em JT ao se registrar: ${window.location.origin}/invite/${profile.username || user.username || user.id}`;
                       navigator.clipboard.writeText(shareText);
                       showToast("Post pronto copiado para os Stories do Instagram/TikTok!", "success");
                     }}
@@ -1198,7 +1198,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
             <span className="text-xs font-bold text-white block">Regras claras do Dojô Viral:</span>
             <ul className="text-slate-400 text-[11px] list-disc pl-5 space-y-1.5 font-sans leading-relaxed">
               <li>O indicado deve utilizar o link <strong>direto</strong> para acessar a plataforma para gravar o cookies de rastreio.</li>
-              <li>A recompensa de <strong>200 JT</strong> livres de tarifas para cada um será creditada assim que o indicado finalizar com maestria o Onboarding Wizard.</li>
+              <li>A <strong>Recompensa em JT</strong> livre de tarifas para cada um será creditada assim que o indicado finalizar com maestria o Onboarding Wizard.</li>
               <li>Sistemas automatizados ou IPs idênticos para auto-indicação serão suspensos sumariamente pelo Painel Administrativo. Treine limpo, jogue limpo!</li>
             </ul>
           </div>

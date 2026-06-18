@@ -6,3 +6,23 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Custom Enterprise Exclusions
+logs/
+audits/
+prisma_audit/
+backups/
+*.sql
+*.backup
+*.bak
+*.old
+*.tmp
+.env.local
+.env.production.local
+.env.development.local
+dist-ssr/
+.cache/
+.vite/
+public/uploads/temp/
+public/uploads/tmp/
+public/uploads/testing/

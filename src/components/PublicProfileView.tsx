@@ -74,14 +74,15 @@ export default function PublicProfileView({ username, currentUser, showToast, on
       const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
       const serviceUrl = '/api/profile/follow';
       const method = isFollowing ? 'DELETE' : 'POST';
+      const url = method === 'DELETE' ? `${serviceUrl}?targetUserId=${profileData.id}` : serviceUrl;
 
-      const res = await fetch(serviceUrl, {
+      const res = await fetch(url, {
         method: method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ targetUserId: profileData.id })
+        body: method === 'POST' ? JSON.stringify({ targetUserId: profileData.id }) : undefined
       });
 
       if (res.ok) {

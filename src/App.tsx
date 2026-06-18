@@ -271,7 +271,7 @@ export default function App() {
   useEffect(() => {
     if (localStorage.getItem('jiuspeak_referrer') && window.location.pathname.startsWith('/invite/')) {
       const referrer = localStorage.getItem('jiuspeak_referrer');
-      showToast(`Você foi convidado por @${referrer}! Registre-se para resgatar 200 JT livres!`, 'success');
+      showToast(`Você foi convidado por @${referrer}! Registre-se para resgatar sua Recompensa em JT!`, 'success');
       window.history.pushState(null, '', '/');
     }
   }, []);

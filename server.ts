@@ -4072,7 +4072,7 @@ app.post("/api/profile/follow", authenticateToken, async (req: any, res: any) =>
 
 // UNFOLLOW AN ATHLETE (With Transaction Security)
 app.delete("/api/profile/follow", authenticateToken, async (req: any, res: any) => {
-  const { targetUserId } = req.body || req.query;
+  const targetUserId = req.body?.targetUserId || req.query?.targetUserId;
   if (!targetUserId) return res.status(400).json({ error: "Faltando targetUserId" });
   
   try {
