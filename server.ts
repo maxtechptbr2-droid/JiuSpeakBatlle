@@ -15267,6 +15267,7 @@ async function startServer() {
       const userId = req.user.id;
       const p = getPrisma() as any;
       let dbModules: any[] = [];
+      let dbLessons: any[] = [];
       let dbProgressList: any[] = [];
       let dbAttempts: any[] = [];
 
@@ -15275,6 +15276,9 @@ async function startServer() {
           dbModules = await p.courseModule.findMany({
             where: { isArchived: false, isPublished: true },
             orderBy: { order: "asc" }
+          });
+          dbLessons = await p.courseLesson.findMany({
+            where: { isArchived: false, isPublished: true }
           });
           dbProgressList = await p.courseLessonProgress.findMany({
             where: { userId }
@@ -15288,20 +15292,17 @@ async function startServer() {
         }
       }
 
-      // Merge physical & fallback
-      const modules = dbModules.length > 0 ? dbModules : inMemoryCourseModules.filter(m => !m.isArchived && m.isPublished);
-      const progress = dbProgressList.length > 0 ? dbProgressList : inMemoryCourseLessonProgress.filter(p => p.userId === userId);
-      const attempts = dbAttempts.length > 0 ? dbAttempts : inMemoryCourseExamAttempts.filter(a => a.userId === userId);
+      const modules = dbModules;
+      const progress = dbProgressList;
+      const attempts = dbAttempts;
 
       // Map progress with unlocking logic and completion status
       const mappedModules = modules.map((mod: any, index: number) => {
         // Fetch lessons for this module
-        const modLessons = (dbModules.length > 0 && isDatabaseConnected()) 
-          ? [] // If database, lessons are loaded individually or pre-included safely
-          : inMemoryCourseLessons.filter(l => l.moduleId === mod.id && !l.isArchived && l.isPublished);
+        const modLessons = dbLessons.filter(l => l.moduleId === mod.id);
 
         // Calculate lesson stats
-        const lessonsCount = modLessons.length > 0 ? modLessons.length : 40; // Default count 40
+        const lessonsCount = modLessons.length;
         const completedCount = progress.filter((p: any) => {
           const inMod = modLessons.some(l => l.id === p.lessonId) || p.lessonId.startsWith(`course_les_${mod.order}_`);
           return inMod && p.completed;
@@ -15393,19 +15394,6 @@ async function startServer() {
       }
 
       if (!module) {
-        module = inMemoryCourseModules.find(m => m.id === id);
-      }
-      if (lessons.length === 0 && module) {
-        lessons = inMemoryCourseLessons.filter(l => l.moduleId === module.id && !l.isArchived && l.isPublished);
-      }
-      if (progressList.length === 0) {
-        progressList = inMemoryCourseLessonProgress.filter(p => p.userId === userId);
-      }
-      if (attempts.length === 0) {
-        attempts = inMemoryCourseExamAttempts.filter(a => a.userId === userId);
-      }
-
-      if (!module) {
         return res.status(200).json({ success: false, error: "Módulo não encontrado." });
       }
 
@@ -15439,8 +15427,16 @@ async function startServer() {
         };
       });
 
-      // Fetch exams count
-      const exam = inMemoryCourseExams.find(e => e.moduleId === id) || { id: `course_exam_fallback_${id}`, passingScore: 70, title: `Prova Final` };
+      // Fetch exams from database
+      let exam: any = null;
+      if (isDatabaseConnected() && p) {
+        try {
+          exam = await p.courseExam.findFirst({ where: { moduleId: id } });
+        } catch (e) {}
+      }
+      if (!exam) {
+        exam = { id: `course_exam_${id}`, passingScore: 70, title: `Prova Final de Certificação` };
+      }
 
       // Latest Exam attempt status
       const moduleAttempts = attempts.filter((a: any) => a.moduleId === id);
@@ -15482,17 +15478,8 @@ async function startServer() {
         }
       }
 
-      if (!lesson) {
-        lesson = inMemoryCourseLessons.find(l => l.id === id);
-      }
-      if (quizQuestions.length === 0) {
-        quizQuestions = inMemoryCourseQuizQuestions.filter(q => q.lessonId === id);
-      }
-      if (flashcards.length === 0) {
-        flashcards = inMemoryCourseFlashcards.filter(f => f.lessonId === id);
-      }
       if (!progress) {
-        progress = inMemoryCourseLessonProgress.find(pr => pr.userId === userId && pr.lessonId === id) || {
+        progress = {
           videoCompleted: false,
           audioCompleted: false,
           textCompleted: false,
@@ -15528,16 +15515,16 @@ async function startServer() {
 
       if (!lessonId) return res.json({ success: false, error: "ID da aula obrigatório." });
 
-      let lessonObj = inMemoryCourseLessons.find(l => l.id === lessonId);
+      let lessonObj = null;
       if (isDatabaseConnected() && p) {
         try {
-          lessonObj = await p.courseLesson.findUnique({ where: { id: lessonId } }) || lessonObj;
+          lessonObj = await p.courseLesson.findUnique({ where: { id: lessonId } });
         } catch (dbErr) {
           // ignore
         }
       }
 
-      if (!lessonObj) return res.json({ success: false, error: "Aula de referência não localizada." });
+      if (!lessonObj) return res.json({ success: false, error: "Aula de referência não localizada no banco de dados real." });
 
       // Fetch or initialize progress
       let currentProg: any = null;
@@ -15547,10 +15534,6 @@ async function startServer() {
         } catch (e) {
           // ignore
         }
-      }
-
-      if (!currentProg) {
-        currentProg = inMemoryCourseLessonProgress.find(x => x.userId === userId && x.lessonId === lessonId);
       }
 
       if (!currentProg) {
@@ -15566,7 +15549,6 @@ async function startServer() {
           completed: false,
           completedAt: null
         };
-        inMemoryCourseLessonProgress.push(currentProg);
       }
 
       // Update the specific component
@@ -15669,14 +15651,7 @@ async function startServer() {
       }
 
       if (!exam) {
-        exam = inMemoryCourseExams.find(e => e.moduleId === moduleId);
-      }
-      if (questions.length === 0 && exam) {
-        questions = inMemoryCourseExamQuestions.filter(q => q.examId === exam.id);
-      }
-
-      if (!exam) {
-        return res.json({ success: false, error: "Nenhum exame cadastrado para este módulo ainda." });
+        return res.json({ success: false, error: "Nenhum exame cadastrado para este módulo ainda no banco de dados real." });
       }
 
       res.json({
@@ -15696,15 +15671,15 @@ async function startServer() {
       const { moduleId, answers } = req.body; // answers is record of questionId -> selectedOption (e.g., {"q1": "A"})
       const p = getPrisma() as any;
 
-      let examObj = inMemoryCourseExams.find(e => e.moduleId === moduleId);
-      let listQuestions = inMemoryCourseExamQuestions.filter(q => q.examId === examObj?.id);
+      let examObj: any = null;
+      let listQuestions: any[] = [];
 
       if (isDatabaseConnected() && p) {
         try {
           const dbExam = await p.courseExam.findFirst({ where: { moduleId } });
           if (dbExam) {
             examObj = dbExam;
-            listQuestions = await p.courseExamQuestion.findMany({ where: { examId: dbExam.id } });
+            listQuestions = await p.courseExamQuestion.findMany({ where: { examId: dbExam.id }, orderBy: { order: "asc" } });
           }
         } catch (e) {
           // ignore
@@ -15712,7 +15687,7 @@ async function startServer() {
       }
 
       if (!examObj || listQuestions.length === 0) {
-        return res.json({ success: false, error: "Prova de certificação indisponível." });
+        return res.json({ success: false, error: "Prova de certificação indisponível no banco de dados real." });
       }
 
       // Check for current 24-hour block beforehand
@@ -15723,8 +15698,6 @@ async function startServer() {
         } catch (e) {
           // ignore
         }
-      } else {
-        existingAttemptsMs = inMemoryCourseExamAttempts.filter(a => a.userId === userId && a.moduleId === moduleId);
       }
 
       const latestTry = existingAttemptsMs.length > 0 ? existingAttemptsMs[existingAttemptsMs.length - 1] : null;
@@ -17560,115 +17533,74 @@ Disallow: /api/
 Sitemap: https://www.jiuspeak.com.br/sitemap.xml`);
   });
 
-  // 3. Google Places Sync BJJ directory search
+  // 3. PostgreSQL database BJJ directory search
   app.get("/api/academy/search", async (req: any, res: any) => {
     try {
-      const { query, lat, lng, radius = 5000 } = req.query;
+      const { query } = req.query;
       const prisma = getPrisma();
-      const redisInstance = getRedisClient();
-      
-      const cacheKey = `places:search:${query || ""}:${lat || ""}:${lng || ""}:${radius}`;
-      
-      if (redisInstance && redisInstance.client) {
-        try {
-          const cached = await redisInstance.client.get(cacheKey);
-          if (cached) {
-            return res.json({ success: true, source: "Redis Cache Client", academies: JSON.parse(cached) });
-          }
-        } catch (redisErr) {
-          console.warn("Redis read warning, bypassing cache fetch:", redisErr);
-        }
-      }
       
       let places: any[] = [];
-      const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
-      
-      if (apiKey) {
-        try {
-          const searchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent((query || "") + " jiu jitsu academy")}${lat && lng ? `&location=${lat},${lng}&radius=${radius}` : ""}&key=${apiKey}`;
-          const axios = (await import("axios")).default;
-          const placeRes = await axios.get(searchUrl);
-          if (placeRes.data && placeRes.data.results) {
-            places = placeRes.data.results.map((p: any) => ({
-              name: p.name,
-              address: p.formatted_address,
-              externalId: p.place_id,
-              city: p.formatted_address?.split(",")?.[2]?.trim() || "Rio de Janeiro",
-              state: p.formatted_address?.split(",")?.[1]?.trim() || "RJ",
-              country: "Brasil",
-              source: "GOOGLE_PLACES"
-            }));
-          }
-        } catch (err) {
-          console.error("Erro ao chamar Google Places API real:", err);
-        }
-      }
-      
-      if (places.length === 0) {
-        const allRealAcademies = [
-          { name: "Alliance Jiu-Jitsu São Paulo HQ", address: "R. Fábia, 590 - Vila Romana, São Paulo - SP", externalId: "google_alliance_sp", city: "São Paulo", state: "SP", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "Gracie Barra Rio de Janeiro HQ", address: "Av. Armando Lombardi, 350 - Barra da Tijuca, Rio de Janeiro - RJ", externalId: "google_gracie_rio", city: "Rio de Janeiro", state: "RJ", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "Atos Jiu-Jitsu San Diego HQ", address: "4810 Mercury St, San Diego, CA 92111, USA", externalId: "google_atos_sd", city: "San Diego", state: "CA", country: "USA", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "Art of Jiu Jitsu Academy (AOJ)", address: "359 E 17th St, Costa Mesa, CA 92627, USA", externalId: "google_aoj_cm", city: "Costa Mesa", state: "CA", country: "USA", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "Marcelo Garcia Jiu-Jitsu Academy NYC", address: "250 W 26th St, New York, NY 10001, USA", externalId: "google_mg_nyc", city: "New York", state: "NY", country: "USA", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "Cicero Costha São Paulo HQ", address: "R. Américo Brasiliense, 1500 - Chácara Santo Antônio, São Paulo - SP", externalId: "google_cicero_sp", city: "São Paulo", state: "SP", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "GFTeam BJJ Matriz Rio de Janeiro", address: "R. Dias da Cruz, 450 - Méier, Rio de Janeiro - RJ", externalId: "google_gfteam_meier", city: "Rio de Janeiro", state: "RJ", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" },
-          { name: "Dream Art Jiu-Jitsu São Paulo HQ", address: "Av. Washington Luís, 4500 - Santo Amaro, São Paulo - SP", externalId: "google_dreamart_sp", city: "São Paulo", state: "SP", country: "Brasil", source: "GOOGLE_PLACES_FALLBACK" }
-        ];
-        
-        const qLower = String(query || "").toLowerCase();
-        places = allRealAcademies.filter(ac => 
-          ac.name.toLowerCase().includes(qLower) || 
-          ac.address.toLowerCase().includes(qLower) ||
-          ac.city.toLowerCase().includes(qLower)
-        );
-        if (places.length === 0) {
-          places = allRealAcademies;
-        }
-      }
-      
+      const qLower = String(query || "").trim();
+
       if (prisma) {
-        for (const gym of places) {
-          try {
-            await (prisma as any).independentAcademy.upsert({
-              where: { id: gym.externalId || gym.name },
-              create: {
-                id: gym.externalId,
-                name: gym.name,
-                address: gym.address,
-                city: gym.city,
-                state: gym.state,
-                country: gym.country,
-                externalId: gym.externalId,
-                source: gym.source,
-                lastSyncAt: new Date(),
-                verifiedExternally: true
-              },
-              update: {
-                name: gym.name,
-                address: gym.address,
-                city: gym.city,
-                state: gym.state,
-                lastSyncAt: new Date()
-              }
-            });
-          } catch (dbErr) {
-            console.warn(`Prisma upsert fallback warning para academia ${gym.name}:`, dbErr);
-          }
-        }
-      }
-      
-      if (redisInstance && redisInstance.client) {
         try {
-          await redisInstance.client.set(cacheKey, JSON.stringify(places), "EX", 3600);
-        } catch (redisErr) {
-          console.warn("Redis write warning, bypassing cache set:", redisErr);
+          const branches = await prisma.academyBranch.findMany({
+            where: qLower ? {
+              OR: [
+                { name: { contains: qLower, mode: 'insensitive' } },
+                { city: { contains: qLower, mode: 'insensitive' } },
+                { state: { contains: qLower, mode: 'insensitive' } },
+                { address: { contains: qLower, mode: 'insensitive' } }
+              ]
+            } : {},
+            include: { globalTeam: true }
+          });
+
+          const independents = await (prisma as any).independentAcademy.findMany({
+            where: qLower ? {
+              OR: [
+                { name: { contains: qLower, mode: 'insensitive' } },
+                { city: { contains: qLower, mode: 'insensitive' } },
+                { state: { contains: qLower, mode: 'insensitive' } },
+                { address: { contains: qLower, mode: 'insensitive' } }
+              ]
+            } : {}
+          });
+
+          places = [
+            ...branches.map((b: any) => ({
+              id: b.id,
+              name: b.name,
+              address: b.address || "",
+              city: b.city || "",
+              state: b.state || "",
+              country: b.country || "Brasil",
+              logo: b.logo || "",
+              headProfessor: b.headProfessor || "",
+              globalTeamId: b.globalTeamId,
+              globalTeamName: b.globalTeam?.name || "Equipe Vinculada",
+              source: "DATABASE_BRANCH"
+            })),
+            ...independents.map((i: any) => ({
+              id: i.id,
+              name: i.name,
+              address: i.address || "",
+              city: i.city || "",
+              state: i.state || "",
+              country: i.country || "Brasil",
+              logo: i.logo || "",
+              headProfessor: i.headProfessor || "",
+              source: "DATABASE_INDEPENDENT"
+            }))
+          ];
+        } catch (dbErr: any) {
+          console.error("Erro ao buscar academias do PostgreSQL:", dbErr);
         }
       }
-      
+
       res.json({
         success: true,
-        source: "Google Places Sync Database Manager",
+        source: "PostgreSQL Database Engine",
         academies: places
       });
     } catch (err: any) {

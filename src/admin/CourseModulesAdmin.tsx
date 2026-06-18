@@ -1569,17 +1569,21 @@ export default function CourseModulesAdmin() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-mono text-slate-400 uppercase font-bold" htmlFor="les-vidtype">Tipo de reprodutor de Vídeo</label>
+                <div className="space-y-1.5 font-sans">
+                  <label className="text-[10px] font-mono text-slate-400 uppercase font-bold" htmlFor="les-vidtype">Tipo de Conteúdo / Mídia</label>
                   <select
                     id="les-vidtype"
                     value={lessonFormData.videoType}
                     onChange={(e) => setLessonFormData({ ...lessonFormData, videoType: e.target.value })}
                     className="w-full bg-slate-950 p-2.5 px-3 rounded-xl border border-slate-850 text-xs font-mono text-white focus:outline-none"
                   >
-                    <option value="youtube">YouTube Embed Link</option>
-                    <option value="vimeo">Vimeo Embed</option>
-                    <option value="upload">Direto MP4 / Vídeo CDN URL</option>
+                    <option value="VIDEO_MP4">Vídeo MP4 Direto</option>
+                    <option value="AUDIO_MP3">Áudio MP3 / Podcast</option>
+                    <option value="PDF">Arquivo ou Documento PDF</option>
+                    <option value="IMAGE">Imagem / Infográfico</option>
+                    <option value="YOUTUBE">YouTube Video Link</option>
+                    <option value="VIMEO">Vimeo Video Link</option>
+                    <option value="DOCUMENT">Texto / Artigo HTML</option>
                   </select>
                 </div>
 
