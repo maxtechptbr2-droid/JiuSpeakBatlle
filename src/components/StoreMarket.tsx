@@ -37,6 +37,7 @@ import {
   Plus
 } from 'lucide-react';
 import { UserProfile, InventoryItem, MarketplaceItem, MarketplaceSale } from '../types';
+import { useAuth } from '../hooks/useAuth';
 
 // 1. High-Performance Canvas-based Gaming Particle Confetti Rain for legendary acquisitions
 export function ConfettiRain() {
@@ -337,6 +338,7 @@ export default function StoreMarket({
   showToast,
   setCurrentTab
 }: StoreMarketProps) {
+  const { syncMe } = useAuth();
   
   // Tabs within economics: 'loja' | 'market' | 'inventorio' | 'admin_store'
   const [activeSubTab, setActiveSubTab] = useState<'loja' | 'market' | 'inventorio' | 'admin_store'>('loja');
@@ -630,6 +632,12 @@ export default function StoreMarket({
       inventory: currentInventory
     });
 
+    try {
+      await syncMe();
+    } catch (e) {
+      console.error("Cart checkout sync failure", e);
+    }
+
     if (successfullyBought.length > 0) {
       const highestRarity = successfullyBought.find(it => ['LEGENDARY', 'MYTHIC', 'Lendário', 'Mítico'].includes(it.rarity?.toUpperCase() || '')) || successfullyBought[0];
       setSuccessAnimationItem({
@@ -734,6 +742,12 @@ export default function StoreMarket({
         coins: data.updatedCoins,
         inventory: [...user.inventory, product.id]
       });
+
+      try {
+        await syncMe();
+      } catch (e) {
+        console.error("Purchase sync failure", e);
+      }
 
       // Trigger animation event with full stats 
       setSuccessAnimationItem(product);
@@ -1054,6 +1068,12 @@ export default function StoreMarket({
         coins: nextCoins,
         inventory: nextInventory
       });
+
+      try {
+        await syncMe();
+      } catch (e) {
+        console.error("Marketplace purchase sync failure", e);
+      }
 
       // Log activity
       onAddAuditLog(

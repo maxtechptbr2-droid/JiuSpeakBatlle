@@ -595,8 +595,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
       if (data.success) {
         showToast(`🥋 Aula concluída com sucesso! Ganhou +${data.xpReward} XP!`, "success");
         updateUser({
-          xp: user.xp + data.xpReward,
-          coins: user.coins + 20 // award bonus JiuTickets too!
+          xp: user.xp + data.xpReward
         });
         
         // Refresh local progress state
@@ -622,8 +621,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
         }
         showToast(`🥋 Concluído em modo in-memory! Ganhou +${lesson.xpReward} XP!`, "success");
         updateUser({
-          xp: user.xp + lesson.xpReward,
-          coins: user.coins + 20
+          xp: user.xp + lesson.xpReward
         });
         setModules(prev => prev.map(m => ({
           ...m,
@@ -645,8 +643,7 @@ export default function JiuSpeakAcademy({ activeSubTab, setCurrentTab, user, upd
       }
       showToast(`🥋 Concluído em modo local! Ganhou +${lesson.xpReward} XP!`, "success");
       updateUser({
-        xp: user.xp + lesson.xpReward,
-        coins: user.coins + 20
+        xp: user.xp + lesson.xpReward
       });
       setModules(prev => prev.map(m => ({
         ...m,

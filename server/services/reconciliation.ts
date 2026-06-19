@@ -63,7 +63,9 @@ export class PaymentReconciliationService {
         let payerEmail = '';
         let payerName = '';
 
-        if (client && !tx.mercadoPagoId.startsWith('mp_direct_fallback_') && !tx.mercadoPagoId.startsWith('mp_jt_')) {
+        const isSimulated = tx.mercadoPagoId.startsWith('mp_') || tx.mercadoPagoId.startsWith('test_');
+
+        if (client && !isSimulated) {
           // Consult Mercado Pago real API
           const paymentInstance = new Payment(client);
           const mpResponse = await paymentInstance.get({ id: Number(tx.mercadoPagoId) });
@@ -75,12 +77,9 @@ export class PaymentReconciliationService {
             isApproved = true;
           }
         } else {
-          // For fallback simulated sessions, if PIX copy paste or transaction was marked approved
-          // or is old, we can inspect if it's approved in memory or simulate random offline payment completion (e.g. 5% chance or manual admin trigger)
-          if (tx.status === 'approved' || tx.processed) {
-            isApproved = true;
-            liveStatus = 'approved';
-          }
+          // For simulated sessions or mock IDs, during manual sweep we auto-approve them!
+          isApproved = true;
+          liveStatus = 'approved';
         }
 
         if (isApproved) {
@@ -193,15 +192,21 @@ export class PaymentReconciliationService {
             }
           }
 
-          // Sync with memory user store fallback
-          const targetUser = Array.from(inMemoryUsers.values()).find(u => u.id === tx.userId);
-          if (targetUser) {
-            await authStore.updateUser(tx.userId, {
-              coins: (targetUser.coins || 0) + tx.amountJT
-            });
-            credited = true;
-            console.log(`[RECONCILIATION CREDIT SUCCESS] Account @${targetUser.username} virtual coins added successfully: +${tx.amountJT} JT`);
+          // Fetch the absolute source of truth fresh balance from the database and sync to authStore safely
+          let freshBalance = tx.amountJT;
+          if (prisma) {
+            try {
+              const freshWallet = await prisma.wallet.findUnique({ where: { userId: tx.userId } });
+              if (freshWallet) {
+                freshBalance = freshWallet.balanceJT;
+              }
+            } catch (dbErr) {
+              console.error("[RECONCILIATION] Failed to fetch fresh wallet balance:", dbErr);
+            }
           }
+          await authStore.updateUser(tx.userId, { coins: freshBalance });
+          credited = true;
+          console.log(`[RECONCILIATION CREDIT SUCCESS] Account ${tx.userId} wallet balance absolute sync: ${freshBalance} JT`);
 
           report.reconciledCount++;
           report.details.push({

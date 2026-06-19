@@ -352,6 +352,11 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
     <div className="min-h-screen bg-[#030712] text-slate-100 p-6 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
+        {/* TEST BANNER */}
+        <div className="bg-red-600 text-white text-center py-3 font-semibold text-sm rounded-lg shadow-lg mb-4 animate-bounce">
+          ACADEMIAS BUILD TEST V99
+        </div>
+        
         {/* CINEMATIC TITLE HEADER BAR */}
         <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#011627] to-slate-950 border border-[#009dff]/20 rounded-xl p-8 shadow-2xl">
           <div className="absolute top-0 right-0 w-80 h-80 bg-[#009dff]/10 blur-[120px] rounded-full -mr-20 -mt-20"></div>
