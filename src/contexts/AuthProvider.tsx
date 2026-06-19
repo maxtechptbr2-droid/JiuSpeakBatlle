@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       xpNextLevel: 1000,
       belt: beltString,
       stripes: apiUser.stripes || 0,
-      coins: apiUser.coins || 600,
+      coins: apiUser.coins !== undefined && apiUser.coins !== null ? apiUser.coins : 600,
       elo: apiUser.elo || 1050,
       winCount: apiUser.winCount || 0,
       lossCount: apiUser.lossCount || 0,
