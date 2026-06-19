@@ -15417,10 +15417,10 @@ async function startServer() {
         }
       }
 
-      const modules = dbModules.length > 0 ? dbModules : inMemoryCourseModules;
-      const dbLessonsList = dbLessons.length > 0 ? dbLessons : inMemoryCourseLessons;
-      const progress = dbProgressList.length > 0 ? dbProgressList : inMemoryCourseLessonProgress.filter(p => p.userId === userId);
-      const attempts = dbAttempts.length > 0 ? dbAttempts : inMemoryCourseExamAttempts.filter(a => a.userId === userId);
+      const modules = dbModules;
+      const dbLessonsList = dbLessons;
+      const progress = dbProgressList;
+      const attempts = dbAttempts;
 
       // Map progress with unlocking logic and completion status
       const mappedModules = modules.map((mod: any, index: number) => {
@@ -15520,19 +15520,6 @@ async function startServer() {
       }
 
       if (!module) {
-        module = inMemoryCourseModules.find(m => m.id === id);
-      }
-      if (lessons.length === 0 && module) {
-        lessons = inMemoryCourseLessons.filter(l => l.moduleId === id && !l.isArchived && l.isPublished);
-      }
-      if (progressList.length === 0) {
-        progressList = inMemoryCourseLessonProgress.filter(p => p.userId === userId);
-      }
-      if (attempts.length === 0) {
-        attempts = inMemoryCourseExamAttempts.filter(a => a.userId === userId);
-      }
-
-      if (!module) {
         return res.status(200).json({ success: false, error: "Módulo não encontrado." });
       }
 
@@ -15572,9 +15559,6 @@ async function startServer() {
         try {
           exam = await p.courseExam.findFirst({ where: { moduleId: id } });
         } catch (e) {}
-      }
-      if (!exam) {
-        exam = { id: `course_exam_${id}`, passingScore: 70, title: `Prova Final de Certificação` };
       }
 
       // Latest Exam attempt status
@@ -15618,16 +15602,11 @@ async function startServer() {
       }
 
       if (!lesson) {
-        lesson = inMemoryCourseLessons.find(l => l.id === id);
+        return res.status(200).json({ success: false, error: "Aula não encontrada." });
       }
-      if (quizQuestions.length === 0 && lesson) {
-        quizQuestions = inMemoryCourseQuizQuestions.filter(q => q.lessonId === id).sort((a, b) => a.order - b.order);
-      }
-      if (flashcards.length === 0 && lesson) {
-        flashcards = inMemoryCourseFlashcards.filter(f => f.lessonId === id).sort((a, b) => a.order - b.order);
-      }
-      if (!progress || progress.completed === undefined) {
-        progress = inMemoryCourseLessonProgress.find(p => p.userId === userId && p.lessonId === id) || {
+
+      if (!progress) {
+        progress = {
           videoCompleted: false,
           audioCompleted: false,
           textCompleted: false,
@@ -15635,10 +15614,6 @@ async function startServer() {
           flashcardsCompleted: false,
           completed: false
         };
-      }
-
-      if (!lesson) {
-        return res.status(200).json({ success: false, error: "Aula não encontrada." });
       }
 
       res.json({
@@ -15672,27 +15647,15 @@ async function startServer() {
         }
       }
 
-      if (!lessonObj) {
-        lessonObj = inMemoryCourseLessons.find(l => l.id === lessonId);
-      }
-
       if (!lessonObj) return res.json({ success: false, error: "Aula de referência não localizada." });
 
       // Fetch or initialize progress
       let currentProg: any = null;
-      let usingInMemory = false;
       if (isDatabaseConnected() && p) {
         try {
           currentProg = await p.courseLessonProgress.findFirst({ where: { userId, lessonId } });
         } catch (e) {
           // ignore
-        }
-      }
-
-      if (!currentProg) {
-        currentProg = inMemoryCourseLessonProgress.find(lp => lp.userId === userId && lp.lessonId === lessonId);
-        if (currentProg) {
-          usingInMemory = true;
         }
       }
 
@@ -15709,7 +15672,6 @@ async function startServer() {
           completed: false,
           completedAt: null
         };
-        usingInMemory = true;
       }
 
       // Update the specific component
@@ -15745,15 +15707,6 @@ async function startServer() {
           } catch (xpErr: any) {
             console.warn("⚠️ Não foi possível salvar XP no Postgres, usando fallback local.");
           }
-        }
-      }
-
-      if (usingInMemory) {
-        const existingIdx = inMemoryCourseLessonProgress.findIndex(lp => lp.userId === userId && lp.lessonId === lessonId);
-        if (existingIdx >= 0) {
-          inMemoryCourseLessonProgress[existingIdx] = currentProg;
-        } else {
-          inMemoryCourseLessonProgress.push(currentProg);
         }
       }
 
@@ -15823,13 +15776,6 @@ async function startServer() {
       }
 
       if (!exam) {
-        exam = inMemoryCourseExams.find(e => e.moduleId === moduleId);
-        if (exam) {
-          questions = inMemoryCourseExamQuestions.filter(q => q.examId === exam.id).sort((a, b) => a.order - b.order);
-        }
-      }
-
-      if (!exam) {
         return res.json({ success: false, error: "Nenhum exame cadastrado para este módulo." });
       }
 
@@ -15866,13 +15812,6 @@ async function startServer() {
       }
 
       if (!examObj || listQuestions.length === 0) {
-        examObj = inMemoryCourseExams.find(e => e.moduleId === moduleId);
-        if (examObj) {
-          listQuestions = inMemoryCourseExamQuestions.filter(q => q.examId === examObj.id).sort((a, b) => a.order - b.order);
-        }
-      }
-
-      if (!examObj || listQuestions.length === 0) {
         return res.json({ success: false, error: "Prova de certificação indisponível." });
       }
 
@@ -15884,10 +15823,6 @@ async function startServer() {
         } catch (e) {
           // ignore
         }
-      }
-
-      if (existingAttemptsMs.length === 0) {
-        existingAttemptsMs = inMemoryCourseExamAttempts.filter(a => a.userId === userId && a.moduleId === moduleId);
       }
 
       const latestTry = existingAttemptsMs.length > 0 ? existingAttemptsMs[existingAttemptsMs.length - 1] : null;
@@ -15931,19 +15866,6 @@ async function startServer() {
         const blockDurationHours = 24;
         nextAttemptAt = new Date(attemptedAt.getTime() + (blockDurationHours * 60 * 60 * 1000));
       }
-
-      const attemptResult = {
-        id: `attempt_${userId}_${moduleId}_${Date.now()}`,
-        userId,
-        moduleId,
-        score: scoreValue,
-        passed: hasPassed,
-        attemptedAt,
-        nextAttemptAt
-      };
-
-      // Push to fallback
-      inMemoryCourseExamAttempts.push(attemptResult);
 
       // Save to database
       if (isDatabaseConnected() && p) {
@@ -16010,14 +15932,18 @@ async function startServer() {
         }
       }
 
-      const modules = dbModules.length > 0 ? dbModules : inMemoryCourseModules;
-      const progress = dbProgressList.length > 0 ? dbProgressList : inMemoryCourseLessonProgress;
-      const attempts = dbAttempts.length > 0 ? dbAttempts : inMemoryCourseExamAttempts;
+      const modules = dbModules;
+      const progress = dbProgressList;
+      const attempts = dbAttempts;
 
       // Inject full enrollment, passing ratios, & STUDY statistics
-      const calculatedModules = modules.map((mod: any) => {
-        const modLessons = inMemoryCourseLessons.filter(l => l.moduleId === mod.id);
-        const lCount = modLessons.length || 40;
+      const calculatedModules = await Promise.all(modules.map(async (mod: any) => {
+        let lCount = 5;
+        if (isDatabaseConnected() && p) {
+          try {
+            lCount = await p.courseLesson.count({ where: { moduleId: mod.id } });
+          } catch (le) {}
+        }
 
         // Statistics computation
         const completionsCount = progress.filter((p: any) => p.lessonId.startsWith(`course_les_${mod.order}_`) && p.completed).length;
@@ -16033,7 +15959,7 @@ async function startServer() {
           failRatio: totalAttempts > 0 ? Math.round(((totalAttempts - passesCount) / totalAttempts) * 100) : 0,
           passRatio: totalAttempts > 0 ? Math.round((passesCount / totalAttempts) * 100) : 100
         };
-      });
+      }));
 
       res.json({ success: true, modules: calculatedModules });
     } catch (error: any) {
@@ -16063,14 +15989,6 @@ async function startServer() {
         isArchived: modData.isArchived !== undefined ? modData.isArchived : false,
         updatedAt: new Date()
       };
-
-      // Write fallback
-      const inMemIdx = inMemoryCourseModules.findIndex(m => m.id === modId);
-      if (inMemIdx >= 0) {
-        inMemoryCourseModules[inMemIdx] = { ...inMemoryCourseModules[inMemIdx], ...savePayload };
-      } else {
-        inMemoryCourseModules.push({ ...savePayload, createdAt: new Date() });
-      }
 
       // SQLite/Postgres Write
       if (isDatabaseConnected() && p) {
@@ -16110,11 +16028,6 @@ async function startServer() {
     try {
       const { id } = req.body;
       const p = getPrisma() as any;
-
-      const memIndex = inMemoryCourseModules.findIndex(m => m.id === id);
-      if (memIndex >= 0) {
-        inMemoryCourseModules[memIndex].isArchived = true;
-      }
 
       if (isDatabaseConnected() && p) {
         try {
