@@ -462,11 +462,6 @@ export default function Lessons({
   return (
     <div className="bg-[#0b0c10] text-[#c5c6c7] min-h-screen p-4 sm:p-6 pb-28 space-y-6 relative font-sans select-none" id="core-course-modules-root">
       
-      {/* TEST BANNER */}
-      <div className="bg-red-600 text-white text-center py-3 font-semibold text-sm rounded-lg shadow-lg mb-4 animate-bounce">
-        CURSOS BUILD TEST V99
-      </div>
-      
       {/* GLOBAL HERO AND XP SUMMARY SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900/60 p-6 rounded-3xl border border-slate-800 shadow-xl backdrop-blur-md">
         <div className="flex items-center gap-4">
@@ -526,9 +521,9 @@ export default function Lessons({
 
               {modules.length === 0 ? (
                 <div className="bg-slate-900/40 p-16 rounded-3xl text-center border border-slate-800 space-y-3">
-                  <span className="text-4xl block">🥋</span>
-                  <p className="text-sm font-semibold text-slate-400">Ranking ainda não possui atletas cadastrados.</p>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto">Nenhum módulo de curso foi semeado ou adicionado no banco de dados. Por favor certifique-se de executar um reload.</p>
+                  <span className="text-4xl block">📚</span>
+                  <p className="text-sm font-semibold text-slate-400">Nenhum módulo de aula localizado.</p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">Preparando currículo da JiuSpeak Academy. Por favor, certifique-se de recarregar a visualização caso não carregue em alguns instantes.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

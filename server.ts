@@ -15417,14 +15417,15 @@ async function startServer() {
         }
       }
 
-      const modules = dbModules;
-      const progress = dbProgressList;
-      const attempts = dbAttempts;
+      const modules = dbModules.length > 0 ? dbModules : inMemoryCourseModules;
+      const dbLessonsList = dbLessons.length > 0 ? dbLessons : inMemoryCourseLessons;
+      const progress = dbProgressList.length > 0 ? dbProgressList : inMemoryCourseLessonProgress.filter(p => p.userId === userId);
+      const attempts = dbAttempts.length > 0 ? dbAttempts : inMemoryCourseExamAttempts.filter(a => a.userId === userId);
 
       // Map progress with unlocking logic and completion status
       const mappedModules = modules.map((mod: any, index: number) => {
         // Fetch lessons for this module
-        const modLessons = dbLessons.filter(l => l.moduleId === mod.id);
+        const modLessons = dbLessonsList.filter(l => l.moduleId === mod.id);
 
         // Calculate lesson stats
         const lessonsCount = modLessons.length;
@@ -15519,6 +15520,19 @@ async function startServer() {
       }
 
       if (!module) {
+        module = inMemoryCourseModules.find(m => m.id === id);
+      }
+      if (lessons.length === 0 && module) {
+        lessons = inMemoryCourseLessons.filter(l => l.moduleId === id && !l.isArchived && l.isPublished);
+      }
+      if (progressList.length === 0) {
+        progressList = inMemoryCourseLessonProgress.filter(p => p.userId === userId);
+      }
+      if (attempts.length === 0) {
+        attempts = inMemoryCourseExamAttempts.filter(a => a.userId === userId);
+      }
+
+      if (!module) {
         return res.status(200).json({ success: false, error: "Módulo não encontrado." });
       }
 
@@ -15603,8 +15617,17 @@ async function startServer() {
         }
       }
 
-      if (!progress) {
-        progress = {
+      if (!lesson) {
+        lesson = inMemoryCourseLessons.find(l => l.id === id);
+      }
+      if (quizQuestions.length === 0 && lesson) {
+        quizQuestions = inMemoryCourseQuizQuestions.filter(q => q.lessonId === id).sort((a, b) => a.order - b.order);
+      }
+      if (flashcards.length === 0 && lesson) {
+        flashcards = inMemoryCourseFlashcards.filter(f => f.lessonId === id).sort((a, b) => a.order - b.order);
+      }
+      if (!progress || progress.completed === undefined) {
+        progress = inMemoryCourseLessonProgress.find(p => p.userId === userId && p.lessonId === id) || {
           videoCompleted: false,
           audioCompleted: false,
           textCompleted: false,
@@ -15649,15 +15672,27 @@ async function startServer() {
         }
       }
 
-      if (!lessonObj) return res.json({ success: false, error: "Aula de referência não localizada no banco de dados real." });
+      if (!lessonObj) {
+        lessonObj = inMemoryCourseLessons.find(l => l.id === lessonId);
+      }
+
+      if (!lessonObj) return res.json({ success: false, error: "Aula de referência não localizada." });
 
       // Fetch or initialize progress
       let currentProg: any = null;
+      let usingInMemory = false;
       if (isDatabaseConnected() && p) {
         try {
           currentProg = await p.courseLessonProgress.findFirst({ where: { userId, lessonId } });
         } catch (e) {
           // ignore
+        }
+      }
+
+      if (!currentProg) {
+        currentProg = inMemoryCourseLessonProgress.find(lp => lp.userId === userId && lp.lessonId === lessonId);
+        if (currentProg) {
+          usingInMemory = true;
         }
       }
 
@@ -15674,6 +15709,7 @@ async function startServer() {
           completed: false,
           completedAt: null
         };
+        usingInMemory = true;
       }
 
       // Update the specific component
@@ -15693,20 +15729,31 @@ async function startServer() {
         gotCompletionNow = true;
 
         // Give XP Reward to student
-        try {
-          const userObj = await p.user.findUnique({ where: { id: userId } });
-          if (userObj) {
-            const addedXp = (lessonObj.xpReward || 30);
-            await p.user.update({
-              where: { id: userId },
-              data: {
-                xp: { increment: addedXp }
-              }
-            });
-            console.log(`⭐ [STUDENT XP ADDED] +${addedXp} XP para usuário ${userId}`);
+        if (isDatabaseConnected() && p) {
+          try {
+            const userObj = await p.user.findUnique({ where: { id: userId } });
+            if (userObj) {
+              const addedXp = (lessonObj.xpReward || 30);
+              await p.user.update({
+                where: { id: userId },
+                data: {
+                  xp: { increment: addedXp }
+                }
+              });
+              console.log(`⭐ [STUDENT XP ADDED] +${addedXp} XP para usuário ${userId}`);
+            }
+          } catch (xpErr: any) {
+            console.warn("⚠️ Não foi possível salvar XP no Postgres, usando fallback local.");
           }
-        } catch (xpErr: any) {
-          console.warn("⚠️ Não foi possível salvar XP no Postgres, usando fallback local.");
+        }
+      }
+
+      if (usingInMemory) {
+        const existingIdx = inMemoryCourseLessonProgress.findIndex(lp => lp.userId === userId && lp.lessonId === lessonId);
+        if (existingIdx >= 0) {
+          inMemoryCourseLessonProgress[existingIdx] = currentProg;
+        } else {
+          inMemoryCourseLessonProgress.push(currentProg);
         }
       }
 
@@ -15776,7 +15823,14 @@ async function startServer() {
       }
 
       if (!exam) {
-        return res.json({ success: false, error: "Nenhum exame cadastrado para este módulo ainda no banco de dados real." });
+        exam = inMemoryCourseExams.find(e => e.moduleId === moduleId);
+        if (exam) {
+          questions = inMemoryCourseExamQuestions.filter(q => q.examId === exam.id).sort((a, b) => a.order - b.order);
+        }
+      }
+
+      if (!exam) {
+        return res.json({ success: false, error: "Nenhum exame cadastrado para este módulo." });
       }
 
       res.json({
@@ -15812,7 +15866,14 @@ async function startServer() {
       }
 
       if (!examObj || listQuestions.length === 0) {
-        return res.json({ success: false, error: "Prova de certificação indisponível no banco de dados real." });
+        examObj = inMemoryCourseExams.find(e => e.moduleId === moduleId);
+        if (examObj) {
+          listQuestions = inMemoryCourseExamQuestions.filter(q => q.examId === examObj.id).sort((a, b) => a.order - b.order);
+        }
+      }
+
+      if (!examObj || listQuestions.length === 0) {
+        return res.json({ success: false, error: "Prova de certificação indisponível." });
       }
 
       // Check for current 24-hour block beforehand
@@ -15823,6 +15884,10 @@ async function startServer() {
         } catch (e) {
           // ignore
         }
+      }
+
+      if (existingAttemptsMs.length === 0) {
+        existingAttemptsMs = inMemoryCourseExamAttempts.filter(a => a.userId === userId && a.moduleId === moduleId);
       }
 
       const latestTry = existingAttemptsMs.length > 0 ? existingAttemptsMs[existingAttemptsMs.length - 1] : null;
