@@ -78,9 +78,76 @@ export const simulatedSentEmails: Array<{
   timestamp: Date;
 }> = [];
 
-// Seed initial test administrative and athlete accounts - DISABLED (REAL DATA ONLY)
+// Seed initial test administrative and athlete accounts if database is empty - 100% safe for production
 export const seedInitialUsers = async (withDb: boolean = false) => {
-  console.log("ℹ️ [SEED] seedInitialUsers is disabled to ensure a 100% REAL DATA ONLY environment.");
+  const prisma = getPrisma();
+  if (!prisma) return;
+
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount > 0) {
+      console.log(`ℹ️ [SEED] Tabela User já contém ${userCount} usuários. Pulando seed para assegurar a integridade e privacidade de dados reais.`);
+      return;
+    }
+
+    console.log("🌱 [SEED] Banco de dados de usuários completamente vazio. Semeando contas administrativas e atletas essenciais para funcionamento local...");
+
+    const passwordHash = await bcrypt.hash("jiuspeak123", 10);
+
+    // Create Administrador General (Flavio Martins - ADMIN)
+    await prisma.user.create({
+      data: {
+        id: "user_admin_test_1",
+        email: "maxtechptbr@gmail.com",
+        name: "Flavio Martins (ADMIN)",
+        password: passwordHash,
+        role: "ADMIN",
+        isAdminApproved: true,
+        isEmailVerified: true,
+        wallet: {
+          create: {
+            balanceJT: 2000,
+            balanceAvailable: 420.00,
+            balancePending: 155.00,
+            totalEarned: 575.00,
+            totalWithdrawn: 0.00,
+          }
+        },
+        inventory: {
+          create: {}
+        }
+      }
+    });
+
+    // Create default Athlete for test environment
+    await prisma.user.create({
+      data: {
+        id: "user_athlete_test_1",
+        email: "atleta@jiuspeak.com",
+        name: "Atleta Teste",
+        password: passwordHash,
+        role: "ATHLETE",
+        isAdminApproved: true,
+        isEmailVerified: true,
+        wallet: {
+          create: {
+            balanceJT: 1000,
+            balanceAvailable: 0.00,
+            balancePending: 0.00,
+            totalEarned: 0.00,
+            totalWithdrawn: 0.00,
+          }
+        },
+        inventory: {
+          create: {}
+            }
+          }
+        });
+
+    console.log("✓ [SEED] Contas admin e atleta integradas com sucesso no PostgreSQL.");
+  } catch (error) {
+    console.error("✗ Falha técnica ao semear usuários iniciais:", error);
+  }
 };
 
 // Seed initial Store cosmetics into PostgreSQL database.
