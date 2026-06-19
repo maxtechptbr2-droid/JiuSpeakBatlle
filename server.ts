@@ -9590,14 +9590,14 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
               return; 
             }
 
-            const userWallet = await tx.wallet.findUnique({ where: { userId: jtUserId } });
+            let userWallet = await tx.wallet.findUnique({ where: { userId: jtUserId } });
             if (userWallet) {
-              await tx.wallet.update({
+              userWallet = await tx.wallet.update({
                 where: { userId: jtUserId },
                 data: { balanceJT: { increment: jtAmountToCredit } }
               });
             } else {
-              await tx.wallet.create({
+              userWallet = await tx.wallet.create({
                 data: {
                   userId: jtUserId,
                   balanceJT: jtAmountToCredit,
@@ -9608,6 +9608,28 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
                   totalWithdrawn: 0
                 }
               });
+            }
+
+            // Create a positive Transaction record representing the JT deposit
+            await tx.transaction.create({
+              data: {
+                walletId: userWallet.id,
+                amountJT: jtAmountToCredit,
+                type: "DEPOSIT",
+                status: "COMPLETED",
+                description: `Compra de Pacote de ${jtAmountToCredit} JiuTickets (JT) via Pix`,
+                referenceId: String(paymentId)
+              }
+            });
+
+            // Keep status of any matching standard Payment elements in sync
+            try {
+              await tx.payment.updateMany({
+                where: { transactionId: String(paymentId) },
+                data: { status: "COMPLETED" }
+              });
+            } catch (paySyncErr) {
+              // Ignore if no direct generic payment relates or standard model schema differences
             }
 
             // Persistence Audit Registration inside database transaction
@@ -17773,7 +17795,53 @@ Sitemap: https://www.jiuspeak.com.br/sitemap.xml`);
 
     // Boot Teacher Marketplace Escrow Cron Job
     initEscrowReleaserCron();
+
+    // Boot Automatic Payment Reconciliation Scheduler (Runs every 60 seconds secured with a concurrency lock)
+    initPaymentReconciliationScheduler();
   });
+}
+
+/**
+ * Automatically reconciles pending payment records with Mercado Pago securely,
+ * running every 60 seconds with simple, safe concurrency safety.
+ */
+function initPaymentReconciliationScheduler() {
+  let reconciliationInProgress = false;
+  console.log("⏰ [SYSTEM] Inicializando Scheduler de Reconciliação de Pagamentos (60 segundos)...");
+
+  // Run initial reconciliation task after 5 seconds of startup to sweep any missed approvals
+  setTimeout(async () => {
+    await runReconciliationCycle();
+  }, 5000);
+
+  setInterval(async () => {
+    await runReconciliationCycle();
+  }, 60000); // 60000ms = 60 seconds
+
+  async function runReconciliationCycle() {
+    if (reconciliationInProgress) {
+      console.log("⚠️ [SYSTEM] Reconciliação de pagamentos já está em execução. Pulando este ciclo para garantir transação única e idempotente.");
+      return;
+    }
+
+    reconciliationInProgress = true;
+    try {
+      const { PaymentReconciliationService } = await import("./server/services/reconciliation");
+      console.log("🔄 [SYSTEM] Executando varredura automatizada de pagamentos pendentes...");
+      const report = await PaymentReconciliationService.reconcilePendingPayments(
+        "SYSTEM_SCHEDULER",
+        "127.0.0.1",
+        "system-scheduler-cron"
+      );
+      if (report && report.reconciledCount > 0) {
+        console.log(`✅ [SYSTEM] Reconciliação concluída de forma segura. Detalhes: ${report.reconciledCount} pagamentos processados, ${report.divergencesFixed} saldos corrigidos na Wallet.`);
+      }
+    } catch (err) {
+      console.error("❌ [SYSTEM] Erro no scheduler de reconciliação de pagamentos:", err);
+    } finally {
+      reconciliationInProgress = false;
+    }
+  }
 }
 
 startServer();

@@ -1,4 +1,4 @@
-import { getPrisma } from '../db';
+import { getPrisma, isDatabaseConnected } from '../db';
 import { inMemoryPaymentTransactions, pendingJtPayments } from '../../server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { inMemoryUsers, authStore } from '../authStore';
@@ -23,7 +23,7 @@ export class PaymentReconciliationService {
     let pendingTxList: any[] = [];
 
     // 1. Load pending transactions from database
-    if (prisma) {
+    if (prisma && isDatabaseConnected()) {
       try {
         pendingTxList = await prisma.paymentTransaction.findMany({
           where: {
@@ -87,7 +87,7 @@ export class PaymentReconciliationService {
           
           // CRITICAL: Idempotência check with atomic database transition to prevent parallel race conditions!
           let alreadyProcessed = false;
-          if (prisma) {
+          if (prisma && isDatabaseConnected()) {
             try {
               const freshTx = await prisma.paymentTransaction.findUnique({
                 where: { mercadoPagoId: tx.mercadoPagoId }
@@ -143,17 +143,17 @@ export class PaymentReconciliationService {
 
           // Credit JT Coins to User Wallet
           let credited = false;
-          if (prisma) {
+          if (prisma && isDatabaseConnected()) {
             try {
               await prisma.$transaction(async (dbTx) => {
-                const userWallet = await dbTx.wallet.findUnique({ where: { userId: tx.userId } });
+                let userWallet = await dbTx.wallet.findUnique({ where: { userId: tx.userId } });
                 if (userWallet) {
-                  await dbTx.wallet.update({
+                  userWallet = await dbTx.wallet.update({
                     where: { userId: tx.userId },
                     data: { balanceJT: { increment: tx.amountJT } }
                   });
                 } else {
-                  await dbTx.wallet.create({
+                  userWallet = await dbTx.wallet.create({
                     data: {
                       userId: tx.userId,
                       balanceJT: tx.amountJT,
@@ -164,6 +164,28 @@ export class PaymentReconciliationService {
                       totalWithdrawn: 0
                     }
                   });
+                }
+
+                // Create a positive Transaction record representing the JT deposit
+                await dbTx.transaction.create({
+                  data: {
+                    walletId: userWallet.id,
+                    amountJT: tx.amountJT,
+                    type: "DEPOSIT",
+                    status: "COMPLETED",
+                    description: `Crédito Pix aprovado: +${tx.amountJT} JT`,
+                    referenceId: tx.mercadoPagoId
+                  }
+                });
+
+                // Also update any matching standard Payment records if they exist to keep them synced
+                try {
+                  await dbTx.payment.updateMany({
+                    where: { transactionId: tx.mercadoPagoId },
+                    data: { status: "COMPLETED" }
+                  });
+                } catch (payErr) {
+                  // Ignore if model schema behaves slightly differently or no generic Payment exists
                 }
 
                 await dbTx.paymentLog.create({
@@ -194,7 +216,7 @@ export class PaymentReconciliationService {
 
           // Fetch the absolute source of truth fresh balance from the database and sync to authStore safely
           let freshBalance = tx.amountJT;
-          if (prisma) {
+          if (prisma && isDatabaseConnected()) {
             try {
               const freshWallet = await prisma.wallet.findUnique({ where: { userId: tx.userId } });
               if (freshWallet) {
