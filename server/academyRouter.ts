@@ -2,19 +2,25 @@ import { Router } from "express";
 import { prisma } from "./db";
 import { authenticateToken } from "./middleware/auth";
 import { requireRole } from "./middleware/roles";
-import { runExternalFederationSync, getExternalSyncStatus } from "./externalSyncService";
+import { runExternalFederationSync, getExternalSyncStatus, auditAndSanitizeAcademies } from "./externalSyncService";
 
 const router = Router();
 
 console.log("⚡ [ACADEMY ROUTER] Módulo de Academias inicializado e carregado com dados 100% REAIS!");
 
-// Seeding automático sob demanda na inicialização se o banco estiver vazio
-prisma.globalTeam.findFirst().then((hasTeam) => {
+// Seeding automático e higienização sob demanda na inicialização se o banco estiver vazio
+prisma.globalTeam.findFirst().then(async (hasTeam) => {
+  // Sempre executa auditoria e higienização no boot para remover inconsistências de filiais em GlobalTeam
+  console.log("🔍 [ACADEMY ROUTER] Iniciando auditoria e higienização automática do banco...");
+  await auditAndSanitizeAcademies()
+    .then(r => console.log(`🛡️ [ACADEMY ROUTER] Mapeamento concluído: ${r.identifiedMisclassified} inconsistências corrigidas.`))
+    .catch(e => console.error("❌ ERRO na auditoria de boot:", e));
+
   if (!hasTeam) {
     console.log("🌱 [ACADEMY ROUTER] Database has no teams, auto-running initial federation sync...");
     runExternalFederationSync()
       .then(r => console.log(`🚀 [ACADEMY ROUTER] Auto-sync complete: ${r.teamsCount} teams, ${r.branchesCount} branches.`))
-      .catch(e => console.error("❌ [ACADEMY ROUTER] Auto-sync failed failed:", e));
+      .catch(e => console.error("❌ [ACADEMY ROUTER] Auto-sync failed:", e));
   }
 }).catch((err) => {
   console.error("⚠️ [ACADEMY ROUTER] Could not check or seed teams on boot:", err);

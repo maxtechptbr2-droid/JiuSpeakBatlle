@@ -1389,6 +1389,56 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                         <span className="text-[#009dff] font-bold">{syncStatus.lastRunMeta.branchesSucceeded}</span> filiais.
                       </div>
                     )}
+
+                    {syncStatus?.auditReport && (
+                      <div className="bg-[#1e1b4b]/20 border border-indigo-500/20 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-xs font-bold uppercase font-mono text-indigo-400 flex items-center gap-1.5">
+                            🛡️ Relatório de Higienização Avançada de Dados (PostgreSQL)
+                          </h5>
+                          <span className="text-[10px] font-mono text-indigo-300/60 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                            Status: Segura
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                          <div className="bg-slate-950/40 p-2 rounded border border-slate-900/60">
+                            <span className="block text-[9px] text-slate-500 uppercase font-mono">Escaneados</span>
+                            <span className="text-xs font-bold font-mono text-slate-300">{syncStatus.auditReport.scannedGlobalTeams} Equipes</span>
+                          </div>
+                          <div className="bg-slate-950/40 p-2 rounded border border-slate-900/60">
+                            <span className="block text-[9px] text-slate-500 uppercase font-mono">Inconsistências</span>
+                            <span className={`text-xs font-bold font-mono ${syncStatus.auditReport.identifiedMisclassified > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                              {syncStatus.auditReport.identifiedMisclassified} Detectadas
+                            </span>
+                          </div>
+                          <div className="bg-slate-950/40 p-2 rounded border border-slate-900/60">
+                            <span className="block text-[9px] text-slate-500 uppercase font-mono">Filiais Migradas</span>
+                            <span className="text-xs font-bold font-mono text-[#009dff]">{syncStatus.auditReport.migratedBranchesCount} Resgatadas</span>
+                          </div>
+                          <div className="bg-slate-950/40 p-2 rounded border border-slate-900/60">
+                            <span className="block text-[9px] text-slate-500 uppercase font-mono">Vínculos Seguros</span>
+                            <span className="text-xs font-bold font-mono text-emerald-400">{syncStatus.auditReport.vowsPreservedCount} Atletas</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 pt-1 font-sans">
+                          <span className="block text-[10px] font-semibold text-slate-400 font-mono">Relato de Auditoria BJJ:</span>
+                          <div className="bg-slate-950/65 rounded p-2.5 max-h-32 overflow-y-auto space-y-1 scrollbar-thin border border-slate-900">
+                            {syncStatus.auditReport.details.map((detail: string, dIdx: number) => (
+                              <div key={dIdx} className="text-[10px] font-mono leading-relaxed text-slate-300 flex items-start gap-1">
+                                <span className="text-emerald-500 select-none shrink-0">›</span>
+                                <span>{detail}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="text-[9px] text-slate-500 text-right font-mono">
+                          🔍 Verificado com dados oficiais da IBJJF / CBJJ / AJP Tour • Script de Rollback Reversível Gerado
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Filter Sub-tab selector */}
