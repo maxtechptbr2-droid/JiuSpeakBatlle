@@ -2,10 +2,23 @@ import { Router } from "express";
 import { prisma } from "./db";
 import { authenticateToken } from "./middleware/auth";
 import { requireRole } from "./middleware/roles";
+import { runExternalFederationSync, getExternalSyncStatus } from "./externalSyncService";
 
 const router = Router();
 
 console.log("⚡ [ACADEMY ROUTER] Módulo de Academias inicializado e carregado com dados 100% REAIS!");
+
+// Seeding automático sob demanda na inicialização se o banco estiver vazio
+prisma.globalTeam.findFirst().then((hasTeam) => {
+  if (!hasTeam) {
+    console.log("🌱 [ACADEMY ROUTER] Database has no teams, auto-running initial federation sync...");
+    runExternalFederationSync()
+      .then(r => console.log(`🚀 [ACADEMY ROUTER] Auto-sync complete: ${r.teamsCount} teams, ${r.branchesCount} branches.`))
+      .catch(e => console.error("❌ [ACADEMY ROUTER] Auto-sync failed failed:", e));
+  }
+}).catch((err) => {
+  console.error("⚠️ [ACADEMY ROUTER] Could not check or seed teams on boot:", err);
+});
 
 router.use((req, res, next) => {
   console.log(`📡 [ACADEMY ROUTER REQUEST]: ${req.method} ${req.url}`);
@@ -1278,6 +1291,34 @@ router.post("/external/sync", authenticateToken, async (req: any, res: any) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: "Falha técnica ao sincronizar academia externa: " + error.message });
+  }
+});
+
+// ==========================================
+// FEDERATION SYNC ENDPOINTS
+// ==========================================
+
+router.get("/sync-status", async (req, res) => {
+  try {
+    const status = await getExternalSyncStatus();
+    res.json({ success: true, ...status });
+  } catch (error: any) {
+    console.error("GET sync-status error:", error);
+    res.status(500).json({ error: "Erro ao obter status da sincronização das federações: " + error.message });
+  }
+});
+
+router.post("/sync", async (req, res) => {
+  try {
+    const result = await runExternalFederationSync();
+    res.json({
+      success: true,
+      message: `Sincronização executada com sucesso! ${result.teamsCount} equipes globais e ${result.branchesCount} filiais associadas correspondidas ou criadas incrementalmente no banco de dados.`,
+      result
+    });
+  } catch (error: any) {
+    console.error("POST sync' error:", error);
+    res.status(500).json({ error: "Erro ao executar sincronização das federações: " + error.message });
   }
 });
 

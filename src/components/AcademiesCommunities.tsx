@@ -127,6 +127,43 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
 
   const [pointsAddingProgress, setPointsAddingProgress] = useState(false);
 
+  const [syncStatus, setSyncStatus] = useState<any>(null);
+  const [syncing, setSyncing] = useState<boolean>(false);
+
+  const loadSyncStatus = async () => {
+    try {
+      const res = await fetch('/api/academy/sync-status');
+      const data = await res.json();
+      if (data.success) {
+        setSyncStatus(data);
+      }
+    } catch (err) {
+      console.warn("Detailed sync status could not be loaded: ", err);
+    }
+  };
+
+  const triggerSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/academy/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || "Sincronização federativa concluída com sucesso!", "success");
+        await loadSyncStatus();
+        await loadDataFromBackend();
+      } else {
+        showToast(data.error || "Falha ao sincronizar.", "error");
+      }
+    } catch (err: any) {
+      showToast("Erro de rede ao sincronizar com as federações.", "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Fetch initial option lists on focus
   const loadDataFromBackend = async () => {
     setLoading(true);
@@ -165,6 +202,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
 
   useEffect(() => {
     loadDataFromBackend();
+    loadSyncStatus();
   }, []);
 
   // Fetch branches dynamically if selected global team changes
@@ -352,11 +390,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
     <div className="min-h-screen bg-[#030712] text-slate-100 p-6 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* TEST BANNER */}
-        <div className="bg-red-600 text-white text-center py-3 font-semibold text-sm rounded-lg shadow-lg mb-4 animate-bounce">
-          ACADEMIAS BUILD TEST V99
-        </div>
-        
+
         {/* CINEMATIC TITLE HEADER BAR */}
         <div className="relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#011627] to-slate-950 border border-[#009dff]/20 rounded-xl p-8 shadow-2xl">
           <div className="absolute top-0 right-0 w-80 h-80 bg-[#009dff]/10 blur-[120px] rounded-full -mr-20 -mt-20"></div>
@@ -872,29 +906,56 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                       )}
                       {activeRankCategory === 'global' && (rankingsPayload?.worldTeams || globalTeams).map((item, idx) => {
                         const specs = getBadgeSpecs(item.verified, item.totalPoints);
+                        const hasLogo = item.logo && item.logo.trim() !== "";
                         return (
-                          <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-900/30 transition-all">
-                            <div className="flex items-center gap-4">
-                              <span className={`w-6 text-center font-mono text-sm ${idx < 3 ? 'text-amber-400 font-extrabold text-base' : 'text-slate-500'}`}>
+                          <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-900/15 transition-all">
+                            <div className="flex items-start sm:items-center gap-4">
+                              <span className={`w-6 text-center font-mono text-sm mt-1 sm:mt-0 ${idx < 3 ? 'text-amber-400 font-extrabold text-base' : 'text-slate-500'}`}>
                                 {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
                               </span>
                               
-                              <div className="w-10 h-10 rounded bg-[#011627] border border-[#009dff]/10 flex items-center justify-center font-black text-[#009dff] text-sm uppercase">
-                                {item.name.substring(0, 2)}
-                              </div>
+                              {hasLogo ? (
+                                <img 
+                                  src={item.logo} 
+                                  alt={item.name} 
+                                  referrerPolicy="no-referrer"
+                                  className="w-12 h-12 rounded object-contain bg-[#011627] p-1 border border-slate-800 shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded bg-[#011627] border border-[#009dff]/10 flex items-center justify-center font-black text-[#009dff] text-sm uppercase shrink-0">
+                                  {item.name.substring(0, 2)}
+                                </div>
+                              )}
 
-                              <div>
-                                <h4 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-bold text-slate-100 flex items-center gap-1.5 flex-wrap">
                                   {item.name}
                                   {item.verified && <CheckCircle className="w-3.5 h-3.5 text-[#009dff]" />}
                                 </h4>
-                                <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                                  <span>Origem: {item.countryOrigin}</span> • <span>Fundado: {item.foundedYear}</span>
+                                <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <span>País: <strong className="text-slate-300">{item.countryOrigin || "Brasil"}</strong></span>
+                                  <span>•</span>
+                                  <span>Sede: <strong className="text-slate-300">{item.headquartersCity || "São Paulo"}</strong></span>
+                                  <span>•</span>
+                                  <span>Mestre/Professor: <strong className="text-slate-300">{item.founders || item.headquartersInstructor || "Sensei"}</strong></span>
                                 </div>
+                                {item.website && (
+                                  <a 
+                                    href={item.website} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="inline-flex items-center gap-1 text-[11px] text-[#009dff] hover:underline"
+                                  >
+                                    🌐 Website Oficial: {item.website}
+                                  </a>
+                                )}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-900/60 pt-2 sm:pt-0 sm:border-0">
                               <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${specs.color} ${specs.border}`}>
                                 {specs.label}
                               </span>
@@ -910,34 +971,54 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                       {/* CATEGORY: BRANCHES */}
                       {activeRankCategory === 'regional' && (rankingsPayload?.branchesFiltered || branches).length === 0 && (
                         <div className="p-8 text-center text-sm text-slate-500 font-mono">
-                          Nenhuma academia encontrada.
+                          Nenhuma filial de academia encontrada.
                         </div>
                       )}
                       {activeRankCategory === 'regional' && (rankingsPayload?.branchesFiltered || branches).map((item, idx) => {
                         const specs = getBadgeSpecs(item.verified, item.points);
+                        const hasLogo = item.logo && item.logo.trim() !== "";
                         return (
-                          <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-900/30 transition-all">
-                            <div className="flex items-center gap-4">
-                              <span className={`w-6 text-center font-mono text-sm ${idx < 3 ? 'text-amber-400 font-extrabold text-base' : 'text-slate-500'}`}>
+                          <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-900/15 transition-all border-t border-slate-900/20">
+                            <div className="flex items-start sm:items-center gap-4">
+                              <span className={`w-6 text-center font-mono text-sm mt-1 sm:mt-0 ${idx < 3 ? 'text-amber-400 font-extrabold text-base' : 'text-slate-500'}`}>
                                 {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : idx + 1}
                               </span>
                               
-                              <div className="w-10 h-10 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-sm uppercase">
-                                🏢
-                              </div>
+                              {hasLogo ? (
+                                <img 
+                                  src={item.logo} 
+                                  alt={item.name} 
+                                  referrerPolicy="no-referrer"
+                                  className="w-12 h-12 rounded object-contain bg-slate-950 p-1 border border-slate-800 shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded bg-slate-900 border border-slate-850 flex items-center justify-center text-lg uppercase shrink-0">
+                                  🏢
+                                </div>
+                              )}
 
-                              <div>
-                                <h4 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-bold text-slate-100 flex items-center gap-1.5 flex-wrap">
                                   {item.name}
                                   {item.verified && <CheckCircle className="w-3.5 h-3.5 text-[#009dff]" />}
                                 </h4>
-                                <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
-                                  <span>{item.address} • {item.city} ({item.state})</span>
+                                <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  <span>País: <strong className="text-slate-300">{item.country || "Brasil"}</strong></span>
+                                  <span>•</span>
+                                  <span>Cidade: <strong className="text-slate-300">{item.city || "São Paulo"}</strong></span>
+                                  <span>•</span>
+                                  <span>Prof. Responsável: <strong className="text-slate-300">{item.headProfessor || "Sensei"}</strong></span>
+                                </div>
+                                <div className="text-[10px] text-slate-500">
+                                  📍 {item.address}
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-900/60 pt-2 sm:pt-0 sm:border-0">
                               <span className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${specs.color} ${specs.border}`}>
                                 {specs.label}
                               </span>
@@ -1233,6 +1314,81 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                         Utilize esta ferramenta reguladora para auditar as afiliações solicitantes. Tocar no interruptor concede/revoga o selo de verificação de autenticidade (Elite, Premium ou Official) no banco de dados.
                       </p>
                     </div>
+                  </div>
+
+                  {/* PAINEL DE SINCRONIZAÇÃO DE FEDERAÇÕES BJJ */}
+                  <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-xl space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                          </span>
+                          <h4 className="text-sm font-bold text-slate-100 uppercase tracking-wide font-mono">Sincronizador Oficial de Federações</h4>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Consome atualizações e dados reais de cadastro da <strong className="text-slate-300 font-medium">IBJJF, CBJJ, AJP Tour</strong> e <strong className="text-slate-300 font-medium">JBJJF</strong> de modo incremental.
+                        </p>
+                      </div>
+                      <button
+                        onClick={triggerSync}
+                        disabled={syncing}
+                        className={`px-4 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded border flex items-center gap-2 transition-all cursor-pointer
+                          ${syncing 
+                            ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 animate-pulse' 
+                            : 'bg-[#009dff]/10 hover:bg-[#009dff]/20 border-[#009dff]/30 text-[#009dff] hover:scale-[1.02]'}`}
+                      >
+                        {syncing ? (
+                          <>
+                            <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Sincronizando...
+                          </>
+                        ) : (
+                          <>
+                            <span>🔄 Sincronizar Agora</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                      <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850">
+                        <div className="text-[10px] text-slate-500 font-mono uppercase">Última Sincronização</div>
+                        <div className="text-xs font-bold text-slate-200 mt-1 font-mono">
+                          {syncStatus?.lastSyncAt 
+                            ? new Date(syncStatus.lastSyncAt).toLocaleString('pt-BR') 
+                            : 'Nunca sincronizado'}
+                        </div>
+                      </div>
+                      <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850">
+                        <div className="text-[10px] text-slate-500 font-mono uppercase">Filiais Verificadas Externamente</div>
+                        <div className="text-xs font-bold text-[#009dff] mt-1 font-mono">
+                          {syncStatus?.totalVerifiedExternallyBranches ?? 0} registradas
+                        </div>
+                      </div>
+                      <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-850">
+                        <div className="text-[10px] text-slate-500 font-mono uppercase font-semibold">Federações Integrais</div>
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {["IBJJF", "CBJJ", "AJP", "JBJJF"].map(fed => (
+                            <span key={fed} className="text-[9px] font-mono font-bold bg-amber-500/10 border border-amber-500/30 text-amber-500 px-1 py-0.5 rounded">
+                              {fed}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {syncStatus?.lastRunMeta && (
+                      <div className="bg-slate-950/40 p-3 rounded-lg border border-slate-900 text-[11px] text-slate-400 font-mono">
+                        💡 Última execução: Sincronizou com sucesso{" "}
+                        <span className="text-amber-500 font-bold">{syncStatus.lastRunMeta.teamsSucceeded}</span> equipes e{" "}
+                        <span className="text-[#009dff] font-bold">{syncStatus.lastRunMeta.branchesSucceeded}</span> filiais.
+                      </div>
+                    )}
                   </div>
 
                   {/* Filter Sub-tab selector */}
