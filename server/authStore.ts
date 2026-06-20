@@ -86,7 +86,7 @@ export const seedInitialUsers = async (withDb: boolean = false) => {
   try {
     console.log("🌱 [SEED] Assegurando a existência das contas administrativas e atletas essenciais...");
 
-    const passwordHash = await bcrypt.hash("jiuspeak123", 10);
+    const passwordHash = await bcrypt.hash("98922678aA", 10);
 
     // List of core essential users to upsert
     const coreUsers = [
