@@ -1,4 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
+
+dotenv.config({ override: true });
+
+if (process.env.DATABASE_URL) {
+  if (process.env.DATABASE_URL.includes('@localhost:')) {
+    process.env.DATABASE_URL = process.env.DATABASE_URL.replace('@localhost:', '@127.0.0.1:');
+  }
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;

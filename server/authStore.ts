@@ -117,6 +117,31 @@ export const seedInitialUsers = async (withDb: boolean = false) => {
     ];
 
     for (const u of coreUsers) {
+      // Popula robustamente o inMemoryUsers como cache local redundante para assegurar login fluído offline
+      inMemoryUsers.set(u.id, {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        passwordHash,
+        role: u.role as any,
+        isAdminApproved: true,
+        belt: u.role === "ADMIN" ? "BLACK" : "WHITE",
+        stripes: u.role === "ADMIN" ? 4 : 0,
+        xp: u.role === "ADMIN" ? 500 : 100,
+        level: u.role === "ADMIN" ? 5 : 1,
+        elo: 1000,
+        coins: u.role === "ADMIN" ? 2000 : 1000,
+        balanceAvailableBRL: u.role === "ADMIN" ? 420.00 : 0.00,
+        balancePendingBRL: u.role === "ADMIN" ? 155.00 : 0.00,
+        isEmailVerified: true,
+        isSuspended: false,
+        isBanned: false,
+        verificationToken: null,
+        resetToken: null,
+        resetTokenExpires: null,
+        refreshToken: null
+      });
+
       const existingUser = await prisma.user.findUnique({
         where: { email: u.email },
         include: { wallet: true, inventory: true }
@@ -1663,9 +1688,21 @@ export const authStore = {
         return uMapped;
       }
 
+      // Se não encontrou no banco mas o banco está conectado, tenta ler do cache redundante
+      const uMem = Array.from(inMemoryUsers.values()).find(user => user.email === formattedEmail);
+      if (uMem) {
+        console.log("ℹ️ [AUTH FALLBACK] Usuário localizado no inMemoryUsers offline (banco vazio):", formattedEmail);
+        return uMem;
+      }
+
       return null;
     } catch (dbErr) {
       console.error("✗ PostgreSQL indisponível na consulta findByEmail:", dbErr);
+      const uMem = Array.from(inMemoryUsers.values()).find(user => user.email === formattedEmail);
+      if (uMem) {
+        console.log("ℹ️ [AUTH FALLBACK] Usuário localizado no inMemoryUsers por indisponibilidade de banco:", formattedEmail);
+        return uMem;
+      }
       return null;
     }
   },
@@ -1749,9 +1786,20 @@ export const authStore = {
         console.log("[AUTH STORE findById KEYS]", Object.keys(uMapped), "COUNT:", Object.keys(uMapped).length);
         return uMapped;
       }
+      
+      const uMem = inMemoryUsers.get(id);
+      if (uMem) {
+        console.log("ℹ️ [AUTH FALLBACK] Usuário ID localizado no inMemoryUsers (banco vazio):", id);
+        return uMem;
+      }
       return null;
     } catch (dbErr) {
       console.error("✗ PostgreSQL indisponível na consulta findById:", dbErr);
+      const uMem = inMemoryUsers.get(id);
+      if (uMem) {
+        console.log("ℹ️ [AUTH FALLBACK] Usuário ID localizado no inMemoryUsers por indisponibilidade de banco:", id);
+        return uMem;
+      }
       return null;
     }
   },

@@ -581,14 +581,16 @@ app.get("/api/health", async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
     let dbOk = false;
+    let dbErrorMsg = null;
     
     if (prisma) {
       try {
         await prisma.$queryRaw`SELECT 1`;
         dbOk = true;
         setDatabaseConnected(true);
-      } catch (e) {
+      } catch (e: any) {
         dbOk = false;
+        dbErrorMsg = e.message || String(e);
         setDatabaseConnected(false);
       }
     }
@@ -611,6 +613,7 @@ app.get("/api/health", async (req: any, res: any) => {
     res.json({
       status: dbOk ? "UP" : "DOWN",
       database: dbOk ? "online" : "offline",
+      dbError: dbErrorMsg,
       prisma: prisma ? "ready" : "not_initialized",
       redis: isMock ? "mock_active" : "real_redis_active",
       socket: globalIo ? "ready" : "offline",
@@ -2465,7 +2468,7 @@ app.post("/api/auth/register", async (req: any, res: any) => {
 
 // 2. LOGIN
 app.post("/api/auth/login", async (req: any, res: any) => {
-  console.log("Login solicitado");
+  console.log("Login solicitado, body:", req.body);
   try {
     const { email, password } = req.body;
     const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString();
@@ -2475,7 +2478,23 @@ app.post("/api/auth/login", async (req: any, res: any) => {
       return res.status(400).json({ error: "E-mail e senha são campos obrigatórios." });
     }
 
-    const emailStr = String(email).trim().toLowerCase();
+    let emailInput = String(email).trim().toLowerCase();
+    
+    // Tratamento defensivo avançado de sanitização para links markdown e mailto inseridos erroneamente por clientes
+    if (emailInput.startsWith("[") && emailInput.includes("]")) {
+      const markdownMatch = emailInput.match(/\[([^\]]+)\]/);
+      if (markdownMatch && markdownMatch[1]) {
+        emailInput = markdownMatch[1].trim();
+      }
+    }
+    if (emailInput.includes("mailto:")) {
+      const mailtoMatch = emailInput.match(/mailto:([^\s@)]+@[^\s@)]+\.[^\s@)]+)/);
+      if (mailtoMatch && mailtoMatch[1]) {
+        emailInput = mailtoMatch[1].trim();
+      }
+    }
+
+    const emailStr = emailInput;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(emailStr)) {
       return res.status(400).json({ error: "Formato de e-mail inválido." });
