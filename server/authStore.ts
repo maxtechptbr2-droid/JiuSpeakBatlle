@@ -1688,20 +1688,24 @@ export const authStore = {
         return uMapped;
       }
 
-      // Se não encontrou no banco mas o banco está conectado, tenta ler do cache redundante
-      const uMem = Array.from(inMemoryUsers.values()).find(user => user.email === formattedEmail);
-      if (uMem) {
-        console.log("ℹ️ [AUTH FALLBACK] Usuário localizado no inMemoryUsers offline (banco vazio):", formattedEmail);
-        return uMem;
+      // Se não encontrou no banco mas o banco está conectado, tenta ler do cache redundante (APENAS se não for ambiente produtivo)
+      if (process.env.NODE_ENV !== "production") {
+        const uMem = Array.from(inMemoryUsers.values()).find(user => user.email === formattedEmail);
+        if (uMem) {
+          console.log("ℹ️ [AUTH FALLBACK] Usuário localizado no inMemoryUsers offline (banco vazio):", formattedEmail);
+          return uMem;
+        }
       }
 
       return null;
     } catch (dbErr) {
       console.error("✗ PostgreSQL indisponível na consulta findByEmail:", dbErr);
-      const uMem = Array.from(inMemoryUsers.values()).find(user => user.email === formattedEmail);
-      if (uMem) {
-        console.log("ℹ️ [AUTH FALLBACK] Usuário localizado no inMemoryUsers por indisponibilidade de banco:", formattedEmail);
-        return uMem;
+      if (process.env.NODE_ENV !== "production") {
+        const uMem = Array.from(inMemoryUsers.values()).find(user => user.email === formattedEmail);
+        if (uMem) {
+          console.log("ℹ️ [AUTH FALLBACK] Usuário localizado no inMemoryUsers por indisponibilidade de banco:", formattedEmail);
+          return uMem;
+        }
       }
       return null;
     }
@@ -1787,18 +1791,22 @@ export const authStore = {
         return uMapped;
       }
       
-      const uMem = inMemoryUsers.get(id);
-      if (uMem) {
-        console.log("ℹ️ [AUTH FALLBACK] Usuário ID localizado no inMemoryUsers (banco vazio):", id);
-        return uMem;
+      if (process.env.NODE_ENV !== "production") {
+        const uMem = inMemoryUsers.get(id);
+        if (uMem) {
+          console.log("ℹ️ [AUTH FALLBACK] Usuário ID localizado no inMemoryUsers (banco vazio):", id);
+          return uMem;
+        }
       }
       return null;
     } catch (dbErr) {
       console.error("✗ PostgreSQL indisponível na consulta findById:", dbErr);
-      const uMem = inMemoryUsers.get(id);
-      if (uMem) {
-        console.log("ℹ️ [AUTH FALLBACK] Usuário ID localizado no inMemoryUsers por indisponibilidade de banco:", id);
-        return uMem;
+      if (process.env.NODE_ENV !== "production") {
+        const uMem = inMemoryUsers.get(id);
+        if (uMem) {
+          console.log("ℹ️ [AUTH FALLBACK] Usuário ID localizado no inMemoryUsers por indisponibilidade de banco:", id);
+          return uMem;
+        }
       }
       return null;
     }

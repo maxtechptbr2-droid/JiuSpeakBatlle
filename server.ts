@@ -23,7 +23,7 @@ import { MatchmakingService } from "./server/pvp/matchmaking";
 import { ArenaService } from "./server/pvp/arena";
 import { seedQuestionsInDb } from "./server/pvp/questions";
 import { RankingService } from "./server/pvp/ranking";
-import { prisma, getPrisma, assertDatabaseConnection, isDatabaseConnected, setDatabaseConnected } from "./server/db";
+import { prisma, getPrisma, assertDatabaseConnection, isDatabaseConnected, setDatabaseConnected, getDatabaseStatus } from "./server/db";
 import { Rarity, Prisma } from "@prisma/client";
 import { getRedisClient } from "./server/pvp/redis";
 import { getCached, invalidateCache } from "./server/cache";
@@ -622,6 +622,22 @@ app.get("/api/health", async (req: any, res: any) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/system/database-status - Traz a telemetria detalhada de conexão e latência do PostgreSQL
+app.get("/api/system/database-status", async (req: any, res: any) => {
+  try {
+    const status = await getDatabaseStatus();
+    res.json(status);
+  } catch (err: any) {
+    res.status(500).json({
+      connected: false,
+      latency: 0,
+      migrationsUpToDate: false,
+      prismaClientReady: false,
+      error: err.message
+    });
   }
 });
 
@@ -14872,9 +14888,13 @@ async function purgeFictionalUsers() {
 // VITE DEV SERVER ENGINE INTEGRATION & SOCKET.IO SERVICES
 // =========================================================================
 async function startServer() {
-  // Assert PostgreSQL connectivity immediately, non-blocking fallback if offline
+  // Assert PostgreSQL connectivity immediately, blocking startup in production if offline
   try {
-    await assertDatabaseConnection();
+    const isConn = await assertDatabaseConnection();
+    if (!isConn && process.env.NODE_ENV === "production") {
+      console.error("\n🔥 [FATAL DATABASE FAILURE] O banco de dados PostgreSQL está inacessível. Em ambiente de produção o boot do servidor foi interrompido conforme os requerimentos de estrita consistência de dados.");
+      process.exit(1);
+    }
     await auditStoreProductColumns();
     await auditSocialPostColumns();
     await purgeFictionalUsers();
