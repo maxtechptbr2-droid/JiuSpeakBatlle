@@ -28,6 +28,7 @@ import {
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
 import { io, Socket } from 'socket.io-client';
+import { authFetch } from '../utils/authFetch';
 import { removeFakeUsers } from '../utils/removeFakeUsers';
 
 interface LeaderboardEntry {
@@ -257,7 +258,7 @@ export default function PvPArena({
   const fetchVoiceSessions = async () => {
     setIsLoadingHistory(true);
     try {
-      const res = await fetch("/api/conversational/sessions");
+      const res = await authFetch("/api/conversational/sessions");
       if (res.ok) {
         const data = await res.json();
         setVoiceSessions(data.sessions || []);
@@ -274,7 +275,7 @@ export default function PvPArena({
     setMicErrorText('');
     setVoiceChatOpen(true);
     try {
-      const res = await fetch("/api/conversational/sessions/create", {
+      const res = await authFetch("/api/conversational/sessions/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenario: selectedScenario, partnerKey: selectedPartner })
@@ -302,7 +303,7 @@ export default function PvPArena({
 
   const deleteVoiceSession = async (sid: string) => {
     try {
-      const res = await fetch("/api/conversational/sessions/delete", {
+      const res = await authFetch("/api/conversational/sessions/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: sid })
@@ -335,7 +336,7 @@ export default function PvPArena({
     }));
 
     try {
-      const res = await fetch("/api/conversational/chat", {
+      const res = await authFetch("/api/conversational/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: activeVoiceSession.id, text: finalMsg })

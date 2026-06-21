@@ -659,17 +659,16 @@ export default function App() {
 
     // Unlock payouts
     addXp(found.xpReward, `Conquista completada: ${found.title}`);
-    addCoins(found.coinReward, `Conquista completada: ${found.title}`);
 
     // Log transaction
     addAuditLog(
       'lesson_completed',
-      `Premiação: Lutador resgatou recompensa da conquista "${found.title}" (+${found.xpReward} XP / +${found.coinReward} JT).`,
+      `Premiação: Lutador resgatou recompensa da conquista "${found.title}" (+${found.xpReward} XP).`,
       undefined,
-      found.coinReward
+      0
     );
 
-    showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP e +${found.coinReward} JiuTickets salvos!`, 'success');
+    showToast(`Conquista "${found.title}" resgatada! +${found.xpReward} XP salvos!`, 'success');
 
     // Trigger automatic viral share congratulations overlay
     setTimeout(() => {

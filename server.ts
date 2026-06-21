@@ -11106,6 +11106,9 @@ app.post("/api/marketplace/list", authenticateToken, async (req: any, res: any) 
     let finalItemDetails: any = null;
 
     if (!finalItemId && name) {
+      if (req.user?.role !== "admin" && req.user?.role !== "professor" && req.user?.role !== "ADMIN" && req.user?.role !== "PROFESSOR") {
+        return res.status(403).json({ error: "Privilégios insuficientes. Apenas administradores ou professores podem gerar itens novos sintéticos para venda direta." });
+      }
       // Custom item creation and direct listing
       finalItemId = `custom_${Date.now()}`;
       finalItemDetails = {

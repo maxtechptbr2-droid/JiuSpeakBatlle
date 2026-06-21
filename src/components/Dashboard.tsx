@@ -816,9 +816,6 @@ export default function Dashboard({
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold border border-blue-500/20">
                             +{ach.xpReward} XP
                           </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 font-bold border border-yellow-500/20 block mt-1">
-                            +{ach.coinReward} JT
-                          </span>
                         </div>
                       </div>
 

@@ -376,8 +376,8 @@ async function runMasterSeed() {
       teamIdMap[data.slug] = teamId;
     }
 
-    // 1.B — AcademyBranch (Nível 2 — uma filial-sede por equipe)
-    console.log("\n🌱 Sincronizando Filiais Oficiais HQ...");
+    // 1.B — AcademyBranch (Nível 2 — uma filial-sede por equipe + 3 filiais adicionais por equipe)
+    console.log("\n🌱 Sincronizando Filiais Oficiais HQ e Filiais Adicionais...");
 
     for (const data of globalTeamsToInsert) {
       const globalTeamId = teamIdMap[data.slug];
@@ -386,43 +386,52 @@ async function runMasterSeed() {
         continue;
       }
 
-      const branchSlug = `${data.slug}-hq`;
-      const branchName = `${data.name} — Matriz`;
-
       // Se a equipe for Atos, headProfessor da filial deve ser null (Passo 5)
       const isAtos = data.slug === "atos";
       const headProfessor = isAtos ? null : data.founders;
 
-      const existingBranch = await prisma.academyBranch.findUnique({ where: { slug: branchSlug } });
+      const branchSpecs = [
+        { suffix: "Matriz", slugSuffix: "hq", country: data.headquartersCountry, state: data.headquartersState, city: data.headquartersCity },
+        { suffix: "São Paulo", slugSuffix: "sp", country: "Brasil", state: "SP", city: "São Paulo" },
+        { suffix: "Miami", slugSuffix: "miami", country: "EUA", state: "FL", city: "Miami" },
+        { suffix: "Las Vegas", slugSuffix: "las-vegas", country: "EUA", state: "NV", city: "Las Vegas" }
+      ];
 
-      const branchPayload = {
-        globalTeamId: globalTeamId,
-        name: branchName,
-        country: data.headquartersCountry,
-        state: data.headquartersState,
-        city: data.headquartersCity,
-        address: null, // deixar null conforme regra 1.B
-        headProfessor: headProfessor,
-        membersCount: 0,
-        points: 0,
-        verified: true,
-        verifiedExternally: false
-      };
+      for (const spec of branchSpecs) {
+        const branchSlug = `${data.slug}-${spec.slugSuffix}`;
+        const branchName = `${data.name} — ${spec.suffix}`;
 
-      if (existingBranch) {
-        await prisma.academyBranch.update({
-          where: { slug: branchSlug },
-          data: branchPayload
-        });
-        console.log(`   [UPDATED-BRANCH-HQ] ${branchName}`);
-      } else {
-        await prisma.academyBranch.create({
-          data: {
-            ...branchPayload,
-            slug: branchSlug
-          }
-        });
-        console.log(`   [CREATED-BRANCH-HQ] ${branchName}`);
+        const existingBranch = await prisma.academyBranch.findUnique({ where: { slug: branchSlug } });
+
+        const branchPayload = {
+          globalTeamId: globalTeamId,
+          name: branchName,
+          country: spec.country,
+          state: spec.state,
+          city: spec.city,
+          address: null, // deixar null conforme regra 1.B
+          headProfessor: headProfessor,
+          membersCount: 0,
+          points: 0,
+          verified: true,
+          verifiedExternally: false
+        };
+
+        if (existingBranch) {
+          await prisma.academyBranch.update({
+            where: { slug: branchSlug },
+            data: branchPayload
+          });
+          console.log(`   [UPDATED-BRANCH] ${branchName}`);
+        } else {
+          await prisma.academyBranch.create({
+            data: {
+              ...branchPayload,
+              slug: branchSlug
+            }
+          });
+          console.log(`   [CREATED-BRANCH] ${branchName}`);
+        }
       }
     }
 
@@ -455,6 +464,34 @@ async function runMasterSeed() {
         state: "CA",
         city: "Huntington Beach",
         headProfessor: "Rubens 'Cobrinha' Charles"
+      },
+      {
+        name: "Renzo Gracie Academy - Brooklyn",
+        country: "EUA",
+        state: "NY",
+        city: "Brooklyn",
+        headProfessor: "Renzo Gracie"
+      },
+      {
+        name: "Studio 540",
+        country: "EUA",
+        state: "CA",
+        city: "Solana Beach",
+        headProfessor: "Robert Drysdale"
+      },
+      {
+        name: "University of Jiu-Jitsu",
+        country: "EUA",
+        state: "CA",
+        city: "San Diego",
+        headProfessor: "Saulo Ribeiro"
+      },
+      {
+        name: "Fight Sports - Miami",
+        country: "EUA",
+        state: "FL",
+        city: "Miami",
+        headProfessor: "Roberto Abreu"
       }
     ];
 

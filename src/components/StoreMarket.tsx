@@ -833,6 +833,7 @@ export default function StoreMarket({
 
   // Listing configuration
   const [listModalOpen, setListModalOpen] = useState(false);
+  const [userInventoryItems, setUserInventoryItems] = useState<any[]>([]);
   const [sellOption, setSellOption] = useState<'inventory' | 'custom'>('inventory');
   const [selectedInventoryItemId, setSelectedInventoryItemId] = useState('');
   const [listForm, setListForm] = useState({
@@ -842,6 +843,28 @@ export default function StoreMarket({
     price: 300,
     rarity: 'Comum' as any
   });
+
+  const handleOpenListModal = async () => {
+    setListModalOpen(true);
+    setIsInventoryLoading(true);
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token');
+      if (token) {
+        const res = await fetch('/api/inventory', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          setUnlockedItems(data.items);
+          setUserInventoryItems(data.items);
+        }
+      }
+    } catch (err) {
+      console.error("Falha ao sincronizar inventário:", err);
+    } finally {
+      setIsInventoryLoading(false);
+    }
+  };
 
   // VIP subscribe modal state
   const [subscribingTier, setSubscribingTier] = useState<any>(null);
@@ -1340,7 +1363,7 @@ export default function StoreMarket({
       <div className="flex border-b border-zinc-900 gap-1 overflow-x-auto scroller-hidden">
         {[
           { id: 'loja', label: '🥋 LOJA DE ITENS', desc: 'Desbloquear com JT' },
-          { id: 'market', label: '🤝 SWAP DE CONTEÚDO', desc: 'Trocas entre alunos' },
+          { id: 'market', label: '🤝 STAND JIUSPEAK', desc: 'Trocas entre alunos' },
           { id: 'inventorio', label: '🎒 MOCHILA JIUSPEAK', desc: `${user.inventory.length} itens` },
           ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ PAINEL DE OPERAÇÕES', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
@@ -1950,7 +1973,7 @@ export default function StoreMarket({
             <h4 className="font-mono font-bold text-[10px] uppercase text-zinc-400 tracking-wider">OFERTAS DE COMÉRCIO ATIVAS:</h4>
             
             <button
-              onClick={() => setListModalOpen(true)}
+              onClick={handleOpenListModal}
               className="px-4 py-2 bg-red-650 hover:bg-red-500 text-white font-mono font-bold text-[10px] uppercase tracking-wider rounded transition-all cursor-pointer shadow-md"
             >
               <PlusCircle className="w-3.5 h-3.5" /> Vender meu Item
@@ -2716,33 +2739,35 @@ export default function StoreMarket({
                 }}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all cursor-pointer ${sellOption === 'inventory' ? 'bg-indigo-600 text-white shadow' : 'text-slate-405 hover:text-slate-200'}`}
               >
-                🎒 Meu Inventário ({user.inventory.length})
+                🎒 Meu Inventário ({userInventoryItems.length})
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSellOption('custom');
-                  setListForm({
-                    name: '',
-                    description: '',
-                    category: 'gi',
-                    rarity: 'Comum',
-                    price: 300
-                  });
-                }}
-                className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all cursor-pointer ${sellOption === 'custom' ? 'bg-indigo-600 text-white shadow' : 'text-slate-405 hover:text-slate-200'}`}
-              >
-                🛠️ Criar Item Novo
-              </button>
+              {user.role === 'admin' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSellOption('custom');
+                    setListForm({
+                      name: '',
+                      description: '',
+                      category: 'gi',
+                      rarity: 'Comum',
+                      price: 300
+                    });
+                  }}
+                  className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all cursor-pointer ${sellOption === 'custom' ? 'bg-indigo-600 text-white shadow' : 'text-slate-405 hover:text-slate-200'}`}
+                >
+                  🛠️ Criar Item Novo
+                </button>
+              )}
             </div>
 
             {sellOption === 'inventory' ? (
               <div className="space-y-3">
                 <div className="space-y-1 text-xs">
                   <label className="text-slate-500 font-mono font-bold uppercase block text-[10px]">Escolher da minha Mochila</label>
-                  {user.inventory.length === 0 ? (
+                  {userInventoryItems.length === 0 ? (
                     <div className="p-3 text-[10px] text-amber-400 bg-amber-500/5 rounded border border-amber-500/20 leading-relaxed font-normal">
-                      Sua mochila está vazia. Compre algo na Loja Oficial primeiro ou use a aba de "Criar Item Novo" acima.
+                      Sua mochila está vazia. Compre algo na Loja Oficial primeiro.
                     </div>
                   ) : (
                     <select
@@ -2751,23 +2776,24 @@ export default function StoreMarket({
                       onChange={(e) => {
                         const selectedVal = e.target.value;
                         setSelectedInventoryItemId(selectedVal);
-                        const details = resolveItemDetails(selectedVal);
-                        setListForm({
-                          name: details.name,
-                          description: details.description,
-                          category: details.category,
-                          rarity: details.rarity,
-                          price: listForm.price
-                        });
+                        const details = userInventoryItems.find(ui => ui.id === selectedVal || ui.productId === selectedVal);
+                        if (details) {
+                          setListForm({
+                            name: details.name,
+                            description: details.description || "Recurso cosmético do banco de dados.",
+                            category: details.category || "gi",
+                            rarity: details.rarity || "Comum",
+                            price: listForm.price
+                          });
+                        }
                       }}
                       className="w-full bg-slate-950 border border-slate-750 rounded-lg p-2 text-slate-201 cursor-pointer focus:outline-none"
                     >
                       <option value="">-- Selecione um Item --</option>
-                      {user.inventory.map((invId, idx) => {
-                        const itemData = resolveItemDetails(invId);
+                      {userInventoryItems.map((item, idx) => {
                         return (
-                          <option key={`${invId}-${idx}`} value={invId}>
-                            {itemData.name} ({itemData.rarity})
+                          <option key={`${item.id}-${idx}`} value={item.id}>
+                            {item.name} ({item.rarity})
                           </option>
                         );
                       })}
