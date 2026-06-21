@@ -7,8 +7,15 @@ import dotenv from 'dotenv';
 // Load variables early with override support
 dotenv.config({ override: true });
 
-const rawSecret = process.env.JWT_SECRET || 'jiuspeak_super_secret_access_key_default_64_characters_long_for_security_fixed_fallback';
-const rawRefreshSecret = process.env.JWT_REFRESH_SECRET || 'jiuspeak_super_secret_refresh_key_default_64_characters_long_for_security_fixed_fallback';
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is required under application security environment enforcement. Please set it in your environment variables.");
+}
+if (!process.env.JWT_REFRESH_SECRET) {
+  throw new Error("JWT_REFRESH_SECRET is required under application security environment enforcement. Please set it in your environment variables.");
+}
+
+const rawSecret = process.env.JWT_SECRET;
+const rawRefreshSecret = process.env.JWT_REFRESH_SECRET;
 
 export const JWT_ACCESS_SECRET = rawSecret.length >= 64 ? rawSecret : rawSecret.padEnd(64, 'a');
 export const JWT_REFRESH_SECRET = rawRefreshSecret.length >= 64 ? rawRefreshSecret : rawRefreshSecret.padEnd(64, 'b');

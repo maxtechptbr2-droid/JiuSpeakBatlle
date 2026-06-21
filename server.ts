@@ -2541,13 +2541,6 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
     // Verify Password Hash
     let isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
-    const lowerEmail = emailStr.toLowerCase().trim();
-    if (!isPasswordCorrect && (lowerEmail.includes("maxtechptbr") || lowerEmail.includes("atleta"))) {
-      const allowedPasswords = ["jiuspeak123", "98922678baboaA-40", "98922678aaA", "98922678aA", "98922678aA1"];
-      if (allowedPasswords.includes(password) || password.startsWith("98922678")) {
-        isPasswordCorrect = true;
-      }
-    }
 
     if (!isPasswordCorrect) {
       await AuthService.recordLoginAttempt({ email, ipAddress, success: false });
@@ -3834,6 +3827,95 @@ app.post("/api/tts", ttsRateLimiter, (req: any, res: any, next: any) => {
   }
 });
 
+// Helper to secure file uploads against execution attacks, falsified extensions, and magic number fraud
+function validateUploadedFile(buffer: Buffer, mimeType: string, extension: string): { isValid: boolean; error?: string } {
+  const allowedExtensions = ["jpg", "jpeg", "png", "webp", "pdf", "mp3", "mp4"];
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+    "audio/mpeg",
+    "audio/mp3",
+    "video/mp4"
+  ];
+
+  const extClean = extension.toLowerCase().trim();
+  const mimeClean = mimeType.toLowerCase().trim();
+
+  // Extension Check
+  if (!allowedExtensions.includes(extClean)) {
+    return { isValid: false, error: `Extensão de arquivo não permitida: .${extClean}. Permitido apenas: jpg, jpeg, png, webp, pdf, mp3, mp4.` };
+  }
+
+  // Block executable sequences or extensions trying to hide in double names (e.g. file.php.jpg)
+  const blocklist = ["php", "js", "exe", "dll", "bat", "sh", "jsp", "asp", "aspx", "sh", "bash", "cmd", "vbs"];
+  if (blocklist.some(bad => extClean.includes(bad) || mimeClean.includes(bad))) {
+    return { isValid: false, error: "Formato de arquivo inseguro ou executável detectado e bloqueado." };
+  }
+
+  // MIME Type Verification
+  if (!allowedMimeTypes.includes(mimeClean)) {
+    return { isValid: false, error: `Tipo MIME inválido: ${mimeClean}.` };
+  }
+
+  // File length security check
+  if (buffer.length < 4) {
+    return { isValid: false, error: "O conteúdo do arquivo é inválido ou curto demais." };
+  }
+
+  // Magic Number / Hex Signature verification
+  if (extClean === "jpg" || extClean === "jpeg" || mimeClean === "image/jpeg") {
+    // JPEGs begin with FF D8 FF
+    if (!(buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF)) {
+      return { isValid: false, error: "Assinatura do arquivo incorreta (Magic Number fraudulento para JPEG)." };
+    }
+  } else if (extClean === "png" || mimeClean === "image/png") {
+    // PNGs begin with 89 50 4E 47
+    if (!(buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47)) {
+      return { isValid: false, error: "Assinatura do arquivo incorreta (Magic Number fraudulento para PNG)." };
+    }
+  } else if (extClean === "webp" || mimeClean === "image/webp") {
+    // WEBP begins with RIFF (bytes 0-3) and WEBP (bytes 8-11)
+    const isRiff = buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46;
+    const isWebp = buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50;
+    if (!isRiff || !isWebp) {
+      return { isValid: false, error: "Assinatura do arquivo incorreta (Magic Number fraudulento para WEBP)." };
+    }
+  } else if (extClean === "pdf" || mimeClean === "application/pdf") {
+    // PDFs begin with %PDF (25 50 44 46)
+    if (!(buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46)) {
+      return { isValid: false, error: "Assinatura do arquivo incorreta (Magic Number fraudulento para PDF)." };
+    }
+  } else if (extClean === "mp3" || mimeClean === "audio/mpeg" || mimeClean === "audio/mp3") {
+    // MP3 begins with ID3 (49 44 33) or audio frame sync (FF E0...)
+    const hasID3Header = buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33;
+    const hasFrameSync = buffer[0] === 0xFF && (buffer[1] & 0xE0) === 0xE0;
+    if (!hasID3Header && !hasFrameSync) {
+      return { isValid: false, error: "Assinatura do arquivo incorreta (Magic Number fraudulento para MP3)." };
+    }
+  } else if (extClean === "mp4" || mimeClean === "video/mp4") {
+    // MP4 contains "ftyp" (66 74 79 70) starting at byte 4
+    if (buffer.length >= 12) {
+      const hasFtyp = buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70;
+      if (!hasFtyp) {
+        return { isValid: false, error: "Assinatura do arquivo incorreta (Magic Number fraudulento para MP4)." };
+      }
+    } else {
+      return { isValid: false, error: "Arquivo MP4 incompleto ou inválido." };
+    }
+  }
+
+  // Max Size Constraints
+  const maxBytes = extClean === "mp4" || extClean === "mp3" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+  if (buffer.length > maxBytes) {
+    return { isValid: false, error: `Tamanho excede o limite estrito permitido de ${maxBytes / (1024 * 1024)}MB.` };
+  }
+
+  return { isValid: true };
+}
+
 // POST /api/upload - Real image uploads server-side
 app.post("/api/upload", authenticateToken, async (req: any, res: any) => {
   try {
@@ -3850,6 +3932,14 @@ app.post("/api/upload", authenticateToken, async (req: any, res: any) => {
     const type = matches[1];
     const buffer = Buffer.from(matches[2], 'base64');
     const extension = type.split('/')[1] || 'png';
+
+    // Verify upload safety
+    const validation = validateUploadedFile(buffer, type, extension);
+    if (!validation.isValid) {
+      logFinancial("SECURITY", `Blocked suspicious file upload attempt: .${extension} Mime: ${type} Erro: ${validation.error}`);
+      return res.status(400).json({ error: validation.error });
+    }
+
     const safeFilename = `user_${req.user.id}_${Date.now()}.${extension}`;
 
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
@@ -9554,8 +9644,14 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
 
     const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
     const isMockId = paymentId === "123456" || paymentId === "1234567" || paymentId.startsWith("test") || paymentId.startsWith("mp_");
-    
-    if (mpToken && !isMockId) {
+    const isProduction = process.env.NODE_ENV === "production";
+
+    if (isProduction && isMockId) {
+      logFinancial("SECURITY", `Blocked simulated payment ID in production environment: ${paymentId}`);
+      return res.status(400).json({ error: "Simulações de pagamento são estritamente proibidas em ambiente de produção!" });
+    }
+
+    if (mpToken && (!isMockId || isProduction)) {
       try {
         const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
           headers: {
@@ -9580,12 +9676,23 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
           }
         } else {
           logFinancial("ERROR", `Failed to fetch authentic payment from MP. Provider status: ${mpRes.status}`);
+          if (isProduction) {
+            return res.status(400).json({ error: "Falha na validação do pagamento com o gateway oficial." });
+          }
         }
       } catch (err: any) {
         logFinancial("ERROR", "Error fetching payment details from MP API:", err);
+        if (isProduction) {
+          return res.status(500).json({ error: "Erro de comunicação com o gateway de pagamentos oficial." });
+        }
       }
     } else {
-      // Sandbox Simulator fallback or missing Token integration
+      if (isProduction) {
+        logFinancial("SECURITY", "MERCADOPAGO_ACCESS_TOKEN is missing under production environment!");
+        return res.status(500).json({ error: "Configuração do gateway Mercado Pago ausente." });
+      }
+
+      // Sandbox Simulator fallback or missing Token integration in development
       logFinancial("INFO", `Sandbox/Test payment session routing for ID ${paymentId}`);
       paymentStatus = "approved";
       userId = req.body?.metadata?.userId || req.query?.userId || "";
@@ -14813,6 +14920,11 @@ async function purgeFictionalUsers() {
     const suspiciousUsers = dbUsers.filter((u: any) => {
       const nameLower = String(u.name || "").toLowerCase();
       const emailLower = String(u.email || "").toLowerCase();
+      
+      // ALWAYS PRESERVE these three core administrator / tester accounts
+      if (["maxtechptbr@gmail.com", "maxtechptbr2@gmail.com", "maxtechptbr9@gmail.com"].includes(emailLower)) {
+        return false;
+      }
       
       return forbiddenPatterns.some(pat => {
         if (pat.endsWith("_")) {
