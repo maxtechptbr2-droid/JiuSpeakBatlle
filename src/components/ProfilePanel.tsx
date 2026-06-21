@@ -28,7 +28,11 @@ import {
   Users,
   Image as ImageIcon,
   Check,
-  Plus
+  Plus,
+  MessageSquare,
+  UserPlus,
+  UserMinus,
+  UserCheck
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 
@@ -76,6 +80,68 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
   const [followers, setFollowers] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [loadingSocial, setLoadingSocial] = useState(false);
+  const [socialSubTab, setSocialSubTab] = useState<'followers' | 'following'>('followers');
+  const [togglingFollowId, setTogglingFollowId] = useState<string | null>(null);
+
+  const getBeltBadgeStyle = (belt: string) => {
+    switch (belt?.toUpperCase()) {
+      case 'WHITE':
+      case 'BRANCA': return 'bg-slate-100 text-slate-950 border-slate-350';
+      case 'BLUE':
+      case 'AZUL': return 'bg-blue-600/15 text-blue-400 border-blue-500/30';
+      case 'PURPLE':
+      case 'ROXA': return 'bg-purple-600/15 text-purple-400 border-purple-500/30';
+      case 'BROWN':
+      case 'MARROM': return 'bg-amber-800/15 text-amber-500 border-amber-800/30';
+      case 'BLACK':
+      case 'PRETA':
+      case 'PRETO': return 'bg-red-650/15 text-red-500 border-red-600/30';
+      default: return 'bg-slate-800 text-slate-300 border-slate-700';
+    }
+  };
+
+  const handleFollowToggle = async (targetUserId: string, currentIsFollowing: boolean, targetUsername: string) => {
+    if (togglingFollowId) return;
+    try {
+      setTogglingFollowId(targetUserId);
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+      const serviceUrl = '/api/profile/follow';
+      const method = currentIsFollowing ? 'DELETE' : 'POST';
+      const url = method === 'DELETE' ? `${serviceUrl}?targetUserId=${targetUserId}` : serviceUrl;
+
+      const res = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: method === 'POST' ? JSON.stringify({ targetUserId }) : undefined
+      });
+
+      if (res.ok) {
+        showToast(
+          currentIsFollowing 
+            ? `Você deixou de seguir @${targetUsername}` 
+            : `Agora você segue @${targetUsername}!`, 
+          "success"
+        );
+        
+        // Dynamic re-fetch of social networks lists instantly
+        await fetchSocialLists();
+        
+        // Re-synchronize stats to show updated followingCount / followersCount
+        await fetchProfile();
+      } else {
+        const data = await res.json();
+        showToast(data.error || "Não foi possível gerenciar as conexões.", "error");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Erro do servidor de rede ao ajustar ligação social.", "error");
+    } finally {
+      setTogglingFollowId(null);
+    }
+  };
 
   // Load profile data from API
   const fetchProfile = async () => {
@@ -1029,75 +1095,233 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
             <h3 className="text-base font-display font-black text-white uppercase tracking-wider flex items-center gap-2">
               <Users className="w-5 h-5 text-violet-500" /> SEUS AMIGOS CLÃ E SEGUIDORES
             </h3>
-            <p className="text-[11px] text-slate-550">Sincronização instantânea de seguidores ativos sob a rede de competição.</p>
+            <p className="text-[11px] text-slate-400">Sincronização em tempo real das ligações e graduações dos atletas na rede.</p>
+          </div>
+
+          {/* Tab Selector */}
+          <div className="flex border-b border-slate-800/80 gap-2">
+            <button
+              type="button"
+              onClick={() => setSocialSubTab('followers')}
+              className={`pb-3 px-4 font-display font-black text-xs uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all duration-200 ${
+                socialSubTab === 'followers'
+                  ? 'border-violet-500 text-violet-400 font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-400'
+              }`}
+            >
+              <span>SEGUIDORES</span>
+              <span className="text-[10px] py-0.5 px-2 bg-slate-950 font-mono rounded-full border border-slate-800 text-slate-400">
+                {followers.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSocialSubTab('following')}
+              className={`pb-3 px-4 font-display font-black text-xs uppercase tracking-wider flex items-center gap-2 border-b-2 transition-all duration-200 ${
+                socialSubTab === 'following'
+                  ? 'border-violet-500 text-violet-400 font-bold'
+                  : 'border-transparent text-slate-500 hover:text-slate-400'
+              }`}
+            >
+              <span>SEGUINDO</span>
+              <span className="text-[10px] py-0.5 px-2 bg-slate-950 font-mono rounded-full border border-slate-800 text-slate-400">
+                {following.length}
+              </span>
+            </button>
           </div>
 
           {loadingSocial ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400">
               <div className="w-8 h-8 border-2 border-slate-700 border-t-violet-500 rounded-full animate-spin"></div>
-              <span className="text-[11px] font-mono">Indexando relações mútua de tatame...</span>
+              <span className="text-[11px] font-mono">Indexando relações mútuas de tatame...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              
-              {/* Followers list */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                  <span>SEGUIDORES</span>
-                  <span className="text-[10px] py-0.5 px-1.5 bg-slate-950 rounded text-violet-400 font-mono">({followers.length})</span>
-                </h4>
-
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                  {followers.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic py-4">Nenhum seguidor registrado neste ciclo.</p>
-                  ) : (
-                    followers.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-2xl border border-slate-900 shadow-inner">
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+              {socialSubTab === 'followers' ? (
+                followers.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-950/40 rounded-2xl border border-slate-850">
+                    <Users className="w-8 h-8 text-slate-750 mx-auto mb-2" />
+                    <p className="text-xs text-slate-500 italic">Nenhum seguidor registrado neste ciclo.</p>
+                  </div>
+                ) : (
+                  followers.map((item) => {
+                    const isFollowingBack = following.some(f => f.id === item.id);
+                    return (
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-950/75 hover:bg-slate-950 rounded-2xl border border-slate-850 transition-all gap-4">
                         <div className="flex items-center gap-3">
-                          <img src={item.profilePhoto || item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-slate-800" />
+                          <div className="relative">
+                            <img 
+                              src={item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} 
+                              alt={item.name} 
+                              className="w-11 h-11 rounded-full object-cover border border-slate-800 cursor-pointer" 
+                              onClick={() => onNavigate('profile-public-' + item.username)}
+                            />
+                            {item.isVerified && (
+                              <span className="absolute -bottom-1 -right-1 bg-violet-600 rounded-full p-0.5 border border-slate-900" title="Verificado">
+                                <Check className="w-2.5 h-2.5 text-white stroke-[3px]" />
+                              </span>
+                            )}
+                          </div>
                           <div>
-                            <p className="text-xs font-bold text-white">{item.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p 
+                                className="text-xs font-bold text-white cursor-pointer hover:text-violet-400 transition-colors"
+                                onClick={() => onNavigate('profile-public-' + item.username)}
+                              >
+                                {item.name}
+                              </p>
+                              {item.isVerified && (
+                                <span className="text-[8px] bg-violet-500/10 text-violet-400 px-1 py-0.5 rounded font-mono font-bold tracking-wider">VERIFICADO</span>
+                              )}
+                            </div>
                             <p className="text-[10px] font-mono text-slate-500">@{item.username || 'atleta'}</p>
+                            
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              <span className={`text-[9px] border px-2 py-0.5 rounded font-mono uppercase font-bold tracking-wider ${getBeltBadgeStyle(item.belt)}`}>
+                                FAIXA {item.belt || 'BRANCA'}
+                              </span>
+                              <span className="text-[9px] text-slate-500 font-mono bg-slate-900/60 border border-slate-850 px-1.5 py-0.5 rounded">
+                                LVL {item.level || 1}
+                              </span>
+                              <span className="text-[9px] text-slate-400 font-mono bg-violet-950/20 border border-violet-900/30 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={item.academy}>
+                                {item.academy || 'Independente'}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[9px] bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono uppercase">
-                          FAIXA {item.belt || 'BRANCA'}
-                        </span>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('profile-public-' + item.username)}
+                            className="py-1.5 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>VER PERFIL</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              showToast(`Abrindo canal para enviar mensagens para @${item.username}... Recurso social em carregamento!`, "info");
+                            }}
+                            className="py-1.5 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                            <span>MENSAGEM</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={togglingFollowId !== null}
+                            onClick={() => handleFollowToggle(item.id, isFollowingBack, item.username)}
+                            className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1 ${
+                              isFollowingBack
+                                ? 'bg-red-950/30 hover:bg-red-900/40 border border-red-900/30 text-red-400 hover:text-red-300'
+                                : 'bg-violet-600 hover:bg-violet-500 text-white shadow-md shadow-violet-500/10'
+                            }`}
+                          >
+                            {isFollowingBack ? (
+                              <>
+                                <UserMinus className="w-3.5 h-3.5" />
+                                <span>REMOVER</span>
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="w-3.5 h-3.5" />
+                                <span>SEGUIR DE VOLTA</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Following list */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                  <span>SEGUINDO</span>
-                  <span className="text-[10px] py-0.5 px-1.5 bg-slate-950 rounded text-violet-400 font-mono">({following.length})</span>
-                </h4>
-
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                  {following.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic py-4">Você ainda não segue nenhum competidor.</p>
-                  ) : (
-                    following.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-950 rounded-2xl border border-slate-900 shadow-inner">
-                        <div className="flex items-center gap-3">
-                          <img src={item.profilePhoto || item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} alt={item.name} className="w-9 h-9 rounded-full object-cover border border-slate-800" />
-                          <div>
-                            <p className="text-xs font-bold text-white">{item.name}</p>
-                            <p className="text-[10px] font-mono text-slate-500">@{item.username || 'atleta'}</p>
+                    );
+                  })
+                )
+              ) : (
+                following.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-950/40 rounded-2xl border border-slate-850">
+                    <Users className="w-8 h-8 text-slate-755 mx-auto mb-2" />
+                    <p className="text-xs text-slate-500 italic">Você ainda não segue nenhum competidor.</p>
+                  </div>
+                ) : (
+                  following.map((item) => (
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-950/75 hover:bg-slate-950 rounded-2xl border border-slate-850 transition-all gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <img 
+                            src={item.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=150'} 
+                            alt={item.name} 
+                            className="w-11 h-11 rounded-full object-cover border border-slate-800 cursor-pointer" 
+                            onClick={() => onNavigate('profile-public-' + item.username)}
+                          />
+                          {item.isVerified && (
+                            <span className="absolute -bottom-1 -right-1 bg-violet-600 rounded-full p-0.5 border border-slate-900" title="Verificado">
+                              <Check className="w-2.5 h-2.5 text-white stroke-[3px]" />
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p 
+                              className="text-xs font-bold text-white cursor-pointer hover:text-violet-400 transition-colors"
+                              onClick={() => onNavigate('profile-public-' + item.username)}
+                            >
+                              {item.name}
+                            </p>
+                            {item.isVerified && (
+                              <span className="text-[8px] bg-violet-500/10 text-violet-400 px-1 py-0.5 rounded font-mono font-bold tracking-wider">VERIFICADO</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] font-mono text-slate-500">@{item.username || 'atleta'}</p>
+                          
+                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <span className={`text-[9px] border px-2 py-0.5 rounded font-mono uppercase font-bold tracking-wider ${getBeltBadgeStyle(item.belt)}`}>
+                              FAIXA {item.belt || 'BRANCA'}
+                            </span>
+                            <span className="text-[9px] text-slate-500 font-mono bg-slate-900/60 border border-slate-850 px-1.5 py-0.5 rounded">
+                              LVL {item.level || 1}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-mono bg-violet-950/20 border border-violet-900/30 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={item.academy}>
+                              {item.academy || 'Independente'}
+                            </span>
                           </div>
                         </div>
-                        <span className="text-[9px] bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono uppercase">
-                          FAIXA {item.belt || 'BRANCA'}
-                        </span>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
 
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('profile-public-' + item.username)}
+                          className="py-1.5 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>VER PERFIL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            showToast(`Abrindo canal para enviar mensagens para @${item.username}... Recurso social em carregamento!`, "info");
+                          }}
+                          className="py-1.5 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+                          <span>MENSAGEM</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={togglingFollowId !== null}
+                          onClick={() => handleFollowToggle(item.id, true, item.username)}
+                          className="py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold bg-red-950/30 hover:bg-red-900/40 border border-red-900/30 text-red-400 hover:text-red-300 transition-all flex items-center gap-1"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                          <span>DEIXAR SEGUIR</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )
+              )}
             </div>
           )}
         </div>

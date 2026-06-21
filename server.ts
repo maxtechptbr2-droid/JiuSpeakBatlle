@@ -4283,7 +4283,10 @@ app.get("/api/profile/followers", authenticateToken, async (req: any, res: any) 
             profilePhoto: true,
             belt: true,
             xp: true,
-            level: true
+            level: true,
+            isVerified: true,
+            branch: { select: { name: true } },
+            independentAcademy: { select: { name: true } }
           }
         }
       }
@@ -4298,7 +4301,9 @@ app.get("/api/profile/followers", authenticateToken, async (req: any, res: any) 
           username: f.follower.username,
           avatar: f.follower.profilePhoto || f.follower.avatar,
           belt: f.follower.belt,
-          level: f.follower.level
+          level: f.follower.level,
+          isVerified: f.follower.isVerified || false,
+          academy: f.follower.branch?.name || f.follower.independentAcademy?.name || "Independente"
         }))
     });
   } catch (err) {
@@ -4325,7 +4330,10 @@ app.get("/api/profile/following", authenticateToken, async (req: any, res: any) 
             profilePhoto: true,
             belt: true,
             xp: true,
-            level: true
+            level: true,
+            isVerified: true,
+            branch: { select: { name: true } },
+            independentAcademy: { select: { name: true } }
           }
         }
       }
@@ -4340,7 +4348,9 @@ app.get("/api/profile/following", authenticateToken, async (req: any, res: any) 
           username: f.following.username,
           avatar: f.following.profilePhoto || f.following.avatar,
           belt: f.following.belt,
-          level: f.following.level
+          level: f.following.level,
+          isVerified: f.following.isVerified || false,
+          academy: f.following.branch?.name || f.following.independentAcademy?.name || "Independente"
         }))
     });
   } catch (err) {
