@@ -3968,6 +3968,100 @@ app.post("/api/upload", authenticateToken, async (req: any, res: any) => {
   }
 });
 
+// GET LIST OF FOLLOWERS — DEVE VIR ANTES DE /api/profile/:username
+app.get("/api/profile/followers", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const followers = await prisma.follower.findMany({
+      where: { followingId: req.user.id },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            profilePhoto: true,
+            belt: true,
+            xp: true,
+            level: true,
+            isVerified: true,
+            branch: { select: { name: true } },
+            independentAcademy: { select: { name: true } }
+          }
+        }
+      }
+    });
+    
+    res.json({
+      followers: followers
+        .filter(f => f && f.follower)
+        .map(f => ({
+          id: f.follower.id,
+          name: f.follower.name,
+          username: f.follower.username,
+          avatar: f.follower.profilePhoto || f.follower.avatar,
+          belt: f.follower.belt,
+          level: f.follower.level,
+          isVerified: f.follower.isVerified || false,
+          academy: f.follower.branch?.name || f.follower.independentAcademy?.name || "Independente"
+        }))
+    });
+  } catch (err) {
+    console.error("GET /api/profile/followers error:", err);
+    res.status(500).json({ error: "Erro ao buscar seguidores." });
+  }
+});
+
+// GET LIST OF FOLLOWING — DEVE VIR ANTES DE /api/profile/:username
+app.get("/api/profile/following", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    
+    const following = await prisma.follower.findMany({
+      where: { followerId: req.user.id },
+      include: {
+        following: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            profilePhoto: true,
+            belt: true,
+            xp: true,
+            level: true,
+            isVerified: true,
+            branch: { select: { name: true } },
+            independentAcademy: { select: { name: true } }
+          }
+        }
+      }
+    });
+    
+    res.json({
+      following: following
+        .filter(f => f && f.following)
+        .map(f => ({
+          id: f.following.id,
+          name: f.following.name,
+          username: f.following.username,
+          avatar: f.following.profilePhoto || f.following.avatar,
+          belt: f.following.belt,
+          level: f.following.level,
+          isVerified: f.following.isVerified || false,
+          academy: f.following.branch?.name || f.following.independentAcademy?.name || "Independente"
+        }))
+    });
+  } catch (err) {
+    console.error("GET /api/profile/following error:", err);
+    res.status(500).json({ error: "Erro ao buscar quem você segue." });
+  }
+});
+
 // GET PROFILE BY USERNAME OR NAME
 app.get("/api/profile/:username", async (req: any, res: any) => {
   const { username } = req.params;
@@ -4267,99 +4361,6 @@ app.delete("/api/profile/follow", authenticateToken, async (req: any, res: any) 
   }
 });
 
-// GET LIST OF FOLLOWERS
-app.get("/api/profile/followers", authenticateToken, async (req: any, res: any) => {
-  try {
-    const prisma = getPrisma();
-    if (!prisma) return res.status(500).json({ error: "DB offline" });
-    
-    const followers = await prisma.follower.findMany({
-      where: { followingId: req.user.id },
-      include: {
-        follower: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true,
-            profilePhoto: true,
-            belt: true,
-            xp: true,
-            level: true,
-            isVerified: true,
-            branch: { select: { name: true } },
-            independentAcademy: { select: { name: true } }
-          }
-        }
-      }
-    });
-    
-    res.json({
-      followers: followers
-        .filter(f => f && f.follower)
-        .map(f => ({
-          id: f.follower.id,
-          name: f.follower.name,
-          username: f.follower.username,
-          avatar: f.follower.profilePhoto || f.follower.avatar,
-          belt: f.follower.belt,
-          level: f.follower.level,
-          isVerified: f.follower.isVerified || false,
-          academy: f.follower.branch?.name || f.follower.independentAcademy?.name || "Independente"
-        }))
-    });
-  } catch (err) {
-    console.error("GET /api/profile/followers error:", err);
-    res.status(500).json({ error: "Erro ao buscar seguidores." });
-  }
-});
-
-// GET LIST OF FOLLOWING
-app.get("/api/profile/following", authenticateToken, async (req: any, res: any) => {
-  try {
-    const prisma = getPrisma();
-    if (!prisma) return res.status(500).json({ error: "DB offline" });
-    
-    const following = await prisma.follower.findMany({
-      where: { followerId: req.user.id },
-      include: {
-        following: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            avatar: true,
-            profilePhoto: true,
-            belt: true,
-            xp: true,
-            level: true,
-            isVerified: true,
-            branch: { select: { name: true } },
-            independentAcademy: { select: { name: true } }
-          }
-        }
-      }
-    });
-    
-    res.json({
-      following: following
-        .filter(f => f && f.following)
-        .map(f => ({
-          id: f.following.id,
-          name: f.following.name,
-          username: f.following.username,
-          avatar: f.following.profilePhoto || f.following.avatar,
-          belt: f.following.belt,
-          level: f.following.level,
-          isVerified: f.following.isVerified || false,
-          academy: f.following.branch?.name || f.following.independentAcademy?.name || "Independente"
-        }))
-    });
-  } catch (err) {
-    console.error("GET /api/profile/following error:", err);
-    res.status(500).json({ error: "Erro ao buscar quem você segue." });
-  }
-});
 
 // GET PUBLIC CERTIFICATE BY CRYPTOGRAPHIC VALIDATION HASH
 app.get("/api/certificates/:hash", async (req: any, res: any) => {
