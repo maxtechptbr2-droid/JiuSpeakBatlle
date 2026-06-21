@@ -682,7 +682,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                                     onChange={(e) => setSelectedGlobalTeamId(e.target.value)}
                                     className="w-full bg-[#020617] border border-slate-800 text-slate-200 rounded-lg px-4 py-3 text-sm focus:border-[#009dff] focus:ring-1 focus:ring-[#009dff] transition-all"
                                   >
-                                    <option value="">-- Escolha uma das 50 Equipes Globais --</option>
+                                    <option value="">-- Escolha uma das {globalTeams.length} Equipes Globais --</option>
                                     {globalTeams.map(gt => (
                                       <option key={gt.id} value={gt.id}>{gt.name} ({gt.countryOrigin})</option>
                                     ))}
@@ -717,7 +717,7 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
                                   onChange={(e) => setSelectedIndependentId(e.target.value)}
                                   className="w-full bg-[#020617] border border-slate-800 text-slate-200 rounded-lg px-4 py-3 text-sm focus:border-[#009dff] focus:ring-1 focus:ring-[#009dff] transition-all"
                                 >
-                                  <option value="">-- Escolha uma das 1000 Academias Autônomas --</option>
+                                  <option value="">-- Escolha uma das {independentAcademies.length} Academias Independentes --</option>
                                   {independentAcademies.map(i => (
                                     <option key={i.id} value={i.id}>{i.name} ({i.city}, {i.state})</option>
                                   ))}

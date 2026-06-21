@@ -1157,70 +1157,20 @@ router.get("/governance/logs", authenticateToken, requireRole(["ADMIN"]), async 
 // FASE 6 - HYBRID GOOGLE PLACES & SMOOTHCOMP INTEGRATION
 // ==========================================================
 router.get("/external/search", authenticateToken, async (req: any, res: any) => {
-  try {
-    const { query, source } = req.query;
-    if (!query) {
-      return res.status(400).json({ error: "Termo de busca obrigatório." });
-    }
-
-    const searchQuery = String(query).trim();
-    const sourcePlatform = String(source || "google_places").trim();
-
-    // Simulating call to Google Places API / Smoothcomp / IBJJF depending on source parameters
-    // In a production environment, this would call Axios to fetch Google / Smoothcomp APIs
-    const simulatedExternalResults = [
-      {
-        externalId: `ext_g_map_${searchQuery.toLowerCase().replace(/[^a-z0-0]/g, "_")}_01`,
-        name: `${searchQuery} - Central Dojo`,
-        source: "google_places",
-        country: "Brasil",
-        state: "SP",
-        city: "São Paulo",
-        address: "Av. Paulista, 1000 - Bela Vista",
-        latitude: -23.5615,
-        longitude: -46.656,
-        headProfessor: "Prof. Carlos Gracie Jr.",
-        verifiedExternally: true,
-        logo: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=150"
-      },
-      {
-        externalId: `ext_sc_team_${searchQuery.toLowerCase().replace(/[^a-z0-0]/g, "_")}_02`,
-        name: `${searchQuery} BJJ Affiliate`,
-        source: "smoothcomp",
-        country: "Brasil",
-        state: "RJ",
-        city: "Rio de Janeiro",
-        address: "Rua Marquês de Abrantes, 99 - Flamengo",
-        latitude: -22.9304,
-        longitude: -43.1788,
-        headProfessor: "Master Helio Gracie",
-        verifiedExternally: true,
-        logo: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=150"
-      },
-      {
-        externalId: `ext_ibjjf_${searchQuery.toLowerCase().replace(/[^a-z0-0]/g, "_")}_03`,
-        name: `${searchQuery} Alliance Competition Club`,
-        source: "ibjjf",
-        country: "Brasil",
-        state: "MG",
-        city: "Belo Horizonte",
-        address: "Av. do Contorno, 5000 - Savassi",
-        latitude: -19.9213,
-        longitude: -43.9378,
-        headProfessor: "Prof. Alexandre Paiva",
-        verifiedExternally: true,
-        logo: "https://images.unsplash.com/photo-1555597673-b21d5c935865?auto=format&fit=crop&w=150"
-      }
-    ];
-
-    const finalResults = simulatedExternalResults.filter(
-      r => sourcePlatform === "all" || r.source === sourcePlatform
-    );
-
-    res.json({ success: true, count: finalResults.length, results: finalResults });
-  } catch (error: any) {
-    res.status(500).json({ error: "Erro ao buscar dojos externos: " + error.message });
+  const { query } = req.query;
+  if (!query) {
+    return res.status(400).json({ error: "Termo de busca obrigatório." });
   }
+
+  // TODO: integrar com Google Places API / Smoothcomp real quando as credenciais
+  // (GOOGLE_PLACES_API_KEY, etc.) estiverem configuradas no ambiente.
+  // Até lá, esta rota NÃO deve inventar resultados.
+  return res.json({
+    success: true,
+    integrated: false,
+    message: "Busca externa ainda não integrada a uma fonte real de dados. Cadastre a academia manualmente pelo painel administrativo.",
+    results: []
+  });
 });
 
 router.post("/external/sync", authenticateToken, async (req: any, res: any) => {

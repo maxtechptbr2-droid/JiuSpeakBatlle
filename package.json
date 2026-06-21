@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "seed": "tsx scripts/seed.ts",
     "generate": "tsx scripts/generate-assets.ts",
+    "seed:academies": "tsx scripts/generate-real-bjj-seed.ts",
     "test": "vitest run"
   },
   "dependencies": {
