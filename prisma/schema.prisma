@@ -882,12 +882,6 @@ model UserProfile {
   createdAt     DateTime @default(now())
 }
 
-model UserFollower {
-  id          String   @id @default(uuid())
-  followerId  String
-  followingId String
-  createdAt   DateTime @default(now())
-}
 
 model SocialFeed {
   id          String   @id @default(uuid())

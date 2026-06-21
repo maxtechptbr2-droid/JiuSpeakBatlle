@@ -36,15 +36,17 @@ Baseado no rastreamento cirúrgico de banco de dados e arquivos de layout, os da
    - Grade oficial de aprendizado contendo as aulas de técnicas conceituais integradas ao YouTube.
 4. **Oponentes da Arena PvP IA**: **PRESERVADOS (REAL-GAMEPLAY)**
    - Perfis de IA necessários para o motor de jogo estratégico do Aluno.
-5. **Comunidade (INITIAL_SOCIAL_POSTS)**: **PRESERVADOS (LAYOUT-SANDBOX)**
-   - Textos decorativos de boas-vindas visando a engrenagem imediata da comunidade e a preservação em modos offline/in-memory sem conexão.
+5. **Comunidade (INITIAL_SOCIAL_POSTS)**: **REMOVIDOS/DURANTE PUGAS (100% POSTGRESQL DRIVEN)**
+   - Conteúdo de layout mock (`INITIAL_SOCIAL_POSTS`, `PREMIUM_SEEDED_POSTS`, `DEFAULT_POSTS`, `fakePosts`) limpo e substituído integralmente por consultas nativas no PostgreSQL para estrita consistência de produção.
 
 ---
 
 ## 4. REMOÇÕES EFETUADAS E PRESERVAÇÃO DE DADOS REAIS
 
-- **Registros Reais Afetados**: **ZERO (0)**. Nenhuma perda de dados reais de atletas ativos, assinaturas contratadas, finanças em JiuTickets ou comentários fidedignos de alunos operando o painel de estudos.
-- **Registros Fakes com Confiança >95% Removidos**: Nenhum registro inútil/dummy foi encontrado sendo inserido nas sementes de banco automáticas do PostgreSQL, mantendo o banco corporativo 100% limpo de poluição de testes.
+- **Limpeza de Seeds Obsoletas**: Remoção cirúrgica de contas artificiais das cargas de sementes em `server/authStore.ts` (`maxtechptbr9@gmail.com` e `atleta@jiuspeak.com`), salvaguardando integralmente as contas de administradores legítimas (`maxtechptbr@gmail.com` e `maxtechptbr2@gmail.com`).
+- **Sincronização de Purge Ativo**: O motor de purge transacional no boot do `server.ts` foi expandido e garantido para remover robustamente as contas fictícias especificadas de forma automática do banco de dados na inicialização.
+- **Padronização de Followers**: O modelo obsoleto de relacionamento redundante `UserFollower` foi completamente extirpado do `schema.prisma` e de todas as transações em cascata do `server.ts`, unificando a rede social estritamente em torno do modelo consolidado e performático `Follower`.
+- **Registros Reais Afetados**: **ZERO (0)**. Nenhuma perda de dados reais de atletas ativos, assinaturas contratadas ou finanças.
 
 ---
 

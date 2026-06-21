@@ -88,6 +88,10 @@ export const seedInitialUsers = async (withDb: boolean = false) => {
 
     const passwordHash = await bcrypt.hash("98922678aA", 10);
 
+    // Explicitly delete/purge the deprecated seed users if they remain in cache
+    inMemoryUsers.delete("user_admin_test_9");
+    inMemoryUsers.delete("user_athlete_elite_1");
+
     // List of core essential users to upsert
     const coreUsers = [
       {
@@ -101,18 +105,6 @@ export const seedInitialUsers = async (withDb: boolean = false) => {
         name: "Flavio Martins 2 (ADMIN)",
         role: "ADMIN" as const,
         id: "user_admin_test_2"
-      },
-      {
-        email: "maxtechptbr9@gmail.com",
-        name: "Flavio Martins 9 (ADMIN)",
-        role: "ADMIN" as const,
-        id: "user_admin_test_9"
-      },
-      {
-        email: "atleta@jiuspeak.com",
-        name: "Atleta Campeão", // No forbidden 'test/teste/npc/mock' words in this name! No purge!
-        role: "ATHLETE" as const,
-        id: "user_athlete_elite_1"
       }
     ];
 

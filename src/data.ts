@@ -199,74 +199,8 @@ export const COMBAT_CARDS: CombatCard[] = [
   }
 ];
 
-// Initial Social Discord Feed Sandbox
-export const INITIAL_SOCIAL_POSTS: SocialPost[] = [
-  {
-    id: 'post_1',
-    authorId: 'prof_gracie',
-    authorName: 'Lucas Monteiro',
-    authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Lucas%20Monteiro&backgroundColor=ff4a5a&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
-    authorBelt: 'Preto',
-    category: 'Treino',
-    content: 'Hoje às 19h teremos uma masterclass online aqui na JiuSpeak focada na transição da Guarda Fechada para a Raspagem de Tesoura. Não faltem aos treinos mentais, oss!',
-    upvotes: 42,
-    hasUpvoted: false,
-    timestamp: '2 horas atrás',
-    comments: [
-      {
-        id: 'c1',
-        authorName: 'Gabriel Santos',
-        authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Gabriel%20Santos&backgroundColor=4a60ff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
-        authorBelt: 'Azul',
-        content: 'Estarei lá com certeza Mestre! Minha raspagem está travando na altura do joelho dele, preciso de ajuda com a alavanca.',
-        timestamp: '1 hora atrás'
-      },
-      {
-        id: 'c2',
-        authorName: 'Felipe Costa',
-        authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felipe%20Costa&backgroundColor=2a2a2a&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
-        authorBelt: 'Preto',
-        content: 'Maravilha Roger! Essa aula vale ouro. Os detalhes desse quadril salvam qualquer jogo.',
-        timestamp: '45 min atrás'
-      }
-    ]
-  },
-  {
-    id: 'post_2',
-    authorId: 'user_4593',
-    authorName: 'Bruno Ferreira',
-    authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Bruno%20Ferreira&backgroundColor=ffffff&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
-    authorBelt: 'Azul',
-    category: 'Meme',
-    content: 'Aquele momento em que o faixa preta diz "vamos dar um rolinho leve", você aceita e seu corpo vira origami em 3 minutos de massacre 😂',
-    upvotes: 89,
-    hasUpvoted: false,
-    timestamp: '5 horas atrás',
-    comments: []
-  },
-  {
-    id: 'post_3',
-    authorId: 'user_1199',
-    authorName: 'Juliana Mendes',
-    authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Juliana%20Mendes&backgroundColor=7e49ff&radius=50&mouth=smile&eyebrows=variant02,variant03,variant04,variant05',
-    authorBelt: 'Roxa',
-    category: 'Dúvida',
-    content: 'Alguém mais sente muita fadiga no antebraço ao fazer pegadas na manga na Guarda De la Riva? Algum ajuste postural evita essa força excessiva dos dedos?',
-    upvotes: 18,
-    hasUpvoted: false,
-    timestamp: '1 dia atrás',
-    comments: [
-      {
-        id: 'c3',
-        authorName: 'Vinicius Rocha',
-        authorAvatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Vinicius%20Rocha&backgroundColor=a65c2e&radius=50&mouth=smile&eyebrows=variant01,variant06,variant07,variant08',
-        authorBelt: 'Marrom',
-        content: 'Tente fazer pegada de concha (gancho com 4 dedos para dentro sem torcer) em vez de estrangular o pano do quimono. Use o osso do antebraço como gancho anatômico.',
-        timestamp: '18 horas atrás'
-      }
-    ]
-  }
-];
+// Initial Social Discord Feed Sandbox - Cleared as requested to use only SQL posts
+export const INITIAL_SOCIAL_POSTS: SocialPost[] = [];
 
 // Achievements milestones
 export const ACHIEVEMENTS: Achievement[] = [

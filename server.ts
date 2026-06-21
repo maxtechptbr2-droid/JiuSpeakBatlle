@@ -5489,14 +5489,6 @@ app.post("/api/admin/users/cleanup-suspicious", authenticateToken, requireRole([
           await tx.userProfile.deleteMany({ where: { userId: { in: uIds } } });
           await tx.userModeration.deleteMany({ where: { userId: { in: uIds } } });
           await tx.paymentTransaction.deleteMany({ where: { userId: { in: uIds } } });
-          await tx.userFollower.deleteMany({
-            where: {
-              OR: [
-                { followerId: { in: uIds } },
-                { followingId: { in: uIds } }
-              ]
-            }
-          });
           await tx.socialFeed.deleteMany({ where: { userId: { in: uIds } } });
           await tx.socialShare.deleteMany({ where: { userId: { in: uIds } } });
           await tx.certificate.deleteMany({ where: { userId: { in: uIds } } });
@@ -5624,9 +5616,6 @@ app.post("/api/admin/users/purge-fakes", authenticateToken, requireRole(["ADMIN"
           await tx.userAchievement.deleteMany({ where: { userId: { in: uIds } } });
 
           // 4. Social structures
-          await tx.userFollower.deleteMany({
-            where: { OR: [{ followerId: { in: uIds } }, { followingId: { in: uIds } }] }
-          });
           await tx.follower.deleteMany({
             where: { OR: [{ followerId: { in: uIds } }, { followingId: { in: uIds } }] }
           });
@@ -14990,8 +14979,13 @@ async function purgeFictionalUsers() {
       const nameLower = String(u.name || "").toLowerCase();
       const emailLower = String(u.email || "").toLowerCase();
       
-      // ALWAYS PRESERVE these three core administrator / tester accounts
-      if (["maxtechptbr@gmail.com", "maxtechptbr2@gmail.com", "maxtechptbr9@gmail.com"].includes(emailLower)) {
+      // Explicitly purge specified seeded test accounts request
+      if (["maxtechptbr9@gmail.com", "atleta@jiuspeak.com"].includes(emailLower)) {
+        return true;
+      }
+
+      // ALWAYS PRESERVE these two core administrator accounts
+      if (["maxtechptbr@gmail.com", "maxtechptbr2@gmail.com"].includes(emailLower)) {
         return false;
       }
       
@@ -15017,14 +15011,6 @@ async function purgeFictionalUsers() {
       prisma.userProfile.deleteMany({ where: { userId: { in: suspiciousIds } } }),
       prisma.wallet.deleteMany({ where: { userId: { in: suspiciousIds } } }),
       prisma.notification.deleteMany({ where: { userId: { in: suspiciousIds } } }),
-      prisma.userFollower.deleteMany({
-        where: {
-          OR: [
-            { followerId: { in: suspiciousIds } },
-            { followingId: { in: suspiciousIds } }
-          ]
-        }
-      }),
       prisma.follower.deleteMany({
         where: {
           OR: [
