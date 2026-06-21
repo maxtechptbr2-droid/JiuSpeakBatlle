@@ -672,7 +672,14 @@ export default function Dashboard({
                             </div>
                             
                             {/* Avatar picture */}
-                            <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-sm border border-zinc-700 shadow-sm relative shrink-0 overflow-hidden">
+                            <div 
+                              className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center text-sm border border-zinc-700 shadow-sm relative shrink-0 overflow-hidden cursor-pointer hover:border-blue-500 transition-colors"
+                              onClick={() => {
+                                if (player.username) {
+                                  onNavigate('profile-public-' + player.username);
+                                }
+                              }}
+                            >
                               {(player.profilePhoto || player.avatar) && ((player.profilePhoto || player.avatar).startsWith('http') || (player.profilePhoto || player.avatar).startsWith('/') || (player.profilePhoto || player.avatar).includes('.') || (player.profilePhoto || player.avatar).includes('api.dicebear.com')) ? (
                                 <img 
                                   src={player.profilePhoto || player.avatar} 
@@ -694,7 +701,16 @@ export default function Dashboard({
 
                             <div className="min-w-0">
                               <p className={`text-xs font-bold truncate ${isUser ? 'text-blue-300' : 'text-zinc-200'}`}>
-                                {player.name}
+                                <span
+                                  className="cursor-pointer hover:text-blue-400 transition-colors"
+                                  onClick={() => {
+                                    if (player.username) {
+                                      onNavigate('profile-public-' + player.username);
+                                    }
+                                  }}
+                                >
+                                  {player.name}
+                                </span>
                                 {isUser && <span className="ml-1 text-[8px] font-black uppercase text-blue-400 bg-blue-500/10 px-1 rounded font-mono">Você</span>}
                               </p>
                               <span className="text-[9px] text-zinc-500 block font-mono">

@@ -1218,6 +1218,7 @@ export default function App() {
                 <SocialFeed 
                   user={user} 
                   showToast={showToast}
+                  onNavigate={setCurrentTab}
                 />
               );
             }

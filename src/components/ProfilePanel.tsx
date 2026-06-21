@@ -101,7 +101,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
   };
 
   const handleFollowToggle = async (targetUserId: string, currentIsFollowing: boolean, targetUsername: string) => {
-    if (togglingFollowId) return;
+    if (togglingFollowId === targetUserId) return;
     try {
       setTogglingFollowId(targetUserId);
       const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
@@ -198,8 +198,10 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
 
   const fetchSocialLists = async () => {
     try {
-      setLoadingSocial(true);
       const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+      if (!token) return; // Sair silenciosamente se não autenticado
+
+      setLoadingSocial(true);
       
       const [resFollowers, resFollowing] = await Promise.all([
         fetch('/api/profile/followers', { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -223,6 +225,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
 
   useEffect(() => {
     fetchProfile();
+    fetchSocialLists(); // Garantido chamada na inicialização
   }, []);
 
   useEffect(() => {
@@ -1212,15 +1215,17 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                           </button>
                           <button
                             type="button"
-                            disabled={togglingFollowId !== null}
+                            disabled={togglingFollowId === item.id}
                             onClick={() => handleFollowToggle(item.id, isFollowingBack, item.username)}
-                            className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1 ${
+                            className={`py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1 min-w-[110px] justify-center ${
                               isFollowingBack
                                 ? 'bg-red-950/30 hover:bg-red-900/40 border border-red-900/30 text-red-400 hover:text-red-300'
                                 : 'bg-violet-600 hover:bg-violet-500 text-white shadow-md shadow-violet-500/10'
                             }`}
                           >
-                            {isFollowingBack ? (
+                            {togglingFollowId === item.id ? (
+                              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                            ) : isFollowingBack ? (
                               <>
                                 <UserMinus className="w-3.5 h-3.5" />
                                 <span>REMOVER</span>
@@ -1310,12 +1315,18 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                         </button>
                         <button
                           type="button"
-                          disabled={togglingFollowId !== null}
+                          disabled={togglingFollowId === item.id}
                           onClick={() => handleFollowToggle(item.id, true, item.username)}
-                          className="py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold bg-red-950/30 hover:bg-red-900/40 border border-red-900/30 text-red-400 hover:text-red-300 transition-all flex items-center gap-1"
+                          className="py-1.5 px-3 rounded-lg text-[10px] font-mono font-bold bg-red-950/30 hover:bg-red-900/40 border border-red-900/30 text-red-400 hover:text-red-300 transition-all flex items-center gap-1 min-w-[110px] justify-center"
                         >
-                          <UserMinus className="w-3.5 h-3.5" />
-                          <span>DEIXAR SEGUIR</span>
+                          {togglingFollowId === item.id ? (
+                            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <>
+                              <UserMinus className="w-3.5 h-3.5" />
+                              <span>DEIXAR SEGUIR</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>

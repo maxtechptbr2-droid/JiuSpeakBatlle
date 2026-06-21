@@ -50,6 +50,7 @@ import { removeFakeUsers } from '../utils/removeFakeUsers';
 interface SocialFeedProps {
   user: UserProfile;
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
+  onNavigate?: (tab: string) => void;
 }
 
 interface NetworkUser {
@@ -75,7 +76,7 @@ interface SocialNotification {
   createdAt: string;
 }
 
-export default function SocialFeed({ user, showToast }: SocialFeedProps) {
+export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedProps) {
   const [posts, setPosts] = useState<any[]>([]);
   const [networkUsers, setNetworkUsers] = useState<NetworkUser[]>([]);
   const [notifications, setNotifications] = useState<SocialNotification[]>([]);
@@ -1151,16 +1152,34 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                         {/* Post Header */}
                         <div className="flex justify-between items-start gap-4">
                           <div className="flex gap-3 items-center">
-                            <AvatarWithFrame
-                              avatarUrl={post.authorProfilePhoto || post.authorAvatar}
-                              userName={post.authorName}
-                              frame={post.authorFrame}
-                              size="sm"
-                              className="shrink-0"
-                            />
+                            <div 
+                              className="cursor-pointer" 
+                              onClick={() => {
+                                if (onNavigate && post.authorUsername) {
+                                  onNavigate('profile-public-' + post.authorUsername);
+                                }
+                              }}
+                            >
+                              <AvatarWithFrame
+                                avatarUrl={post.authorProfilePhoto || post.authorAvatar}
+                                userName={post.authorName}
+                                frame={post.authorFrame}
+                                size="sm"
+                                className="shrink-0"
+                              />
+                            </div>
                             <div>
                               <h4 className="font-display font-semibold text-xs text-slate-201 flex items-center gap-1.5 flex-wrap">
-                                {post.authorName}
+                                <span
+                                  className="cursor-pointer hover:text-violet-400 transition-colors"
+                                  onClick={() => {
+                                    if (onNavigate && post.authorUsername) {
+                                      onNavigate('profile-public-' + post.authorUsername);
+                                    }
+                                  }}
+                                >
+                                  {post.authorName}
+                                </span>
                                 {post.authorVerified && (
                                   <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0 inline-block align-middle" title="Verificado Oficial" />
                                 )}
@@ -1400,17 +1419,35 @@ export default function SocialFeed({ user, showToast }: SocialFeedProps) {
                               <div className="space-y-3 pl-3 border-l-2 border-slate-800">
                                 {post.comments.map((comm: any) => (
                                   <div key={comm.id} className="bg-slate-950/20 p-3 rounded-xl border border-slate-850/60 flex gap-3 text-xs items-start">
-                                    <AvatarWithFrame
-                                      avatarUrl={comm.authorProfilePhoto || comm.authorAvatar}
-                                      userName={comm.authorName}
-                                      frame={comm.authorFrame}
-                                      size="xs"
-                                      className="shrink-0"
-                                    />
+                                    <div 
+                                      className="cursor-pointer"
+                                      onClick={() => {
+                                        if (onNavigate && comm.authorUsername) {
+                                          onNavigate('profile-public-' + comm.authorUsername);
+                                        }
+                                      }}
+                                    >
+                                      <AvatarWithFrame
+                                        avatarUrl={comm.authorProfilePhoto || comm.authorAvatar}
+                                        userName={comm.authorName}
+                                        frame={comm.authorFrame}
+                                        size="xs"
+                                        className="shrink-0"
+                                      />
+                                    </div>
                                     <div className="space-y-1 flex-1">
                                       <div className="flex justify-between items-center">
                                         <h5 className="font-semibold text-[11px] text-slate-201 flex items-center gap-1.5 flex-wrap">
-                                          {comm.authorName}
+                                          <span
+                                            className="cursor-pointer hover:text-violet-400 transition-colors"
+                                            onClick={() => {
+                                              if (onNavigate && comm.authorUsername) {
+                                                onNavigate('profile-public-' + comm.authorUsername);
+                                              }
+                                            }}
+                                          >
+                                            {comm.authorName}
+                                          </span>
                                           <span className={`text-[7px] px-1 rounded font-black uppercase ${getBeltBg(comm.authorBelt)}`}>
                                             Faixa {translateBelt(comm.authorBelt)}
                                           </span>

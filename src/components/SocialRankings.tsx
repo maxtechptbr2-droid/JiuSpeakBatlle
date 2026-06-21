@@ -27,11 +27,13 @@ import { removeFakeUsers, clearStorageCaches } from '../utils/removeFakeUsers';
 
 interface SocialRankingsProps {
   user: UserProfile;
+  onNavigate?: (tab: string) => void;
 }
 
 interface RankedItem {
   id: string;
   name: string;
+  username?: string;
   avatar: string;
   belt?: string;
   level?: number;
@@ -83,7 +85,7 @@ const PERIODS = [
   { id: 'todos', label: 'Todos ♾️' }
 ];
 
-export function SocialRankings({ user }: SocialRankingsProps) {
+export function SocialRankings({ user, onNavigate }: SocialRankingsProps) {
   const [activeCategory, setActiveCategory] = useState<string>('global');
   const [activePeriod, setActivePeriod] = useState<string>('todos');
   const [activeGroup, setActiveGroup] = useState<string>('graduations');
@@ -373,14 +375,30 @@ export function SocialRankings({ user }: SocialRankingsProps) {
                         src={ranked.avatar} 
                         alt={ranked.name}
                         referrerPolicy="no-referrer"
-                        className="w-8.5 h-8.5 rounded-full border border-slate-800 shrink-0 bg-slate-950 object-cover"
+                        className="w-8.5 h-8.5 rounded-full border border-slate-800 shrink-0 bg-slate-950 object-cover cursor-pointer hover:border-violet-500 transition-colors"
+                        onClick={() => {
+                          const uname = ranked.username;
+                          if (onNavigate && uname) {
+                            onNavigate('profile-public-' + uname);
+                          }
+                        }}
                       />
                     )}
 
                     {/* Meta info details */}
                     <div className="min-w-0 leading-tight">
-                      <span className={`block text-[11.5px] font-bold truncate ${isMe ? 'text-violet-400' : 'text-slate-200'} flex items-center gap-1.5`}>
-                        <span>{ranked.name} {isMe && '(Você)'}</span>
+                      <span className={`block text-[11.5px] font-bold truncate ${isMe ? 'text-violet-400' : 'text-slate-205'} flex items-center gap-1.5`}>
+                        <span
+                          className="cursor-pointer hover:text-violet-400 transition-colors"
+                          onClick={() => {
+                            const uname = ranked.username;
+                            if (onNavigate && uname) {
+                              onNavigate('profile-public-' + uname);
+                            }
+                          }}
+                        >
+                          {ranked.name} {isMe && '(Você)'}
+                        </span>
                         {isMe && (
                           <button
                             onClick={() => {

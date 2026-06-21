@@ -201,6 +201,7 @@ export class RankingService {
             select: {
               id: true,
               name: true,
+              username: true,
               email: true,
               elo: true,
               belt: true,
@@ -311,6 +312,7 @@ export class RankingService {
         return {
           id: u.id,
           name: u.name,
+          username: u.username || "",
           elo: u.elo,
           belt: u.belt,
           level: u.level,
