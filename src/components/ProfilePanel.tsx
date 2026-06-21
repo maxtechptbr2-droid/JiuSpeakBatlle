@@ -1044,7 +1044,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
               <div className="space-y-4">
                 <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
                   <span>SEGUIDORES</span>
-                  <span className="text-[10px] py-0.5 px-1.5 bg-slate-950 rounded text-violet-405 font-mono">({followers.length})</span>
+                  <span className="text-[10px] py-0.5 px-1.5 bg-slate-950 rounded text-violet-400 font-mono">({followers.length})</span>
                 </h4>
 
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
@@ -1073,7 +1073,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
               <div className="space-y-4">
                 <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
                   <span>SEGUINDO</span>
-                  <span className="text-[10px] py-0.5 px-1.5 bg-slate-950 rounded text-violet-405 font-mono">({following.length})</span>
+                  <span className="text-[10px] py-0.5 px-1.5 bg-slate-950 rounded text-violet-400 font-mono">({following.length})</span>
                 </h4>
 
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">

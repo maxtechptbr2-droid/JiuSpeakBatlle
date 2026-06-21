@@ -3158,6 +3158,11 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
       include: { wallet: true }
     });
     if (!u) return res.status(404).json({ error: "User not found" });
+
+    // Calculate actual counts dynamically from the Follower table to ensure they never stay out of sync
+    const followersCount = await prisma.follower.count({ where: { followingId: u.id } });
+    const followingCount = await prisma.follower.count({ where: { followerId: u.id } });
+
     const profileResponse = {
       id: u.id,
       name: u.name,
@@ -3185,8 +3190,8 @@ app.get("/api/profile", authenticateToken, async (req: any, res: any) => {
       favoriteTechnique: u.favoriteTechnique || "",
       favoriteAthlete: u.favoriteAthlete || "",
       privacyLevel: u.privacyLevel || "public",
-      followersCount: u.followersCount || 0,
-      followingCount: u.followingCount || 0,
+      followersCount: followersCount,
+      followingCount: followingCount,
       themeColor: u.themeColor || "",
       avatarFrame: u.avatarFrame || "",
       isVerified: u.isVerified || false,
@@ -4014,7 +4019,7 @@ app.get("/api/profile/:username", async (req: any, res: any) => {
       const token = authHeader.split(" ")[1];
       try {
         const decoded: any = jwt.verify(token, JWT_ACCESS_SECRET);
-        requesterId = decoded.id;
+        requesterId = decoded.userId || decoded.id;
       } catch (e) {
         // Safe token parsing failover
       }
@@ -4134,8 +4139,8 @@ app.get("/api/profile/:username", async (req: any, res: any) => {
         academy: academyName,
         academyVerified,
         posts: formattedPosts,
-        followersList: followersRel.map((fr: any) => fr.follower),
-        followingList: followingRel.map((fr: any) => fr.following)
+        followersList: followersRel.filter((fr: any) => fr && fr.follower).map((fr: any) => fr.follower),
+        followingList: followingRel.filter((fr: any) => fr && fr.following).map((fr: any) => fr.following)
       }
     });
   } catch (err: any) {
@@ -4285,14 +4290,16 @@ app.get("/api/profile/followers", authenticateToken, async (req: any, res: any) 
     });
     
     res.json({
-      followers: followers.map(f => ({
-        id: f.follower.id,
-        name: f.follower.name,
-        username: f.follower.username,
-        avatar: f.follower.profilePhoto || f.follower.avatar,
-        belt: f.follower.belt,
-        level: f.follower.level
-      }))
+      followers: followers
+        .filter(f => f && f.follower)
+        .map(f => ({
+          id: f.follower.id,
+          name: f.follower.name,
+          username: f.follower.username,
+          avatar: f.follower.profilePhoto || f.follower.avatar,
+          belt: f.follower.belt,
+          level: f.follower.level
+        }))
     });
   } catch (err) {
     console.error("GET /api/profile/followers error:", err);
@@ -4325,14 +4332,16 @@ app.get("/api/profile/following", authenticateToken, async (req: any, res: any) 
     });
     
     res.json({
-      following: following.map(f => ({
-        id: f.following.id,
-        name: f.following.name,
-        username: f.following.username,
-        avatar: f.following.profilePhoto || f.following.avatar,
-        belt: f.following.belt,
-        level: f.following.level
-      }))
+      following: following
+        .filter(f => f && f.following)
+        .map(f => ({
+          id: f.following.id,
+          name: f.following.name,
+          username: f.following.username,
+          avatar: f.following.profilePhoto || f.following.avatar,
+          belt: f.following.belt,
+          level: f.following.level
+        }))
     });
   } catch (err) {
     console.error("GET /api/profile/following error:", err);
