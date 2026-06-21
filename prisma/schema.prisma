@@ -101,6 +101,7 @@ model User {
   rank                    Rank?
   notifications           Notification[]
   auditLogs               AuditLog[]
+  financialLogs           FinancialLog[]
   socialPosts             SocialPost[]
   comments                Comment[]
   likes                   Like[]
@@ -638,6 +639,30 @@ model AuditLog {
 
   @@index([actorId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model FinancialLog {
+  id                String   @id @default(uuid())
+  userId            String?
+  walletId          String?
+  type              String   // e.g., "DEPOSIT", "WITHDRAWAL", "COMMISSION", "REFUND", "TRANSFER", "PURCHASE"
+  amountBRL         Decimal?
+  amountJT          Int?
+  balanceBRLBefore  Decimal?
+  balanceBRLAfter   Decimal?
+  balanceJTBefore   Int?
+  balanceJTAfter    Int?
+  status            String   // e.g., "PENDING", "COMPLETED", "FAILED"
+  description       String
+  transactionId     String?
+  createdAt         DateTime @default(now())
+
+  // Relationships
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
   @@index([createdAt])
 }
 
