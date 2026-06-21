@@ -6609,8 +6609,8 @@ app.post("/api/finance/sale", authenticateToken, async (req: any, res: any) => {
     const currentPending = user.balancePendingBRL ?? 0;
     const currentEarned = user.totalEarnedBRL ?? 0;
 
-    const newPending = Number((currentPending + value).toFixed(2));
-    const newEarned = Number((currentEarned + value).toFixed(2));
+    const newPending = Math.round((currentPending + value) * 100) / 100;
+    const newEarned = Math.round((currentEarned + value) * 100) / 100;
 
     await authStore.updateUser(user.id!, {
       balancePendingBRL: newPending,
@@ -6667,8 +6667,8 @@ app.post("/api/finance/release", authenticateToken, async (req: any, res: any) =
       return res.status(400).json({ error: "Saldo pendente insuficiente para liberação deste valor." });
     }
 
-    const newPending = Number((currentPending - value).toFixed(2));
-    const newAvailable = Number((currentAvailable + value).toFixed(2));
+    const newPending = Math.round((currentPending - value) * 100) / 100;
+    const newAvailable = Math.round((currentAvailable + value) * 100) / 100;
 
     await authStore.updateUser(user.id!, {
       balanceAvailableBRL: newAvailable,
@@ -6948,7 +6948,7 @@ app.post("/api/finance/withdraw", authenticateToken, async (req: any, res: any) 
     }
 
     // ---------------- STEP A: TRANSACTION ENGINE AND SALDO LOCATOR ----------------
-    let newAvailable = Number((currentAvailable - value).toFixed(2));
+    let newAvailable = Math.round((currentAvailable - value) * 100) / 100;
     const withdrawalId = `with_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
 
     if (prisma) {
@@ -7235,8 +7235,11 @@ app.post("/api/admin/withdrawals/:id/review", authenticateToken, requireRole(["A
       return res.status(400).json({ error: "Decisão administrativa inválida. Escolha APPROVE ou REJECT." });
     }
 
-    // Look in memory fallback table first
-    const memoryIdx = inMemoryWithdrawals.findIndex(w => w.id === id);
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ error: "Banco de dados indisponível." });
+    }
+
     let targetUserId = "";
     let walletId = "";
     let amountBRL = 0;
@@ -7244,74 +7247,114 @@ app.post("/api/admin/withdrawals/:id/review", authenticateToken, requireRole(["A
     let pixKeyType = "";
     let currentStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'REJECTED' = "PENDING";
 
-    if (memoryIdx !== -1) {
-      targetUserId = inMemoryWithdrawals[memoryIdx].userId;
-      amountBRL = inMemoryWithdrawals[memoryIdx].amountBRL;
-      walletId = inMemoryWithdrawals[memoryIdx].walletId;
-      pixKey = inMemoryWithdrawals[memoryIdx].pixKey;
-      pixKeyType = inMemoryWithdrawals[memoryIdx].pixKeyType;
-      currentStatus = inMemoryWithdrawals[memoryIdx].status;
-    }
-
-    // Try DB load
-    const prisma = getPrisma();
-    if (prisma) {
-      try {
-        const dbW = await prisma.withdrawal.findUnique({
-          where: { id },
-          include: { wallet: true }
-        });
-        if (dbW) {
-          targetUserId = dbW.wallet.userId;
-          amountBRL = Number(dbW.amountBRL);
-          walletId = dbW.walletId;
-          pixKey = dbW.pixKey;
-          pixKeyType = dbW.pixKeyType;
-          currentStatus = dbW.status as any;
-        }
-      } catch (_) {}
-    }
-
-    if (!targetUserId) {
-      return res.status(404).json({ error: "Solicitação de saque de comissão não localizada nos arquivos ativos." });
-    }
-
-    // ---------------- IDEMPOTENCY CHECK (Prevents duplicate triggers/double approval) ----------------
-    if (currentStatus !== "PENDING" && currentStatus !== "PROCESSING") {
-      return res.status(409).json({ 
-        error: `Conflito de Estado: Este saque já foi avaliado anteriormente com status "${currentStatus}". Nenhuma ação foi processada.` 
-      });
-    }
-
+    let nextAvailable = 0;
+    let nextWithdrawn = 0;
     const reviewStatus = action === "APPROVE" ? "COMPLETED" : "REJECTED";
     const clientIp = req.ip || req.headers["x-forwarded-for"] || "127.0.0.1";
 
-    const applicant = await authStore.findById(targetUserId);
-    if (!applicant) {
-      return res.status(404).json({ error: "Beneficiário do saque não localizado." });
-    }
+    // Perform atomic review under strict database transaction and Row-Level Locks
+    try {
+      await prisma.$transaction(async (tx) => {
+        // 1. Fetch and Lock withdrawal
+        const dbW = await tx.withdrawal.findUnique({
+          where: { id },
+          include: { wallet: true }
+        });
 
-    let nextAvailable = applicant.balanceAvailableBRL ?? 0;
-    let nextWithdrawn = applicant.totalWithdrawnBRL ?? 0;
+        if (!dbW) {
+          throw new Error("Solicitação de saque de comissão não localizada.");
+        }
 
-    if (action === "APPROVE") {
-      // ---------------- CASE: ADMIN APPROVES -> PIX IS DISPATCHED ----------------
-      // Increment total withdrawn. Available balance was already subtracted during initial request (lock state).
-      nextWithdrawn = Number((nextWithdrawn + amountBRL).toFixed(2));
-      await authStore.updateUser(targetUserId, {
-        totalWithdrawnBRL: nextWithdrawn
-      });
+        targetUserId = dbW.wallet.userId;
+        amountBRL = Number(dbW.amountBRL);
+        walletId = dbW.walletId;
+        pixKey = dbW.pixKey;
+        pixKeyType = dbW.pixKeyType;
+        currentStatus = dbW.status as any;
 
-      // Update Database wallet totals
-      if (prisma) {
-        try {
-          await prisma.wallet.update({
-            where: { userId: targetUserId },
+        if (currentStatus !== "PENDING" && currentStatus !== "PROCESSING") {
+          throw new Error(`Conflito de Estado: Este saque já foi avaliado anteriormente com status "${currentStatus}".`);
+        }
+
+        // 2. Lock the associated wallet row with Row-Level Lock FOR UPDATE
+        const wallets = await tx.$queryRawUnsafe<any[]>(
+          'SELECT * FROM "Wallet" WHERE "id" = $1 FOR UPDATE',
+          dbW.walletId
+        );
+
+        if (!wallets || wallets.length === 0) {
+          throw new Error("Carteira financeira correlacionada não localizada para Row-Level Lock.");
+        }
+
+        const walletRow = wallets[0];
+        const dbAvailable = Number(walletRow.balanceAvailable);
+        const dbWithdrawn = Number(walletRow.totalWithdrawn);
+
+        // 3. Process execution rules
+        if (action === "APPROVE") {
+          nextWithdrawn = Math.round((dbWithdrawn + amountBRL) * 100) / 100;
+          nextAvailable = dbAvailable;
+
+          // Update Wallet record totalWithdrawn
+          await tx.wallet.update({
+            where: { id: dbW.walletId },
             data: { totalWithdrawn: nextWithdrawn }
           });
-        } catch (_) {}
-      }
 
+          // Create audit logs inside transaction
+          await tx.auditLog.create({
+            data: {
+              actorId: administrator.id,
+              action: "WITHDRAW_PROCESS",
+              description: `Saque Manual Aprovado: Administrador ${administrator.name} liberou R$ ${amountBRL.toFixed(2)} para usuário ID ${targetUserId}. PIX enviado.`,
+              amountBRL: amountBRL
+            }
+          });
+        } else {
+          nextAvailable = Math.round((dbAvailable + amountBRL) * 100) / 100;
+          nextWithdrawn = dbWithdrawn;
+
+          // Update Wallet record restoring the available funds
+          await tx.wallet.update({
+            where: { id: dbW.walletId },
+            data: { 
+              balanceAvailable: nextAvailable,
+              balanceBRL: nextAvailable
+            }
+          });
+
+          // Create refund audit logs inside transaction
+          await tx.auditLog.create({
+            data: {
+              actorId: administrator.id,
+              action: "WITHDRAW_PROCESS",
+              description: `Saque Rejeitado e Estornado: R$ ${amountBRL.toFixed(2)} devolvidos à carteira de usuário ID ${targetUserId}. Motivo: ${notes || "não especificado."}`,
+              amountBRL: amountBRL
+            }
+          });
+        }
+
+        // 4. Record new withdrawal review status
+        await tx.withdrawal.update({
+          where: { id },
+          data: {
+            status: reviewStatus,
+            notes: notes || `Análise pelo Administrador finalizada: ${action === 'APPROVE' ? 'Aprovado' : 'Rejeitado e Estornado'}`
+          }
+        });
+      });
+    } catch (txReviewErr: any) {
+      return res.status(409).json({ error: txReviewErr.message || "Erro de integridade ao persistir decisão financeira." });
+    }
+
+    // Sync in-memory user profiles cache
+    await authStore.updateUser(targetUserId, {
+      balanceAvailableBRL: nextAvailable,
+      totalWithdrawnBRL: nextWithdrawn
+    });
+
+    // Write audit trail histories (which can run post-transaction safely)
+    if (action === "APPROVE") {
       await logWithdrawalAudit(
         id,
         "ADMIN_APPROVE",
@@ -7329,41 +7372,7 @@ app.post("/api/admin/withdrawals/:id/review", authenticateToken, requireRole(["A
         `Transferência Bancária Concluída: R$ ${amountBRL.toFixed(2)} creditados em tempo de execução via gateway para a chave judicial ${pixKey}. Sincronização OK.`,
         clientIp
       );
-
-      // Save system-wide Audit Log
-      if (prisma) {
-        try {
-          await prisma.auditLog.create({
-            data: {
-              actorId: administrator.id,
-              action: "WITHDRAW_PROCESS",
-              description: `Saque Manual Aprovado: Administrador ${administrator.name} liberou R$ ${amountBRL.toFixed(2)} para ${applicant.name}. PIX enviado.`,
-              amountBRL: amountBRL
-            }
-          }).catch(() => {});
-        } catch (_) {}
-      }
-
     } else {
-      // ---------------- CASE: ADMIN REJECTS -> BALANCE IS UNLOCKED & REFUNDED ----------------
-      // Restore the blocked amount back to the candidate's balanceAvailableBRL.
-      nextAvailable = Number((nextAvailable + amountBRL).toFixed(2));
-      await authStore.updateUser(targetUserId, {
-        balanceAvailableBRL: nextAvailable
-      });
-
-      if (prisma) {
-        try {
-          await prisma.wallet.update({
-            where: { userId: targetUserId },
-            data: { 
-              balanceAvailable: nextAvailable,
-              balanceBRL: nextAvailable
-            }
-          });
-        } catch (_) {}
-      }
-
       await logWithdrawalAudit(
         id,
         "ADMIN_REJECT",
@@ -7378,44 +7387,17 @@ app.post("/api/admin/withdrawals/:id/review", authenticateToken, requireRole(["A
         "RESTORED_BALANCE",
         "system",
         "Estorno Contábil Automático",
-        `Garantia Antifraude: O valor retido de R$ ${amountBRL.toFixed(2)} foi restituído integralmente ao Saldo Disponível de ${applicant.name}.`,
+        `Garantia Antifraude: O valor retido de R$ ${amountBRL.toFixed(2)} foi restituído integralmente ao Saldo Disponível.`,
         clientIp
       );
-
-      if (prisma) {
-        try {
-          await prisma.auditLog.create({
-            data: {
-              actorId: administrator.id,
-              action: "WITHDRAW_PROCESS",
-              description: `Saque Rejeitado e Estornado: R$ ${amountBRL.toFixed(2)} devolvidos à carteira de ${applicant.name}. Motivo: ${notes || "não especificado."}`,
-              amountBRL: amountBRL
-            }
-          }).catch(() => {});
-        } catch (_) {}
-      }
     }
 
-    // Sync Memory structure
+    // Sync memory structures fallback if applicable
+    const memoryIdx = inMemoryWithdrawals.findIndex(w => w.id === id);
     if (memoryIdx !== -1) {
       inMemoryWithdrawals[memoryIdx].status = reviewStatus;
       inMemoryWithdrawals[memoryIdx].notes = notes || null;
       inMemoryWithdrawals[memoryIdx].updatedAt = new Date().toISOString();
-    }
-
-    // Sync Database structure
-    if (prisma) {
-      try {
-        await prisma.withdrawal.update({
-          where: { id },
-          data: {
-            status: reviewStatus,
-            notes: notes || `Análise pelo Administrador finalizada: ${action === 'APPROVE' ? 'Aprovado' : 'Rejeitado e Estornado'}`
-          }
-        });
-      } catch (dbErr) {
-        console.warn("Prisma error committing withdrawal review status:", dbErr);
-      }
     }
 
     res.json({
@@ -9598,6 +9580,29 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
     }
     activeWebhookLocks.set(paymentId, now);
 
+    // 1.1. Persistent database precheck using existing tables
+    if (prisma) {
+      try {
+        const existingPaymentLog = await prisma.paymentLog.findFirst({
+          where: { transactionId: String(paymentId), status: "COMPLETED" }
+        });
+        if (existingPaymentLog) {
+          logFinancial("WARN", `Idempotência persistente (PaymentLog): o pagamento ${paymentId} já foi faturado.`);
+          return res.status(200).json({ received: true, success: true, message: "Pagamento já liquidado e registrado de forma persistente." });
+        }
+
+        const existingWebhookSuccess = await prisma.webhookLog.findFirst({
+          where: { transactionId: String(paymentId), status: "PROCESSED_SUCCESS" }
+        });
+        if (existingWebhookSuccess) {
+          logFinancial("WARN", `Idempotência persistente (WebhookLog): o faturamento do pagamento ${paymentId} já foi auditado e concluído.`);
+          return res.status(200).json({ received: true, success: true, message: "Pagamento já liquidado e registrado de forma persistente." });
+        }
+      } catch (dbPreErr: any) {
+        logFinancial("ERROR", "Erro ao executar pré-checagem de idempotência persistente:", dbPreErr.message || dbPreErr);
+      }
+    }
+
     // 2. Validate Origin & Verify Signature if applicable (Sandbox permits standard local payloads)
     const webhookSignature = req.headers["x-signature"];
     if (process.env.MERCADOPAGO_ACCESS_TOKEN && !webhookSignature) {
@@ -9794,6 +9799,15 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
               }
             });
 
+            await tx.webhookLog.create({
+              data: {
+                provider: "MERCADOPAGO",
+                transactionId: String(paymentId),
+                status: "PROCESSED_SUCCESS",
+                payload: `JT Package of ${jtAmountToCredit} credit faturado com sucesso via Webhook no Tatame Virtual.`
+              }
+            });
+
             await tx.auditLog.create({
               data: {
                 actorId: jtUserId,
@@ -9955,6 +9969,15 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
                   }
                 });
               }
+
+              await tx.webhookLog.create({
+                data: {
+                  provider: "MERCADOPAGO",
+                  transactionId: String(paymentId),
+                  status: "PROCESSED_SUCCESS",
+                  payload: `Standard subscription benefits for plan ${sub.planType} and subscription ${sub.id} completed successfully.`
+                }
+              });
 
               await tx.auditLog.create({
                 data: {
@@ -10122,6 +10145,15 @@ async function handleMercadoPagoWebhook(req: any, res: any) {
                   }
                 });
               }
+
+              await tx.webhookLog.create({
+                data: {
+                  provider: "MERCADOPAGO",
+                  transactionId: String(paymentId),
+                  status: "PROCESSED_SUCCESS",
+                  payload: `Dynamic subscription benefits for plan ${planType} completed successfully for user ${userId}.`
+                }
+              });
 
               await tx.auditLog.create({
                 data: {
@@ -10850,8 +10882,8 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
             const prevPending = Number(userWallet.balancePending);
             const prevEarned = Number(userWallet.totalEarned);
             
-            nextPending = Number((prevPending + registeredAmount).toFixed(2));
-            nextEarned = Number((prevEarned + registeredAmount).toFixed(2));
+            nextPending = Math.round((prevPending + registeredAmount) * 100) / 100;
+            nextEarned = Math.round((prevEarned + registeredAmount) * 100) / 100;
 
             await prisma.wallet.update({
               where: { id: userWallet.id },
@@ -10862,7 +10894,7 @@ app.post("/api/finance/pix-webhook", async (req: any, res: any) => {
             });
           } else {
             const prevAvailable = Number(userWallet.balanceAvailable);
-            nextAvailable = Number((prevAvailable + registeredAmount).toFixed(2));
+            nextAvailable = Math.round((prevAvailable + registeredAmount) * 100) / 100;
 
             await prisma.wallet.update({
               where: { id: userWallet.id },
@@ -11172,67 +11204,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       return res.status(400).json({ error: "Identificação da listagem ausente no request." });
     }
 
-    // Find listing
-    let listing = inMemoryMarketplaceItems.find(li => li.id === marketplaceItemId && li.active);
-    const prisma = getPrisma();
-
-    if (prisma) {
-      try {
-        // Atomic compare-and-swap (CAS) to atomically reserve the marketplace item and prevent concurrent double-buying
-        const updateResult = await prisma.marketplaceItem.updateMany({
-          where: { id: marketplaceItemId, active: true },
-          data: { active: false }
-        });
-
-        if (updateResult.count === 0) {
-          return res.status(404).json({ error: "Esta oferta não está mais disponível ou foi finalizada por outro atleta." });
-        }
-
-        const dbListing = await prisma.marketplaceItem.findUnique({
-          where: { id: marketplaceItemId },
-          include: { inventoryItem: true, seller: true }
-        });
-
-        if (dbListing) {
-          listing = {
-            id: dbListing.id,
-            inventoryItemId: dbListing.inventoryItemId,
-            sellerId: dbListing.sellerId,
-            sellerName: dbListing.seller?.name || "Lutador",
-            priceJT: dbListing.priceJT,
-            active: false, // Already atomically disabled by the CAS operation above
-          };
-        }
-      } catch (dbErr) {
-        console.warn("Prisma locate listing error, fallback to memory:", dbErr);
-      }
-    }
-
-    if (!listing) {
-      return res.status(404).json({ error: "Esta oferta não está mais disponível ou foi finalizada por outro atleta." });
-    }
-
-    const { sellerId, sellerName, priceJT, inventoryItemId } = listing;
-
-    // A. ANTI-FRAUD: Self-Buying Prevention
-    if (sellerId === buyerId) {
-      if (prisma) {
-        try {
-          await prisma.auditLog.create({
-            data: {
-              actorId: buyerId,
-              action: "SYSTEM_SETTING_CHANGE",
-              description: `BLOQUEIO DE FRAUDE: Usuário "${buyerName}" tentou praticar auto-compra de seu próprio anúncio ID "${marketplaceItemId}". Bloqueado.`,
-            }
-          });
-        } catch (e) {}
-      }
-      return res.status(400).json({ 
-        error: "Tentativa de Autocompra (Self-Buying): Você não pode adquirir seus próprios anúncios sob as regras de auditoria e segurança antifraude." 
-      });
-    }
-
-    // B. ANTI-FRAUD: Multi-Session Velocity Rate Limit (3 transações por minuto)
+    // A. ANTI-FRAUD: Multi-Session Velocity Rate Limit (3 transações por minuto)
     const nowMs = Date.now();
     const velocity = purchaseVelocityTracker.get(buyerId) || { count: 0, lastTime: nowMs };
     if (nowMs - velocity.lastTime < 60000) {
@@ -11248,29 +11220,129 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     }
     purchaseVelocityTracker.set(buyerId, velocity);
 
-    // C. LOAD SELLER AND BUYER OBJECTS
-    const buyerObj = await authStore.findById(buyerId);
-    const sellerObj = await authStore.findById(sellerId);
-
-    if (!buyerObj) return res.status(400).json({ error: "Perfil comprador inexistente." });
-    
-    const buyerCoins = buyerObj.coins ?? 0;
-    if (buyerCoins < priceJT) {
-      return res.status(400).json({ 
-        error: `Saldo insuficiente! Você tem ${buyerCoins} JT e este item custa ${priceJT} JT.` 
-      });
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ error: "Serviço de banco de dados indisponível." });
     }
 
-    // Get item detail to recover name
-    const itemDetails = ALL_ITEMS_CATALOG[inventoryItemId] || { name: "Equipamento Especial BJJ", rarity: "Comum" };
+    const saleId = `sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    let finalItemDetails: any = null;
+    let feePaidJT = 0;
+    let sellerNetJT = 0;
+    let buyerFinalCoins = 0;
+    let sellerFinalCoins = 0;
+    let sellerId = "";
+    let sellerName = "Lutador";
+    let priceJT = 0;
+    let inventoryItemId = "";
 
-    // D. SYSTEM COMMISSION CHARGES / COMMISSION ENGINE
-    // Platform takes 10% commission on P2P trading activity
-    const commissionRate = 0.10;
-    const feePaidJT = Math.ceil(priceJT * commissionRate);
-    const sellerNetJT = priceJT - feePaidJT;
+    // Execute everything safely within a database transaction to protect financial integrity!
+    await prisma.$transaction(async (tx) => {
+      // 1. Fetch listing and lock row
+      const dbListing = await tx.marketplaceItem.findUnique({
+        where: { id: marketplaceItemId },
+        include: { inventoryItem: true, seller: true }
+      });
 
-    // E. ASSESS RISK SCORE & COLLUSION ENGINE (RISK METRICS)
+      if (!dbListing || !dbListing.active) {
+        throw new Error("Esta oferta não está mais disponível ou foi finalizada por outro atleta.");
+      }
+
+      sellerId = dbListing.sellerId;
+      sellerName = dbListing.seller?.name || "Lutador2";
+      priceJT = dbListing.priceJT;
+      inventoryItemId = dbListing.inventoryItemId;
+
+      if (dbListing.sellerId === buyerId) {
+        throw new Error("Tentativa de Autocompra (Self-Buying): Você não pode adquirir seus próprios anúncios sob as regras de auditoria e segurança antifraude.");
+      }
+
+      // 2. Load Wallets and lock them
+      const buyerWallet = await tx.wallet.findUnique({ where: { userId: buyerId } });
+      if (!buyerWallet || buyerWallet.balanceJT < priceJT) {
+        throw new Error(`Saldo insuficiente! Você tem ${buyerWallet?.balanceJT || 0} JT e este item custa ${priceJT} JT.`);
+      }
+
+      const sellerWallet = await tx.wallet.findUnique({ where: { userId: dbListing.sellerId } });
+      if (!sellerWallet) {
+        throw new Error("Carteira do vendedor não localizada.");
+      }
+
+      // 3. Find or create buyer inventory
+      let buyerInventory = await tx.inventory.findUnique({ where: { userId: buyerId } });
+      if (!buyerInventory) {
+        buyerInventory = await tx.inventory.create({ data: { userId: buyerId } });
+      }
+
+      // 4. Calculate commission
+      feePaidJT = Math.ceil(priceJT * 0.10);
+      sellerNetJT = priceJT - feePaidJT;
+
+      // 5. Transfer item possession in DB
+      await tx.inventoryItem.update({
+        where: { id: dbListing.inventoryItemId },
+        data: {
+          inventoryId: buyerInventory.id,
+          isEquipped: false
+        }
+      });
+
+      // 6. Deduct balance from buyer and add to seller
+      await tx.wallet.update({
+        where: { id: buyerWallet.id },
+        data: { balanceJT: { decrement: priceJT } }
+      });
+
+      await tx.wallet.update({
+        where: { id: sellerWallet.id },
+        data: { balanceJT: { increment: sellerNetJT } }
+      });
+
+      // 7. Deactivate listing after purchase completes
+      await tx.marketplaceItem.update({
+        where: { id: marketplaceItemId },
+        data: { active: false }
+      });
+
+      // 8. Create sale record
+      await tx.marketplaceSale.create({
+        data: {
+          id: saleId,
+          marketplaceItemId,
+          buyerId,
+          pricePaidJT: priceJT,
+          feePaidJT
+        }
+      });
+
+      // 9. Create audit log
+      const auditText = `Mercado P2P: Atleta "${buyerName}" adquiriu "${dbListing.inventoryItem.name}" de "${sellerName}" por ${priceJT} JT. Comissão de 10% cobrada: ${feePaidJT} JT (Plataforma). Venced net: ${sellerNetJT} JT.`;
+      await tx.auditLog.create({
+        data: {
+          actorId: buyerId,
+          action: "MARKETPLAYCE_BUY",
+          description: auditText,
+          amountJT: priceJT
+        }
+      });
+
+      buyerFinalCoins = buyerWallet.balanceJT - priceJT;
+      sellerFinalCoins = sellerWallet.balanceJT + sellerNetJT;
+      finalItemDetails = dbListing.inventoryItem;
+    });
+
+    // Sync state to memory store & authStore cache safely post-transaction
+    await authStore.updateUser(buyerId, { coins: buyerFinalCoins });
+    await authStore.updateUser(sellerId, { coins: sellerFinalCoins });
+
+    const buyerInv = inMemoryUserInventories.get(buyerId) || [];
+    inMemoryUserInventories.set(buyerId, [...buyerInv, inventoryItemId]);
+
+    // Deactivate in-memory listing
+    const memListing = inMemoryMarketplaceItems.find(li => li.id === marketplaceItemId);
+    if (memListing) memListing.active = false;
+
+    // Report sales in memory cache
     let riskScore = 15;
     let securityNotes = "Garantias operacionais normais aplicadas.";
     let saleStatus: 'Seguro' | 'Suspeito' | 'Analise_Manual' | 'Bloqueado' = 'Seguro';
@@ -11285,26 +11357,6 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       saleStatus = 'Suspeito';
     }
 
-    // F. EXECUTE THE P2P TRANSFER
-    const updatedBuyerCoins = buyerCoins - priceJT;
-    await authStore.updateUser(buyerId, { coins: updatedBuyerCoins });
-
-    if (sellerObj) {
-      const updatedSellerCoins = (sellerObj.coins ?? 0) + sellerNetJT;
-      await authStore.updateUser(sellerId, { coins: updatedSellerCoins });
-    }
-
-    // Transfer inventory IDs
-    const buyerInv = inMemoryUserInventories.get(buyerId) || [];
-    inMemoryUserInventories.set(buyerId, [...buyerInv, inventoryItemId]);
-
-    // Deactivate Listing
-    listing.active = false;
-    const memListing = inMemoryMarketplaceItems.find(li => li.id === marketplaceItemId);
-    if (memListing) memListing.active = false;
-
-    // G. RECORD SALE ENTITY
-    const saleId = `sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const newSale = {
       id: saleId,
       marketplaceItemId,
@@ -11314,7 +11366,7 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       sellerName,
       pricePaidJT: priceJT,
       feePaidJT,
-      itemName: itemDetails.name,
+      itemName: finalItemDetails?.name || "Equipamento Especial BJJ",
       createdAt: new Date().toISOString(),
       status: saleStatus,
       riskScore,
@@ -11322,37 +11374,9 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
     };
     inMemoryMarketplaceSales.unshift(newSale);
 
-    // H. AUDITING AND LOGGING DISPATCH
-    const auditText = `Mercado P2P: Atleta "${buyerName}" adquiriu "${itemDetails.name}" de "${sellerName}" por ${priceJT} JT. Comissão de 10% cobrada: ${feePaidJT} JT (Plataforma). Vended net: ${sellerNetJT} JT. Risco: ${riskScore}% (${saleStatus}).`;
-    
-    if (prisma) {
-      try {
-        await prisma.marketplaceSale.create({
-          data: {
-            id: saleId,
-            marketplaceItemId,
-            buyerId,
-            pricePaidJT: priceJT,
-            feePaidJT
-          }
-        });
-
-        await prisma.auditLog.create({
-          data: {
-            actorId: buyerId,
-            action: "MARKETPLAYCE_BUY",
-            description: auditText,
-            amountJT: priceJT
-          }
-        });
-      } catch (dbErr) {
-        console.warn("Prisma sales audit insertion failed, index in cache:", dbErr);
-      }
-    }
-
     res.json({
       success: true,
-      message: `Negócio fechado! O item "${itemDetails.name}" foi transferido sob a supervisão do motor antifraude.`,
+      message: `Negócio fechado! O item "${finalItemDetails?.name || "Equipamento Especial BJJ"}" foi transferido sob a supervisão do motor antifraude.`,
       commission: {
         paidJT: feePaidJT,
         rate: "10%",
@@ -11361,9 +11385,9 @@ app.post("/api/marketplace/buy", authenticateToken, async (req: any, res: any) =
       sale: newSale
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Crash in marketplace buy endpoint:", error);
-    res.status(500).json({ error: "Erro interno no servidor contábil ao processar compra." });
+    res.status(500).json({ error: error.message || "Erro interno no servidor contábil ao processar compra." });
   }
 });
 
@@ -11746,98 +11770,143 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
       });
     }
 
-    // D. FINANCIAL DEDUCTION & STOCK DECREMENT
-    // Decrement stock if applicable (use atomic compare-and-swap to protect against concurrency race conditions)
-    if (product.stock !== null && product.stock !== undefined) {
-      if (dbConnected) {
-        const prisma = getPrisma();
-        const updateResult = await prisma.storeProduct.updateMany({
-          where: {
-            id: product.id,
-            stock: { gte: 1 }
-          },
-          data: {
-            stock: { decrement: 1 }
-          }
-        });
-        if (updateResult.count === 0) {
-          return res.status(400).json({ error: "Este item esgotou o limite de estoque disponível na loja enquanto você finalizava a transação." });
+    let finalCoins = currentCoins - pricePaid;
+    const itemId = `inv_item_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+    if (dbConnected) {
+      const prisma = getPrisma();
+      if (prisma) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            // Re-verify stock inside the transaction for concurrency safety
+            const matchedProduct = await tx.storeProduct.findUnique({
+              where: { id: productId }
+            });
+
+            if (!matchedProduct || !matchedProduct.active) {
+              throw new Error("O cosmético selecionado não está ativo ou não foi localizado.");
+            }
+
+            if (matchedProduct.stock !== null && matchedProduct.stock !== undefined) {
+              if (matchedProduct.stock <= 0) {
+                throw new Error("Este item esgotou o limite de estoque disponível na loja.");
+              }
+              // Decrement the stock
+              await tx.storeProduct.update({
+                where: { id: productId },
+                data: { stock: { decrement: 1 } }
+              });
+            }
+
+            // Retrieve and lock buyer Wallet in database
+            const userWallet = await tx.wallet.findUnique({
+              where: { userId: buyerId }
+            });
+
+            if (!userWallet) {
+              throw new Error("Sua carteira de moedas não foi encontrada no banco de dados.");
+            }
+
+            if (userWallet.balanceJT < pricePaid) {
+              throw new Error(`Saldo insuficiente! Você precisa de ${pricePaid} JT, mas seu saldo na carteira é de ${userWallet.balanceJT} JT.`);
+            }
+
+            // Decrement the wallet balance in the DB!
+            await tx.wallet.update({
+              where: { id: userWallet.id },
+              data: { balanceJT: { decrement: pricePaid } }
+            });
+
+            // Double check unique ownership inside transaction
+            let userInventory: any = await tx.inventory.findUnique({
+              where: { userId: buyerId },
+              include: { items: true }
+            });
+
+            if (!userInventory) {
+              userInventory = await tx.inventory.create({
+                data: { userId: buyerId }
+              });
+            } else {
+              const alreadyHas = userInventory.items.some((it: any) => it.productId === productId);
+              if (alreadyHas) {
+                throw new Error("Item já adquirido! Este material cosmético ou guia de recursos já faz parte de seu tatame.");
+              }
+            }
+
+            // Create inventory item
+            await tx.inventoryItem.create({
+              data: {
+                id: itemId,
+                inventoryId: userInventory.id,
+                productId: product.id,
+                name: product.name,
+                description: product.description,
+                rarity: product.rarity,
+                imageUrl: product.imageUrl || "",
+                isEquipped: false
+              }
+            });
+
+            // Create StoreSale record
+            const saleId = `store_sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+            await tx.storeSale.create({
+              data: {
+                id: saleId,
+                productId: product.id,
+                buyerId,
+                pricePaidBRL: 0.00,
+                pricePaidJT: pricePaid
+              }
+            });
+
+            // Create coin transaction receipt
+            await tx.transaction.create({
+              data: {
+                walletId: userWallet.id,
+                amountJT: -pricePaid,
+                type: "STORE_PURCHASE",
+                status: "COMPLETED",
+                description: `Desbloqueio de cosmético: ${product.name}`,
+                referenceId: saleId
+              }
+            });
+
+            // Create audit log
+            await tx.auditLog.create({
+              data: {
+                actorId: buyerId,
+                action: "SYSTEM_SETTING_CHANGE",
+                description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceJT} JT. Saldo da carteira deduzido.`,
+                amountJT: product.priceJT
+              }
+            });
+
+            finalCoins = userWallet.balanceJT - pricePaid;
+          });
+        } catch (txErr: any) {
+          return res.status(400).json({ error: txErr.message || "Erro durante a transação de compra na loja virtual." });
         }
-      } else {
-        const inMemIdx = inMemoryStoreProducts.findIndex(p => p.id === product.id);
-        if (inMemIdx !== -1) {
-          if (inMemoryStoreProducts[inMemIdx].stock <= 0) {
-            return res.status(400).json({ error: "Este item esgotou o limite de estoque disponível na loja." });
-          }
-          inMemoryStoreProducts[inMemIdx].stock = Math.max(0, inMemoryStoreProducts[inMemIdx].stock - 1);
-        }
+      }
+    } else {
+      // In-memory fallback stock deduction
+      const inMemIdx = inMemoryStoreProducts.findIndex(p => p.id === product.id);
+      if (inMemIdx !== -1 && inMemoryStoreProducts[inMemIdx].stock !== null && inMemoryStoreProducts[inMemIdx].stock !== undefined) {
+        inMemoryStoreProducts[inMemIdx].stock = Math.max(0, inMemoryStoreProducts[inMemIdx].stock - 1);
       }
     }
 
-    const updatedCoins = currentCoins - pricePaid;
-    await authStore.updateUser(buyerId, { coins: updatedCoins });
+    // Update custom profile auth store
+    await authStore.updateUser(buyerId, { coins: finalCoins });
 
     // Sync in memory tracker
     const buyerInv = inMemoryUserInventories.get(buyerId) || [];
     inMemoryUserInventories.set(buyerId, [...buyerInv, productId]);
 
-    const itemId = `inv_item_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-
-    if (dbConnected) {
-      const prisma = getPrisma();
-      await prisma.inventoryItem.create({
-        data: {
-          id: itemId,
-          inventoryId: inventoryId,
-          productId: product.id,
-          name: product.name,
-          description: product.description,
-          rarity: product.rarity,
-          imageUrl: product.imageUrl || "",
-          isEquipped: false
-        }
-      });
-
-      const saleId = `store_sale_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      await prisma.storeSale.create({
-        data: {
-          id: saleId,
-          productId: product.id,
-          buyerId,
-          pricePaidJT: pricePaid
-        }
-      });
-
-      const userWallet = await prisma.wallet.findUnique({
-        where: { userId: buyerId }
-      });
-      if (userWallet) {
-        await prisma.transaction.create({
-          data: {
-            walletId: userWallet.id,
-            amountJT: -product.priceJT,
-            type: "STORE_PURCHASE",
-            status: "COMPLETED",
-            description: `Desbloqueio de cosmético: ${product.name}`,
-            referenceId: saleId
-          }
-        });
-      }
-
-      await prisma.auditLog.create({
-        data: {
-          actorId: buyerId,
-          action: "SYSTEM_SETTING_CHANGE",
-          description: `Loja Especial: Atleta "${buyerName}" adquiriu o item "${product.name}" por ${product.priceJT} JT. Saldo deduzido para ${updatedCoins} JT.`,
-          amountJT: product.priceJT
-        }
-      });
-    }
-
     res.json({
       success: true,
       message: `Desbloqueio concluído! O item "${product.name}" agora está ativo em seu tatame.`,
-      updatedCoins,
+      updatedCoins: finalCoins,
       item: patchProductObjectWithBjjAvatar({
         id: itemId,
         productId: product.id,
