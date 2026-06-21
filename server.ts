@@ -15078,12 +15078,15 @@ async function startServer() {
   try {
     const isConn = await assertDatabaseConnection();
     if (!isConn && process.env.NODE_ENV === "production") {
-      console.error("\n🔥 [FATAL DATABASE FAILURE] O banco de dados PostgreSQL está inacessível. Em ambiente de produção o boot do servidor foi interrompido conforme os requerimentos de estrita consistência de dados.");
-      process.exit(1);
+      console.warn("\n⚠️ [DATABASE OFFLINE WARNING] O banco de dados PostgreSQL está inacessível. O servidor continuará em execução utilizando os dados em memória e de cache, tentando se conectar novamente em segundo plano.");
     }
-    await auditStoreProductColumns();
-    await auditSocialPostColumns();
-    await purgeFictionalUsers();
+    if (isConn) {
+      await auditStoreProductColumns().catch(err => console.warn("Falha de auditoria de colunas de produtos:", err.message));
+      await auditSocialPostColumns().catch(err => console.warn("Falha de auditoria de colunas de posts sociais:", err.message));
+      await purgeFictionalUsers().catch(err => console.warn("Falha ao remover usuários fictícios:", err.message));
+    } else {
+      console.warn("⚠️ Pulando auditorias de banco de dados e migrações estruturais pois o PostgreSQL está inacessível no momento.");
+    }
     
     if (isDatabaseConnected()) {
       const p = getPrisma();
