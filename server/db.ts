@@ -11,6 +11,12 @@ if (process.env.DATABASE_URL) {
 
 // Logger altamente descritivo para tratamento e identificação de erros de banco em produção
 export function logPrismaError(error: any, context: string = 'Prisma Operation') {
+  // Se for erro de conexão/inicialização do Prisma e não estivermos em produção, logamos de forma simples e informativa
+  if (process.env.NODE_ENV !== 'production' && error instanceof Prisma.PrismaClientInitializationError) {
+    console.log(`ℹ️ [DATABASE] PostgreSQL indisponível no contexto: ${context}. Utilizando camada de persistência em memória redundante.`);
+    return;
+  }
+
   console.error(`\n[FATAL DATABASE ERROR] ============ Contexto: ${context} ============`);
   if (error instanceof Prisma.PrismaClientInitializationError) {
     console.error(`Tipo: PrismaClientInitializationError`);
@@ -97,7 +103,11 @@ export async function assertDatabaseConnection(): Promise<boolean> {
             retryInterval = null;
           }
         } catch (retryErr: any) {
-          logPrismaError(retryErr, "assertDatabaseConnection: retry reconnect interval");
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(`🔄 [RETRY LOG] Ainda tentando restaurar conexão segura ao PostgreSQL (em segundo plano)...`);
+          } else {
+            logPrismaError(retryErr, "assertDatabaseConnection: retry reconnect interval");
+          }
           dbConnected = false;
         }
       }, 10000);
