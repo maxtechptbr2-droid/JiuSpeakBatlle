@@ -32,6 +32,9 @@ export default function AcademiesModule() {
   const [globalLogo, setGlobalLogo] = useState('');
   const [globalBio, setGlobalBio] = useState('');
   const [globalWebsite, setGlobalWebsite] = useState('');
+  const [globalInstagram, setGlobalInstagram] = useState('');
+  const [globalCountryOrigin, setGlobalCountryOrigin] = useState('Brasil');
+  const [globalFoundedYear, setGlobalFoundedYear] = useState('');
   
   const [branchName, setBranchName] = useState('');
   const [branchCity, setBranchCity] = useState('');
@@ -39,6 +42,8 @@ export default function AcademiesModule() {
   const [branchCountry, setBranchCountry] = useState('Brasil');
   const [branchProfessor, setBranchProfessor] = useState('');
   const [branchGlobalId, setBranchGlobalId] = useState('');
+  const [branchAddress, setBranchAddress] = useState('');
+  const [branchLogo, setBranchLogo] = useState('');
   
   const [indName, setIndName] = useState('');
   const [indCity, setIndCity] = useState('');
@@ -107,7 +112,10 @@ export default function AcademiesModule() {
           name: globalName,
           logoUrl: globalLogo,
           bio: globalBio,
-          website: globalWebsite
+          website: globalWebsite,
+          instagram: globalInstagram,
+          countryOrigin: globalCountryOrigin,
+          foundedYear: globalFoundedYear ? parseInt(globalFoundedYear) : null
         })
       });
 
@@ -131,14 +139,20 @@ export default function AcademiesModule() {
     setGlobalLogo('');
     setGlobalBio('');
     setGlobalWebsite('');
+    setGlobalInstagram('');
+    setGlobalCountryOrigin('Brasil');
+    setGlobalFoundedYear('');
   };
 
   const handleEditGlobalClick = (item: any) => {
     setSelectedItem(item);
     setGlobalName(item.name || '');
-    setGlobalLogo(item.logoUrl || '');
-    setGlobalBio(item.bio || '');
+    setGlobalLogo(item.logo || item.logoUrl || '');
+    setGlobalBio(item.description || item.bio || '');
     setGlobalWebsite(item.website || '');
+    setGlobalInstagram(item.instagram || '');
+    setGlobalCountryOrigin(item.countryOrigin || 'Brasil');
+    setGlobalFoundedYear(item.foundedYear ? String(item.foundedYear) : '');
     setShowForm('edit-global');
   };
 
@@ -194,8 +208,10 @@ export default function AcademiesModule() {
           city: branchCity,
           state: branchState,
           country: branchCountry,
-          professor: branchProfessor,
-          globalTeamId: branchGlobalId
+          headProfessor: branchProfessor, // CORRIGIDO: era professor
+          globalTeamId: branchGlobalId,
+          address: branchAddress,
+          logo: branchLogo
         })
       });
 
@@ -221,6 +237,8 @@ export default function AcademiesModule() {
     setBranchCountry('Brasil');
     setBranchProfessor('');
     setBranchGlobalId('');
+    setBranchAddress('');
+    setBranchLogo('');
   };
 
   const handleEditBranchClick = (item: any) => {
@@ -229,8 +247,10 @@ export default function AcademiesModule() {
     setBranchCity(item.city || '');
     setBranchState(item.state || '');
     setBranchCountry(item.country || 'Brasil');
-    setBranchProfessor(item.professor || '');
+    setBranchProfessor(item.headProfessor || ''); // CORRIGIDO: era item.professor
     setBranchGlobalId(item.globalTeamId || '');
+    setBranchAddress(item.address || '');
+    setBranchLogo(item.logo || '');
     setShowForm('edit-branch');
   };
 
@@ -524,6 +544,62 @@ export default function AcademiesModule() {
                 />
               </div>
 
+              {/* Instagram */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-slate-500 uppercase block">Instagram (sem @)</label>
+                <input
+                  type="text"
+                  value={globalInstagram}
+                  onChange={(e) => setGlobalInstagram(e.target.value)}
+                  placeholder="Ex: graciebarra"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 font-sans focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              {/* País de Origem + Ano de Fundação lado a lado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-slate-500 uppercase block">País de Origem</label>
+                  <select
+                    value={globalCountryOrigin}
+                    onChange={(e) => setGlobalCountryOrigin(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50"
+                  >
+                    <option value="Brasil">Brasil</option>
+                    <option value="EUA">EUA</option>
+                    <option value="Reino Unido">Reino Unido</option>
+                    <option value="Canadá">Canadá</option>
+                    <option value="Japão">Japão</option>
+                    <option value="Austrália">Austrália</option>
+                    <option value="Emirados Árabes Unidos">Emirados Árabes Unidos</option>
+                    <option value="Portugal">Portugal</option>
+                    <option value="Espanha">Espanha</option>
+                    <option value="França">França</option>
+                    <option value="Alemanha">Alemanha</option>
+                    <option value="Itália">Itália</option>
+                    <option value="Suécia">Suécia</option>
+                    <option value="Finlândia">Finlândia</option>
+                    <option value="Suíça">Suíça</option>
+                    <option value="Singapura">Singapura</option>
+                    <option value="Tailândia">Tailândia</option>
+                    <option value="Nova Zelândia">Nova Zelândia</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-slate-500 uppercase block">Ano de Fundação</label>
+                  <input
+                    type="number"
+                    value={globalFoundedYear}
+                    onChange={(e) => setGlobalFoundedYear(e.target.value)}
+                    placeholder="Ex: 1993"
+                    min="1900"
+                    max="2030"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 font-sans focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full p-2.5 bg-indigo-600 hover:bg-indigo-550 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
@@ -596,6 +672,30 @@ export default function AcademiesModule() {
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-250 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              {/* Endereço */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-slate-500 uppercase block">Endereço Completo</label>
+                <input
+                  type="text"
+                  value={branchAddress}
+                  onChange={(e) => setBranchAddress(e.target.value)}
+                  placeholder="Ex: Rua das Artes Marciais, 123 - Bairro"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 font-sans focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              {/* Logo URL */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-slate-500 uppercase block">URL do Logo da Filial</label>
+                <input
+                  type="text"
+                  value={branchLogo}
+                  onChange={(e) => setBranchLogo(e.target.value)}
+                  placeholder="Ex: https://dominio.com/logo.png"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-200 font-sans focus:outline-none focus:border-indigo-500/50"
+                />
               </div>
 
               <div className="space-y-1">
@@ -731,7 +831,7 @@ export default function AcademiesModule() {
                   Você está prestes a transferir a filial <span className="font-bold text-white underline">{selectedItem?.name}</span> para uma nova filiação de rede global.
                 </p>
                 <p className="text-[10px] text-slate-500 font-mono">
-                  Prof: {selectedItem?.professor || 'N/A'} • {selectedItem?.city}, {selectedItem?.state}
+                  Prof: {selectedItem?.headProfessor || selectedItem?.professor || 'N/A'} • {selectedItem?.city}, {selectedItem?.state}
                 </p>
               </div>
 
@@ -778,24 +878,34 @@ export default function AcademiesModule() {
               ) : (
                 globals.map(item => (
                   <div key={item.id} className="bg-slate-950 p-4 rounded-2xl border border-slate-900 hover:border-slate-850 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-bold text-violet-400 font-mono shrink-0 overflow-hidden">
                         {item.logoUrl ? (
                           <img src={item.logoUrl} alt={item.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : 'BJJ'}
                       </div>
                       
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="text-xs font-bold text-slate-200">{item.name}</h4>
                           {item.verified && (
                             <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[8px] font-bold py-0.5 px-2 rounded-full uppercase tracking-wider flex items-center gap-1">
                               ✓ Verificada
                             </span>
                           )}
+                          {item.countryOrigin && (
+                            <span className="bg-slate-900 border border-slate-800 text-slate-400 text-[8px] font-mono py-0.5 px-1.5 rounded">
+                              {item.countryOrigin}
+                            </span>
+                          )}
+                          {item.foundedYear && (
+                            <span className="bg-slate-900 border border-slate-800 text-slate-400 text-[8px] font-mono py-0.5 px-1.5 rounded">
+                              Fundada em {item.foundedYear}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[10px] text-slate-550 italic font-mono truncate max-w-sm">
-                          {item.bio || 'Sem descrição ou valores cadastrados.'}
+                          {item.bio || item.description || 'Sem descrição ou valores cadastrados.'}
                         </p>
                       </div>
                     </div>
@@ -842,8 +952,8 @@ export default function AcademiesModule() {
               ) : (
                 branches.map(item => (
                   <div key={item.id} className="bg-slate-950 p-4 rounded-2xl border border-slate-900 hover:border-slate-850 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-xs font-bold text-slate-200 truncate">{item.name}</h4>
                         {item.verified && (
                           <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[8px] font-bold py-0.5 px-2 rounded-full uppercase tracking-wider">
@@ -856,8 +966,9 @@ export default function AcademiesModule() {
                       </div>
                       
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-mono text-slate-500">
-                        <span>Prof: {item.professor || 'Sem Professor Cadastrado'}</span>
+                        <span>Prof: {item.headProfessor || item.professor || 'Sem Professor Cadastrado'}</span>
                         <span>Cidade: {item.city} - {item.state} ({item.country})</span>
+                        {item.address && <span className="opacity-80">Endereço: {item.address}</span>}
                       </div>
                     </div>
 
