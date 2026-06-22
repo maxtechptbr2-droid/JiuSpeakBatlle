@@ -897,15 +897,10 @@ export async function runExternalFederationSync() {
     if (existingBranch) {
       const dataToUpdate: any = {};
 
-      if (shouldUpdateField(existingBranch.country, fBranch.country)) {
-        dataToUpdate.country = fBranch.country;
-      }
-      if (shouldUpdateField(existingBranch.state, fBranch.state)) {
-        dataToUpdate.state = fBranch.state;
-      }
-      if (shouldUpdateField(existingBranch.city, fBranch.city)) {
-        dataToUpdate.city = fBranch.city;
-      }
+      // country/state/city sempre atualizados com o valor correto do seed federativo
+      if (fBranch.country) dataToUpdate.country = fBranch.country;
+      if (fBranch.state) dataToUpdate.state = fBranch.state;
+      if (fBranch.city) dataToUpdate.city = fBranch.city;
       if (shouldUpdateField(existingBranch.address, fBranch.address)) {
         dataToUpdate.address = fBranch.address;
       }
