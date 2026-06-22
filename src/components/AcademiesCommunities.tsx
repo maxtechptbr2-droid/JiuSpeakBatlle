@@ -145,9 +145,13 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
   const triggerSync = async () => {
     setSyncing(true);
     try {
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
       const res = await fetch('/api/academy/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
       });
       const data = await res.json();
       if (data.success) {
