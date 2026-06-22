@@ -600,13 +600,30 @@ export default function AcademiesModule() {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-mono text-slate-500 uppercase block">País</label>
-                <input 
-                  type="text"
+                <select
                   value={branchCountry}
                   onChange={(e) => setBranchCountry(e.target.value)}
-                  placeholder="Ex: Brasil, EUA"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-250 focus:outline-none"
-                />
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-250 focus:outline-none focus:border-indigo-500/50"
+                >
+                  <option value="Brasil">Brasil</option>
+                  <option value="EUA">EUA</option>
+                  <option value="Reino Unido">Reino Unido</option>
+                  <option value="Canadá">Canadá</option>
+                  <option value="Japão">Japão</option>
+                  <option value="Austrália">Austrália</option>
+                  <option value="Emirados Árabes Unidos">Emirados Árabes Unidos</option>
+                  <option value="Portugal">Portugal</option>
+                  <option value="Espanha">Espanha</option>
+                  <option value="França">França</option>
+                  <option value="Alemanha">Alemanha</option>
+                  <option value="Itália">Itália</option>
+                  <option value="Suécia">Suécia</option>
+                  <option value="Finlândia">Finlândia</option>
+                  <option value="Suíça">Suíça</option>
+                  <option value="Singapura">Singapura</option>
+                  <option value="Tailândia">Tailândia</option>
+                  <option value="Nova Zelândia">Nova Zelândia</option>
+                </select>
               </div>
 
               <button
@@ -670,13 +687,30 @@ export default function AcademiesModule() {
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-mono text-slate-500 uppercase block">País</label>
-                  <input 
-                    type="text"
+                  <select
                     value={indCountry}
                     onChange={(e) => setIndCountry(e.target.value)}
-                    placeholder="Ex: Brasil"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-250 focus:outline-none"
-                  />
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-250 focus:outline-none focus:border-indigo-500/50"
+                  >
+                    <option value="Brasil">Brasil</option>
+                    <option value="EUA">EUA</option>
+                    <option value="Reino Unido">Reino Unido</option>
+                    <option value="Canadá">Canadá</option>
+                    <option value="Japão">Japão</option>
+                    <option value="Austrália">Austrália</option>
+                    <option value="Emirados Árabes Unidos">Emirados Árabes Unidos</option>
+                    <option value="Portugal">Portugal</option>
+                    <option value="Espanha">Espanha</option>
+                    <option value="França">França</option>
+                    <option value="Alemanha">Alemanha</option>
+                    <option value="Itália">Itália</option>
+                    <option value="Suécia">Suécia</option>
+                    <option value="Finlândia">Finlândia</option>
+                    <option value="Suíça">Suíça</option>
+                    <option value="Singapura">Singapura</option>
+                    <option value="Tailândia">Tailândia</option>
+                    <option value="Nova Zelândia">Nova Zelândia</option>
+                  </select>
                 </div>
               </div>
 

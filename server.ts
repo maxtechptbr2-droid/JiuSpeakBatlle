@@ -14661,8 +14661,23 @@ app.post(["/api/academy/globals", "/api/academy/global-teams"], authenticateToke
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
     
-    const { name, logo, logoUrl, bio, description, website, instagram, countryOrigin, foundedYear } = req.body;
+    let { name, logo, logoUrl, bio, description, website, instagram, countryOrigin, foundedYear } = req.body;
     if (!name) return res.status(400).json({ error: "O nome da equipe é obrigatório." });
+
+    const ALLOWED_COUNTRIES = [
+      "Brasil", "EUA", "Reino Unido", "Canadá", "Japão", 
+      "Austrália", "Emirados Árabes Unidos", "Portugal", "Espanha", 
+      "França", "Alemanha", "Itália", "Suécia", "Finlândia", 
+      "Suíça", "Singapura", "Tailândia", "Nova Zelândia"
+    ];
+
+    if (countryOrigin) {
+      const matched = ALLOWED_COUNTRIES.find(c => c.toLowerCase() === countryOrigin.toLowerCase());
+      if (!matched) {
+        return res.status(400).json({ error: `País de origem '${countryOrigin}' é inválido. Escolha um país válido da lista permitida.` });
+      }
+      countryOrigin = matched; // Standardize casing
+    }
 
     const slug = name.toLowerCase().trim()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, "") // remove accents
@@ -14695,7 +14710,22 @@ app.put(["/api/academy/globals/:id", "/api/academy/global-teams/:id"], authentic
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
     const { id } = req.params;
-    const { name, logo, logoUrl, bio, description, website, instagram, countryOrigin, foundedYear } = req.body;
+    let { name, logo, logoUrl, bio, description, website, instagram, countryOrigin, foundedYear } = req.body;
+
+    const ALLOWED_COUNTRIES = [
+      "Brasil", "EUA", "Reino Unido", "Canadá", "Japão", 
+      "Austrália", "Emirados Árabes Unidos", "Portugal", "Espanha", 
+      "França", "Alemanha", "Itália", "Suécia", "Finlândia", 
+      "Suíça", "Singapura", "Tailândia", "Nova Zelândia"
+    ];
+
+    if (countryOrigin) {
+      const matched = ALLOWED_COUNTRIES.find(c => c.toLowerCase() === countryOrigin.toLowerCase());
+      if (!matched) {
+        return res.status(400).json({ error: `País de origem '${countryOrigin}' é inválido. Escolha um país válido da lista permitida.` });
+      }
+      countryOrigin = matched; // Standardize casing
+    }
 
     const dataToUpdate: any = {};
     if (name) {
@@ -14797,8 +14827,25 @@ app.post("/api/academy/branches", authenticateToken, verifyAdminUser, async (req
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
     
-    const { name, city, state, country, headProfessor, globalTeamId, address, logo, website } = req.body;
+    let { name, city, state, country, headProfessor, globalTeamId, address, logo, website } = req.body;
     if (!name || !globalTeamId) return res.status(400).json({ error: "Nome e Equipe Global são obrigatórios." });
+
+    const ALLOWED_COUNTRIES = [
+      "Brasil", "EUA", "Reino Unido", "Canadá", "Japão", 
+      "Austrália", "Emirados Árabes Unidos", "Portugal", "Espanha", 
+      "França", "Alemanha", "Itália", "Suécia", "Finlândia", 
+      "Suíça", "Singapura", "Tailândia", "Nova Zelândia"
+    ];
+
+    if (country) {
+      const matched = ALLOWED_COUNTRIES.find(c => c.toLowerCase() === country.toLowerCase());
+      if (!matched) {
+        return res.status(400).json({ error: `País '${country}' é inválido. Escolha um país válido da lista permitida.` });
+      }
+      country = matched; // Standardize casing
+    } else {
+      country = "Brasil"; // Default fallback
+    }
 
     const slug = `${name.toLowerCase().trim()}-${Date.now().toString().slice(-4)}`
       .normalize('NFD').replace(/[\u0300-\u036f]/g, "")
@@ -14832,7 +14879,22 @@ app.put("/api/academy/branches/:id", authenticateToken, verifyAdminUser, async (
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "Banco de dados indisponível." });
     const { id } = req.params;
-    const { name, city, state, country, headProfessor, address, logo } = req.body;
+    let { name, city, state, country, headProfessor, address, logo } = req.body;
+
+    const ALLOWED_COUNTRIES = [
+      "Brasil", "EUA", "Reino Unido", "Canadá", "Japão", 
+      "Austrália", "Emirados Árabes Unidos", "Portugal", "Espanha", 
+      "França", "Alemanha", "Itália", "Suécia", "Finlândia", 
+      "Suíça", "Singapura", "Tailândia", "Nova Zelândia"
+    ];
+
+    if (country) {
+      const matched = ALLOWED_COUNTRIES.find(c => c.toLowerCase() === country.toLowerCase());
+      if (!matched) {
+        return res.status(400).json({ error: `País '${country}' é inválido. Escolha um país válido da lista permitida.` });
+      }
+      country = matched; // Standardize casing
+    }
 
     const dataToUpdate: any = {};
     if (name) {
