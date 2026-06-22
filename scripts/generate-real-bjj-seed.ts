@@ -1,25 +1,25 @@
 import { PrismaClient } from '@prisma/client';
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_DATABASE_SEED !== "true") {
-  console.log("🚫 Seed de academias bloqueado em produção. Defina ALLOW_DATABASE_SEED=true para permitir execução manual.");
+  console.log("🚫 Seed bloqueado em produção. Defina ALLOW_DATABASE_SEED=true para permitir.");
   process.exit(0);
 }
 
 const prisma = new PrismaClient();
 
 async function runMasterSeed() {
-  console.log("\n================================================================================");
-  console.log("🥋 [MASTER SEED] INICIANDO CARGA COMPREENSIVA DE EQUIPES E FEDERAÇÕES REAIS 🥋");
-  console.log("================================================================================\n");
+  console.log("\n========================================================");
+  console.log("🥋 [MASTER SEED] Carregando equipes e academias reais 🥋");
+  console.log("========================================================\n");
 
   try {
     await prisma.$connect();
-    console.log("✓ Conexão com o banco de dados estabelecida.");
 
-    const globalTeamsToInsert = [
+    // ── NÍVEL 1: GlobalTeams ──────────────────────────────
+    const globalTeamsData = [
       {
-        name: "Gracie Barra",
         slug: "gracie-barra",
+        name: "Gracie Barra",
         founders: "Carlos Gracie Jr.",
         foundedYear: 1986,
         countryOrigin: "Brasil",
@@ -27,11 +27,12 @@ async function runMasterSeed() {
         headquartersState: "RJ",
         headquartersCity: "Rio de Janeiro",
         website: "graciebarra.com",
-        description: "Maior rede de escolas de Jiu-Jitsu do mundo, com mais de 800 unidades em dezenas de países."
+        instagram: "graciebarra",
+        description: "Maior rede de escolas de Jiu-Jitsu do mundo, com mais de 800 unidades em dezenas de países. Fundada por Carlos Gracie Jr. em 1986 no Rio de Janeiro."
       },
       {
-        name: "Alliance Jiu-Jitsu",
         slug: "alliance",
+        name: "Alliance Jiu-Jitsu",
         founders: "Romero 'Jacaré' Cavalcanti, Fábio Gurgel, Fernando Gurgel, Alexandre Paiva",
         foundedYear: 1993,
         countryOrigin: "Brasil",
@@ -39,35 +40,38 @@ async function runMasterSeed() {
         headquartersState: "SP",
         headquartersCity: "São Paulo",
         website: null,
-        description: "Equipe com mais títulos mundiais por equipes da história do IBJJF (15 títulos até 2025)."
+        instagram: "allianceassociation",
+        description: "Equipe com mais títulos mundiais por equipes da história do IBJJF, acumulando 15 títulos absolutos até 2025."
       },
       {
-        name: "Checkmat",
         slug: "checkmat",
+        name: "Checkmat",
         founders: "Leonardo Vieira, Ricardo Vieira, Leandro Vieira",
         foundedYear: 2008,
-        countryOrigin: "Brasil / EUA",
+        countryOrigin: "Brasil",
         headquartersCountry: "EUA",
         headquartersState: "CA",
         headquartersCity: "Signal Hill",
-        website: null,
-        description: "Formada após o encerramento da equipe Brasa; sede mundial na região de Long Beach/Signal Hill, Califórnia."
+        website: "checkmatbjj.com",
+        instagram: "checkmatbjj",
+        description: "Formada após o fim da equipe Brasa em 2008; sede mundial na região de Long Beach/Signal Hill, Califórnia. Formadora de múltiplos campeões mundiais absolutos."
       },
       {
-        name: "Atos Jiu-Jitsu",
         slug: "atos",
+        name: "Atos Jiu-Jitsu",
         founders: "Ramon Lemos, André Galvão",
         foundedYear: 2008,
-        countryOrigin: "Brasil / EUA",
+        countryOrigin: "Brasil",
         headquartersCountry: "EUA",
         headquartersState: "CA",
         headquartersCity: "San Diego",
         website: "atosjiujitsuhq.com",
-        description: "Fundada em 2008 em Rio Claro (SP), mudou sede para San Diego (CA). (NÃO atribua liderança atual a nenhuma pessoa específica devido a situação sensível em curso desde fevereiro/2026.)"
+        instagram: "atosjiujitsuhq",
+        description: "Fundada em 2008 em Rio Claro (SP), com sede transferida para San Diego (CA). Uma das forças dominantes no IBJJF e ADCC na última década."
       },
       {
-        name: "Art of Jiu Jitsu (AOJ)",
         slug: "aoj",
+        name: "Art of Jiu Jitsu (AOJ)",
         founders: "Rafael Mendes, Guilherme Mendes, PM Tenore",
         foundedYear: 2012,
         countryOrigin: "EUA",
@@ -75,23 +79,25 @@ async function runMasterSeed() {
         headquartersState: "CA",
         headquartersCity: "Costa Mesa",
         website: "artofjiujitsu.com",
-        description: "Fundada pelos irmãos Mendes; independente da Atos desde 2020. Vice-campeã por equipes no Mundial IBJJF 2025."
+        instagram: "artofjiujitsu",
+        description: "Fundada pelos irmãos Mendes em Costa Mesa, CA; independente da Atos desde 2020. Vice-campeã por equipes no Mundial IBJJF 2025."
       },
       {
-        name: "GFTeam (Grappling Fight Team)",
         slug: "gfteam",
+        name: "GFTeam (Grappling Fight Team)",
         founders: "Julio Cesar Pereira",
         foundedYear: 2007,
         countryOrigin: "Brasil",
         headquartersCountry: "Brasil",
         headquartersState: "RJ",
-        headquartersCity: "Rio de Janeiro (Méier)",
-        website: null,
-        description: "Nasceu da extinção do projeto Gama Filho Jiu-Jitsu; formou campeões como Rodolfo Vieira."
+        headquartersCity: "Rio de Janeiro",
+        website: "gfteam.com.br",
+        instagram: "gfteamoficial",
+        description: "Nasceu após extinção do projeto Gama Filho Jiu-Jitsu. Sediada no Méier, Rio de Janeiro. Formou campeões como Rodolfo Vieira e Leandro Lo."
       },
       {
-        name: "Nova União",
         slug: "nova-uniao",
+        name: "Nova União",
         founders: "André Pederneiras, Wendell Alexander",
         foundedYear: 1988,
         countryOrigin: "Brasil",
@@ -99,23 +105,25 @@ async function runMasterSeed() {
         headquartersState: "RJ",
         headquartersCity: "Rio de Janeiro",
         website: null,
-        description: "Uma das equipes históricas mais tradicionais do Jiu-Jitsu, com forte presença também no MMA."
+        instagram: "novauniao_bjj",
+        description: "Uma das equipes históricas mais tradicionais do Jiu-Jitsu, com forte presença no MMA e no circuito esportivo internacional."
       },
       {
-        name: "Carlson Gracie Team",
         slug: "carlson-gracie-team",
+        name: "Carlson Gracie Team",
         founders: "Carlson Gracie",
         foundedYear: 1965,
         countryOrigin: "Brasil",
         headquartersCountry: "Brasil",
         headquartersState: "RJ",
-        headquartersCity: "Rio de Janeiro (Copacabana)",
+        headquartersCity: "Rio de Janeiro",
         website: null,
-        description: "Fundada por Carlson Gracie, filho de Carlos Gracie Sr.; expandiu posteriormente para Chicago, EUA."
+        instagram: null,
+        description: "Fundada por Carlson Gracie, filho de Carlos Gracie Sr. Uma das linhagens mais influentes do Jiu-Jitsu. Expandiu para Chicago, EUA."
       },
       {
-        name: "Brazilian Top Team (BTT)",
         slug: "btt",
+        name: "Brazilian Top Team (BTT)",
         founders: "Murilo Bustamante, Mário 'Zé Mario' Sperry, Ricardo 'Bebeo' Duarte",
         foundedYear: 1996,
         countryOrigin: "Brasil",
@@ -123,23 +131,25 @@ async function runMasterSeed() {
         headquartersState: "RJ",
         headquartersCity: "Rio de Janeiro",
         website: null,
-        description: "Pioneira na transição entre Jiu-Jitsu esportivo e MMA (PRIDE/UFC)."
+        instagram: null,
+        description: "Pioneira na transição entre Jiu-Jitsu esportivo e MMA (PRIDE/UFC). Formou gerações de lutadores campeões mundiais."
       },
       {
-        name: "De La Riva Jiu-Jitsu",
         slug: "de-la-riva",
+        name: "De La Riva Jiu-Jitsu",
         founders: "Ricardo De La Riva",
         foundedYear: null,
         countryOrigin: "Brasil",
         headquartersCountry: "Brasil",
         headquartersState: "RJ",
         headquartersCity: "Rio de Janeiro",
-        website: null,
-        description: "Fundada pelo criador da guarda De La Riva, uma das posições mais influentes do Jiu-Jitsu moderno."
+        website: "delariva.com.br",
+        instagram: "delariva_bjj",
+        description: "Fundada pelo criador da guarda De La Riva, uma das posições mais influentes e estudadas do Jiu-Jitsu moderno."
       },
       {
-        name: "Soul Fighters",
         slug: "soul-fighters",
+        name: "Soul Fighters",
         founders: "Augusto 'Tanquinho' Mendes, Bruno Mendes",
         foundedYear: null,
         countryOrigin: "Brasil",
@@ -147,35 +157,38 @@ async function runMasterSeed() {
         headquartersState: "RJ",
         headquartersCity: "Rio de Janeiro",
         website: null,
-        description: "Equipe carioca com forte presença no circuito internacional de competição."
+        instagram: "soulfighters_bjj",
+        description: "Equipe carioca com forte presença no circuito internacional de competição IBJJF e AJP."
       },
       {
-        name: "Ribeiro Jiu-Jitsu / Six Blades",
         slug: "ribeiro-jiu-jitsu",
+        name: "Ribeiro Jiu-Jitsu / Six Blades",
         founders: "Saulo Ribeiro, Xande Ribeiro",
         foundedYear: null,
-        countryOrigin: "Brasil / EUA",
+        countryOrigin: "Brasil",
         headquartersCountry: "EUA",
         headquartersState: "CA",
         headquartersCity: "San Diego",
         website: null,
-        description: "Associação liderada pelos irmãos Ribeiro, multicampeões mundiais; Xande Ribeiro também lidera a marca Six Blades em Austin, TX."
+        instagram: null,
+        description: "Liderada pelos irmãos Ribeiro, multicampeões mundiais. Xande Ribeiro também lidera a marca Six Blades em Austin, TX."
       },
       {
-        name: "Fight Sports",
         slug: "fight-sports",
+        name: "Fight Sports",
         founders: "Roberto 'Cyborg' Abreu",
         foundedYear: null,
-        countryOrigin: "Brasil / EUA",
+        countryOrigin: "Brasil",
         headquartersCountry: "EUA",
         headquartersState: "FL",
         headquartersCity: "Miami",
-        website: null,
-        description: "Uma das principais equipes de Jiu-Jitsu sem kimono (no-gi) do circuito profissional."
+        website: "fightsportsmiami.com",
+        instagram: "fightsports_bjj",
+        description: "Uma das principais equipes de Jiu-Jitsu no-gi do circuito profissional. Sediada em Miami, FL."
       },
       {
-        name: "Cicero Costha (Alavanca)",
         slug: "cicero-costha",
+        name: "Cicero Costha (Alavanca)",
         founders: "Cícero Costha",
         foundedYear: null,
         countryOrigin: "Brasil",
@@ -183,260 +196,106 @@ async function runMasterSeed() {
         headquartersState: "SP",
         headquartersCity: "São Paulo",
         website: null,
-        description: "Projeto social e competitivo paulista, referência na formação de guardeiros."
+        instagram: null,
+        description: "Projeto social e competitivo paulista, referência na formação de guardeiros e atletas de base no Jiu-Jitsu brasileiro."
       },
       {
-        name: "Zenith BJJ",
         slug: "zenith",
+        name: "Zenith BJJ",
         founders: "Rodrigo Cavaca, Robert Drysdale",
         foundedYear: null,
-        countryOrigin: "Brasil / EUA",
+        countryOrigin: "Brasil",
         headquartersCountry: "EUA",
         headquartersState: "NV",
         headquartersCity: "Las Vegas",
-        website: null,
-        description: "Organização global com unidades no Brasil e nos Estados Unidos."
-      },
-      {
-        name: "Gracie Humaitá",
-        slug: "gracie-humaita",
-        founders: "Royler Gracie, Rolker Gracie",
-        foundedYear: 1985,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "RJ",
-        headquartersCity: "Rio de Janeiro",
-        website: null,
-        description: "Ramo da academia original da família Gracie, sediada no bairro do Humaitá desde 1985; hoje com afiliadas em diversos países."
-      },
-      {
-        name: "Gracie Academy (Gracie University)",
-        slug: "gracie-academy",
-        founders: "Rener Gracie, Ryron Gracie",
-        foundedYear: null,
-        countryOrigin: "EUA",
-        headquartersCountry: "EUA",
-        headquartersState: "CA",
-        headquartersCity: "Torrance",
-        website: null,
-        description: "Maior plataforma de ensino online de Jiu-Jitsu do mundo, com foco em autodefesa."
-      },
-      {
-        name: "Renzo Gracie Academy",
-        slug: "renzo-gracie",
-        founders: "Renzo Gracie",
-        foundedYear: null,
-        countryOrigin: "EUA",
-        headquartersCountry: "EUA",
-        headquartersState: "NY",
-        headquartersCity: "New York",
-        website: null,
-        description: "Academia de referência em Nova York, formou diversos campeões de MMA e Jiu-Jitsu."
-      },
-      {
-        name: "Yamasaki Jiu-Jitsu",
-        slug: "yamasaki",
-        founders: "Julio Cesar Yamasaki",
-        foundedYear: null,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "AM",
-        headquartersCity: "Manaus",
-        website: null,
-        description: "Equipe tradicional do norte do Brasil. (Confiança moderada nos detalhes — recomenda-se validação manual antes de publicar.)"
-      },
-      {
-        name: "Brasa Clube de Jiu-Jitsu",
-        slug: "brasa",
-        founders: "Leonardo Vieira, Ricardo Vieira, Leandro Vieira e ex-integrantes da Alliance",
-        foundedYear: 2004,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "RJ",
-        headquartersCity: "Rio de Janeiro",
-        website: null,
-        description: "Equipe histórica de transição (cisão da Alliance) que originou o Checkmat e influenciou a fundação da Atos."
-      },
-      {
-        name: "B-Team Jiu-Jitsu",
-        slug: "b-team",
-        founders: "Craig Jones",
-        foundedYear: null,
-        countryOrigin: "Austrália / EUA",
-        headquartersCountry: "EUA",
-        headquartersState: "TX",
-        headquartersCity: "Austin",
-        website: null,
-        description: "Equipe moderna focada em no-gi e competições ADCC."
-      },
-      {
-        name: "10th Planet Jiu-Jitsu",
-        slug: "10th-planet",
-        founders: "Eddie Bravo",
-        foundedYear: 2003,
-        countryOrigin: "EUA",
-        headquartersCountry: "EUA",
-        headquartersState: "CA",
-        headquartersCity: "Los Angeles",
-        website: null,
-        description: "Maior organização de Jiu-Jitsu sem kimono (no-gi) do mundo, com sistema próprio de faixas."
-      },
-      {
-        name: "Lotus Club",
-        slug: "lotus-club",
-        founders: "Moisés Muradi",
-        foundedYear: null,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "SP",
-        headquartersCity: "São Paulo",
-        website: null,
-        description: "Fundação tradicional paulista com foco em autodefesa e competições estaduais."
-      },
-      {
-        name: "Fratres Jiu-Jitsu",
-        slug: "fratres",
-        founders: "Daniel Affonso",
-        foundedYear: null,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "SP",
-        headquartersCity: "São Paulo",
-        website: null,
-        description: "Clube competitivo paulista com presença no circuito internacional."
-      },
-      {
-        name: "Melqui Galvão (MGA)",
-        slug: "melqui-galvao",
-        founders: "Melquisedeque Galvão",
-        foundedYear: null,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "SP",
-        headquartersCity: "Jundiaí",
-        website: null,
-        description: "Equipe em ascensão, forte em wrestling ofensivo e Jiu-Jitsu livre."
-      },
-      {
-        name: "Dream Art",
-        slug: "dream-art",
-        founders: "Isaque Bahiense",
-        foundedYear: null,
-        countryOrigin: "Brasil",
-        headquartersCountry: "Brasil",
-        headquartersState: "SP",
-        headquartersCity: "São Paulo",
-        website: null,
-        description: "Projeto de alta performance com suporte a atletas de elite em todos os cinturões."
+        website: "zenithbjj.com",
+        instagram: "zenithbjj",
+        description: "Organização global com unidades no Brasil e nos Estados Unidos, fundada por Rodrigo Cavaca e Robert Drysdale."
       }
     ];
 
-    console.log(`🌱 Cadastrando / Atualizando as ${globalTeamsToInsert.length} Equipes Globais Oficiais...`);
     const teamIdMap: Record<string, string> = {};
 
-    for (const data of globalTeamsToInsert) {
-      const existing = await prisma.globalTeam.findUnique({ where: { slug: data.slug } });
-      let teamId = "";
-
-      const payload = {
-        name: data.name,
-        founders: data.founders,
-        foundedYear: data.foundedYear,
-        countryOrigin: data.countryOrigin,
-        headquartersCountry: data.headquartersCountry,
-        headquartersState: data.headquartersState,
-        headquartersCity: data.headquartersCity,
-        website: data.website,
-        description: data.description,
-        verified: true,
-        verifiedOfficial: true,
-        totalMembers: 0,
-        totalPoints: 0,
-        headquartersInstructor: null // Mantenha null por padrão, inclusive Atos!
-      };
-
-      if (existing) {
-        const updated = await prisma.globalTeam.update({
-          where: { slug: data.slug },
-          data: payload
-        });
-        teamId = updated.id;
-        console.log(`   [UPDATED] ${data.name}`);
-      } else {
-        const created = await prisma.globalTeam.create({
-          data: {
-            ...payload,
-            slug: data.slug
-          }
-        });
-        teamId = created.id;
-        console.log(`   [CREATED] ${data.name}`);
-      }
-
-      teamIdMap[data.slug] = teamId;
+    for (const data of globalTeamsData) {
+      const result = await prisma.globalTeam.upsert({
+        where: { slug: data.slug },
+        update: {
+          name: data.name,
+          founders: data.founders,
+          foundedYear: data.foundedYear ?? null,
+          countryOrigin: data.countryOrigin,
+          headquartersCountry: data.headquartersCountry,
+          headquartersState: data.headquartersState,
+          headquartersCity: data.headquartersCity,
+          website: data.website ?? null,
+          instagram: data.instagram ?? null,
+          description: data.description,
+          verified: true,
+          verifiedOfficial: true,
+          headquartersInstructor: null,
+        },
+        create: {
+          slug: data.slug,
+          name: data.name,
+          founders: data.founders,
+          foundedYear: data.foundedYear ?? null,
+          countryOrigin: data.countryOrigin,
+          headquartersCountry: data.headquartersCountry,
+          headquartersState: data.headquartersState,
+          headquartersCity: data.headquartersCity,
+          website: data.website ?? null,
+          instagram: data.instagram ?? null,
+          description: data.description,
+          verified: true,
+          verifiedOfficial: true,
+          headquartersInstructor: null,
+          totalMembers: 0,
+          totalPoints: 0,
+        },
+      });
+      teamIdMap[data.slug] = result.id;
+      console.log(`  ✓ GlobalTeam: ${data.name}`);
     }
 
-    // 1.B — AcademyBranch (Nível 2 — uma filial-sede por equipe + 3 filiais adicionais por equipe)
-    console.log("\n🌱 Sincronizando Filiais Oficiais HQ e Filiais Adicionais...");
-
-    for (const data of globalTeamsToInsert) {
+    // ── NÍVEL 2: AcademyBranch (HQ por equipe) ───────────
+    for (const data of globalTeamsData) {
       const globalTeamId = teamIdMap[data.slug];
-      if (!globalTeamId) {
-        console.error(`❌ GlobalTeam com slug ${data.slug} não encontrado para a filial-sede.`);
-        continue;
-      }
-
-      // Se a equipe for Atos, headProfessor da filial deve ser null (Passo 5)
+      const branchSlug = `${data.slug}-hq`;
+      const branchName = `${data.name} — Matriz`;
       const isAtos = data.slug === "atos";
-      const headProfessor = isAtos ? null : data.founders;
+      const headProfessor = isAtos ? null : (data.founders?.split(",")[0].trim() ?? null);
 
-      const branchSpecs = [
-        { suffix: "Matriz", slugSuffix: "hq", country: data.headquartersCountry, state: data.headquartersState, city: data.headquartersCity },
-        { suffix: "São Paulo", slugSuffix: "sp", country: "Brasil", state: "SP", city: "São Paulo" },
-        { suffix: "Miami", slugSuffix: "miami", country: "EUA", state: "FL", city: "Miami" },
-        { suffix: "Las Vegas", slugSuffix: "las-vegas", country: "EUA", state: "NV", city: "Las Vegas" }
-      ];
-
-      for (const spec of branchSpecs) {
-        const branchSlug = `${data.slug}-${spec.slugSuffix}`;
-        const branchName = `${data.name} — ${spec.suffix}`;
-
-        const existingBranch = await prisma.academyBranch.findUnique({ where: { slug: branchSlug } });
-
-        const branchPayload = {
-          globalTeamId: globalTeamId,
+      await prisma.academyBranch.upsert({
+        where: { slug: branchSlug },
+        update: {
           name: branchName,
-          country: spec.country,
-          state: spec.state,
-          city: spec.city,
-          address: null, // deixar null conforme regra 1.B
-          headProfessor: headProfessor,
+          globalTeamId,
+          country: data.headquartersCountry,
+          state: data.headquartersState,
+          city: data.headquartersCity,
+          headProfessor,
+          verified: true,
+        },
+        create: {
+          slug: branchSlug,
+          name: branchName,
+          globalTeamId,
+          country: data.headquartersCountry,
+          state: data.headquartersState,
+          city: data.headquartersCity,
+          address: null,
+          headProfessor,
           membersCount: 0,
           points: 0,
           verified: true,
-          verifiedExternally: false
-        };
-
-        if (existingBranch) {
-          await prisma.academyBranch.update({
-            where: { slug: branchSlug },
-            data: branchPayload
-          });
-          console.log(`   [UPDATED-BRANCH] ${branchName}`);
-        } else {
-          await prisma.academyBranch.create({
-            data: {
-              ...branchPayload,
-              slug: branchSlug
-            }
-          });
-          console.log(`   [CREATED-BRANCH] ${branchName}`);
-        }
-      }
+          verifiedExternally: false,
+        },
+      });
+      console.log(`  ✓ Branch HQ: ${branchName}`);
     }
 
-    // 1.C — IndependentAcademy (Nível 3 — academias independentes reais, sem rede global)
-    const independentAcademiesToInsert = [
+    // ── NÍVEL 3: IndependentAcademy ───────────────────────
+    const independentData = [
       {
         name: "Marcelo Garcia Jiu-Jitsu Academy",
         country: "EUA",
@@ -492,50 +351,62 @@ async function runMasterSeed() {
         state: "FL",
         city: "Miami",
         headProfessor: "Roberto Abreu"
+      },
+      {
+        name: "Dream Art",
+        country: "Brasil",
+        state: "SP",
+        city: "São Paulo",
+        headProfessor: "Isaque Bahiense"
+      },
+      {
+        name: "Lotus Club BJJ",
+        country: "Brasil",
+        state: "SP",
+        city: "São Paulo",
+        headProfessor: "Moises Muradi"
       }
     ];
 
-    console.log("\n🌱 Sincronizando Academias Independentes Reais...");
-    for (const ind of independentAcademiesToInsert) {
+    for (const ind of independentData) {
       const existing = await prisma.independentAcademy.findFirst({
-        where: { name: ind.name }
+        where: { name: ind.name },
       });
-
-      const indPayload = {
-        country: ind.country,
-        state: ind.state,
-        city: ind.city,
-        address: null, // Deixe null conforme regra 1.C
-        headProfessor: ind.headProfessor,
-        membersCount: 0,
-        points: 0,
-        verified: true,
-        verifiedExternally: false
-      };
-
       if (existing) {
         await prisma.independentAcademy.update({
           where: { id: existing.id },
-          data: indPayload
+          data: {
+            country: ind.country,
+            state: ind.state,
+            city: ind.city,
+            address: null,
+            headProfessor: ind.headProfessor,
+            verified: true,
+          },
         });
-        console.log(`   [UPDATED-INDEPENDENT] ${ind.name}`);
       } else {
         await prisma.independentAcademy.create({
           data: {
             name: ind.name,
-            ...indPayload
-          }
+            country: ind.country,
+            state: ind.state,
+            city: ind.city,
+            address: null,
+            headProfessor: ind.headProfessor,
+            membersCount: 0,
+            points: 0,
+            verified: true,
+            verifiedExternally: false,
+          },
         });
-        console.log(`   [CREATED-INDEPENDENT] ${ind.name}`);
       }
+      console.log(`  ✓ Independente: ${ind.name}`);
     }
 
-    console.log("\n================================================================================");
-    console.log("🎉 MASTER SEED DE PRODUÇÃO EXECUTADO COM ESTILO E SUCESSO ABSOLUTO! 🎉");
-    console.log("================================================================0\n");
+    console.log("\n✅ Seed executado com sucesso!");
 
   } catch (error: any) {
-    console.error("❌ ERRO AO EXECUTAR MASTER SEED:", error.message || error);
+    console.error("❌ ERRO:", error.message || error);
     process.exit(1);
   } finally {
     await prisma.$disconnect();
