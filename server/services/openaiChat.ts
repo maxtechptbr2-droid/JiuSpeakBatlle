@@ -138,7 +138,7 @@ export async function createSession(
     scenario,
     partnerKey,
     partnerName: partnerInfo.name,
-    partnerVoice: partnerInfo.voice,
+    partnerVoice: partnerKey,
     history: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()

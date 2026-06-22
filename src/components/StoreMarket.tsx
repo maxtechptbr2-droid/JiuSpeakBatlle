@@ -473,6 +473,40 @@ export default function StoreMarket({
     }
   };
 
+  const handleDiscardInventoryItem = async (itemId: string, itemName: string, targetUserId?: string) => {
+    const targetLabel = targetUserId ? "deste aluno" : "seu";
+    if (!window.confirm(`Tem certeza de que deseja desfazer-se permanentemente de "${itemName}" da mochila ${targetLabel}? Esta ação é irreversível!`)) return;
+    const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+    if (!token) {
+      showToast("Sessão expirada. Refaça o login.", "error");
+      return;
+    }
+    try {
+      const res = await fetch("/api/inventory/delete", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ itemId, targetUserId })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message || "Item descartado com sucesso!", "success");
+        fetchUnlockedInventory();
+        // If it was for the current user, remove from memory state as well
+        if (!targetUserId) {
+          const remaining = user.inventory.filter(id => id !== itemId);
+          updateUser({ inventory: remaining });
+        }
+      } else {
+        showToast(data.error || "Não foi possível excluir o item.", "error");
+      }
+    } catch (err) {
+      showToast("Falha de rede ao descartar item.", "error");
+    }
+  };
+
   const openCreateItemModal = () => {
     setAdminForm({
       name: '',
@@ -671,6 +705,64 @@ export default function StoreMarket({
   const [unlockedItems, setUnlockedItems] = useState<any[]>([]);
   const [isInventoryLoading, setIsInventoryLoading] = useState(false);
 
+  // Admin student inspection states
+  const [adminStudents, setAdminStudents] = useState<any[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [studentInventory, setStudentInventory] = useState<any[]>([]);
+  const [isStudentInventoryLoading, setIsStudentInventoryLoading] = useState<boolean>(false);
+
+  const fetchAdminStudents = async () => {
+    if (user.role !== 'admin') return;
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+      const res = await fetch('/api/admin/academy/progress', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.studentsProgress) {
+        setAdminStudents(data.studentsProgress);
+      }
+    } catch (e) {
+      console.error("Falha ao carregar lista de alunos:", e);
+    }
+  };
+
+  const fetchStudentInventory = async (studentId: string) => {
+    if (!studentId) {
+      setStudentInventory([]);
+      return;
+    }
+    setIsStudentInventoryLoading(true);
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+      const res = await fetch(`/api/inventory?targetUserId=${studentId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStudentInventory(data.items);
+      }
+    } catch (e) {
+      console.error("Falha ao carregar inventário de aluno:", e);
+    } finally {
+      setIsStudentInventoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSubTab === 'inventorio' && user.role === 'admin') {
+      fetchAdminStudents();
+    }
+  }, [activeSubTab, user.role]);
+
+  useEffect(() => {
+    if (selectedStudentId) {
+      fetchStudentInventory(selectedStudentId);
+    } else {
+      setStudentInventory([]);
+    }
+  }, [selectedStudentId]);
+
   // Load and cache virtual store listings with optimized structures
   const fetchStoreProducts = async () => {
     setIsStoreLoading(true);
@@ -846,6 +938,8 @@ export default function StoreMarket({
 
   const handleOpenListModal = async () => {
     setListModalOpen(true);
+    setSellOption('inventory');
+    setSelectedInventoryItemId('');
     setIsInventoryLoading(true);
     try {
       const token = localStorage.getItem('jiuspeak_access_token');
@@ -881,7 +975,7 @@ export default function StoreMarket({
         setMarketItems(data.items);
       }
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
       if (token) {
         const sRes = await fetch('/api/marketplace/sales', {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -1060,7 +1154,7 @@ export default function StoreMarket({
       return;
     }
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
     if (!token) {
       showToast("Por favor, autentique-se primeiro para operar trocas.", "error");
       return;
@@ -1116,7 +1210,7 @@ export default function StoreMarket({
   // List item on Peer-to-Peer Marketplace using physical owned asset or virtual creator item
   const handleCreateListing = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
     if (!token) {
       showToast("Sessão expirada. Refaça o login.", "error");
       return;
@@ -2127,6 +2221,105 @@ export default function StoreMarket({
       {/* 3. Owned Fighter Inventory list */}
       {activeSubTab === 'inventorio' && (
         <div className="space-y-6">
+          {/* SEÇÃO ADMIN: INSPECIONAR MOCHILA DE ALUNOS COMUNS */}
+          {user.role === 'admin' && (
+            <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-violet-500 animate-pulse" />
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
+                  Controle e Descarte Administrativo de Mochilas de Alunos
+                </h4>
+              </div>
+              <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+                Selecione um aluno abaixo para inspecionar o conteúdo em tempo real da mochila virtual dele na academia. Você poderá excluir itens específicos da mochila do aluno.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none"
+                >
+                  <option value="">-- Selecione um Aluno para Fiscalização --</option>
+                  {adminStudents.map((stud) => (
+                    <option key={stud.id} value={stud.id}>
+                      🥋 {stud.name} ({stud.email}) - Nível {stud.level}
+                    </option>
+                  ))}
+                </select>
+                {selectedStudentId && (
+                  <button
+                    onClick={() => fetchStudentInventory(selectedStudentId)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-white font-mono text-[10px] font-bold rounded-lg uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    🔄 Recarregar Mochila
+                  </button>
+                )}
+              </div>
+
+              {selectedStudentId && (
+                <div className="pt-4 border-t border-slate-900">
+                  {isStudentInventoryLoading ? (
+                    <div className="flex items-center gap-2 py-4 text-[10px] font-mono text-zinc-500 uppercase">
+                      <div className="w-3" /> Carregando pertences do aluno...
+                    </div>
+                  ) : studentInventory.length === 0 ? (
+                    <div className="text-zinc-505 text-[10px] font-mono uppercase text-center py-6 bg-slate-950/20 rounded border border-slate-950">
+                      Mochila vazia para este participante.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {studentInventory.map((item) => {
+                        const actualId = item.id || item.productId;
+                        return (
+                          <div
+                            key={item.id}
+                            className="bg-slate-950/60 border border-slate-850 p-4 rounded-xl flex flex-col justify-between space-y-3"
+                          >
+                            <div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[7px] font-mono text-violet-400 font-bold bg-violet-950/30 px-1.5 py-0.5 rounded border border-violet-900 border-opacity-30">
+                                  {item.product?.category || "EQUIPAMENTO"}
+                                </span>
+                                <span className="text-[7px] font-mono font-bold text-amber-400 bg-amber-950/20 px-1.5 rounded uppercase">
+                                  {item.product?.rarity || "Comum"}
+                                </span>
+                              </div>
+                              <h5 className="font-mono font-bold text-[11px] uppercase text-slate-100 mt-2">{item.product?.name || item.name}</h5>
+                              <p className="text-[9px] text-slate-405 mt-1 leading-relaxed line-clamp-2 h-[26px]">
+                                {item.product?.description || item.description || "Pertence da academia."}
+                              </p>
+                            </div>
+                            <div className="pt-2 border-t border-slate-900 flex flex-col gap-2">
+                              <div className="text-[8px] font-mono text-slate-505">
+                                Adquirido em: {item.acquiredAt ? new Date(item.acquiredAt).toLocaleDateString() : 'N/A'}
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  await handleDiscardInventoryItem(actualId, item.product?.name || item.name, selectedStudentId);
+                                  fetchStudentInventory(selectedStudentId);
+                                }}
+                                className="bg-red-950/40 hover:bg-red-900/60 border border-red-900/50 text-red-400 text-[9px] font-mono font-bold uppercase tracking-wider py-1.5 rounded-lg transition-colors cursor-pointer text-center"
+                              >
+                                ❗ Excluir Item do Aluno
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="border-b border-zinc-900 pb-2">
+            <h3 className="font-mono font-bold text-xs text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+              🎒 Minha Mochila de Equipamentos ({unlockedItems.length + user.inventory.filter(invId => !unlockedItems.some(ui => ui.productId === invId)).length} itens)
+            </h3>
+          </div>
+
           {isInventoryLoading ? (
             <div className="h-48 flex flex-col items-center justify-center gap-3">
               <div className="w-6 h-6 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
@@ -2160,11 +2353,38 @@ export default function StoreMarket({
                     <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                   </div>
 
-                  <div className="pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[9px] font-mono">
-                    <span className="text-zinc-500">ID: {item.productId?.replace('prod_', '')}</span>
-                    <span className="bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider text-[8px]">
-                      🎒 EQUIPADO
-                    </span>
+                  <div className="pt-2 border-t border-zinc-900/60 flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-[9px] font-mono">
+                      <span className="text-zinc-[500]">ID: {item.productId?.replace('prod_', '') || item.id?.replace('prod_', '')}</span>
+                      <span className="bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider text-[8px]">
+                        🎒 EQUIPADO
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[9px]">
+                      <button
+                        onClick={() => {
+                          setSellOption('inventory');
+                          setSelectedInventoryItemId(item.id || item.productId);
+                          setListForm({
+                            name: item.name,
+                            description: item.description || "Equipamento para venda.",
+                            category: item.category as any || 'gi',
+                            rarity: item.rarity as any || 'Comum',
+                            price: 300
+                          });
+                          setListModalOpen(true);
+                        }}
+                        className="bg-indigo-950/50 hover:bg-indigo-900/70 border border-indigo-950 text-indigo-300 font-bold py-1.5 rounded transition-all uppercase tracking-normal text-center cursor-pointer"
+                      >
+                        🤝 Vender
+                      </button>
+                      <button
+                        onClick={() => handleDiscardInventoryItem(item.id || item.productId, item.name)}
+                        className="bg-red-950/50 hover:bg-red-900/70 border border-red-900/60 text-red-300 font-bold py-1.5 rounded transition-all uppercase tracking-normal text-center cursor-pointer"
+                      >
+                        🗑️ Descartar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -2194,11 +2414,38 @@ export default function StoreMarket({
                       <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed h-[36px] overflow-hidden line-clamp-2">{item.description}</p>
                     </div>
 
-                    <div className="pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[9px] font-mono">
-                      <span className="text-zinc-500">OFFLINE SYNC</span>
-                      <span className="bg-red-950/40 border border-red-900/40 text-red-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider text-[8px]">
-                        🎒 ATIVO
-                      </span>
+                    <div className="pt-2 border-t border-zinc-900/60 flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-[9px] font-mono">
+                        <span className="text-zinc-[500]">OFFLINE SYNC</span>
+                        <span className="bg-red-950/40 border border-red-900/40 text-red-400 font-bold px-2 py-0.5 rounded uppercase tracking-wider text-[8px]">
+                          🎒 ATIVO
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[9px]">
+                        <button
+                          onClick={() => {
+                            setSellOption('inventory');
+                            setSelectedInventoryItemId(invId);
+                            setListForm({
+                              name: item.name,
+                              description: item.description || "Equipamento para venda.",
+                              category: item.category as any || 'gi',
+                              rarity: item.rarity as any || 'Comum',
+                              price: 300
+                            });
+                            setListModalOpen(true);
+                          }}
+                          className="bg-indigo-950/50 hover:bg-indigo-900/70 border border-indigo-950 text-indigo-300 font-bold py-1.5 rounded transition-all uppercase tracking-normal text-center cursor-pointer"
+                        >
+                          🤝 Vender
+                        </button>
+                        <button
+                          onClick={() => handleDiscardInventoryItem(invId, item.name)}
+                          className="bg-red-950/50 hover:bg-red-900/70 border border-red-900/60 text-red-300 font-bold py-1.5 rounded transition-all uppercase tracking-normal text-center cursor-pointer"
+                        >
+                          🗑️ Descartar
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

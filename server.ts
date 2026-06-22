@@ -9487,51 +9487,50 @@ app.post("/api/conversational/chat", authenticateToken, async (req: any, res: an
 app.get("/api/conversational/stream-tts", async (req: any, res: any) => {
   try {
     const text = req.query.text as string;
-    const voice = (req.query.voice as string) || "nova";
+    const voice = (req.query.voice as string) || "nova"; // pode vir partnerKey (ex: "thomas") ou voice OpenAI legada
 
     if (!text) {
       return res.status(400).send("text parameter is required");
     }
 
-    const { sanitizeText, generateHash } = await import("./server/services/openaiTTS");
-    const cleanText = sanitizeText(text);
-    const hash = generateHash(cleanText, voice);
-
-    const cacheDir = path.join(process.cwd(), "server", "cache", "audio");
-    const cacheFilePath = path.join(cacheDir, `${hash}.mp3`);
-
     res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Transfer-Encoding", "chunked");
 
-    // Check disk cache first (Fast Stream pipe)
-    if (fs.existsSync(cacheFilePath)) {
-      const fileStream = fs.createReadStream(cacheFilePath);
-      fileStream.pipe(res);
-      return;
+    const { gerarAudioElevenLabs } = await import("./server/services/elevenLabsTTS");
+
+    try {
+      const buffer = await gerarAudioElevenLabs(text, voice);
+      res.write(buffer);
+      return res.end();
+    } catch (elevenErr: any) {
+      console.warn("[TTS] ElevenLabs falhou, usando fallback OpenAI:", elevenErr.message);
+      // Fallback: mantém o comportamento OpenAI já existente como rede de segurança
+      const { sanitizeText, generateHash } = await import("./server/services/openaiTTS");
+      const cleanText = sanitizeText(text);
+      const fallbackVoice = ["alloy","echo","fable","onyx","nova","shimmer"].includes(voice) ? voice : "nova";
+      const hash = generateHash(cleanText, fallbackVoice);
+      const cacheDir = path.join(process.cwd(), "server", "cache", "audio");
+      const cacheFilePath = path.join(cacheDir, `${hash}.mp3`);
+
+      if (fs.existsSync(cacheFilePath)) {
+        return fs.createReadStream(cacheFilePath).pipe(res);
+      }
+
+      const { getOpenAIClient } = await import("./server/services/openaiChat");
+      const openai = getOpenAIClient();
+      const mp3Response = await openai.audio.speech.create({
+        model: "tts-1",
+        voice: fallbackVoice as any,
+        input: cleanText,
+      });
+      const buffer = Buffer.from(await mp3Response.arrayBuffer());
+      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+      fs.writeFile(cacheFilePath, buffer, (err) => {
+        if (err) console.error("[TTS STREAM DISK CACHE WRITE WARNING]", err);
+      });
+      res.write(buffer);
+      res.end();
     }
-
-    // Dynamic OpenAI TTS call
-    const { getOpenAIClient } = await import("./server/services/openaiChat");
-    const openai = getOpenAIClient();
-
-    const mp3Response = await openai.audio.speech.create({
-      model: "tts-1",
-      voice: voice as any,
-      input: cleanText,
-    });
-
-    const buffer = Buffer.from(await mp3Response.arrayBuffer());
-
-    // Asynchronously write to disk cache
-    if (!fs.existsSync(cacheDir)) {
-      fs.mkdirSync(cacheDir, { recursive: true });
-    }
-    fs.writeFile(cacheFilePath, buffer, (err) => {
-      if (err) console.error("[TTS STREAM DISK CACHE WRITE WARNING] Invalid file write:", err);
-    });
-
-    res.write(buffer);
-    res.end();
   } catch (error: any) {
     console.error("[TTS STREAM ERROR]", error);
     res.status(500).send("TTS Streaming failed: " + error.message);
@@ -11941,7 +11940,11 @@ app.post("/api/store/buy", authenticateToken, async (req: any, res: any) => {
 // 3. GET ACTIVE REGISTERED PERSONAL LOCKERS
 app.get("/api/inventory", authenticateToken, async (req: any, res: any) => {
   try {
-    const userId = req.user.id;
+    let userId = req.user.id;
+    // Admins can query another student's inventory page
+    if (req.query.targetUserId && req.user.role === 'admin') {
+      userId = req.query.targetUserId;
+    }
     const dbConnected = isDatabaseConnected();
     const prisma = getPrisma();
 
@@ -12353,6 +12356,90 @@ app.post("/api/inventory/unequip", authenticateToken, async (req: any, res: any)
   } catch (error: any) {
     console.error("Erro ao desequipar item:", error);
     res.status(500).json({ error: "Erro interno ao desequipar cosmético." });
+  }
+});
+
+// 6. DELETE / DISCARD AN INVENTORY ITEM (OR ADMIN REMOVE FROM STUDENT)
+app.post("/api/inventory/delete", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { itemId, targetUserId } = req.body;
+    const callerId = req.user.id;
+    const callerRole = req.user.role?.toLowerCase() || '';
+    const isAdmin = callerRole === 'admin' || callerRole === 'professor';
+
+    if (!itemId) {
+      return res.status(400).json({ error: "ID do item não fornecido." });
+    }
+
+    const userId = (targetUserId && isAdmin) ? targetUserId : callerId;
+
+    const dbConnected = isDatabaseConnected();
+    const prisma = getPrisma();
+
+    if (dbConnected && prisma) {
+      const item = await prisma.inventoryItem.findFirst({
+        where: {
+          id: itemId,
+          inventory: {
+            userId: userId
+          }
+        }
+      });
+
+      if (!item) {
+        return res.status(404).json({ error: "Item não encontrado no inventário informado." });
+      }
+
+      await prisma.inventoryItem.delete({
+        where: { id: itemId }
+      });
+
+      return res.json({
+        success: true,
+        message: "Item removido com sucesso do inventário!"
+      });
+    } else {
+      // In-Memory Fallback
+      if (itemId.startsWith("mem_item_")) {
+        // e.g. mem_item_userId_idx
+        const match = itemId.match(/^mem_item_([^_]+)_(\d+)$/);
+        if (match) {
+          const matchedUserId = match[1];
+          const idx = parseInt(match[2], 10);
+          if (matchedUserId === userId) {
+            const rawUserItems = inMemoryUserInventories.get(userId) || [];
+            rawUserItems.splice(idx, 1);
+            inMemoryUserInventories.set(userId, rawUserItems);
+
+            const equippedSet = inMemoryEquippedItemIds.get(userId) || new Set<string>();
+            equippedSet.delete(itemId);
+            inMemoryEquippedItemIds.set(userId, equippedSet);
+
+            return res.json({
+              success: true,
+              message: "Item removido com sucesso do inventário em memória!"
+            });
+          }
+        }
+      }
+
+      // If it's a general string ID
+      const rawUserItems = inMemoryUserInventories.get(userId) || [];
+      const index = rawUserItems.indexOf(itemId);
+      if (index !== -1) {
+        rawUserItems.splice(index, 1);
+        inMemoryUserInventories.set(userId, rawUserItems);
+        return res.json({
+          success: true,
+          message: "Item removido com sucesso do inventário em memória!"
+        });
+      }
+
+      return res.status(404).json({ error: "Item não encontrado no inventário em memória." });
+    }
+  } catch (error: any) {
+    console.error("Erro ao deletar item do inventário:", error);
+    res.status(500).json({ error: "Erro interno ao deletar item do inventário." });
   }
 });
 
