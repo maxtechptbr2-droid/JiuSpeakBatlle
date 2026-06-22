@@ -42,6 +42,11 @@ import academyRouter from "./server/academyRouter";
 process.on("uncaughtException", (error: Error) => {
   console.error("⚠️ [UNCAUGHT EXCEPTION] Caught by Tatame Conectado global handler:", error);
   logError("PROCESS_UNCAUGHT_EXCEPTION", error);
+  // EADDRINUSE: porta ocupada — encerra o processo para que PM2 possa reiniciar limpo
+  if ((error as any).code === "EADDRINUSE") {
+    console.error(`🔴 [FATAL] Porta ${(error as any).port || 3000} já está em uso. Encerrando processo para liberar a porta.`);
+    process.exit(1);
+  }
 });
 
 process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
@@ -18375,6 +18380,38 @@ Sitemap: https://www.jiuspeak.com.br/sitemap.xml`);
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  // Graceful shutdown — garante que PM2 consegue matar e reiniciar sem deixar porta ocupada
+  const gracefulShutdown = (signal: string) => {
+    console.log(`\n🛑 [SHUTDOWN] Sinal ${signal} recebido. Encerrando servidor graciosamente...`);
+    server.close((err) => {
+      if (err) {
+        console.error("❌ [SHUTDOWN] Erro ao fechar servidor HTTP:", err);
+        process.exit(1);
+      }
+      console.log("✅ [SHUTDOWN] Servidor HTTP encerrado com sucesso.");
+      process.exit(0);
+    });
+    // Força encerramento após 8 segundos se não fechar sozinho
+    setTimeout(() => {
+      console.error("⚠️ [SHUTDOWN] Timeout de encerramento atingido. Forçando process.exit(1).");
+      process.exit(1);
+    }, 8000);
+  };
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
+
+  // Trata erro de porta ocupada diretamente no servidor HTTP
+  server.on("error", (err: any) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`🔴 [SERVER ERROR] Porta ${PORT} já está em uso. Encerrando para que PM2 reinicie limpo.`);
+      process.exit(1);
+    } else {
+      console.error("🔴 [SERVER ERROR] Erro inesperado no servidor HTTP:", err);
+      process.exit(1);
+    }
+  });
 
   server.listen(PORT, "0.0.0.0", () => {
     // Load social interactions backup on startup
