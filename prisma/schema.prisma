@@ -107,6 +107,8 @@ model User {
   likes                   Like[]
   followers               Follower[]        @relation("UserFollowers")
   following               Follower[]        @relation("UserFollowing")
+  sentMessages            PrivateMessage[]  @relation("SentMessages")
+  receivedMessages        PrivateMessage[]  @relation("ReceivedMessages")
   refreshTokens           RefreshToken[]
   academyProgress         AcademyProgress[]
   courseModuleProgress    CourseModuleProgress[]
@@ -1626,6 +1628,26 @@ model CourseModuleProgress {
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model PrivateMessage {
+  id                  String    @id @default(uuid())
+  senderId            String
+  receiverId          String
+  content             String
+  isRead              Boolean   @default(false)
+  readAt              DateTime?
+  deletedBySender     Boolean   @default(false)
+  deletedByReceiver   Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sender   User @relation("SentMessages",    fields: [senderId],   references: [id], onDelete: Cascade)
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([senderId, receiverId])
 }
 
 

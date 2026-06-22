@@ -35,6 +35,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
+import PrivateMessageModal from './PrivateMessageModal';
 
 interface ProfilePanelProps {
   user: UserProfile;
@@ -82,6 +83,24 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
   const [loadingSocial, setLoadingSocial] = useState(false);
   const [socialSubTab, setSocialSubTab] = useState<'followers' | 'following'>('followers');
   const [togglingFollowId, setTogglingFollowId] = useState<string | null>(null);
+
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedChatUser, setSelectedChatUser] = useState<{
+    id: string;
+    name: string;
+    avatar: string;
+    belt: string;
+  } | null>(null);
+
+  const openChatWith = (targetUser: any) => {
+    setSelectedChatUser({
+      id: targetUser.id,
+      name: targetUser.name || targetUser.username || 'Atleta',
+      avatar: targetUser.avatar || targetUser.profilePhoto || '',
+      belt: targetUser.belt || targetUser.beltRank || 'Branca'
+    });
+    setIsChatOpen(true);
+  };
 
   const getBeltBadgeStyle = (belt: string) => {
     switch (belt?.toUpperCase()) {
@@ -1205,9 +1224,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              showToast(`Abrindo canal para enviar mensagens para @${item.username}... Recurso social em carregamento!`, "info");
-                            }}
+                            onClick={() => openChatWith(item)}
                             className="py-1.5 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1"
                           >
                             <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
@@ -1305,9 +1322,7 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            showToast(`Abrindo canal para enviar mensagens para @${item.username}... Recurso social em carregamento!`, "info");
-                          }}
+                          onClick={() => openChatWith(item)}
                           className="py-1.5 px-3 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-[10px] font-mono font-bold transition-all flex items-center gap-1"
                         >
                           <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
@@ -1439,6 +1454,15 @@ export default function ProfilePanel({ user, updateUser, showToast, onNavigate }
           </div>
         </div>
       )}
+
+      <PrivateMessageModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        receiverId={selectedChatUser?.id || ''}
+        receiverName={selectedChatUser?.name || ''}
+        receiverAvatar={selectedChatUser?.avatar || ''}
+        receiverBelt={selectedChatUser?.belt || ''}
+      />
 
     </div>
   );

@@ -14630,6 +14630,246 @@ app.get("/api/social/rankings", authenticateToken, async (req: any, res: any) =>
 });
 
 // =========================================================================
+// PRIVATE MESSAGING REST ENDPOINTS (PostgreSQL + Prisma Persistent)
+// =========================================================================
+
+app.post("/api/social/messages", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ error: "Banco de dados indisponível." });
+    }
+    const senderId = req.user.id;
+    const { receiverId, content } = req.body;
+
+    if (!receiverId || !content || String(content).trim() === "") {
+      return res.status(400).json({ error: "Parâmetros receiverId e content são obrigatórios." });
+    }
+
+    if (senderId === receiverId) {
+      return res.status(400).json({ error: "Você não pode enviar uma mensagem para si mesmo." });
+    }
+
+    // Verify receiver exists
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId }
+    });
+    if (!receiver) {
+      return res.status(404).json({ error: "Usuário destinatário não existe." });
+    }
+
+    const newMessage = await prisma.privateMessage.create({
+      data: {
+        senderId,
+        receiverId,
+        content: content.trim(),
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            belt: true
+          }
+        },
+        receiver: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            belt: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json(newMessage);
+  } catch (error: any) {
+    console.error("Error creating private message:", error);
+    res.status(500).json({ error: "Erro interno ao enviar mensagem." });
+  }
+});
+
+app.get("/api/social/messages/chat/:userId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ error: "Banco de dados indisponível." });
+    }
+    const currentUserId = req.user.id;
+    const otherUserId = req.params.userId;
+
+    if (!otherUserId) {
+      return res.status(400).json({ error: "ID do usuário do chat é obrigatório." });
+    }
+
+    const messages = await prisma.privateMessage.findMany({
+      where: {
+        OR: [
+          {
+            senderId: currentUserId,
+            receiverId: otherUserId,
+            deletedBySender: false
+          },
+          {
+            senderId: otherUserId,
+            receiverId: currentUserId,
+            deletedByReceiver: false
+          }
+        ]
+      },
+      orderBy: {
+        createdAt: "asc"
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            belt: true
+          }
+        },
+        receiver: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            belt: true
+          }
+        }
+      }
+    });
+
+    res.json(messages);
+  } catch (error: any) {
+    console.error("Error retrieving chat history:", error);
+    res.status(500).json({ error: "Erro interno ao recuperar histórico de chat." });
+  }
+});
+
+app.get("/api/social/messages/recent", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ error: "Banco de dados indisponível." });
+    }
+    const currentUserId = req.user.id;
+
+    // Get all active messages involving the current user where they are not deleted
+    const allMessages = await prisma.privateMessage.findMany({
+      where: {
+        OR: [
+          { senderId: currentUserId, deletedBySender: false },
+          { receiverId: currentUserId, deletedByReceiver: false }
+        ]
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            belt: true
+          }
+        },
+        receiver: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            avatar: true,
+            belt: true
+          }
+        }
+      }
+    });
+
+    // Group in memory to keep the last message per unique contact
+    const conversationsMap = new Map<string, any>();
+
+    for (const msg of allMessages) {
+      const contact = msg.senderId === currentUserId ? msg.receiver : msg.sender;
+      if (!contact) continue;
+
+      const contactId = contact.id;
+
+      if (!conversationsMap.has(contactId)) {
+        conversationsMap.set(contactId, {
+          contact,
+          lastMessage: {
+            id: msg.id,
+            senderId: msg.senderId,
+            receiverId: msg.receiverId,
+            content: msg.content,
+            isRead: msg.isRead,
+            createdAt: msg.createdAt
+          },
+          unreadCount: 0
+        });
+      }
+
+      // If the message is unread and was sent by this contact to the current user, increment count
+      if (msg.senderId === contactId && msg.receiverId === currentUserId && !msg.isRead) {
+        const conv = conversationsMap.get(contactId);
+        conv.unreadCount += 1;
+      }
+    }
+
+    // Convert map values to array and sort by lastMessage.createdAt desc
+    const conversations = Array.from(conversationsMap.values()).sort(
+      (a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+    );
+
+    res.json(conversations);
+  } catch (error: any) {
+    console.error("Error retrieving recent conversations:", error);
+    res.status(500).json({ error: "Erro interno ao recuperar conversas recentes." });
+  }
+});
+
+app.post("/api/social/messages/read", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) {
+      return res.status(503).json({ error: "Banco de dados indisponível." });
+    }
+    const currentUserId = req.user.id;
+    const { senderId } = req.body;
+
+    if (!senderId) {
+      return res.status(400).json({ error: "Parâmetro senderId é obrigatório." });
+    }
+
+    const updateResult = await prisma.privateMessage.updateMany({
+      where: {
+        senderId: senderId,
+        receiverId: currentUserId,
+        isRead: false
+      },
+      data: {
+        isRead: true,
+        readAt: new Date()
+      }
+    });
+
+    res.json({ success: true, count: updateResult.count });
+  } catch (error: any) {
+    console.error("Error marking messages as read:", error);
+    res.status(500).json({ error: "Erro interno ao marcar mensagens como lidas." });
+  }
+});
+
+// =========================================================================
 // REAL ACADEMIES AND BJJ TEAMS REST ENDPOINTS (PostgreSQL + Prisma Persistent)
 // =========================================================================
 

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "./db";
 import { authenticateToken } from "./middleware/auth";
 import { requireRole } from "./middleware/roles";
+import { getExternalSyncStatus, runExternalFederationSync } from "./externalSyncService";
 
 const router = Router();
 
@@ -274,8 +275,8 @@ router.get("/rankings", async (req, res) => {
       description: t.description,
       foundedYear: t.foundedYear,
       totalMembers: t.totalMembers || 0,
-      totalPoints: t.totalPoints ?? t.points ?? 0,
-      rankingPoints: t.totalPoints ?? t.points ?? 0,
+      totalPoints: t.totalPoints ?? 0,
+      rankingPoints: t.totalPoints ?? 0,
       verified: t.verified ?? true
     }));
 
@@ -1228,6 +1229,27 @@ router.post("/external/sync", authenticateToken, async (req: any, res: any) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: "Falha técnica ao sincronizar academia externa: " + error.message });
+  }
+});
+
+// ==========================================
+// CENTRAL FEDERATION SYNC ENDPOINTS
+// ==========================================
+router.get("/sync-status", authenticateToken, async (req, res) => {
+  try {
+    const status = await getExternalSyncStatus();
+    res.json({ success: true, status });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erro ao obter status de Sincronização: " + error.message });
+  }
+});
+
+router.post("/sync", authenticateToken, async (req, res) => {
+  try {
+    const result = await runExternalFederationSync();
+    res.json({ success: true, message: "Sincronização executada com sucesso!", result });
+  } catch (error: any) {
+    res.status(500).json({ error: "Falha ao executar Sincronização: " + error.message });
   }
 });
 
