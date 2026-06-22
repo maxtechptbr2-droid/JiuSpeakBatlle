@@ -803,19 +803,20 @@ export async function runExternalFederationSync() {
       if (shouldUpdateField(existingTeam.description, fTeam.description)) {
         dataToUpdate.description = fTeam.description;
       }
-      if (shouldUpdateField(existingTeam.countryOrigin, fTeam.countryOrigin)) {
+      // countryOrigin sempre atualizado com o valor correto do seed federativo
+      if (fTeam.countryOrigin) {
         dataToUpdate.countryOrigin = fTeam.countryOrigin;
       }
-      if (shouldUpdateField(existingTeam.founders, fTeam.founders)) {
+      if (fTeam.founders) {
         dataToUpdate.founders = fTeam.founders;
       }
-      if (shouldUpdateField(existingTeam.headquartersCountry, fTeam.headquartersCountry)) {
+      if (fTeam.headquartersCountry) {
         dataToUpdate.headquartersCountry = fTeam.headquartersCountry;
       }
-      if (shouldUpdateField(existingTeam.headquartersState, fTeam.headquartersState)) {
+      if (fTeam.headquartersState) {
         dataToUpdate.headquartersState = fTeam.headquartersState;
       }
-      if (shouldUpdateField(existingTeam.headquartersCity, fTeam.headquartersCity)) {
+      if (fTeam.headquartersCity) {
         dataToUpdate.headquartersCity = fTeam.headquartersCity;
       }
       if (existingTeam.foundedYear === null || existingTeam.foundedYear === 0) {
@@ -882,7 +883,12 @@ export async function runExternalFederationSync() {
         OR: [
           { name: { equals: fBranch.name, mode: "insensitive" } },
           { slug: { equals: fBranch.slug, mode: "insensitive" } },
-          { externalId: { equals: fBranch.externalId, mode: "insensitive" } }
+          { externalId: { equals: fBranch.externalId, mode: "insensitive" } },
+          // Quarto critério: mesma equipe + mesma cidade = mesma filial (evita duplicatas por variação de nome)
+          {
+            globalTeamId: matchedTeam.id,
+            city: { equals: fBranch.city, mode: "insensitive" }
+          }
         ],
         deletedAt: null
       }
