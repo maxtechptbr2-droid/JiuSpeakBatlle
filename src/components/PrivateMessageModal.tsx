@@ -19,6 +19,7 @@ export default function PrivateMessageModal({
   receiverAvatar,
   receiverBelt
 }: PrivateMessageModalProps) {
+  const { user: currentUser } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -235,7 +236,9 @@ export default function PrivateMessageModal({
           ) : (
             <div className="space-y-3">
               {messages.map((msg, index) => {
-                const isMe = msg.senderId !== receiverId;
+                const isMe = currentUser?.id
+                  ? msg.senderId === currentUser.id
+                  : msg.senderId !== receiverId;
                 const date = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
                 return (
