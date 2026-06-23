@@ -208,6 +208,7 @@ export default function App() {
     return 'landing';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [cheatModalOpen, setCheatModalOpen] = useState<boolean>(false);
   const [activeViralConquest, setActiveViralConquest] = useState<any | null>(null);
 
@@ -373,6 +374,31 @@ export default function App() {
         window.history.pushState(null, '', '/');
       }
     }
+  }, [currentTab]);
+
+  // Polling de mensagens não lidas a cada 15 segundos
+  useEffect(() => {
+    if (!authUser) return;
+    const fetchUnreadCount = async () => {
+      try {
+        const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+        const res = await fetch('/api/social/messages/recent', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const conversations = await res.json();
+          const total = conversations.reduce((acc: number, conv: any) => acc + (conv.unreadCount || 0), 0);
+          setUnreadMessagesCount(total);
+        }
+      } catch (err) { /* Silently fail */ }
+    };
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 15000);
+    return () => clearInterval(interval);
+  }, [authUser]);
+
+  useEffect(() => {
+    if (currentTab === 'profile-settings') setUnreadMessagesCount(0);
   }, [currentTab]);
 
   // Coordinate tab redirects based on authenticated user state
@@ -916,9 +942,7 @@ export default function App() {
             courses={courses}
             onOpenAuthModal={(v) => {
               // Redirect to corresponding profile depending on user's role
-              if (user.role === 'admin') setCurrentTab('admin');
-              else if (user.role === 'professor') setCurrentTab('creator');
-              else setCurrentTab('dashboard');
+              setCurrentTab('dashboard');
             }}
             showToast={showToast}
             showFreeLesson={showFreeLesson}
