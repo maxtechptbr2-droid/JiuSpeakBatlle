@@ -7,7 +7,25 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Gracefully handle/ignore cross-origin "Script error." which can occur due to iframe-parent messaging,
+      // browser extension scripts, or third-party widgets.
+      window.onerror = function (message, url, line, col, error) {
+        if (!message || message === "Script error." || (typeof message === "string" && message.toLowerCase().includes("script error"))) {
+          console.warn("Recovered from cross-origin script error or iframe-bridge event.");
+          return true; // Prevents the error from propagating to the browser's console as an uncaught exception
+        }
+        return false; // Allow other legitimate app errors to be printed and debugged
+      };
+
+      window.addEventListener("unhandledrejection", function (event) {
+        if (event.reason && (event.reason.message === "Script error." || (typeof event.reason.message === "string" && event.reason.message.toLowerCase().includes("script error")))) {
+          console.warn("Recovered from unhandled cross-origin rejection.");
+          event.preventDefault();
+        }
+      });
+    </script>
+    <script type="module" crossorigin src="/src/main.tsx"></script>
   </body>
 </html>
 

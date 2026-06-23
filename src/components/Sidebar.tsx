@@ -24,7 +24,8 @@ import {
   Share2,
   Shield,
   GraduationCap,
-  Building2
+  Building2,
+  MessageSquare
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
@@ -35,9 +36,10 @@ interface SidebarProps {
   setCurrentTab: (tab: string) => void;
   onOpenCheatModal?: () => void;
   onLogout?: () => void;
+  unreadMessagesCount?: number; // NOVO
 }
 
-export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout }: SidebarProps) {
+export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout, unreadMessagesCount = 0 }: SidebarProps) {
   console.log("[SIDEBAR USER]", user);
   
   // BJJ belt background configurations
@@ -214,6 +216,39 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
           );
         })}
       </nav>
+
+      {/* Mensagens Privadas com badge de não lidas */}
+      <div className="px-4 pb-2">
+        <button
+          onClick={() => setCurrentTab('profile-settings')}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left group cursor-pointer border transition-all font-mono text-xs ${
+            currentTab === 'profile-settings'
+              ? 'bg-violet-600/20 border-violet-500/30 text-violet-300'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900 border-transparent hover:border-slate-800'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <MessageSquare className={`w-4 h-4 transition-transform group-hover:scale-110 ${
+                currentTab === 'profile-settings' ? 'text-violet-400' : 'text-slate-500'
+              }`} />
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center border border-slate-950 animate-pulse">
+                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                </span>
+              )}
+            </div>
+            <span className="text-sm font-medium">Mensagens</span>
+          </div>
+          {unreadMessagesCount > 0 ? (
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30">
+              {unreadMessagesCount} nova{unreadMessagesCount > 1 ? 's' : ''}
+            </span>
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all text-slate-500" />
+          )}
+        </button>
+      </div>
 
       {onLogout && (
         <div className="px-4 pb-4">

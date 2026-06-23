@@ -74,7 +74,6 @@ export default function MissionCard({ mission1Count, mission2Count, toggleMissio
             </div>
             <div className="text-right flex flex-col gap-0.5 whitespace-nowrap text-[9px] font-mono">
               <span className="text-orange-400 font-extrabold">+100 XP</span>
-              <span className="text-blue-400 font-extrabold">+10 JT</span>
             </div>
           </div>
 
@@ -104,7 +103,6 @@ export default function MissionCard({ mission1Count, mission2Count, toggleMissio
             </div>
             <div className="text-right flex flex-col gap-0.5 whitespace-nowrap text-[9px] font-mono">
               <span className="text-orange-400 font-extrabold">+150 XP</span>
-              <span className="text-blue-400 font-extrabold">+15 JT</span>
             </div>
           </div>
 

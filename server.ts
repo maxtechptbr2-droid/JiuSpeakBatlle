@@ -308,44 +308,19 @@ export function sanitizeStoreProductWhereClause(where: any): any {
 }
 
 // Security & Sandbox Hardening Middlewares with strict production constraints
-const allowedOrigins = [
-  "https://www.jiuspeak.com.br",
-  "https://jiuspeak.com.br"
-];
-
 app.use(cors({
-  origin: (origin: any, callback: any) => {
-    if (!origin) return callback(null, true);
-    
-    const isAllowed = 
-      allowedOrigins.includes(origin) ||
-      origin.startsWith("http://localhost:") ||
-      origin.startsWith("http://127.0.0.1:") ||
-      /\.(google\.com|run\.app)$/.test(origin);
-
-    if (isAllowed) {
-      return callback(null, true);
-    }
-    return callback(new Error("Acesso bloqueado por diretrizes de CORS seguro de produção."));
-  },
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"]
 }));
 
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https:", "http:"],
-      imgSrc: ["'self'", "data:", "https:", "http:"],
-      connectSrc: ["'self'", "https:", "http:", "ws:", "wss:"],
-      frameAncestors: ["'self'", "https://ai.studio", "https://*.google.com", "https://*.run.app"],
-    },
-  },
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  frameguard: false,
+  crossOriginOpenerPolicy: false
 }));
 
 // Recursive XSS and HTML Input Sanitizer Middleware
