@@ -16245,9 +16245,19 @@ async function startServer() {
         back: fc.backText || fc.back || ''
       }));
 
+      // Mapear videoSource -> videoUrl para o frontend
+      const mappedLesson = lesson ? {
+        ...lesson,
+        videoUrl: lesson.videoType === 'youtube' && lesson.videoSource
+          ? `https://www.youtube-nocookie.com/embed/${lesson.videoSource}?rel=0&modestbranding=1`
+          : lesson.videoType === 'vimeo' && lesson.videoSource
+          ? `https://player.vimeo.com/video/${lesson.videoSource}`
+          : lesson.videoSource || null
+      } : lesson;
+
       res.json({
         success: true,
-        lesson,
+        lesson: mappedLesson,
         quizQuestions: mappedQuizzes,
         flashcards: mappedFlashcards,
         progress
