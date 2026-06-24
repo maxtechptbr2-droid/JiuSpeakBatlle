@@ -958,15 +958,36 @@ export default function Lessons({
                           <div className="space-y-4">
                             {/* Embedded clean iframe component */}
                             <div className="relative rounded-3xl overflow-hidden bg-slate-950 aspect-video shadow-2xl border border-slate-800">
-                              <iframe 
-                                className="absolute top-0 left-0 w-full h-full"
-                                src={activeLesson.videoUrl || "https://www.youtube.com/embed/Wt_RyWErotc"} 
-                                title={activeLesson.title}
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                                referrerPolicy="no-referrer"
-                              ></iframe>
+                              {activeLesson.videoType === 'upload' || (activeLesson.videoUrl && (activeLesson.videoUrl.endsWith('.mp4') || activeLesson.videoUrl.endsWith('.webm') || activeLesson.videoUrl.includes('/videos/'))) ? (
+                                <video
+                                  className="absolute top-0 left-0 w-full h-full"
+                                  controls
+                                  controlsList="nodownload"
+                                  src={activeLesson.videoUrl || activeLesson.videoSource}
+                                  title={activeLesson.title}
+                                >
+                                  Seu navegador não suporta o player de vídeo.
+                                </video>
+                              ) : activeLesson.videoType === 'cloudflare' ? (
+                                <iframe
+                                  className="absolute top-0 left-0 w-full h-full"
+                                  src={`https://iframe.videodelivery.net/${activeLesson.videoSource}?autoplay=true&muted=false&defaultTextTrack=en&captions=true`}
+                                  title={activeLesson.title}
+                                  frameBorder="0"
+                                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
+                                  allowFullScreen
+                                ></iframe>
+                              ) : (
+                                <iframe 
+                                  className="absolute top-0 left-0 w-full h-full"
+                                  src={activeLesson.videoUrl || "https://www.youtube.com/embed/Wt_RyWErotc"} 
+                                  title={activeLesson.title}
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  allowFullScreen
+                                  referrerPolicy="no-referrer"
+                                ></iframe>
+                              )}
                             </div>
                             
                             <div className="space-y-1 pt-1">
