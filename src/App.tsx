@@ -206,7 +206,6 @@ export default function App() {
     return 'landing';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
-  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [cheatModalOpen, setCheatModalOpen] = useState<boolean>(false);
   const [activeViralConquest, setActiveViralConquest] = useState<any | null>(null);
 
