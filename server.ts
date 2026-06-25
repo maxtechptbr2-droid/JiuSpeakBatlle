@@ -15453,6 +15453,121 @@ async function purgeFictionalUsers() {
 // =========================================================================
 // VITE DEV SERVER ENGINE INTEGRATION & SOCKET.IO SERVICES
 // =========================================================================
+
+// ============================================================
+// ENDPOINTS — STAND PARCEIROS
+// ============================================================
+
+app.post("/api/partners/apply", async (req: any, res: any) => {
+  try {
+    const { name, email, phone, storeName, storeDesc, category, instagram, website } = req.body;
+    if (!name || !email || !phone || !storeName || !storeDesc)
+      return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "PartnerApplication" (id, name, email, phone, "storeName", "storeDesc", category, instagram, website, status, "createdAt", "updatedAt")
+       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, 'pending', NOW(), NOW())`,
+      name, email, phone, storeName, storeDesc, category || 'geral', instagram || null, website || null
+    );
+    res.json({ success: true, message: "Solicitação enviada com sucesso!" });
+  } catch (err: any) {
+    console.error("[PARTNER APPLY ERROR]", err.message);
+    res.status(500).json({ error: "Erro ao enviar solicitação." });
+  }
+});
+
+app.get("/api/partners/products", async (req: any, res: any) => {
+  try {
+    const products = await prisma.$queryRawUnsafe(
+      `SELECT p.*, row_to_json(s) as store FROM "PartnerProduct" p
+       JOIN "PartnerStore" s ON s.id = p."storeId"
+       WHERE p."isActive" = true AND s."isActive" = true
+       ORDER BY p."isFeatured" DESC, p."createdAt" DESC LIMIT 50`
+    );
+    const stores = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "PartnerStore" WHERE "isActive" = true ORDER BY "isVerified" DESC LIMIT 20`
+    );
+    res.json({ success: true, products, stores });
+  } catch (err: any) {
+    res.json({ success: true, products: [], stores: [] });
+  }
+});
+
+app.get("/api/admin/partners/applications", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const applications = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "PartnerApplication" ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, "createdAt" DESC`
+    );
+    res.json({ success: true, applications });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/admin/partners/applications/:id/review", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { status, reviewNote } = req.body;
+    const adminId = req.user?.id || 'admin';
+    if (!['approved', 'rejected'].includes(status))
+      return res.status(400).json({ error: "Status inválido." });
+    await prisma.$executeRawUnsafe(
+      `UPDATE "PartnerApplication" SET status=$1, "reviewNote"=$2, "reviewedBy"=$3, "reviewedAt"=NOW(), "updatedAt"=NOW() WHERE id=$4`,
+      status, reviewNote || null, adminId, id
+    );
+    if (status === 'approved') {
+      const apps: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "PartnerApplication" WHERE id=$1`, id);
+      if (apps[0]) {
+        const a = apps[0];
+        const slug = a.storeName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + Date.now();
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "PartnerStore" (id,"storeName","storeSlug",description,category,instagram,website,commission,"isActive","isVerified","createdAt","updatedAt")
+           VALUES (gen_random_uuid()::text,$1,$2,$3,$4,$5,$6,10.0,true,false,NOW(),NOW()) ON CONFLICT ("storeSlug") DO NOTHING`,
+          a.storeName, slug, a.storeDesc, a.category, a.instagram||null, a.website||null
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/partners/stores", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const stores = await prisma.$queryRawUnsafe(
+      `SELECT s.* FROM "PartnerStore" s ORDER BY s."createdAt" DESC`
+    );
+    res.json({ success: true, stores });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/admin/partners/stores/:id/toggle", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    await prisma.$executeRawUnsafe(`UPDATE "PartnerStore" SET "isActive"=$1, "updatedAt"=NOW() WHERE id=$2`, isActive, id);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/admin/partners/stores/:id/verify", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    await prisma.$executeRawUnsafe(`UPDATE "PartnerStore" SET "isVerified"=true, "updatedAt"=NOW() WHERE id=$1`, id);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/admin/partners/orders", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const orders = await prisma.$queryRawUnsafe(
+      `SELECT o.*, row_to_json(s) as store, row_to_json(p) as product
+       FROM "PartnerOrder" o
+       JOIN "PartnerStore" s ON s.id=o."storeId"
+       JOIN "PartnerProduct" p ON p.id=o."productId"
+       ORDER BY o."createdAt" DESC LIMIT 100`
+    );
+    res.json({ success: true, orders });
+  } catch (err: any) { res.json({ success: true, orders: [] }); }
+});
+
+
 async function startServer() {
   // Assert PostgreSQL connectivity immediately, blocking startup in production if offline
   try {

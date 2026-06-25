@@ -1459,13 +1459,20 @@ export default function StoreMarket({
           { id: 'loja', label: '🥋 LOJA DE ITENS', desc: 'Desbloquear com JT' },
           { id: 'market', label: '🤝 STAND JIUSPEAK', desc: 'Trocas entre alunos' },
           { id: 'inventorio', label: '🎒 MOCHILA JIUSPEAK', desc: `${user.inventory.length} itens` },
+          { id: 'partner-store', label: '🏪 STAND PARCEIROS', desc: 'Produtos em BRL' },
           ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ PAINEL DE OPERAÇÕES', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
           const isActive = activeSubTab === sub.id;
           return (
             <button
               key={sub.id}
-              onClick={() => setActiveSubTab(sub.id as any)}
+              onClick={() => {
+                if (sub.id === 'partner-store') {
+                  if (setCurrentTab) setCurrentTab('partner-store');
+                } else {
+                  setActiveSubTab(sub.id as any);
+                }
+              }}
               className={`px-5 py-3 text-xs text-left font-mono font-bold tracking-wider transition-all border-b-2 cursor-pointer shrink-0 ${
                 isActive 
                   ? 'border-red-500 text-white bg-zinc-900/30 rounded-t' 

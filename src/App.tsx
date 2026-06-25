@@ -44,6 +44,7 @@ const SubscriptionPanel = React.lazy(() => import('./components/SubscriptionPane
 const AcademiesCommunities = React.lazy(() => import('./components/AcademiesCommunities'));
 const JiuSpeakAcademy = React.lazy(() => import('./components/JiuSpeakAcademy'));
 const ProfilePanel = React.lazy(() => import('./components/ProfilePanel'));
+const PartnerStore = React.lazy(() => import('./components/PartnerStore'));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
 const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
@@ -1183,6 +1184,14 @@ export default function App() {
                   showToast={showToast}
                   setCurrentTab={setCurrentTab}
                 />
+              );
+            }
+
+            if (currentTab === 'partner-store') {
+              return (
+                <React.Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" /></div>}>
+                  <PartnerStore user={user} showToast={showToast} onNavigate={setCurrentTab} />
+                </React.Suspense>
               );
             }
 
