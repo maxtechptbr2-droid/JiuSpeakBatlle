@@ -15568,6 +15568,88 @@ app.get("/api/admin/partners/orders", authenticateToken, requireRole(["ADMIN"]),
 });
 
 
+
+// ENDPOINTS — PAINEL DO PARCEIRO
+app.get("/api/partner/my-store", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user?.id;
+    const stores: any[] = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "PartnerStore" WHERE "userId"=$1 AND "isActive"=true LIMIT 1`, userId
+    );
+    if (stores.length === 0) return res.json({ success: false, error: "Loja não encontrada." });
+    res.json({ success: true, store: stores[0] });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/partner/products", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { storeId } = req.query;
+    const products = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "PartnerProduct" WHERE "storeId"=$1 ORDER BY "createdAt" DESC`, storeId
+    );
+    res.json({ success: true, products });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/partner/products/save", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id, storeId, name, description, price, originalPrice, category, stock, images, isFeatured, tags } = req.body;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Date.now();
+    if (id) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE "PartnerProduct" SET name=$1, description=$2, price=$3, "originalPrice"=$4, category=$5, stock=$6, images=$7, "isFeatured"=$8, tags=$9, "updatedAt"=NOW() WHERE id=$10`,
+        name, description, price, originalPrice||null, category, stock, images, isFeatured, tags, id
+      );
+    } else {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "PartnerProduct" (id,"storeId",name,slug,description,price,"originalPrice",category,stock,images,"isFeatured",tags,"isActive","createdAt","updatedAt")
+         VALUES (gen_random_uuid()::text,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,NOW(),NOW())`,
+        storeId, name, slug, description, price, originalPrice||null, category, stock, images, isFeatured, tags
+      );
+    }
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete("/api/partner/products/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    await prisma.$executeRawUnsafe(`DELETE FROM "PartnerProduct" WHERE id=$1`, req.params.id);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/partner/products/:id/toggle", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { isActive } = req.body;
+    await prisma.$executeRawUnsafe(`UPDATE "PartnerProduct" SET "isActive"=$1,"updatedAt"=NOW() WHERE id=$2`, isActive, req.params.id);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/partner/orders", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { storeId } = req.query;
+    const orders = await prisma.$queryRawUnsafe(
+      `SELECT o.*, row_to_json(p) as product FROM "PartnerOrder" o
+       JOIN "PartnerProduct" p ON p.id=o."productId"
+       WHERE o."storeId"=$1 ORDER BY o."createdAt" DESC`, storeId
+    );
+    res.json({ success: true, orders });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post("/api/partner/store/update", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id, storeName, description, whatsapp, instagram, website, pixKey } = req.body;
+    await prisma.$executeRawUnsafe(
+      `UPDATE "PartnerStore" SET "storeName"=$1, description=$2, whatsapp=$3, instagram=$4, website=$5, "pixKey"=$6, "updatedAt"=NOW() WHERE id=$7`,
+      storeName, description, whatsapp||null, instagram||null, website||null, pixKey||null, id
+    );
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+
 async function startServer() {
   // Assert PostgreSQL connectivity immediately, blocking startup in production if offline
   try {

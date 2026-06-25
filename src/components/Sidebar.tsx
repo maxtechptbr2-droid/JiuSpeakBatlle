@@ -172,6 +172,9 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     ...(user.role === 'admin' ? [
       { id: 'admin', label: 'Painel Administrativo', icon: ShieldAlert, badge: 'Auditoria' }
     ] : []),
+    ...(user.isPartner ? [
+      { id: 'partner-dashboard', label: 'Minha Loja Parceira', icon: Store, badge: '🏪' }
+    ] : []),
   ];
 
   return (
