@@ -16232,34 +16232,11 @@ async function startServer() {
         };
       }
 
-      // Mapear campos do banco para o formato esperado pelo frontend
-      const mappedQuizzes = quizQuestions.map((q: any) => ({
-        ...q,
-        options: [q.optionA || '', q.optionB || '', q.optionC || '', q.optionD || ''],
-        correctAnswerIndex: ['A','B','C','D'].indexOf(q.correctAnswer)
-      }));
-
-      const mappedFlashcards = flashcards.map((fc: any) => ({
-        ...fc,
-        front: fc.frontText || fc.front || '',
-        back: fc.backText || fc.back || ''
-      }));
-
-      // Mapear videoSource -> videoUrl para o frontend
-      const mappedLesson = lesson ? {
-        ...lesson,
-        videoUrl: lesson.videoType === 'youtube' && lesson.videoSource
-          ? `https://www.youtube-nocookie.com/embed/${lesson.videoSource}?rel=0&modestbranding=1`
-          : lesson.videoType === 'vimeo' && lesson.videoSource
-          ? `https://player.vimeo.com/video/${lesson.videoSource}`
-          : lesson.videoSource || null
-      } : lesson;
-
       res.json({
         success: true,
-        lesson: mappedLesson,
-        quizQuestions: mappedQuizzes,
-        flashcards: mappedFlashcards,
+        lesson,
+        quizQuestions,
+        flashcards,
         progress
       });
     } catch (err: any) {

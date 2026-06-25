@@ -29,7 +29,8 @@ import {
   X, 
   ShieldAlert, 
   Sparkles,
-  BookMarked
+  BookMarked,
+  Globe
 } from 'lucide-react';
 import { UserProfile, Course } from '../types';
 
@@ -134,6 +135,8 @@ export default function Lessons({
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [activeExamModuleId, setActiveExamModuleId] = useState<string | null>(null);
+  const [mainTab, setMainTab] = useState<'modules' | 'travel'>('modules');
+  const [activeTravelSection, setActiveTravelSection] = useState<string>('passport');
 
   // Loaded child states
   const [activeModule, setActiveModule] = useState<ModuleData | null>(null);
@@ -511,8 +514,38 @@ export default function Lessons({
       ) : (
         /* ROUTING PANELS */
         <>
-          {/* STATE A: ALL MODULES GALLERY GRID LIST */}
+          {/* MAIN NAVIGATION TABS */}
           {!activeModuleId && !activeExamModuleId && (
+            <div className="flex bg-slate-950/60 p-1.5 rounded-2xl border border-slate-850 gap-1.5 w-full sm:w-fit" id="main-navigation-tabs">
+              <button
+                type="button"
+                onClick={() => setMainTab('modules')}
+                className={`flex-1 sm:flex-initial p-2.5 px-5 rounded-xl text-xs font-mono font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  mainTab === 'modules'
+                    ? 'bg-violet-600 text-white shadow-md shadow-violet-500/10'
+                    : 'text-slate-400 hover:text-slate-205 hover:bg-slate-900'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Módulos do Curso</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMainTab('travel')}
+                className={`flex-1 sm:flex-initial p-2.5 px-5 rounded-xl text-xs font-mono font-extrabold uppercase transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  mainTab === 'travel'
+                    ? 'bg-violet-600 text-white shadow-md shadow-violet-500/10'
+                    : 'text-slate-400 hover:text-slate-205 hover:bg-slate-900'
+                }`}
+              >
+                <Globe className="w-4 h-4 text-sky-400" />
+                <span>✈️ Guia de Viagem</span>
+              </button>
+            </div>
+          )}
+
+          {/* STATE A: ALL MODULES GALLERY GRID LIST */}
+          {!activeModuleId && !activeExamModuleId && mainTab === 'modules' && (
             <div className="space-y-4 animate-fadeIn" id="modules-gallery-panel">
               <div className="flex justify-between items-center bg-slate-950/50 p-3 px-4 rounded-2xl border border-slate-850">
                 <span className="text-xs uppercase text-slate-400 font-mono font-bold tracking-wider">Graus e Requisitos</span>
@@ -668,6 +701,639 @@ export default function Lessons({
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* STATE D: INTERNATIONAL TRAVEL GUIDE PANEL */}
+          {!activeModuleId && !activeExamModuleId && mainTab === 'travel' && (
+            <div className="space-y-6 animate-fadeIn" id="travel-guide-panel">
+              <div className="flex justify-between items-center bg-slate-950/50 p-3 px-4 rounded-2xl border border-slate-850">
+                <span className="text-xs uppercase text-slate-400 font-mono font-bold tracking-wider">✈️ Planejamento de Carreira Internacional</span>
+                <span className="text-xs text-sky-400 font-mono font-bold">Guia Prático para Lutadores</span>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Side Subtabs */}
+                <div className="lg:col-span-4 bg-slate-900/50 p-4 rounded-3xl border border-slate-800 space-y-2">
+                  <div className="p-2 pb-3 mb-2 border-b border-slate-800">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">Tópicos do Guia</h3>
+                    <p className="text-[10px] text-slate-500 font-sans">Selecione um tópico para ver os requisitos e treinar frases úteis.</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('passport')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'passport'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">📘</span>
+                    <span>1. Passaporte Brasileiro</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('visa')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'visa'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">🇺🇸</span>
+                    <span>2. Visto Americano (EUA)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('europe')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'europe'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">🇵🇹</span>
+                    <span>3. Portugal e Schengen</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('documents')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'documents'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">🏆</span>
+                    <span>4. Documentos de Luta</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('vaccines')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'vaccines'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">💉</span>
+                    <span>5. Vacinas e Saúde</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('lodging')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'lodging'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">🏨</span>
+                    <span>6. Hospedagem & Dieta</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTravelSection('flight')}
+                    className={`w-full p-3.5 rounded-2xl text-left text-xs font-mono font-bold transition-all flex items-center gap-3 cursor-pointer ${
+                      activeTravelSection === 'flight'
+                        ? 'bg-gradient-to-r from-violet-600/35 to-indigo-650/35 border-l-4 border-violet-500 text-white bg-slate-850/80 border border-slate-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-850/30 border border-transparent'
+                    }`}
+                  >
+                    <span className="text-lg">✈️</span>
+                    <span>7. Voo com Kimono</span>
+                  </button>
+                </div>
+
+                {/* Right Side Content Pane */}
+                <div className="lg:col-span-8 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 space-y-6">
+                  {activeTravelSection === 'passport' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">📘</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Como Tirar Passaporte Brasileiro</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">Seu documento de identidade internacional indispensável para cruzar fronteiras.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          O passaporte é emitido pela Polícia Federal e é o primeiro passo para qualquer atleta de Jiu-Jitsu que almeja lutar internacionalmente. Sem ele, você não pode emitir vistos ou comprar passagens internacionais.
+                        </p>
+
+                        <h5 className="text-[11px] font-bold text-violet-400 font-mono uppercase tracking-wider mt-4">Passo a Passo Detalhado:</h5>
+                        <div className="grid grid-cols-1 gap-2 text-xs font-sans">
+                          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-2xl flex gap-3">
+                            <span className="font-mono text-violet-400 font-black">1.</span>
+                            <p className="text-slate-300"><strong className="text-white">Formulário Online:</strong> Acesse o site oficial da Polícia Federal e preencha a solicitação de emissão de passaporte com extrema atenção aos dados pessoais.</p>
+                          </div>
+                          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-2xl flex gap-3">
+                            <span className="font-mono text-violet-400 font-black">2.</span>
+                            <p className="text-slate-300"><strong className="text-white">Pagamento da Taxa:</strong> Gere e pague a Guia de Recolhimento da União (GRU), atualmente no valor de R$ 257,25 (ou mais em casos de urgência).</p>
+                          </div>
+                          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-2xl flex gap-3">
+                            <span className="font-mono text-violet-400 font-black">3.</span>
+                            <p className="text-slate-300"><strong className="text-white">Agendamento:</strong> Após a compensação do pagamento, entre novamente no site da PF para agendar a data e o posto de atendimento presencial.</p>
+                          </div>
+                          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-2xl flex gap-3">
+                            <span className="font-mono text-violet-400 font-black">4.</span>
+                            <p className="text-slate-300"><strong className="text-white">Atendimento Presencial:</strong> Compareça munido dos documentos originais (RG, CPF, Certidão de Quitação Eleitoral, Certidão de Nascimento/Casamento e Reservista para homens).</p>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (Imigração)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Toque nos cartões abaixo para ouvir e praticar a pronúncia correta ao apresentar seu passaporte:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("Here is my passport and travel documents.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group animate-pulse-slow"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"Here is my passport and travel documents."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Aqui está meu passaporte e documentos de viagem."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("I am here for a Brazilian Jiu-Jitsu training camp.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group animate-pulse-slow"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I am here for a Brazilian Jiu-Jitsu training camp."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Estou aqui para um camp de treino de Jiu-Jitsu."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTravelSection === 'visa' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">🇺🇸</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Visto para os EUA (BJJ World Championships)</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">A preparação burocrática necessária para lutar nas principais arenas americanas (Mundial, Pan, etc.).</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          Os Estados Unidos sediam os maiores eventos de Jiu-Jitsu do mundo (Mundiais da IBJJF na Califórnia, ADCC, etc.). O processo de visto é rigoroso e requer planejamento de meses de antecedência.
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                          <div className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-2">
+                            <h5 className="text-[11px] font-bold text-sky-400 font-mono uppercase tracking-wider">Visto B1/B2 (Turismo/Negócios)</h5>
+                            <p className="text-[10.5px] text-slate-400 font-sans leading-relaxed">
+                              É o visto mais comum para atletas amadores ou competidores que não recebem prêmios em dinheiro vinculados a contratos profissionais locais. Serve para competir em torneios abertos ou participar de camps em academias aliadas.
+                            </p>
+                          </div>
+                          <div className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-2">
+                            <h5 className="text-[11px] font-bold text-violet-400 font-mono uppercase tracking-wider">Visto P-1A (Atletas Reconhecidos)</h5>
+                            <p className="text-[10.5px] text-slate-400 font-sans leading-relaxed">
+                              Visto de trabalho temporário de alto nível específico para atletas com conquistas internacionais expressivas que vão disputar campeonatos profissionais ou assinar contratos de patrocínio com marcas americanas.
+                            </p>
+                          </div>
+                        </div>
+
+                        <h5 className="text-[11px] font-bold text-violet-400 font-mono uppercase tracking-wider mt-4">Dicas de Sucesso para a Entrevista Consular:</h5>
+                        <ul className="list-disc pl-5 text-xs text-slate-300 space-y-1.5 font-sans">
+                          <li><strong className="text-white">Leve a documentação oficial da luta:</strong> Confirmação de inscrição no evento, cronograma da IBJJF e carta-convite do seu professor ou da academia anfitriã nos EUA.</li>
+                          <li><strong className="text-white">Demonstre fortes vínculos com o Brasil:</strong> Carteira de trabalho assinada, contrato de aluguel/bens, comprovante de matrícula na faculdade ou comprovação de renda sólida.</li>
+                          <li><strong className="text-white">Nunca mencione intenção de trabalhar:</strong> A menos que você tenha um visto do tipo P ou O, diga claramente que seu foco é estritamente esportivo e temporário.</li>
+                        </ul>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (Imigração Consular)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Treine as respostas mais frequentes solicitadas no guichê de imigração americana:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("I am competing in the IBJJF World Championship as an amateur athlete.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I am competing in the IBJJF World Championship as an amateur athlete."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Vou competir no Campeonato Mundial da IBJJF como atleta amador."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("I will be staying at this hotel for two weeks, then returning to Brazil.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I will be staying at this hotel for two weeks, then returning to Brazil."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Ficarei hospedado neste hotel por duas semanas e depois retornarei ao Brasil."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTravelSection === 'europe' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">🇵🇹</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Portugal e Europa (Regras de Schengen)</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">Como entrar na Europa para disputar o Campeonato Europeu da IBJJF sem problemas na imigração.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          Para viagens de turismo ou competições esportivas de até 90 dias, os brasileiros não necessitam de visto prévio para o Espaço Schengen. No entanto, o controle de fronteira exige documentos que comprovem sua estada e suporte financeiro.
+                        </p>
+
+                        <h5 className="text-[11px] font-bold text-violet-400 font-mono uppercase tracking-wider mt-4">Documentos Exigidos na Entrada (Imigração Europeia):</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-sans">
+                          <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-1">
+                            <span className="font-bold text-white text-[10.5px]">Passaporte Válido</span>
+                            <p className="text-slate-450 text-[10px] leading-relaxed">Deve estar válido por no mínimo 3 meses após a data de retorno prevista ao Brasil e possuir páginas em branco.</p>
+                          </div>
+                          <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-1">
+                            <span className="font-bold text-white text-[10.5px]">Seguro Viagem Schengen</span>
+                            <p className="text-slate-450 text-[10px] leading-relaxed">Seguro de saúde obrigatório com cobertura mínima de €30.000 para acidentes e repatriação em toda a área de Schengen.</p>
+                          </div>
+                          <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-1">
+                            <span className="font-bold text-white text-[10.5px]">Hospedagem Confirmada</span>
+                            <p className="text-slate-450 text-[10px] leading-relaxed">Reserva de hotel/Airbnb impressa ou Carta de Convite ("Termo de Responsabilidade") original assinada por um cidadão local.</p>
+                          </div>
+                          <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-1">
+                            <span className="font-bold text-white text-[10.5px]">Meios Financeiros</span>
+                            <p className="text-slate-450 text-[10px] leading-relaxed">Comprovantes de que possui recursos suficientes (dinheiro físico, cartões de crédito internacionais ou saldos em contas digitais multimoedas).</p>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (Controle de Fronteiras)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Frases essenciais para comprovar os requisitos regulamentares na Europa:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("I have a valid return ticket for next month.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I have a valid return ticket for next month."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Eu tenho uma passagem de volta válida para o mês que vem."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("I am covered by international travel insurance.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I am covered by international travel insurance."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Estou coberto por seguro viagem internacional exigido."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTravelSection === 'documents' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">🏆</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Documentos para Competições Internacionais</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">O checklist definitivo dos documentos necessários para a área de concentração do campeonato.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          Ao viajar para lutar, você deve carregar consigo a documentação que comprove seu cadastro nas federações esportivas organizadoras. Sem isso, você pode ser desqualificado e impedido de pisar no tatame oficial.
+                        </p>
+
+                        <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-850 space-y-3 text-xs">
+                          <h5 className="font-bold text-white font-mono uppercase tracking-wider text-[11px] border-b border-slate-900 pb-2">Checklist de Documentos Essenciais:</h5>
+                          
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-emerald-400 text-sm mt-0.5">✔</span>
+                            <div>
+                              <strong className="text-white block font-sans">Carteira de Filiação Ativa:</strong>
+                              <p className="text-slate-400 text-[10.5px]">Assegure que sua filiação à IBJJF (ou outra federação) esteja atualizada e aprovada na categoria de faixa correta.</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-emerald-400 text-sm mt-0.5">✔</span>
+                            <div>
+                              <strong className="text-white block font-sans">Comprovante de Inscrição Impresso:</strong>
+                              <p className="text-slate-400 text-[10.5px]">Leve impresso ou salvo offline no celular o recibo de confirmação de inscrição oficial e a escala de peso do cronograma.</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-emerald-400 text-sm mt-0.5">✔</span>
+                            <div>
+                              <strong className="text-white block font-sans">Termo de Isenção e Responsabilidade (Waiver):</strong>
+                              <p className="text-slate-400 text-[10.5px]">Muitas competições internacionais exigem a assinatura de um termo que isenta o evento de responsabilidades em caso de lesão no combate.</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-emerald-400 text-sm mt-0.5">✔</span>
+                            <div>
+                              <strong className="text-white block font-sans">Autorização de Viagem para Menores:</strong>
+                              <p className="text-slate-400 text-[10.5px]">Se você tiver menos de 18 anos, deve viajar com uma autorização oficial emitida pelos pais, assinada e reconhecida em cartório.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (Na Arena de Luta)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Aprenda a dialogar com os oficiais de controle do ginásio internacional:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("I am registered in the Light Featherweight division.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I am registered in the Light Featherweight division."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Estou inscrito na categoria peso pluma."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("This is my official registration letter.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"This is my official registration letter."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Esta é a minha carta de confirmação de inscrição oficial."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTravelSection === 'vaccines' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">💉</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Vacinas e Protocolos de Saúde</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">As vacinas internacionais exigidas e cuidados preventivos essenciais com a sua saúde de competidor.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          Sua saúde no exterior é sua maior prioridade. Diversos países exigem atestados internacionais de vacinação, além de ser fundamental ter um plano para eventuais lesões decorrentes da prática do Jiu-Jitsu.
+                        </p>
+
+                        <div className="space-y-3 text-xs">
+                          <h5 className="font-bold text-violet-400 font-mono uppercase tracking-wider text-[11px] mt-4">Vacinas Requeridas:</h5>
+                          
+                          <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-2xl">
+                            <strong className="text-white block font-sans">1. Febre Amarela (CIVP):</strong>
+                            <p className="text-slate-400 mt-1 leading-relaxed">Fundamental para entrar em países da América Latina, Ásia, e alguns pontos da Europa. Deve ser tomada com pelo menos 10 dias de antecedência. Emita o Certificado Internacional de Vacinação (CIVP) gratuitamente no portal da ANVISA.</p>
+                          </div>
+
+                          <div className="p-3.5 bg-slate-950/40 border border-slate-850 rounded-2xl">
+                            <strong className="text-white block font-sans">2. Seguro de Saúde Esportivo (ESSENCIAL!):</strong>
+                            <p className="text-slate-400 mt-1 leading-relaxed">Atenção redobrada: a maioria dos seguros viagem normais exclui a cobertura de lesões em esportes de contato / combate. Sempre contrate uma apólice específica para "competições esportivas". Um exame de ressonância ou cirurgia no exterior pode custar caro.</p>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (Farmácia e Clínica)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Pratique as falas de saúde para emergências ou lesões no tatame:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("Do you have a first aid kit or athletic tape?")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"Do you have a first-aid kit or athletic tape?"</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Você tem estojo de primeiros socorros ou esparadrapo?"</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("I twisted my ankle during training, I need to see a doctor.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"I twisted my ankle during training, I need to see a doctor."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Torci meu tornozelo no treino, preciso ver um médico."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTravelSection === 'lodging' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">🏨</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Hospedagem e Gestão de Dieta</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">Como escolher a hospedagem ideal perto do treino e garantir o corte de peso com qualidade.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          A acomodação ideal para um atleta focado não visa luxo, e sim praticidade, boa localização (próxima à academia ou ginásio) e facilidade de alimentação de dieta.
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                          <div className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-2 text-xs">
+                            <h5 className="font-bold text-sky-400 font-mono uppercase tracking-wider text-[11px]">Hospedagem com Cozinha</h5>
+                            <p className="text-slate-400 leading-relaxed text-[10.5px]">
+                              Sempre prefira hostels com cozinha comunitária, hotéis com micro-ondas ou Airbnbs onde você possa preparar suas próprias refeições. Comer em restaurantes no exterior, além de muito caro, torna o controle de sódio e carboidratos para bater o peso um desafio imenso.
+                            </p>
+                          </div>
+                          <div className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-2 text-xs">
+                            <h5 className="font-bold text-violet-400 font-mono uppercase tracking-wider text-[11px]">Controle e Pesagem</h5>
+                            <p className="text-slate-400 leading-relaxed text-[10.5px]">
+                              Tente localizar um mercado de comida saudável (como o Whole Foods nos EUA) assim que chegar. Além disso, pergunte na recepção ou na academia se há uma balança confiável para que você possa monitorar o seu peso todos os dias pela manhã.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (Check-In e Suprimentos)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Pratique as expressões típicas ao se acomodar e abastecer sua despensa:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("Is there a grocery store nearby?")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"Is there a grocery store nearby?"</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Tem um supermercado por perto aqui?"</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("Is breakfast included in the room rate?")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"Is breakfast included in the room rate?"</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"O café da manhã está incluído no valor do quarto?"</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTravelSection === 'flight' && (
+                    <div className="space-y-4 animate-fadeIn">
+                      <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+                        <span className="text-2xl">✈️</span>
+                        <div>
+                          <h4 className="text-sm font-display font-black text-white uppercase tracking-tight">Dicas de Voo com Kimonos e Equipamentos</h4>
+                          <p className="text-[10px] text-slate-400 font-sans">A regra de ouro do competidor internacional de BJJ e gestão de peso de mala.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                          Extravios de bagagem acontecem com frequência em conexões internacionais. Como lutador, você deve agir de forma estratégica para mitigar as chances de não conseguir lutar.
+                        </p>
+
+                        <div className="p-4 bg-slate-950/40 rounded-2xl border border-slate-850 text-xs space-y-3">
+                          <h5 className="font-bold text-red-400 font-mono uppercase tracking-wider text-[11px] border-b border-slate-900 pb-2">Regra de Ouro da Bagagem de Mão (Carry-On):</h5>
+                          <p className="text-slate-300 leading-relaxed">
+                            <strong className="text-white">NUNCA despache seus kimonos de luta oficiais do campeonato.</strong> Leve sempre pelo menos um kimono oficial completo, sua faixa de graduação e seu protetor bucal dentro da mochila ou mala de mão que vai com você na cabine do avião.
+                          </p>
+                          <p className="text-slate-400 text-[10.5px] leading-relaxed">
+                            Se a sua bagagem de porão for extraviada ou sofrer atrasos na entrega pela companhia aérea, você ainda terá as ferramentas mínimas intocáveis para comparecer ao ginásio, passar pela checagem de kimono e lutar!
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 text-xs font-sans">
+                          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl">
+                            <strong className="text-white block">Pesagem em Casa:</strong>
+                            <p className="text-slate-400 mt-0.5 text-[10.5px]">Kimonos trançados de competição pesam entre 1.5kg e 2.2kg. Pese sua bagagem em casa para se manter no limite da franquia aérea e evitar multas por excesso de peso no check-in.</p>
+                          </div>
+                          <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl">
+                            <strong className="text-white block">Sacos de Compressão:</strong>
+                            <p className="text-slate-400 mt-0.5 text-[10.5px]">Kimonos ocupam muito espaço. Utilize sacos a vácuo ou de compressão para reduzir o volume e organizar a mala, deixando compartimentos para vestuários extras.</p>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Section */}
+                        <div className="p-4 bg-violet-950/20 border border-violet-900/30 rounded-2xl mt-4 space-y-3">
+                          <h5 className="text-[11px] font-extrabold text-violet-400 font-mono uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                            <span>JiuSpeak English Practice (No Aeroporto)</span>
+                          </h5>
+                          <p className="text-[11px] text-slate-400 font-sans">Prepare-se para lidar com as malas de equipamentos de luta no aeroporto:</p>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div 
+                              onClick={() => handlePronounce("Is my carry on bag within the size limit?")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"Is my carry-on bag within the size limit?"</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"A minha mala de mão está dentro do limite de tamanho permitido?"</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+
+                            <div 
+                              onClick={() => handlePronounce("My checked bag has sports gear for competition.")}
+                              className="p-3 bg-slate-950 hover:bg-slate-900 rounded-xl border border-slate-800/80 cursor-pointer flex justify-between items-center transition-all group"
+                            >
+                              <div className="text-left">
+                                <p className="text-[10px] text-slate-500 font-mono font-bold">ATHLETE SENTENCE</p>
+                                <p className="text-xs text-white font-mono font-bold mt-0.5">"My checked bag has sports gear for competition."</p>
+                                <p className="text-[10px] text-slate-400 font-sans mt-1">"Minha mala despachada possui equipamentos esportivos para campeonato."</p>
+                              </div>
+                              <Volume2 className="w-4 h-4 text-violet-400 group-hover:scale-110 transition-transform shrink-0 ml-2" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -958,36 +1624,15 @@ export default function Lessons({
                           <div className="space-y-4">
                             {/* Embedded clean iframe component */}
                             <div className="relative rounded-3xl overflow-hidden bg-slate-950 aspect-video shadow-2xl border border-slate-800">
-                              {activeLesson.videoType === 'upload' || (activeLesson.videoUrl && (activeLesson.videoUrl.endsWith('.mp4') || activeLesson.videoUrl.endsWith('.webm') || activeLesson.videoUrl.includes('/videos/'))) ? (
-                                <video
-                                  className="absolute top-0 left-0 w-full h-full"
-                                  controls
-                                  controlsList="nodownload"
-                                  src={activeLesson.videoUrl || activeLesson.videoSource}
-                                  title={activeLesson.title}
-                                >
-                                  Seu navegador não suporta o player de vídeo.
-                                </video>
-                              ) : activeLesson.videoType === 'cloudflare' ? (
-                                <iframe
-                                  className="absolute top-0 left-0 w-full h-full"
-                                  src={`https://iframe.videodelivery.net/${activeLesson.videoSource}?autoplay=true&muted=false&defaultTextTrack=en&captions=true`}
-                                  title={activeLesson.title}
-                                  frameBorder="0"
-                                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                                  allowFullScreen
-                                ></iframe>
-                              ) : (
-                                <iframe 
-                                  className="absolute top-0 left-0 w-full h-full"
-                                  src={activeLesson.videoUrl || "https://www.youtube.com/embed/Wt_RyWErotc"} 
-                                  title={activeLesson.title}
-                                  frameBorder="0"
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                  allowFullScreen
-                                  referrerPolicy="no-referrer"
-                                ></iframe>
-                              )}
+                              <iframe 
+                                className="absolute top-0 left-0 w-full h-full"
+                                src={activeLesson.videoUrl || "https://www.youtube.com/embed/Wt_RyWErotc"} 
+                                title={activeLesson.title}
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                                referrerPolicy="no-referrer"
+                              ></iframe>
                             </div>
                             
                             <div className="space-y-1 pt-1">

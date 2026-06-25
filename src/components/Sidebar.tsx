@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
 import { 
   User, 
   Flame, 
@@ -26,10 +25,7 @@ import {
   Shield,
   GraduationCap,
   Building2,
-  MessageSquare,
-  Bell,
-  X,
-  Loader2
+  MessageSquare
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
@@ -40,107 +36,11 @@ interface SidebarProps {
   setCurrentTab: (tab: string) => void;
   onOpenCheatModal?: () => void;
   onLogout?: () => void;
-  unreadMessagesCount?: number;
+  unreadMessagesCount?: number; // NOVO
 }
 
 export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout, unreadMessagesCount = 0 }: SidebarProps) {
   console.log("[SIDEBAR USER]", user);
-
-  const [showInbox, setShowInbox] = useState(false);
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [loadingInbox, setLoadingInbox] = useState(false);
-  const [selectedConv, setSelectedConv] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [loadingChat, setLoadingChat] = useState(false);
-  const [chatInput, setChatInput] = useState('');
-  const [sending, setSending] = useState(false);
-  const inboxRef = useRef<HTMLDivElement>(null);
-  const bellRef = useRef<HTMLButtonElement>(null);
-  const [bellPos, setBellPos] = useState({ top: 0, left: 0 });
-
-  const updateBellPos = () => {
-    if (bellRef.current) {
-      const rect = bellRef.current.getBoundingClientRect();
-      setBellPos({ top: rect.bottom + 8, left: rect.left });
-    }
-  };
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const getToken = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
-
-  const fetchConversations = async () => {
-    setLoadingInbox(true);
-    try {
-      const res = await fetch('/api/social/messages/recent', {
-        headers: { 'Authorization': `Bearer ${getToken()}` }
-      });
-      if (res.ok) setConversations(await res.json());
-    } catch (e) {}
-    setLoadingInbox(false);
-  };
-
-  const fetchChat = async (contactId: string) => {
-    setLoadingChat(true);
-    try {
-      const res = await fetch(`/api/social/messages/chat/${contactId}`, {
-        headers: { 'Authorization': `Bearer ${getToken()}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
-        // Marcar como lidas
-        await fetch('/api/social/messages/read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-          body: JSON.stringify({ senderId: contactId })
-        });
-      }
-    } catch (e) {}
-    setLoadingChat(false);
-  };
-
-  const sendMessage = async () => {
-    if (!chatInput.trim() || !selectedConv || sending) return;
-    setSending(true);
-    try {
-      const res = await fetch('/api/social/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-        body: JSON.stringify({ receiverId: selectedConv.contact.id, content: chatInput.trim() })
-      });
-      if (res.ok) {
-        const msg = await res.json();
-        setMessages(prev => [...prev, msg]);
-        setChatInput('');
-      }
-    } catch (e) {}
-    setSending(false);
-  };
-
-  useEffect(() => {
-    if (showInbox && !selectedConv) fetchConversations();
-  }, [showInbox]);
-
-  useEffect(() => {
-    if (selectedConv) fetchChat(selectedConv.contact.id);
-  }, [selectedConv]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // Fechar ao clicar fora
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (inboxRef.current && !inboxRef.current.contains(e.target as Node)) {
-        setShowInbox(false);
-        setSelectedConv(null);
-        setMessages([]);
-      }
-    };
-    if (showInbox) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showInbox]);
   
   // BJJ belt background configurations
   const getBeltBg = (belt: BeltRank) => {
@@ -194,168 +94,22 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
       {/* User Quick Info */}
       <div className="p-5 border-b border-slate-800/60 bg-slate-900/25">
         <div className="flex items-center gap-3 mb-4">
-          {/* Avatar + Nome clicável para ir ao perfil */}
-          <div
-            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer group"
-            onClick={() => setCurrentTab('profile-settings')}
-            title="Ir para Meu Perfil"
-          >
-            <div className="relative">
-              <AvatarWithFrame
-                avatarUrl={user.profilePhoto || user.avatar}
-                userName={user.name}
-                frame={user.equippedFrame}
-                size="sm"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-display font-semibold text-sm text-slate-200 truncate group-hover:text-violet-300 transition-colors">{user.name}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${getBeltBg(user.belt)}`}>
-                  Faixa {user.belt}
-                </span>
-                <span className="text-xs text-slate-400 font-mono">Nv. {user.level}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Sino de notificação de mensagens */}
           <div className="relative">
-            <button
-              ref={bellRef}
-              onClick={() => {
-                updateBellPos();
-                setShowInbox(v => !v);
-                setSelectedConv(null);
-                setMessages([]);
-              }}
-              title={unreadMessagesCount > 0 ? `${unreadMessagesCount} mensagem(ns) não lida(s)` : 'Mensagens'}
-              className="relative p-2 rounded-xl hover:bg-slate-800 border border-transparent hover:border-slate-700 transition-all shrink-0 group"
-            >
-              <Bell className={`w-4 h-4 transition-colors ${unreadMessagesCount > 0 ? 'text-red-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-              {unreadMessagesCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5 border border-slate-950 animate-pulse">
-                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
-                </span>
-              )}
-            </button>
-
-            {/* Inbox via Portal — renderizado no body, nunca cortado por overflow */}
-            {showInbox && createPortal(
-              <div
-                ref={inboxRef}
-                style={{ position: 'fixed', top: bellPos.top, left: bellPos.left, zIndex: 9999 }}
-                className="w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
-              >
-                {!selectedConv ? (
-                  <>
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-                      <span className="text-xs font-bold font-mono text-slate-200 uppercase tracking-wider">Mensagens</span>
-                      <button onClick={() => setShowInbox(false)} className="text-slate-500 hover:text-white transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {/* Conversation list */}
-                    <div className="max-h-72 overflow-y-auto">
-                      {loadingInbox ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="w-5 h-5 text-violet-400 animate-spin" />
-                        </div>
-                      ) : conversations.length === 0 ? (
-                        <div className="py-8 text-center text-slate-500 text-xs font-mono">Nenhuma mensagem ainda</div>
-                      ) : conversations.map((conv: any) => (
-                        <button
-                          key={conv.contact.id}
-                          onClick={() => setSelectedConv(conv)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800/50 text-left"
-                        >
-                          <div className="relative shrink-0">
-                            {conv.contact.avatar ? (
-                              <img src={conv.contact.avatar} className="w-8 h-8 rounded-full object-cover border border-slate-700" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-bold border border-violet-500/20">
-                                {conv.contact.name?.[0]?.toUpperCase() || 'U'}
-                              </div>
-                            )}
-                            {conv.unreadCount > 0 && (
-                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center border border-slate-900">
-                                {conv.unreadCount}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-slate-200 truncate">{conv.contact.name}</p>
-                            <p className="text-[10px] text-slate-500 truncate font-mono">{conv.lastMessage?.content}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Chat Header */}
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800">
-                      <button onClick={() => { setSelectedConv(null); setMessages([]); fetchConversations(); }} className="text-slate-500 hover:text-white transition-colors">
-                        <ChevronRight className="w-4 h-4 rotate-180" />
-                      </button>
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {selectedConv.contact.avatar ? (
-                          <img src={selectedConv.contact.avatar} className="w-7 h-7 rounded-full object-cover border border-slate-700" />
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-violet-600/20 text-violet-400 flex items-center justify-center text-[10px] font-bold">
-                            {selectedConv.contact.name?.[0]?.toUpperCase()}
-                          </div>
-                        )}
-                        <span className="text-xs font-semibold text-slate-200 truncate">{selectedConv.contact.name}</span>
-                      </div>
-                      <button onClick={() => setShowInbox(false)} className="text-slate-500 hover:text-white transition-colors">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {/* Messages */}
-                    <div className="h-56 overflow-y-auto p-3 space-y-2 bg-slate-950/50">
-                      {loadingChat ? (
-                        <div className="flex items-center justify-center h-full">
-                          <Loader2 className="w-5 h-5 text-violet-400 animate-spin" />
-                        </div>
-                      ) : messages.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-slate-500 text-[10px] font-mono">Nenhuma mensagem ainda</div>
-                      ) : messages.map((msg: any, i: number) => {
-                        const isMe = msg.senderId !== selectedConv.contact.id;
-                        return (
-                          <div key={msg.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] rounded-xl px-3 py-1.5 text-[11px] ${isMe ? 'bg-violet-600 text-white' : 'bg-slate-800 text-slate-200'}`}>
-                              {msg.content}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={messagesEndRef} />
-                    </div>
-                    {/* Input */}
-                    <div className="flex gap-2 p-2 border-t border-slate-800">
-                      <input
-                        type="text"
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                        placeholder="Digite uma mensagem..."
-                        className="flex-1 bg-slate-950 text-slate-100 text-[11px] border border-slate-800 focus:border-violet-500 focus:outline-none rounded-xl px-3 py-2 font-sans"
-                      />
-                      <button
-                        onClick={sendMessage}
-                        disabled={sending || !chatInput.trim()}
-                        className="p-2 bg-violet-600 disabled:bg-slate-800 text-white disabled:text-slate-500 rounded-xl transition-all"
-                      >
-                        {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>,
-              document.body
-            )}
+            <AvatarWithFrame
+              avatarUrl={user.profilePhoto || user.avatar}
+              userName={user.name}
+              frame={user.equippedFrame}
+              size="sm"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-display font-semibold text-sm text-slate-200 truncate">{user.name}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${getBeltBg(user.belt)}`}>
+                Faixa {user.belt}
+              </span>
+              <span className="text-xs text-slate-400 font-mono">Nv. {user.level}</span>
+            </div>
           </div>
         </div>
 
@@ -462,6 +216,39 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
           );
         })}
       </nav>
+
+      {/* Mensagens Privadas com badge de não lidas */}
+      <div className="px-4 pb-2">
+        <button
+          onClick={() => setCurrentTab('profile-settings')}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left group cursor-pointer border transition-all font-mono text-xs ${
+            currentTab === 'profile-settings'
+              ? 'bg-violet-600/20 border-violet-500/30 text-violet-300'
+              : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900 border-transparent hover:border-slate-800'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <MessageSquare className={`w-4 h-4 transition-transform group-hover:scale-110 ${
+                currentTab === 'profile-settings' ? 'text-violet-400' : 'text-slate-500'
+              }`} />
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center border border-slate-950 animate-pulse">
+                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                </span>
+              )}
+            </div>
+            <span className="text-sm font-medium">Mensagens</span>
+          </div>
+          {unreadMessagesCount > 0 ? (
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30">
+              {unreadMessagesCount} nova{unreadMessagesCount > 1 ? 's' : ''}
+            </span>
+          ) : (
+            <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-all text-slate-500" />
+          )}
+        </button>
+      </div>
 
       {onLogout && (
         <div className="px-4 pb-4">
