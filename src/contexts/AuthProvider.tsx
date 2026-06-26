@@ -284,14 +284,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Run initial session check
   useEffect(() => {
+    // Handler do Google OAuth — pegar token da URL após callback
+    const params = new URLSearchParams(window.location.search);
+    const googleAuth = params.get('google_auth');
+    const googleToken = params.get('token') ? decodeURIComponent(params.get('token')!) : null;
+    const googleRefresh = params.get('refresh') ? decodeURIComponent(params.get('refresh')!) : null;
+    const authError = params.get('auth_error');
+
+    if (googleAuth === 'success' && googleToken) {
+      localStorage.setItem('jiuspeak_access_token', googleToken);
+      localStorage.setItem('token', googleToken);
+      localStorage.setItem('accessToken', googleToken);
+      setAccessTokenState(googleToken);
+      if (googleRefresh) {
+        localStorage.setItem('jiuspeak_refresh_token', googleRefresh);
+        setRefreshTokenState(googleRefresh);
+      }
+      window.history.replaceState({}, '', '/dashboard');
+    }
+
+    if (authError) {
+      const msgs: Record<string, string> = {
+        google_denied: 'Login com Google cancelado.',
+        no_email: 'Não foi possível obter o e-mail do Google.',
+        banned: 'Conta banida.',
+        suspended: 'Conta suspensa.',
+        server_error: 'Erro no servidor. Tente novamente.'
+      };
+      alert(msgs[authError] || 'Erro ao fazer login com Google.');
+      window.history.replaceState({}, '', '/');
+    }
+
     const initSession = async () => {
       const token = localStorage.getItem('jiuspeak_access_token') || accessToken;
       const rToken = localStorage.getItem('jiuspeak_refresh_token') || refreshToken;
 
-      if (token && rToken) {
+      if (token) {
+        // Tentar syncMe com só o accessToken (Google OAuth não precisa de refreshToken)
         const success = await syncMe();
-        if (!success) {
+        if (!success && rToken) {
           await refreshSession();
+        } else if (!success) {
+          setAuthReady(true);
+          return;
         }
       }
       setAuthReady(true);

@@ -408,22 +408,33 @@ export default function PvPArena({
       setNowPlayingText(null);
     };
     audio.play().catch(e => {
-      console.warn("Audio streaming failed fallback:", e);
-      // Client-side visual fallback speech synthesis
-      if ('speechSynthesis' in window) {
+      console.warn("[TTS] Stream falhou, usando Web Speech API:", e);
+    });
+    // Web Speech API — gratuita, nativa, sem quota
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const speak = () => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 0.95;
-        utterance.onend = () => {
-          setIsPlayingAudio(false);
-          setNowPlayingText(null);
-        };
+        utterance.rate = 0.88;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        const voices = window.speechSynthesis.getVoices();
+        const enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+                        voices.find(v => v.lang === 'en-US') ||
+                        voices.find(v => v.lang.startsWith('en'));
+        if (enVoice) utterance.voice = enVoice;
+        utterance.onstart = () => { setIsPlayingAudio(true); setNowPlayingText(text); };
+        utterance.onend = () => { setIsPlayingAudio(false); setNowPlayingText(null); };
+        utterance.onerror = () => { setIsPlayingAudio(false); setNowPlayingText(null); };
         window.speechSynthesis.speak(utterance);
+      };
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.addEventListener('voiceschanged', speak, { once: true });
       } else {
-        setIsPlayingAudio(false);
-        setNowPlayingText(null);
+        speak();
       }
-    });
+    }
 
     // Save playing url reference to memory cache for instantaneous subsequent replays
     setAudioUrlCache(prev => ({ ...prev, [cacheKey]: audioUrl }));

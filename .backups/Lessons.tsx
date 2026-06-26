@@ -373,26 +373,17 @@ export default function Lessons({
     if (quizzes.length === 0) return;
     const unanswered = quizzes.filter(q => !selectedQuizAnswers[q.id]);
     if (unanswered.length > 0) {
-      showToast(`Responda todas as ${quizzes.length} perguntas! Faltam ${unanswered.length}.`, "error");
+      showToast(`Responda todas as perguntas! Faltam ${unanswered.length}.`, "error");
       return;
     }
     let correct = true;
     quizzes.forEach(q => {
       const uAns = selectedQuizAnswers[q.id];
-      if (!uAns) { correct = false; return; }
-      const isLetter = /^[A-D]$/i.test(uAns.trim());
-      let selectedLetter = '';
-      if (isLetter) {
-        selectedLetter = uAns.trim().toUpperCase();
-      } else {
-        const opts = Array.isArray(q.options) ? q.options : [];
-        const idx = opts.indexOf(uAns);
-        selectedLetter = idx >= 0 ? String.fromCharCode(65 + idx) : '';
-      }
-      if (!selectedLetter || selectedLetter !== String(q.correctAnswer).trim().toUpperCase()) {
+      if (!uAns || String(uAns).trim().toUpperCase() !== String(q.correctAnswer).trim().toUpperCase()) {
         correct = false;
       }
     });
+
     setQuizScoreChecked(true);
     setQuizSuccess(correct);
 
@@ -408,32 +399,17 @@ export default function Lessons({
   // Text-To-Speech (Pronunciation hint playback for English study Cards)
   const handlePronounce = (text: string) => {
     try {
-      if (!('speechSynthesis' in window)) {
-        showToast("Seu navegador não suporta síntese de voz.", "info");
-        return;
-      }
-      window.speechSynthesis.cancel();
-      const speak = () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
-        utterance.rate = 0.82;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        const voices = window.speechSynthesis.getVoices();
-        const enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
-                        voices.find(v => v.lang === 'en-US') ||
-                        voices.find(v => v.lang.startsWith('en'));
-        if (enVoice) utterance.voice = enVoice;
-        utterance.onerror = (e) => console.warn('[TTS]', e.error);
+        utterance.rate = 0.85; // Slightly slower for training comprehension
         window.speechSynthesis.speak(utterance);
-      };
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.addEventListener('voiceschanged', speak, { once: true });
       } else {
-        speak();
+        showToast("Seu navegador não oferece suporte nativo para SpeechSynthesis.", "info");
       }
     } catch (e) {
-      console.error('[TTS ERROR]', e);
+      console.error(e);
     }
   };
 
@@ -1818,28 +1794,20 @@ export default function Lessons({
                               </div>
                             </div>
 
-                            {/* Download da Apostila PDF */}
-                            <a
-                              href={`/api/apostila/${activeLesson.moduleId}/${activeLesson.id}`}
-                              download={`JiuSpeak_Aula${activeLesson.order}.pdf`}
+                            {/* Complementary resource file downloader and metadata link */}
+                            <a 
+                              href={activeLesson.complementaryMaterialUrl || "/api/payments/simulator"}
+                              target="_blank"
+                              referrerPolicy="no-referrer"
                               className="p-4 rounded-2xl bg-slate-950 hover:bg-slate-900 border border-slate-800 flex justify-between items-center transition-all cursor-pointer select-none group"
                             >
                               <div className="flex gap-3 items-center">
-                                <div className="w-10 h-10 rounded-xl bg-violet-600/10 border border-violet-500/25 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-xl bg-violet-600/10 border border-violet-505/25 flex items-center justify-center">
                                   <FileDown className="w-5 h-5 text-violet-400" />
                                 </div>
                                 <div>
-                                  <h5 className="font-mono text-[10px] text-white uppercase font-black tracking-wider group-hover:text-violet-400 transition-colors">
-                                    JiuSpeak_Aula{activeLesson.order}.pdf
-                                  </h5>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <p className="text-[9px] text-slate-500 font-sans">Apostila completa com flashcards e quiz</p>
-                                    {activeLesson.moduleId === "course_mod_1" ? (
-                                      <span className="text-[8px] font-mono font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">GRÁTIS</span>
-                                    ) : (
-                                      <span className="text-[8px] font-mono font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">PRO</span>
-                                    )}
-                                  </div>
+                                  <h5 className="font-mono text-[10px] text-white uppercase font-black tracking-wider group-hover:text-violet-400 transition-colors">Study_Booklet_Unit_{activeLesson.order}.pdf</h5>
+                                  <p className="text-[9px] text-slate-500 font-sans">Material didático de apoio e vocabulário • PDF • 1.2MB</p>
                                 </div>
                               </div>
                               <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
@@ -1983,82 +1951,118 @@ export default function Lessons({
                         </div>
                       )}
 
-                                            {/* SUBTAB 5: FLASHCARDS REDESENHADOS */}
+                      {/* SUBTAB 5: ENGLISH PRO/MEMORIZATION FLASHCARDS */}
                       {studyTab === 'flashcard' && (
-                        <div className="space-y-5 flex-1 flex flex-col justify-between">
-                          <div className="space-y-5">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-                                <span className="text-xs font-mono font-bold text-violet-400 uppercase tracking-widest">Deck Memorize & TTS</span>
-                              </div>
+                        <div className="space-y-6 flex-1 flex flex-col justify-between">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] text-indigo-400 font-mono font-bold uppercase tracking-wider block">Deck Memorize & TTS Pronúncia</span>
                               {flashcards.length > 0 && (
-                                <div className="flex items-center gap-3">
-                                  <div className="flex gap-1">
-                                    {flashcards.slice(0, 10).map((_: any, i: number) => (
-                                      <div key={i} className={`rounded-full transition-all duration-300 ${i === activeFlashcardIndex ? 'w-4 h-2 bg-violet-500' : memorizedCardIds[flashcards[i]?.id] ? 'w-2 h-2 bg-emerald-500' : 'w-2 h-2 bg-slate-700'}`} />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm font-black text-white font-mono">{activeFlashcardIndex + 1}<span className="text-slate-500 font-normal text-xs">/{flashcards.length}</span></span>
-                                </div>
+                                <span className="text-[10px] font-mono text-slate-500">Card {activeFlashcardIndex + 1} de {flashcards.length}</span>
                               )}
                             </div>
+
                             {flashcards.length === 0 ? (
-                              <div className="bg-slate-950/60 p-12 text-center rounded-2xl border border-slate-800 text-slate-500 text-sm">
+                              <div className="bg-slate-950/60 p-12 text-center rounded-2xl border border-slate-850/60 font-mono text-xs text-slate-500">
                                 🗃️ Nenhum flashcard cadastrado nesta lição.
                               </div>
                             ) : (
-                              <div className="flex flex-col items-center space-y-5">
-                                <div
+                              <div className="flex flex-col items-center space-y-6">
+                                
+                                {/* Flippable card display unit with perspective mechanics */}
+                                <div 
                                   onClick={() => setIsFlashcardFlipped(!isFlashcardFlipped)}
-                                  className={`w-full h-72 rounded-3xl border-2 cursor-pointer relative transition-all duration-500 select-none flex flex-col items-center justify-center p-8 text-center shadow-2xl ${isFlashcardFlipped ? 'bg-gradient-to-br from-violet-950/90 to-indigo-950/90 border-violet-500/60 shadow-violet-500/20' : 'bg-gradient-to-br from-slate-900 to-slate-950 border-slate-700/60'}`}
+                                  className={`w-full max-w-sm h-56 rounded-3xl border cursor-pointer relative transition-all duration-300 transform select-none flex flex-col items-center justify-center p-6 text-center shadow-lg active:scale-98 ${
+                                    isFlashcardFlipped 
+                                      ? 'bg-slate-900 border-indigo-500/30 rotate-y-360' 
+                                      : 'bg-slate-950 border-slate-800'
+                                  }`}
                                 >
-                                  <div className={`absolute top-4 left-4 px-3 py-1 rounded-xl text-[10px] font-mono font-black uppercase tracking-widest border ${isFlashcardFlipped ? 'bg-violet-500/20 text-violet-300 border-violet-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
-                                    {isFlashcardFlipped ? '🇧🇷 Resposta' : '🇺🇸 Inglês'}
-                                  </div>
-                                  <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-xs font-mono font-bold text-slate-400">
-                                    {activeFlashcardIndex + 1}
-                                  </div>
                                   {isFlashcardFlipped ? (
-                                    <div className="space-y-4 mt-6">
-                                      <h3 className="font-sans font-black text-2xl text-white leading-snug">{flashcards[activeFlashcardIndex].back}</h3>
+                                    /* Back side */
+                                    <div className="space-y-3 animate-fadeIn">
+                                      <span className="text-[8.5px] font-mono tracking-widest text-indigo-400 uppercase font-black">PORTUGUÊS / DEFINIÇÃO</span>
+                                      <h3 className="font-display font-black text-lg text-white uppercase select-text">{flashcards[activeFlashcardIndex].back}</h3>
+                                      <p className="text-[9.5px] italic text-slate-500">Dica: {flashcards[activeFlashcardIndex].pronunciationHint || "Pronuncie abrindo o quadril"}</p>
                                     </div>
                                   ) : (
-                                    <div className="space-y-5 mt-6">
-                                      <h3 className="font-sans font-black text-2xl text-white leading-tight">{flashcards[activeFlashcardIndex].front}</h3>
-                                      <button type="button" onClick={(e) => { e.stopPropagation(); handlePronounce(flashcards[activeFlashcardIndex].front); }} className="mx-auto flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 border border-violet-500/30 text-violet-300 hover:text-white transition-all text-sm font-mono font-bold">
-                                        <Volume2 className="w-4 h-4" />
-                                        Escutar Pronúncia
-                                      </button>
+                                    /* Front side with audio trigger option */
+                                    <div className="space-y-4 animate-fadeIn">
+                                      <span className="text-[8.5px] font-mono tracking-widest text-violet-400 uppercase font-black">TERMO EM INGLÊS DE COMBATE</span>
+                                      <h3 className="font-display font-black text-xl text-slate-101 uppercase select-text tracking-wide">{flashcards[activeFlashcardIndex].front}</h3>
+                                      
+                                      <div className="flex justify-center gap-2 pt-1">
+                                        <button 
+                                          type="button" 
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Avoid triggering flip
+                                            handlePronounce(flashcards[activeFlashcardIndex].front);
+                                          }}
+                                          className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 text-[9.5px] font-mono"
+                                        >
+                                          <Volume2 className="w-4 h-4 text-violet-400" />
+                                          <span>Escutar Pronúncia</span>
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
-                                  <div className="absolute bottom-4 flex items-center gap-1.5 text-xs font-mono text-slate-500">
-                                    <span>{isFlashcardFlipped ? 'Toque para ver a pergunta' : 'Toque para ver a resposta'}</span>
-                                    <span>🔄</span>
+
+                                  {/* Absolute click to flip status indicator block */}
+                                  <div className="absolute bottom-3 text-[8.5px] font-mono tracking-wider text-slate-500 uppercase select-none">
+                                    Clique para virar o card 🔄
                                   </div>
                                 </div>
-                                <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                  <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full transition-all duration-500" style={{ width: `${(Object.keys(memorizedCardIds).filter((k: string) => memorizedCardIds[k]).length / flashcards.length) * 100}%` }} />
-                                </div>
-                                <div className="flex gap-3 w-full">
-                                  <button type="button" disabled={activeFlashcardIndex === 0} onClick={() => { setActiveFlashcardIndex(prev => prev - 1); setIsFlashcardFlipped(false); }} className="flex-1 py-3 rounded-2xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-bold font-mono">← Anterior</button>
-                                  <button type="button" onClick={() => handleToggleMemorized(flashcards[activeFlashcardIndex].id)} className={`flex-1 py-3 rounded-2xl text-sm font-black uppercase cursor-pointer transition-all border font-mono ${memorizedCardIds[flashcards[activeFlashcardIndex].id] ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' : 'bg-violet-600 text-white border-violet-500 hover:bg-violet-500 shadow-lg shadow-violet-500/20'}`}>
-                                    {memorizedCardIds[flashcards[activeFlashcardIndex].id] ? '✓ Memorizado!' : '☑ Memorizar'}
+
+                                {/* Controller navigation options */}
+                                <div className="flex justify-between items-center w-full max-w-sm">
+                                  <button
+                                    type="button"
+                                    disabled={activeFlashcardIndex === 0}
+                                    onClick={() => {
+                                      setActiveFlashcardIndex(prev => prev - 1);
+                                      setIsFlashcardFlipped(false);
+                                    }}
+                                    className="p-2 sm:p-2.5 rounded-xl bg-slate-950 text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-850 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all text-xs font-mono"
+                                  >
+                                    Anterior
                                   </button>
-                                  <button type="button" disabled={activeFlashcardIndex === flashcards.length - 1} onClick={() => { setActiveFlashcardIndex(prev => prev + 1); setIsFlashcardFlipped(false); }} className="flex-1 py-3 rounded-2xl bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed transition-all text-sm font-bold font-mono">Próximo →</button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleMemorized(flashcards[activeFlashcardIndex].id)}
+                                    className={`p-2.5 px-4 rounded-xl font-mono text-[10px] font-bold uppercase cursor-pointer transition-all ${
+                                      memorizedCardIds[flashcards[activeFlashcardIndex].id]
+                                        ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/40'
+                                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-101'
+                                    }`}
+                                  >
+                                    {memorizedCardIds[flashcards[activeFlashcardIndex].id] ? "✓ Já de Corei!" : "☑ Memorizar Card"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    disabled={activeFlashcardIndex === flashcards.length - 1}
+                                    onClick={() => {
+                                      setActiveFlashcardIndex(prev => prev + 1);
+                                      setIsFlashcardFlipped(false);
+                                    }}
+                                    className="p-2 sm:p-2.5 rounded-xl bg-slate-950 text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-850 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all text-xs font-mono"
+                                  >
+                                    Próximo
+                                  </button>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm font-mono">
-                                  <span className="text-emerald-400 font-black">{Object.keys(memorizedCardIds).filter((k: string) => memorizedCardIds[k]).length}</span>
-                                  <span className="text-slate-500">de</span>
-                                  <span className="text-white font-black">{flashcards.length}</span>
-                                  <span className="text-slate-500">memorizados</span>
-                                  {Object.keys(memorizedCardIds).filter((k: string) => memorizedCardIds[k]).length === flashcards.length && flashcards.length > 0 && <span className="text-yellow-400 animate-bounce ml-1">🏆</span>}
+
+                                {/* Custom checklist metric progress for Deck */}
+                                <div className="text-[10px] text-slate-500 font-mono select-none">
+                                  Revisado: {Object.keys(memorizedCardIds).filter(k => memorizedCardIds[k]).length} de {flashcards.length} cards memorizados.
                                 </div>
+
                               </div>
                             )}
                           </div>
+
                           <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
-                            <span className="text-[10px] text-slate-500 font-mono"></span>
+                            <span className="text-[10px] text-slate-500 font-mono">Dica de arbitragem e pronúncia em fones.</span>
                             {!activeLesson.progress?.flashcardsCompleted ? (
                               <button
                                 type="button"

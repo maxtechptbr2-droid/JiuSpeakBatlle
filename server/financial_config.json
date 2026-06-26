@@ -1,0 +1,156 @@
+{
+  "bankAccounts": [
+    {
+      "id": "bank-1",
+      "bankName": "Itaú Unibanco S.A.",
+      "bankCode": "341",
+      "agency": "0201",
+      "accountNumber": "98765-4",
+      "accountType": "Corrente",
+      "holder": "JiuSpeak Tecnologia Ltda.",
+      "cpfCnpj": "12.345.678/0001-90",
+      "pixKey": "financeiro@jiuspeak.com.br",
+      "pixKeyType": "E-mail",
+      "isPrimary": true,
+      "active": true
+    },
+    {
+      "id": "bank-2",
+      "bankName": "Banco Bradesco S.A.",
+      "bankCode": "237",
+      "agency": "4321",
+      "accountNumber": "12345-6",
+      "accountType": "Corrente",
+      "holder": "JiuSpeak Tecnologia Ltda.",
+      "cpfCnpj": "12.345.678/0001-90",
+      "pixKey": "12.345.678/0001-90",
+      "pixKeyType": "CNPJ",
+      "isPrimary": false,
+      "active": true
+    }
+  ],
+  "paymentMethods": [
+    {
+      "id": "pay-1",
+      "name": "PIX",
+      "identifier": "PIX",
+      "active": true,
+      "displayOrder": 1,
+      "description": "Liquidação em tempo real sob conformidade Pix pelo Banco Central de forma instantânea."
+    },
+    {
+      "id": "pay-2",
+      "name": "Cartão de Crédito",
+      "identifier": "CREDIT_CARD",
+      "active": true,
+      "displayOrder": 2,
+      "description": "Parcelamento no tatame em até 12x com taxas competitivas."
+    },
+    {
+      "id": "pay-3",
+      "name": "Cartão de Débito",
+      "identifier": "DEBIT_CARD",
+      "active": true,
+      "displayOrder": 3,
+      "description": "Desconto imediato em conta digital corrente homologada."
+    },
+    {
+      "id": "pay-4",
+      "name": "Boleto Bancário",
+      "identifier": "BOLETO",
+      "active": true,
+      "displayOrder": 4,
+      "description": "Compensação segura em até 48 horas úteis."
+    },
+    {
+      "id": "pay-5",
+      "name": "Transferência Bancária",
+      "identifier": "TRANSFER",
+      "active": true,
+      "displayOrder": 5,
+      "description": "Apenas contas corporativas indicadas pelo conselho."
+    }
+  ],
+  "plansMetadata": {
+    "FREE": {
+      "priceBRL": 0,
+      "priceYearlyBRL": 0,
+      "promotionalText": "Acesso básico e fóruns comuns livres no tatame digital.",
+      "badge": "Mais Simples",
+      "cardColor": "slate",
+      "displayOrder": 1,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": false,
+        "conversationalSection": false,
+        "arenaPvp": false,
+        "bjjAcademies": false,
+        "marketplace": false,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": false,
+        "premiumResources": false
+      }
+    },
+    "VIP": {
+      "priceBRL": 19.9,
+      "priceYearlyBRL": 199,
+      "promotionalText": "Excelente custo benefício para treinos focados com IA.",
+      "badge": "Melhor Custo",
+      "cardColor": "blue",
+      "displayOrder": 2,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": true,
+        "conversationalSection": true,
+        "arenaPvp": false,
+        "bjjAcademies": false,
+        "marketplace": true,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": true,
+        "premiumResources": false
+      }
+    },
+    "PRO": {
+      "priceBRL": 29.9,
+      "priceYearlyBRL": 299,
+      "promotionalText": "Acesso completo de nível profissional ao ecossistema.",
+      "badge": "Mais Popular",
+      "cardColor": "indigo",
+      "displayOrder": 3,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": true,
+        "conversationalSection": true,
+        "arenaPvp": true,
+        "bjjAcademies": true,
+        "marketplace": true,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": true,
+        "premiumResources": true
+      }
+    },
+    "MASTER": {
+      "priceBRL": 59.9,
+      "priceYearlyBRL": 599,
+      "promotionalText": "Acesso definitivo lendário com relatórios e pvp ilimitados.",
+      "badge": "Premium",
+      "cardColor": "purple",
+      "displayOrder": 4,
+      "active": true,
+      "releasedFeatures": {
+        "modulesAll": true,
+        "conversationalSection": true,
+        "arenaPvp": true,
+        "bjjAcademies": true,
+        "marketplace": true,
+        "jiuspeakLibrary": true,
+        "inventoryBackpack": true,
+        "jiuspeakStore": true,
+        "premiumResources": true
+      }
+    }
+  }
+}
