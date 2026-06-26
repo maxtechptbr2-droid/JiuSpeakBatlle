@@ -364,7 +364,10 @@ function csrfProtection(req: any, res: any, next: any) {
   
   // Whitelisted secure routes that are excluded from CSRF validation (e.g. secure public / voice / webhook endpoints)
   const csrfExcludedRoutes = [
-    "/api/tts"
+    "/api/tts",
+    "/api/support/chat",
+    "/api/partners/apply",
+    "/api/partners/products"
   ];
 
   if (csrfExcludedRoutes.includes(req.path)) {
@@ -383,6 +386,12 @@ function csrfProtection(req: any, res: any, next: any) {
     return next();
   }
   
+  // Rotas públicas sem CSRF
+  const publicApiPaths = ["/api/support/chat", "/api/partners/apply", "/api/partners/products"];
+  if (publicApiPaths.some(p => req.path.startsWith(p))) {
+    return next();
+  }
+
   // Custom API requests sending Bearer Authorization are naturally immune to CSRF
   const authHeader = req.headers["authorization"];
   if (authHeader && authHeader.startsWith("Bearer ")) {

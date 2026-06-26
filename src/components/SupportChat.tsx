@@ -112,9 +112,13 @@ Como posso te ajudar hoje? OSS! 🥋`,
         .slice(-6)
         .map(m => ({ role: m.role, content: m.content }));
 
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token') || '';
       const response = await fetch('/api/support/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           messages: [
             ...history,
