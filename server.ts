@@ -387,7 +387,7 @@ function csrfProtection(req: any, res: any, next: any) {
   }
   
   // Rotas públicas sem CSRF
-  const publicApiPaths = ["/api/support/chat", "/api/partners/apply", "/api/partners/products"];
+  const publicApiPaths = ["/api/support/chat", "/api/partners/apply", "/api/partners/products", "/api/live/sessions"];
   if (publicApiPaths.some(p => req.path.startsWith(p))) {
     return next();
   }
@@ -2387,6 +2387,27 @@ app.post("/api/auth/register", async (req: any, res: any) => {
       return res.status(400).json({ error: "E-mail inválido: se houver erro de digitação '.con', troque por '.com'." });
     }
 
+    // Verificar domínios de email descartável/temporário
+    const disposableDomains = [
+      'mailinator.com','guerrillamail.com','10minutemail.com','temp-mail.org',
+      'throwam.com','yopmail.com','sharklasers.com','guerrillamailblock.com',
+      'grr.la','guerrillamail.info','spam4.me','trashmail.com','trashmail.me',
+      'dispostable.com','maildrop.cc','tempmail.com','fakeinbox.com','mailnull.com',
+      'spamgourmet.com','trashmail.net','discard.email','spamspot.com','jetable.fr'
+    ];
+    const emailDomain = emailStr.split('@')[1]?.toLowerCase();
+    if (disposableDomains.includes(emailDomain)) {
+      return res.status(400).json({ error: "E-mails temporários ou descartáveis não são permitidos. Use um e-mail válido." });
+    }
+
+    // Validação extra: domínio deve ter pelo menos um ponto e TLD válido
+    const domainParts = emailDomain?.split('.') || [];
+    const tld = domainParts[domainParts.length - 1];
+    const validTLDs = ['com','net','org','edu','gov','br','io','co','me','app','dev','us','uk','ca','au','pt','info','biz','tv'];
+    if (!tld || (!validTLDs.includes(tld) && tld.length > 4)) {
+      return res.status(400).json({ error: "Domínio de e-mail inválido ou não reconhecido." });
+    }
+
     const existingUser = await authStore.findByEmail(emailStr);
     if (existingUser) {
       return res.status(409).json({ error: "An account already exists with this email address." });
@@ -2581,6 +2602,21 @@ app.post("/api/auth/login", async (req: any, res: any) => {
 
     // Success login registered
     await AuthService.recordLoginAttempt({ email, ipAddress, success: true });
+
+    // ============================================================
+    // BLOQUEIO DE SESSÃO SIMULTÂNEA
+    // Revogar todas as sessões ativas antes de criar nova
+    // ============================================================
+    try {
+      const activeSessions = await AuthService.getUserSessions(user.id!);
+      if (activeSessions && activeSessions.length > 0) {
+        // Revogar todas as sessões ativas
+        await AuthService.revokeAllSessions(user.id!);
+        console.log(`[SECURITY] Sessões anteriores revogadas para ${email} (${activeSessions.length} sessão/sessões)`);
+      }
+    } catch (sessionErr: any) {
+      console.warn('[SECURITY] Erro ao revogar sessões anteriores:', sessionErr.message);
+    }
 
     // Generate tokens
     const accessToken = generateAccessToken({
@@ -15670,25 +15706,145 @@ app.post("/api/support/chat", async (req: any, res: any) => {
       return res.status(400).json({ error: "Mensagens inválidas." });
     }
 
-    const systemPrompt = `Você é o assistente oficial do JiuSpeak, a plataforma de inglês para praticantes de Jiu-Jitsu Brasileiro.
+    const systemPrompt = `Você é o assistente oficial do JiuSpeak — a única plataforma de inglês especializada em Brazilian Jiu-Jitsu do mundo. Seu nome é JiuBot. Responda SEMPRE em português brasileiro de forma amigável, clara e direta.
 
-SOBRE O JIUSPEAK:
-- Plataforma de ensino de inglês especializada em BJJ (Brazilian Jiu-Jitsu)
-- 5 módulos por faixa: Branca, Azul, Roxa, Marrom e Preta
-- Cada módulo tem 20 aulas com: vídeo, podcast, apostila, quiz (5 questões) e flashcards (10 cards)
-- Módulo 1 (Faixa Branca) é gratuito
-- Possui Voice Sparring (treino de conversação por voz)
-- Stand Parceiros (loja de produtos físicos de BJJ em BRL)
-- Sistema de pontos JiuTickets (JT) e gamificação
-- Suporte via email: suporte@jiuspeak.com.br
-- Site: jiuspeak.com.br
+═══════════════════════════════════
+🥋 SOBRE O JIUSPEAK
+═══════════════════════════════════
+Site: jiuspeak.com.br
+Email de suporte: suporte@jiuspeak.com.br
+Missão: Ensinar inglês técnico de BJJ para atletas brasileiros competirem internacionalmente com confiança.
 
-COMO RESPONDER:
-- Seja amigável, use linguagem do BJJ quando apropriado (OSS!, tatame, etc)
-- Respostas curtas e diretas (máximo 3 parágrafos)
-- Se não souber algo específico, indique suporte@jiuspeak.com.br
-- Fale sempre em português brasileiro
-- Use emojis com moderação 🥋`;
+═══════════════════════════════════
+📚 MÓDULOS DO CURSO
+═══════════════════════════════════
+O curso tem 5 módulos, um por faixa:
+- Módulo 1 — Faixa Branca: English on the Mat (GRATUITO — 20 aulas)
+- Módulo 2 — Faixa Azul: Sentences & Commands
+- Módulo 3 — Faixa Roxa: Conversational BJJ English
+- Módulo 4 — Faixa Marrom: Technical English
+- Módulo 5 — Faixa Preta: Fluency & Instruction
+
+Cada aula tem 5 seções:
+1. Vídeo-Aula (conteúdo principal)
+2. Podcast/Áudio (treinar o ouvido)
+3. Leitura/Apostila (material didático em PDF)
+4. Quiz (5 questões de múltipla escolha)
+5. Flashcards (10 cards com frente/verso para memorização)
+
+Para concluir uma aula, o aluno deve completar TODOS os 5 sub-módulos.
+Ao concluir todas as aulas de um módulo, pode fazer o Exame Final (10 questões, nota mínima 70%) e receber o certificado.
+
+Como acessar: Login → menu lateral → "Módulos do Curso"
+
+═══════════════════════════════════
+🎮 GAMIFICAÇÃO E XP
+═══════════════════════════════════
+- XP (Experience Points): ganhos ao completar aulas, quizzes e flashcards
+- Níveis: o aluno sobe de nível conforme acumula XP
+- Ofensiva (Streak): dias consecutivos de estudo — manter a sequência dá bônus de XP
+- JiuTickets (JT): moeda premium comprada separadamente, usada para:
+  • Customizar avatares e itens cosméticos no Marketplace
+  • Habilitar sessões de Voice Sparring com IA
+  • Adquirir benefícios especiais na loja
+- Conquistas: badges desbloqueados por ações específicas (completar módulo, manter ofensiva, etc.)
+
+═══════════════════════════════════
+🎙️ VOICE SPARRING BJJ
+═══════════════════════════════════
+Treino de conversação por voz em inglês com personagens IA:
+- Thomas (White Belt): nível fácil, iniciante
+- Tyler (California): nível médio, coach americano
+- Yuki (Purple Belt, Japão): nível alto, guarda especialista
+- Roberto (Intenso): nível médio, estilo competitivo
+- John (Black Belt, Texas): nível preta, técnico avançado
+
+Cenários disponíveis:
+- Match Day (competição IBJJF)
+- Seminário (detalhes técnicos)
+- Sparring (durante o rolo)
+- Intercâmbio (visitar academia e discutir políticas/taxas de gi)
+- Aula Privada (coaching 1-on-1 premium)
+
+Sistema ELO: cada sessão altera o ELO do aluno baseado no desempenho.
+Requer JiuTickets para ativar sessões.
+
+Como acessar: menu lateral → "Prática Conversacional IA" ou "Tatame Virtual PvP"
+
+═══════════════════════════════════
+🏫 ACADEMIAS & COMUNIDADE
+═══════════════════════════════════
+- Banco de academias globais com dados reais da IBJJF, CBJJ, AJP Tour e JBJJF
+- O aluno pode se filiar a uma academia para pontuação coletiva no ranking de equipes
+- Rankings por equipe, academia e país
+- Feed social: postar atualizações, conquistas e interagir com a comunidade BJJ
+
+═══════════════════════════════════
+🗺️ GUIA DE VIAGEM INTERNACIONAL
+═══════════════════════════════════
+Disponível em Módulos → aba "✈️ Guia de Viagem Internacional":
+- Como tirar passaporte brasileiro
+- Visto para EUA (B-1/B-2 para competições amadoras)
+- Portugal e Espaço Schengen (brasileiros entram 90 dias sem visto)
+- Documentos para competições internacionais (IBJJF, ADCC, AJP)
+- Vacinas e saúde (febre amarela, hepatite)
+- Hospedagem e dicas práticas
+- Dicas de voo com kimono
+
+═══════════════════════════════════
+🏪 STAND PARCEIROS
+═══════════════════════════════════
+Loja de produtos físicos de BJJ em BRL dentro do JiuSpeak:
+- Kimonos, rashguards, acessórios, suplementos, equipamentos
+- Vendedores parceiros aprovados pela equipe JiuSpeak
+- Pagamento via PIX
+- Comissão de 10% para o JiuSpeak por venda
+
+Para comprar: Loja → aba "Stand Parceiros"
+Para ser parceiro vendedor: Loja → Stand Parceiros → "Quero ser Parceiro" → formulário → análise em até 48h
+Parceiros aprovados têm acesso ao painel de gerenciamento de produtos e pedidos.
+
+═══════════════════════════════════
+💳 PLANOS E ASSINATURA
+═══════════════════════════════════
+- Módulo 1 (Faixa Branca): GRATUITO com 20 aulas completas
+- Módulos avançados (2-5): requerem assinatura PRO
+- Formas de pagamento: PIX, cartão de crédito, boleto bancário
+- Para ver planos e preços: menu lateral → "Assinatura"
+- JiuTickets são comprados separadamente para recursos premium
+
+═══════════════════════════════════
+🔑 ACESSO E CONTA
+═══════════════════════════════════
+- Cadastro: página inicial → "Criar conta" (email + senha)
+- Login: página inicial → "Entrar"
+- Esqueceu a senha: tela de login → "Esqueci minha senha"
+- Perfil: menu lateral → foto do perfil
+- O token de sessão expira após algum tempo — faça login novamente se necessário
+
+═══════════════════════════════════
+📜 CERTIFICADOS
+═══════════════════════════════════
+- Disponíveis após passar no Exame Final de cada módulo (70% mínimo)
+- Gerados automaticamente e compartilháveis
+- Válidos como comprovante de proficiência em inglês técnico de BJJ
+
+═══════════════════════════════════
+📬 SUPORTE
+═══════════════════════════════════
+- Email: suporte@jiuspeak.com.br (resposta em até 24h)
+- Para problemas técnicos sérios, sempre forneça o email de suporte
+
+═══════════════════════════════════
+REGRAS DE RESPOSTA:
+═══════════════════════════════════
+1. Sempre em português brasileiro
+2. Seja amigável e use termos do BJJ naturalmente (OSS!, tatame, rolar, etc.)
+3. Respostas claras e diretas — máximo 4 parágrafos
+4. Use formatação com **negrito** para destacar informações importantes
+5. Para dúvidas não cobertas aqui, indique suporte@jiuspeak.com.br
+6. Nunca invente informações — se não souber, diga e indique o suporte
+7. Finalize respostas com "OSS! 🥋" quando apropriado`;
 
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     if (!anthropicKey) {
@@ -15719,6 +15875,379 @@ COMO RESPONDER:
   } catch (err: any) {
     console.error("[SUPPORT CHAT ERROR]", err.message);
     res.json({ content: "Ops! Problema de conexão. Entre em contato via **suporte@jiuspeak.com.br** 🥋" });
+  }
+});
+
+
+
+// ============================================================
+// APOSTILA PDF — GERAÇÃO ESTILO LIVRO COM PDFKIT
+// ============================================================
+app.get("/api/apostila/:moduleId/:lessonId", async (req: any, res: any) => {
+  try {
+    const { moduleId, lessonId } = req.params;
+    const p = getPrisma() as any;
+
+    const lesson = await p.courseLesson.findUnique({ where: { id: lessonId } });
+    const mod = await p.courseModule.findUnique({ where: { id: moduleId } });
+    const quizzes = await p.courseQuizQuestion.findMany({ where: { lessonId }, orderBy: { order: "asc" } });
+    const flashcards = await p.courseFlashcard.findMany({ where: { lessonId }, orderBy: { order: "asc" } });
+
+    if (!lesson || !mod) return res.status(404).json({ error: "Aula não encontrada." });
+
+    if (moduleId !== "course_mod_1") {
+      const token = req.headers.authorization?.replace("Bearer ", "");
+      if (!token) return res.status(401).json({ error: "Faça login para acessar.", requiresLogin: true });
+    }
+
+    const PDFDocument = (await import("pdfkit")).default;
+    const doc = new PDFDocument({ size: "A4", margins: { top: 72, bottom: 72, left: 72, right: 72 } });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="JiuSpeak_${lessonId}.pdf"`);
+    doc.pipe(res);
+
+    const PURPLE = "#7c3aed", DARK = "#1e1b4b", GRAY = "#475569";
+
+    // CAPA
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill("#0f0a1e");
+    doc.rect(0, 0, doc.page.width, 8).fill(PURPLE);
+    doc.moveDown(4);
+    doc.fontSize(10).fillColor(PURPLE).font("Helvetica-Bold").text("🥋 JIUSPEAK", { align: "center" });
+    doc.fontSize(8).fillColor("#94a3b8").font("Helvetica").text("INGLÊS PARA JIU-JITSU", { align: "center" });
+    doc.moveDown(2);
+    doc.moveTo(72, doc.y).lineTo(doc.page.width - 72, doc.y).stroke(PURPLE);
+    doc.moveDown(1);
+    doc.fontSize(22).fillColor("#ffffff").font("Helvetica-Bold").text(lesson.title, { align: "center", lineGap: 4 });
+    doc.moveDown(0.5);
+    doc.fontSize(12).fillColor("#c4b5fd").font("Helvetica").text(mod.title, { align: "center" });
+    doc.moveDown(2);
+    doc.fontSize(9).fillColor("#94a3b8").font("Helvetica").text(`Aula ${lesson.order} de 20  |  ${new Date().toLocaleDateString("pt-BR")}`, { align: "center" });
+    if (moduleId === "course_mod_1") {
+      doc.moveDown(0.5);
+      doc.fontSize(9).fillColor("#059669").font("Helvetica-Bold").text("✓ APOSTILA GRATUITA — Módulo 1 Faixa Branca", { align: "center" });
+    }
+    doc.moveDown(3);
+    doc.fontSize(8).fillColor("#64748b").font("Helvetica").text("jiuspeak.com.br", { align: "center" });
+
+    // CONTEÚDO
+    doc.addPage();
+    doc.rect(0, 0, doc.page.width, 6).fill(PURPLE);
+    let y = 50;
+
+    doc.rect(72, y, doc.page.width - 144, 32).fill(DARK).stroke(PURPLE);
+    doc.fontSize(13).fillColor("#ffffff").font("Helvetica-Bold").text("📖 CONTEÚDO DA AULA", 82, y + 9);
+    y += 50;
+
+    const rawContent = lesson.lessonContent || lesson.description || "";
+    const lines = rawContent.split("\n");
+    for (const line of lines) {
+      if (y > doc.page.height - 100) { doc.addPage(); doc.rect(0,0,doc.page.width,6).fill(PURPLE); y = 40; }
+      const t = line.trim();
+      if (!t) { y += 8; continue; }
+      if (t.startsWith("# ")) {
+        doc.fontSize(16).fillColor(DARK).font("Helvetica-Bold").text(t.slice(2), 72, y, { width: doc.page.width - 144 }); y = doc.y + 8;
+      } else if (t.startsWith("## ")) {
+        doc.fontSize(13).fillColor(PURPLE).font("Helvetica-Bold").text(t.slice(3), 72, y, { width: doc.page.width - 144 }); y = doc.y + 4;
+        doc.moveTo(72, y).lineTo(doc.page.width - 72, y).stroke("#e2e8f0"); y += 8;
+      } else if (t.startsWith("### ")) {
+        doc.fontSize(11).fillColor(DARK).font("Helvetica-Bold").text(t.slice(4), 72, y, { width: doc.page.width - 144 }); y = doc.y + 4;
+      } else if (t.startsWith("- ") || t.startsWith("* ")) {
+        doc.fontSize(10).fillColor("#334155").font("Helvetica").text("•  " + t.slice(2), 80, y, { width: doc.page.width - 152 }); y = doc.y + 3;
+      } else if (t.startsWith("|") && !t.startsWith("|--")) {
+        const cells = t.split("|").filter(c => c.trim());
+        if (cells.length > 0) {
+          const cW = (doc.page.width - 144) / cells.length;
+          const isHeader = lines[lines.indexOf(line)+1]?.trim().startsWith("|--");
+          cells.forEach((cell, i) => {
+            const cx = 72 + i * cW;
+            if (isHeader) {
+              doc.rect(cx, y, cW, 20).fill(DARK).stroke(PURPLE);
+              doc.fontSize(9).fillColor("#ffffff").font("Helvetica-Bold").text(cell.trim(), cx+4, y+5, { width: cW-8 });
+            } else {
+              doc.rect(cx, y, cW, 18).fill(i%2===0?"#f8fafc":"#f1f5f9").stroke("#e2e8f0");
+              doc.fontSize(9).fillColor("#334155").font("Helvetica").text(cell.trim(), cx+4, y+4, { width: cW-8 });
+            }
+          });
+          y += isHeader ? 22 : 20;
+        }
+      } else {
+        const clean = t.replace(/\*\*([^*]+)\*\*/g,"$1").replace(/`([^`]+)`/g,"$1");
+        doc.fontSize(10).fillColor("#334155").font("Helvetica").text(clean, 72, y, { width: doc.page.width-144, lineGap: 2 }); y = doc.y + 4;
+      }
+    }
+
+    // FLASHCARDS
+    if (flashcards.length > 0) {
+      doc.addPage(); doc.rect(0,0,doc.page.width,6).fill(PURPLE); y = 40;
+      doc.rect(72,y,doc.page.width-144,32).fill(DARK).stroke(PURPLE);
+      doc.fontSize(13).fillColor("#ffffff").font("Helvetica-Bold").text("🃏 FLASHCARDS", 82, y+9); y += 50;
+      const cW = (doc.page.width-144-12)/2, cH = 80; let col = 0;
+      for (const fc of flashcards) {
+        if (y+cH > doc.page.height-80) { doc.addPage(); doc.rect(0,0,doc.page.width,6).fill(PURPLE); y=40; col=0; }
+        const cx = 72 + col*(cW+12);
+        doc.rect(cx,y,cW,cH).fill("#f8fafc").stroke(PURPLE);
+        doc.rect(cx,y,cW,18).fill(PURPLE).stroke(PURPLE);
+        doc.fontSize(7).fillColor("#ffffff").font("Helvetica-Bold").text("🇺🇸 PERGUNTA", cx+6, y+5);
+        doc.fontSize(9).fillColor("#1e293b").font("Helvetica-Bold").text(fc.frontText||fc.front||"", cx+6, y+24, { width: cW-12, height: 48 });
+        col++; if (col>=2) { col=0; y+=cH+8; }
+      }
+      if (col>0) y+=cH+8;
+    }
+
+    // QUIZ
+    if (quizzes.length > 0) {
+      doc.addPage(); doc.rect(0,0,doc.page.width,6).fill(PURPLE); y=40;
+      doc.rect(72,y,doc.page.width-144,32).fill(DARK).stroke(PURPLE);
+      doc.fontSize(13).fillColor("#ffffff").font("Helvetica-Bold").text("📝 MINI QUIZ", 82, y+9); y+=50;
+      for (let i=0; i<quizzes.length; i++) {
+        const q = quizzes[i];
+        if (y > doc.page.height-150) { doc.addPage(); doc.rect(0,0,doc.page.width,6).fill(PURPLE); y=40; }
+        doc.rect(72,y,20,20).fill(PURPLE);
+        doc.fontSize(10).fillColor("#ffffff").font("Helvetica-Bold").text(String(i+1), 72, y+4, { width:20, align:"center" });
+        doc.fontSize(10).fillColor("#1e293b").font("Helvetica-Bold").text(q.question, 98, y+4, { width: doc.page.width-170 });
+        y = doc.y + 6;
+        const opts = [{l:"A",t:q.optionA},{l:"B",t:q.optionB},{l:"C",t:q.optionC},{l:"D",t:q.optionD}].filter(o=>o.t);
+        for (const opt of opts) {
+          const ok = opt.l===q.correctAnswer;
+          doc.rect(84,y,12,12).fill(ok?"#059669":"#e2e8f0").stroke(ok?"#059669":"#cbd5e1");
+          doc.fontSize(8).fillColor(ok?"#ffffff":"#64748b").font("Helvetica-Bold").text(opt.l, 84, y+2, { width:12, align:"center" });
+          doc.fontSize(9).fillColor(ok?"#059669":"#475569").font(ok?"Helvetica-Bold":"Helvetica").text(opt.t, 102, y+1, { width: doc.page.width-174 });
+          y = doc.y + 2;
+        }
+        y += 12;
+      }
+    }
+
+    // RODAPÉ
+    doc.addPage();
+    doc.rect(0,0,doc.page.width,doc.page.height).fill("#0f0a1e");
+    doc.rect(0,0,doc.page.width,6).fill(PURPLE);
+    doc.moveDown(8);
+    doc.fontSize(20).fillColor(PURPLE).font("Helvetica-Bold").text("🥋 JiuSpeak", { align:"center" });
+    doc.fontSize(10).fillColor("#94a3b8").font("Helvetica").text("Inglês para Jiu-Jitsu", { align:"center" });
+    doc.moveDown(2);
+    doc.fontSize(14).fillColor(PURPLE).font("Helvetica-Bold").text("jiuspeak.com.br", { align:"center" });
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor("#475569").font("Helvetica").text("© JiuSpeak — Material protegido por direitos autorais.", { align:"center" });
+
+    doc.end();
+  } catch (err: any) {
+    console.error("[APOSTILA PDF ERROR]", err.message);
+    res.status(500).json({ error: "Erro ao gerar apostila." });
+  }
+});
+
+
+
+// ============================================================
+// LIVE STREAMING — Cloudflare Realtime WebRTC
+// ============================================================
+
+// Armazenamento em memória das sessões ativas
+const liveSessions: Map<string, any> = new Map();
+const liveViewers: Map<string, Set<any>> = new Map();
+
+// GET /api/live/sessions — listar lives ativas
+app.get("/api/live/sessions", async (req: any, res: any) => {
+  try {
+    const sessions = Array.from(liveSessions.values()).filter(s => s.active);
+    res.json({ success: true, sessions });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/live/create — criar sessão de live
+app.post("/api/live/create", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { title, category } = req.body;
+    const userId = req.user?.id;
+    const user = req.user;
+
+    const sessionId = `live_${userId}_${Date.now()}`;
+    const CF_ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const CF_TOKEN = process.env.CLOUDFLARE_REALTIME_TOKEN;
+    const CF_APP = process.env.CLOUDFLARE_REALTIME_APP_ID;
+
+    // Criar sessão no Cloudflare Realtime
+    const cfRes = await fetch(
+      `https://rtc.live.cloudflare.com/v1/apps/${CF_APP}/sessions/new`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CF_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    const cfData = await cfRes.json() as any;
+
+    const session = {
+      id: sessionId,
+      cfSessionId: cfData.sessionId,
+      userId,
+      userName: user?.name || 'Atleta',
+      userAvatar: user?.avatar || '',
+      title,
+      category: category || 'treino',
+      viewerCount: 0,
+      startedAt: new Date().toISOString(),
+      sessionId,
+      active: true
+    };
+
+    liveSessions.set(sessionId, session);
+    liveViewers.set(sessionId, new Set());
+
+    res.json({ 
+      success: true, 
+      sessionId,
+      cfSessionId: cfData.sessionId,
+      turnUsername: cfData.turnUsername,
+      turnCredential: cfData.turnCredential
+    });
+  } catch (err: any) {
+    console.error('[LIVE CREATE ERROR]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/live/offer — receber SDP offer do broadcaster
+app.post("/api/live/offer", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { sessionId, sdp } = req.body;
+    const session = liveSessions.get(sessionId);
+    if (!session) return res.status(404).json({ error: 'Sessão não encontrada' });
+
+    const CF_TOKEN = process.env.CLOUDFLARE_REALTIME_TOKEN;
+    const CF_APP = process.env.CLOUDFLARE_REALTIME_APP_ID;
+
+    // Enviar offer para Cloudflare
+    const cfRes = await fetch(
+      `https://rtc.live.cloudflare.com/v1/apps/${CF_APP}/sessions/${session.cfSessionId}/tracks/new`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CF_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionDescription: { type: 'offer', sdp }
+        })
+      }
+    );
+    const cfData = await cfRes.json() as any;
+    session.tracks = cfData.tracks;
+    liveSessions.set(sessionId, session);
+
+    res.json({ success: true, answer: cfData.sessionDescription?.sdp });
+  } catch (err: any) {
+    console.error('[LIVE OFFER ERROR]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/live/join/:sessionId — espectador entrar na live
+app.get("/api/live/join/:sessionId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { sessionId } = req.params;
+    const session = liveSessions.get(sessionId);
+    if (!session) return res.status(404).json({ error: 'Live não encontrada' });
+
+    const CF_TOKEN = process.env.CLOUDFLARE_REALTIME_TOKEN;
+    const CF_APP = process.env.CLOUDFLARE_REALTIME_APP_ID;
+
+    // Criar sessão de espectador no Cloudflare
+    const cfRes = await fetch(
+      `https://rtc.live.cloudflare.com/v1/apps/${CF_APP}/sessions/new`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CF_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    const cfData = await cfRes.json() as any;
+
+    // Puxar tracks do broadcaster
+    const pullRes = await fetch(
+      `https://rtc.live.cloudflare.com/v1/apps/${CF_APP}/sessions/${cfData.sessionId}/tracks/new`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${CF_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tracks: session.tracks?.map((t: any) => ({
+            location: 'remote',
+            trackName: t.trackName,
+            sessionId: session.cfSessionId
+          }))
+        })
+      }
+    );
+    const pullData = await pullRes.json() as any;
+
+    session.viewerCount = (session.viewerCount || 0) + 1;
+    liveSessions.set(sessionId, session);
+
+    res.json({ 
+      success: true,
+      offer: pullData.sessionDescription?.sdp,
+      viewerSessionId: cfData.sessionId
+    });
+  } catch (err: any) {
+    console.error('[LIVE JOIN ERROR]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/live/answer — espectador envia answer
+app.post("/api/live/answer", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { sessionId, sdp, viewerSessionId } = req.body;
+    const CF_TOKEN = process.env.CLOUDFLARE_REALTIME_TOKEN;
+    const CF_APP = process.env.CLOUDFLARE_REALTIME_APP_ID;
+
+    await fetch(
+      `https://rtc.live.cloudflare.com/v1/apps/${CF_APP}/sessions/${viewerSessionId}/renegotiate`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${CF_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionDescription: { type: 'answer', sdp }
+        })
+      }
+    );
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/live/end — encerrar live
+app.post("/api/live/end", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { sessionId } = req.body;
+    const session = liveSessions.get(sessionId);
+    if (session) {
+      session.active = false;
+      liveSessions.set(sessionId, session);
+      // Notificar viewers via WS
+      const viewers = liveViewers.get(sessionId);
+      if (viewers) {
+        viewers.forEach((ws: any) => {
+          try { ws.send(JSON.stringify({ type: 'ended' })); } catch {}
+        });
+      }
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

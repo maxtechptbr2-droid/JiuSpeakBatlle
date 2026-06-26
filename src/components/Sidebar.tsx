@@ -30,7 +30,7 @@ import {
   Bell,
   X,
   Loader2
-} from 'lucide-react';
+, Radio} from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
 import { AvatarWithFrame } from './AvatarWithFrame';
 

@@ -36,7 +36,10 @@ import {
   Shield,
   Calendar,
   Clock,
-  Compass
+  Compass,
+  Radio,
+  Eye,
+  Play
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { UserProfile, SocialPost, Comment, BeltRank } from '../types';
@@ -182,6 +185,20 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
       setIsLoading(false);
     }
   };
+
+  const [liveStreams, setLiveStreams] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    const fetchLives = async () => {
+      try {
+        const res = await fetch('/api/live/sessions');
+        if (res.ok) { const d = await res.json(); setLiveStreams(d.sessions || []); }
+      } catch {}
+    };
+    fetchLives();
+    const interval = setInterval(fetchLives, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   // WebSocket Live alerts sync in BJJ Social Network
   useEffect(() => {

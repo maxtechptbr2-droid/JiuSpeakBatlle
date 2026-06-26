@@ -20,7 +20,7 @@ import {
   Building2,
   Store,
   Coins
-} from 'lucide-react';
+, Radio } from 'lucide-react';
 import { UserProfile, Achievement, Course, BeltRank } from '../types';
 import { authFetch } from '../utils/authFetch';
 import { removeFakeUsers } from '../utils/removeFakeUsers';
@@ -410,6 +410,15 @@ export default function Dashboard({
                 color: 'border-blue-500/10 text-blue-400 bg-blue-500/5',
                 hoverColor: 'border-blue-500/40 hover:shadow-blue-600/15',
                 iconBg: 'bg-blue-500/10 text-blue-400'
+              },
+              {
+                id: 'live',
+                title: '🔴 Lives ao Vivo',
+                description: 'Assista transmissões ao vivo da comunidade ou inicie sua própria live de treino.',
+                icon: Radio,
+                color: 'border-red-500/10 text-red-400 bg-red-500/5',
+                hoverColor: 'border-red-500/40 hover:shadow-red-600/15',
+                iconBg: 'bg-red-500/10 text-red-400'
               },
               {
                 id: 'social',

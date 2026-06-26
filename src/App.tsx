@@ -47,6 +47,7 @@ const ProfilePanel = React.lazy(() => import('./components/ProfilePanel'));
 const PartnerStore = React.lazy(() => import('./components/PartnerStore'));
 const PartnerDashboard = React.lazy(() => import('./components/PartnerDashboard'));
 const SupportChat = React.lazy(() => import('./components/SupportChat'));
+const LiveStream = React.lazy(() => import('./components/LiveStream'));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
 const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
@@ -1193,6 +1194,14 @@ export default function App() {
               return (
                 <React.Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" /></div>}>
                   <PartnerDashboard user={user} showToast={showToast} />
+                </React.Suspense>
+              );
+            }
+
+            if (currentTab === 'live') {
+              return (
+                <React.Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-red-500/20 border-t-red-500 rounded-full animate-spin" /></div>}>
+                  <LiveStream user={user} showToast={showToast} onNavigate={setCurrentTab} />
                 </React.Suspense>
               );
             }
