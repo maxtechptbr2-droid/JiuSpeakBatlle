@@ -46,6 +46,7 @@ const JiuSpeakAcademy = React.lazy(() => import('./components/JiuSpeakAcademy'))
 const ProfilePanel = React.lazy(() => import('./components/ProfilePanel'));
 const PartnerStore = React.lazy(() => import('./components/PartnerStore'));
 const PartnerDashboard = React.lazy(() => import('./components/PartnerDashboard'));
+const SupportChat = React.lazy(() => import('./components/SupportChat'));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
 const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
@@ -1426,6 +1427,11 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* CHAT DE SUPORTE IA — aparece em todas as páginas */}
+      <React.Suspense fallback={null}>
+        <SupportChat user={user} />
+      </React.Suspense>
 
       {activeViralConquest && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">

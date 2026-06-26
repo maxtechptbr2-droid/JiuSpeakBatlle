@@ -15650,6 +15650,70 @@ app.post("/api/partner/store/update", authenticateToken, async (req: any, res: a
 });
 
 
+
+// ============================================================
+// CHAT DE SUPORTE IA — Proxy para Anthropic API
+// ============================================================
+app.post("/api/support/chat", async (req: any, res: any) => {
+  try {
+    const { messages, userInfo } = req.body;
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Mensagens inválidas." });
+    }
+
+    const systemPrompt = `Você é o assistente oficial do JiuSpeak, a plataforma de inglês para praticantes de Jiu-Jitsu Brasileiro.
+
+SOBRE O JIUSPEAK:
+- Plataforma de ensino de inglês especializada em BJJ (Brazilian Jiu-Jitsu)
+- 5 módulos por faixa: Branca, Azul, Roxa, Marrom e Preta
+- Cada módulo tem 20 aulas com: vídeo, podcast, apostila, quiz (5 questões) e flashcards (10 cards)
+- Módulo 1 (Faixa Branca) é gratuito
+- Possui Voice Sparring (treino de conversação por voz)
+- Stand Parceiros (loja de produtos físicos de BJJ em BRL)
+- Sistema de pontos JiuTickets (JT) e gamificação
+- Suporte via email: suporte@jiuspeak.com.br
+- Site: jiuspeak.com.br
+
+COMO RESPONDER:
+- Seja amigável, use linguagem do BJJ quando apropriado (OSS!, tatame, etc)
+- Respostas curtas e diretas (máximo 3 parágrafos)
+- Se não souber algo específico, indique suporte@jiuspeak.com.br
+- Fale sempre em português brasileiro
+- Use emojis com moderação 🥋`;
+
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      return res.json({ 
+        content: "Olá! Nosso assistente está temporariamente indisponível. Para suporte, entre em contato via **suporte@jiuspeak.com.br** 🥋 OSS!" 
+      });
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 500,
+        system: systemPrompt,
+        messages: messages.slice(-6)
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || "Desculpe, não consegui processar. Tente novamente ou contate suporte@jiuspeak.com.br";
+    
+    res.json({ content: reply });
+  } catch (err: any) {
+    console.error("[SUPPORT CHAT ERROR]", err.message);
+    res.json({ content: "Ops! Problema de conexão. Entre em contato via **suporte@jiuspeak.com.br** 🥋" });
+  }
+});
+
+
 async function startServer() {
   // Assert PostgreSQL connectivity immediately, blocking startup in production if offline
   try {
@@ -16429,11 +16493,32 @@ async function startServer() {
         };
       }
 
+      const mappedQuizzes = quizQuestions.map((q: any) => ({
+        ...q,
+        options: [q.optionA || '', q.optionB || '', q.optionC || '', q.optionD || ''],
+        correctAnswerIndex: ['A','B','C','D'].indexOf(q.correctAnswer)
+      }));
+
+      const mappedFlashcards = flashcards.map((fc: any) => ({
+        ...fc,
+        front: fc.frontText || fc.front || '',
+        back: fc.backText || fc.back || ''
+      }));
+
+      const mappedLesson = lesson ? {
+        ...lesson,
+        videoUrl: lesson.videoType === 'youtube' && lesson.videoSource
+          ? `https://www.youtube-nocookie.com/embed/${lesson.videoSource}?rel=0&modestbranding=1`
+          : lesson.videoType === 'cloudflare' && lesson.videoSource
+          ? `https://iframe.videodelivery.net/${lesson.videoSource}`
+          : lesson.videoSource || null
+      } : lesson;
+
       res.json({
         success: true,
-        lesson,
-        quizQuestions,
-        flashcards,
+        lesson: mappedLesson,
+        quizQuestions: mappedQuizzes,
+        flashcards: mappedFlashcards,
         progress
       });
     } catch (err: any) {
