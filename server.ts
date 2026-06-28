@@ -1514,7 +1514,7 @@ app.use("/api/", apiRateLimiter);
 // Specific strict auth limits to prevent brute-force or registration flood
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30, // Max 30 attempts per 15 minutes
+  max: 100, // Max 100 attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Tentativas de autenticação excessivas detectadas. Favor aguardar 15 minutos!" }
@@ -2958,6 +2958,15 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       favoriteAthlete: dbUser.favoriteAthlete,
       followersCount: dbUser.followersCount,
       followingCount: dbUser.followingCount,
+      academy: (dbUser as any).academy || '',
+      gender: (dbUser as any).gender || '',
+      category: (dbUser as any).category || '',
+      guardsPreference: (dbUser as any).guardsPreference || '',
+      submitsPreference: (dbUser as any).submitsPreference || '',
+      globalTeamId: (dbUser as any).globalTeamId || null,
+      branchId: (dbUser as any).branchId || null,
+      independentAcademyId: (dbUser as any).independentAcademyId || null,
+      affiliationType: (dbUser as any).affiliationType || null,
       birthDate: dbUser.birthDate,
       phone: dbUser.phone,
       englishLevel: dbUser.englishLevel,
@@ -14384,6 +14393,46 @@ app.post("/api/social/posts/:postId/repost", authenticateToken, async (req: any,
 });
 
 // 11. REPORT / DENUNCIAR POST
+// DELETE POST
+app.delete("/api/social/posts/:postId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: "DB indisponível" });
+    const { postId } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    const post = await (prisma as any).socialPost.findUnique({ where: { id: postId } });
+    if (!post) return res.status(404).json({ error: "Post não encontrado" });
+    if (post.authorId !== userId && !isAdmin) return res.status(403).json({ error: "Sem permissão" });
+    // Deletar comentários e reações primeiro
+    await (prisma as any).comment.deleteMany({ where: { postId } });
+    await (prisma as any).socialPost.delete({ where: { id: postId } });
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error("DELETE /api/social/posts error:", err);
+    return res.status(500).json({ error: "Erro ao excluir post" });
+  }
+});
+
+// DELETE COMMENT
+app.delete("/api/social/posts/:postId/comments/:commentId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(503).json({ error: "DB indisponível" });
+    const { postId, commentId } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.role === 'ADMIN';
+    const comment = await (prisma as any).comment.findUnique({ where: { id: commentId } });
+    if (!comment) return res.status(404).json({ error: "Comentário não encontrado" });
+    if (comment.authorId !== userId && !isAdmin) return res.status(403).json({ error: "Sem permissão" });
+    await (prisma as any).comment.delete({ where: { id: commentId } });
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error("DELETE /api/social/posts/comments error:", err);
+    return res.status(500).json({ error: "Erro ao excluir comentário" });
+  }
+});
+
 app.post("/api/social/posts/:postId/report", authenticateToken, async (req: any, res: any) => {
   try {
     const { postId } = req.params;

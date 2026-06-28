@@ -20,21 +20,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    const cached = localStorage.getItem('jiuspeak_user_profile_v2');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === 'object') {
-          console.log('[PROFILE READ]', parsed);
-          return parsed;
-        }
-      } catch (e) {
-        console.error("Failed to parse cached profile", e);
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [accessToken, setAccessTokenState] = useState<string | null>(() => localStorage.getItem('jiuspeak_access_token'));
   const [refreshToken, setRefreshTokenState] = useState<string | null>(() => localStorage.getItem('jiuspeak_refresh_token'));
@@ -137,7 +123,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       avatarFrame: apiUser.avatarFrame || "",
       followersCount: apiUser.followersCount || 0,
       followingCount: apiUser.followingCount || 0,
-      pvpFreeMatchesUsed: apiUser.pvpFreeMatchesUsed || 0
+      pvpFreeMatchesUsed: apiUser.pvpFreeMatchesUsed || 0,
+      globalTeamId: apiUser.globalTeamId || null,
+      branchId: apiUser.branchId || null,
+      independentAcademyId: apiUser.independentAcademyId || null,
+      affiliationType: apiUser.affiliationType || null,
+      academy: apiUser.academy || '',
+      category: apiUser.category || '',
+      guardsPreference: apiUser.guardsPreference || '',
+      submitsPreference: apiUser.submitsPreference || '',
+      gender: apiUser.gender || '',
     };
   };
 

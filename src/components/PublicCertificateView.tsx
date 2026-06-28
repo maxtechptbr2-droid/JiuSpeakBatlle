@@ -44,6 +44,29 @@ export default function PublicCertificateView({ hash, onNavigate, showToast }: P
     window.print();
   };
 
+  const handleDownloadImage = async () => {
+    if (!cert) return;
+    try {
+      showToast("Gerando imagem do certificado...", "info");
+      const html2canvas = (await import('html2canvas')).default;
+      const el = document.getElementById('cert-printable-area');
+      if (!el) { showToast("Erro ao localizar o certificado.", "error"); return; }
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#0f1117',
+        logging: false
+      });
+      const link = document.createElement('a');
+      link.download = `certificado-jiuspeak-${cert.hash?.slice(0,8) || 'modulo'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast("✅ Certificado baixado como imagem!", "success");
+    } catch (e) {
+      showToast("Erro ao gerar imagem. Tente usar o botão Imprimir.", "error");
+    }
+  };
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     showToast("Link do certificado copiado! Pronto para compartilhar no LinkedIn.", "success");
@@ -97,6 +120,14 @@ export default function PublicCertificateView({ hash, onNavigate, showToast }: P
           >
             <ExternalLink className="w-3.5 h-3.5" />
             Compartilhar Link
+          </button>
+          <button
+            onClick={handleDownloadImage}
+            type="button"
+            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Baixar Imagem
           </button>
           
           <button

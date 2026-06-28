@@ -219,7 +219,9 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
               />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-display font-semibold text-sm text-slate-200 truncate group-hover:text-violet-300 transition-colors">{user.name}</p>
+              <p className="font-display font-semibold text-sm text-slate-200 truncate group-hover:text-violet-300 transition-colors">
+                {user.name || <span className="inline-block w-24 h-3 bg-slate-700 rounded animate-pulse" />}
+              </p>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${getBeltBg(user.belt)}`}>
                   Faixa {user.belt}

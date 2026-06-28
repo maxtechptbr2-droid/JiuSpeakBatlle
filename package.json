@@ -37,6 +37,7 @@
     "express-rate-limit": "^8.5.2",
     "fs-extra": "^11.3.5",
     "helmet": "^8.2.0",
+    "html2canvas": "^1.4.1",
     "ioredis": "^5.11.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.546.0",

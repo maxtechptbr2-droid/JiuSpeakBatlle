@@ -494,11 +494,31 @@ export default function Lessons({
 
 
   const getBeltCoverStyle = (order: number): React.CSSProperties => {
-    if (order <= 4) return { background: "#0a1628", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.07) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(180,180,220,0.10) 0%, transparent 55%)" };
-    if (order <= 8) return { background: "#0c1e40", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(30,80,220,0.18) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(60,120,255,0.12) 0%, transparent 55%)" };
-    if (order <= 12) return { background: "#150c2a", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(100,40,200,0.22) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(150,60,255,0.12) 0%, transparent 55%)" };
-    if (order <= 16) return { background: "#1a0d06", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(130,70,20,0.28) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(180,100,30,0.14) 0%, transparent 55%)" };
-    return { background: "#050507", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(200,160,20,0.14) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(220,180,40,0.08) 0%, transparent 55%)" };
+    if (order <= 4) return { background: "linear-gradient(135deg, #0a1628 0%, #1a2a45 100%)" };
+    if (order <= 8) return { background: "linear-gradient(135deg, #0c1e40 0%, #0d2d6b 100%)" };
+    if (order <= 12) return { background: "linear-gradient(135deg, #150c2a 0%, #2d1060 100%)" };
+    if (order <= 16) return { background: "linear-gradient(135deg, #1a0d06 0%, #3d1f08 100%)" };
+    return { background: "linear-gradient(135deg, #050507 0%, #1a1500 100%)" };
+  };
+
+  const getBeltIcon = (order: number) => {
+    const icons: Record<string, { emoji: string; color: string; label: string }> = {
+      white:  { emoji: "🥋", color: "rgba(255,255,255,0.15)", label: "FAIXA BRANCA" },
+      blue:   { emoji: "🥋", color: "rgba(59,130,246,0.25)",  label: "FAIXA AZUL"   },
+      purple: { emoji: "🥋", color: "rgba(147,51,234,0.25)",  label: "FAIXA ROXA"   },
+      brown:  { emoji: "🥋", color: "rgba(146,64,14,0.30)",   label: "FAIXA MARROM" },
+      black:  { emoji: "🥋", color: "rgba(255,200,0,0.20)",   label: "FAIXA PRETA"  },
+    };
+    const key = order <= 4 ? "white" : order <= 8 ? "blue" : order <= 12 ? "purple" : order <= 16 ? "brown" : "black";
+    const { emoji, color, label } = icons[key];
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl" style={{ background: color }}>
+          {emoji}
+        </div>
+        <span className="text-[9px] font-black font-mono tracking-widest uppercase" style={{ color: "rgba(255,255,255,0.25)" }}>{label}</span>
+      </div>
+    );
   };
   return (
     <div className="bg-[#0b0c10] text-[#c5c6c7] min-h-screen p-4 sm:p-6 pb-28 space-y-6 relative font-sans select-none" id="core-course-modules-root">
@@ -615,6 +635,7 @@ export default function Lessons({
                         {/* Thumbnail cover design */}
                         <div className="h-40 w-full relative overflow-hidden bg-slate-950 group">
                           <div className="w-full h-full absolute inset-0" style={getBeltCoverStyle(mod.order)} />
+                          {getBeltIcon(mod.order)}
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent"></div>
                           
                           {/* Top floating tags */}

@@ -1,9 +1,9 @@
-const CACHE = 'jiuspeak-v1';
-const ASSETS = ['/', '/index.html', '/brand/jiuspeak-logo-main.png'];
+const CACHE = 'jiuspeak-v3';
+const STATIC = ['/brand/jiuspeak-logo-main.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
   );
 });
 
@@ -18,7 +18,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (e.request.url.includes('/api/')) return;
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+  // NUNCA cachear HTML — sempre buscar do servidor
+  if (e.request.headers.get('accept')?.includes('text/html')) return;
+  // Assets com hash no nome — cache first
+  if (e.request.url.match(/\/assets\/.*\.[a-f0-9]{8}\./)) {
+    e.respondWith(
+      caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+        return res;
+      }))
+    );
+  }
 });

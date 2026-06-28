@@ -32,6 +32,7 @@ interface AcademiesCommunitiesProps {
   user: UserProfile;
   updateUser: (fields: Partial<UserProfile>) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  syncMe?: () => Promise<boolean>;
 }
 
 // Interfaces matching backend tables
@@ -85,7 +86,7 @@ interface IndependentAcademy {
 
 type BadgeLevel = 'Community' | 'Official' | 'Premium' | 'Elite';
 
-export default function AcademiesCommunities({ user, updateUser, showToast }: AcademiesCommunitiesProps) {
+export default function AcademiesCommunities({ user, updateUser, showToast, syncMe }: AcademiesCommunitiesProps) {
   // Current Tab: 'profile' | 'rankings' | 'simulator' | 'stats' | 'verification'
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'rankings' | 'simulator' | 'stats' | 'verification'>('profile');
 
@@ -262,19 +263,18 @@ export default function AcademiesCommunities({ user, updateUser, showToast }: Ac
         payload.independentAcademyId = selectedIndependentId;
       }
 
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token') || '';
       const res = await fetch('/api/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
 
       if (res.ok) {
-        // Update user state locally
-        updateUser({
-          ...user,
-          ...payload
-        });
+        // Sincronizar com banco para garantir consistência após login
+        if (syncMe) await syncMe();
+        else updateUser({ ...user, ...payload });
         showToast("Sua filiação foi atualizada com absoluto sucesso!", "success");
         setWizardStep(1);
         loadDataFromBackend();
