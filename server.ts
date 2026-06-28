@@ -13577,22 +13577,49 @@ app.post("/api/social/upload-media", authenticateToken, (req: any, res: any) => 
         knownLength: req.file.size
       });
 
-      const axiosLib = require('axios').default || require('axios');
-      const response = await axiosLib.post('https://videos.jiuspeak.com.br/upload.php', form, {
-        headers: {
-          ...form.getHeaders(),
-          'X-Upload-Secret': 'jiuspeak_media_secret_2026'
-        },
-        maxContentLength: 150 * 1024 * 1024,
-        maxBodyLength: 150 * 1024 * 1024,
-        timeout: 120000
-      });
+      const fs = require('fs');
+      const pathLib = require('path');
+      const { v4: uuidv4 } = require('uuid');
+      const { execSync } = require('child_process');
 
-      const data = response.data;
-      if (!data.success) return res.status(500).json({ error: data.error || 'Erro no upload' });
+      const isVideo = req.file.mimetype.startsWith('video/');
+      const folder = isVideo ? 'videos' : 'photos';
+      const ext = req.file.originalname.split('.').pop()?.toLowerCase() || (isVideo ? 'mp4' : 'jpg');
+      const filename = `media_${uuidv4()}.${ext}`;
+      const uploadDir = pathLib.join(process.cwd(), 'public', 'uploads', folder);
 
-      console.log('[UPLOAD MEDIA] Sucesso:', data.url);
-      return res.json({ success: true, url: data.url, type: data.type });
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+      // Salvar temporariamente para validar duração
+      const tmpPath = pathLib.join(uploadDir, `tmp_${filename}`);
+      fs.writeFileSync(tmpPath, req.file.buffer);
+
+      // Validar duração do vídeo com ffprobe
+      if (isVideo) {
+        try {
+          const result = execSync(
+            `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${tmpPath}"`,
+            { timeout: 15000 }
+          ).toString().trim();
+          const duration = parseFloat(result);
+          if (duration > 65) {
+            fs.unlinkSync(tmpPath);
+            return res.status(400).json({ error: `Vídeo muito longo (${Math.round(duration)}s). Máximo permitido: 60 segundos.` });
+          }
+          console.log(`[UPLOAD MEDIA] Duração do vídeo: ${duration}s ✅`);
+        } catch (ffErr: any) {
+          fs.unlinkSync(tmpPath);
+          console.error('[UPLOAD MEDIA] ffprobe error:', ffErr.message);
+          return res.status(400).json({ error: 'Não foi possível validar o vídeo. Tente com um arquivo MP4.' });
+        }
+      }
+
+      // Renomear para nome final
+      fs.renameSync(tmpPath, pathLib.join(uploadDir, filename));
+
+      const url = `/uploads/${folder}/${filename}`;
+      console.log('[UPLOAD MEDIA] Sucesso:', url);
+      return res.json({ success: true, url, type: isVideo ? 'video' : 'image' });
     } catch (err: any) {
       console.error('[UPLOAD MEDIA ERROR]', err?.response?.data || err.message);
       return res.status(500).json({ error: 'Erro ao enviar mídia para o servidor de vídeos' });

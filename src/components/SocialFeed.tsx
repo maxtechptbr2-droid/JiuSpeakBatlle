@@ -238,7 +238,7 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
     if (!newPostContent.trim()) return;
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token') || '';
       const response = await fetch('/api/social/posts', {
         method: 'POST',
         headers: {
@@ -1417,30 +1417,25 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
 
                         {/* Mídia — Reels style */}
                         {(post.imageUrl || post.videoUrl) && (
-                          <div className="relative rounded-2xl overflow-hidden bg-black border border-slate-800/60 shadow-xl"
-                            style={{ maxHeight: '520px' }}
-                          >
+                          <div className="rounded-2xl overflow-hidden border border-slate-800/60 shadow-xl" style={{ background: "#000" }}>
                             {/* IMAGEM */}
                             {post.imageUrl && !post.videoUrl && (
                               <img
                                 src={post.imageUrl}
                                 alt="Mídia do post"
-                                className="w-full object-cover"
-                                style={{ maxHeight: '520px' }}
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                style={{ width: "100%", maxHeight: "600px", objectFit: "contain", display: "block", background: "#000" }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                               />
                             )}
 
-                            {/* VÍDEO NATIVO (videos.jiuspeak.com.br) */}
-                            {post.videoUrl && !post.videoUrl.includes('youtube') && !post.videoUrl.includes('youtu.be') && !post.videoUrl.includes('vimeo') && (
+                            {/* VÍDEO NATIVO */}
+                            {post.videoUrl && !post.videoUrl.includes("youtube") && !post.videoUrl.includes("youtu.be") && !post.videoUrl.includes("vimeo") && (
                               <video
                                 src={post.videoUrl}
-                                className="w-full object-cover"
-                                style={{ maxHeight: '520px' }}
                                 controls
                                 playsInline
                                 preload="metadata"
-                                poster=""
+                                style={{ width: "100%", maxHeight: "500px", objectFit: "contain", display: "block", background: "#000" }}
                               />
                             )}
 
