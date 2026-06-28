@@ -1,31 +1,56 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>JiuSpeak</title>
+
+    <!-- PWA: fullscreen como app nativo -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#070c1b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="JiuSpeak" />
+
+    <!-- Ícone para iOS (adicionar à tela inicial) -->
+    <link rel="apple-touch-icon" href="/brand/jiuspeak-logo-main.png" />
+
+    <!-- Cor da status bar no Android -->
+    <meta name="msapplication-TileColor" content="#070c1b" />
+    <meta name="msapplication-TileImage" content="/brand/jiuspeak-logo-main.png" />
+
+    <!-- Splash screen iOS — fundo escuro enquanto carrega -->
+    <style>
+      body { background-color: #070c1b; margin: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script>
-      // Gracefully handle/ignore cross-origin "Script error." which can occur due to iframe-parent messaging,
-      // browser extension scripts, or third-party widgets.
       window.onerror = function (message, url, line, col, error) {
         if (!message || message === "Script error." || (typeof message === "string" && message.toLowerCase().includes("script error"))) {
           console.warn("Recovered from cross-origin script error or iframe-bridge event.");
-          return true; // Prevents the error from propagating to the browser's console as an uncaught exception
+          return true;
         }
-        return false; // Allow other legitimate app errors to be printed and debugged
+        return false;
       };
-
       window.addEventListener("unhandledrejection", function (event) {
         if (event.reason && (event.reason.message === "Script error." || (typeof event.reason.message === "string" && event.reason.message.toLowerCase().includes("script error")))) {
           console.warn("Recovered from unhandled cross-origin rejection.");
           event.preventDefault();
         }
       });
+
+      // Registrar Service Worker para PWA
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registrado:', reg.scope))
+            .catch(err => console.log('SW erro:', err));
+        });
+      }
     </script>
     <script type="module" crossorigin src="/src/main.tsx"></script>
   </body>
 </html>
-

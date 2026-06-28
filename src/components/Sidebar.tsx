@@ -41,9 +41,10 @@ interface SidebarProps {
   onOpenCheatModal?: () => void;
   onLogout?: () => void;
   unreadMessagesCount?: number;
+  hasDailyChallenge?: boolean;
 }
 
-export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout, unreadMessagesCount = 0 }: SidebarProps) {
+export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatModal, onLogout, unreadMessagesCount = 0, hasDailyChallenge = false }: SidebarProps) {
   console.log("[SIDEBAR USER]", user);
 
   const [showInbox, setShowInbox] = useState(false);
@@ -180,14 +181,20 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
   return (
     <aside className="w-full lg:w-72 bg-slate-950/80 backdrop-blur-md border-r border-slate-800 flex flex-col h-auto lg:h-screen sticky top-0" id="bjj-sidebar">
       {/* Branding Header */}
-      <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <span className="font-display font-bold text-white text-xl">🥋</span>
+      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Logo JiuSpeak — imagem com fundo preto removido via mix-blend-mode */}
+          <div className="relative w-12 h-12 flex-shrink-0 overflow-hidden">
+            <img
+              src="/brand/jiuspeak-logo-main.png"
+              alt="JiuSpeak"
+              className="w-full h-full object-contain"
+              style={{ mixBlendMode: 'lighten' }}
+            />
           </div>
-          <div>
-            <h1 className="font-display font-extrabold text-2xl bg-gradient-to-r from-violet-400 via-indigo-200 to-white bg-clip-text text-transparent tracking-tight">
-              JiuSpeak
+          <div className="leading-tight">
+            <h1 className="font-extrabold text-xl tracking-tight">
+              <span className="text-[#84cc16]">Jiu</span><span className="text-white">Speak</span>
             </h1>
             <span className="text-[10px] text-slate-400 font-mono block">Inglês para Jiu-Jitsu</span>
           </div>

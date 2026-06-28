@@ -2978,12 +2978,7 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       branchId: dbUser.branchId,
       independentAcademyId: dbUser.independentAcademyId,
       subscription,
-      inventory: inMemoryUserInventories.get(dbUser.id) || [],
-      academy: (dbUser as any).academy || '',
-      category: (dbUser as any).category || 'Pena (-70kg)',
-      guardsPreference: (dbUser as any).guardsPreference || 'Guarda Fechada de Aço',
-      submitsPreference: (dbUser as any).submitsPreference || 'Estrangulamento Cruzado',
-      gender: (dbUser as any).gender || 'Masculino'
+      inventory: inMemoryUserInventories.get(dbUser.id) || []
     };
 
     res.json({ user: userPayload });
@@ -3463,8 +3458,7 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
     birthDate, phone, englishLevel, spanishLevel, frenchLevel,
     onboardingDone, username, beltRank, favoriteTechnique, favoriteAthlete,
     privacyLevel, themeColor, avatarFrame,
-    globalTeamId, branchId, independentAcademyId,
-    academy, category, guardsPreference, submitsPreference, gender
+    globalTeamId, branchId, independentAcademyId
   } = req.body;
   
   try {
@@ -3640,8 +3634,7 @@ app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
     birthDate, phone, englishLevel, spanishLevel, frenchLevel,
     onboardingDone, username, beltRank, favoriteTechnique, favoriteAthlete,
     privacyLevel, themeColor, avatarFrame,
-    globalTeamId, branchId, independentAcademyId,
-    academy, category, guardsPreference, submitsPreference, gender
+    globalTeamId, branchId, independentAcademyId
   } = req.body;
   
   try {
@@ -3700,16 +3693,6 @@ app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
     if (globalTeamId !== undefined) updateData.globalTeamId = globalTeamId || null;
     if (branchId !== undefined) updateData.branchId = branchId || null;
     if (independentAcademyId !== undefined) updateData.independentAcademyId = independentAcademyId || null;
-    if (academy !== undefined) updateData.academy = academy;
-    if (category !== undefined) updateData.category = category;
-    if (guardsPreference !== undefined) updateData.guardsPreference = guardsPreference;
-    if (submitsPreference !== undefined) updateData.submitsPreference = submitsPreference;
-    if (gender !== undefined) updateData.gender = gender;
-    if (academy !== undefined) updateData.academy = academy;
-    if (category !== undefined) updateData.category = category;
-    if (guardsPreference !== undefined) updateData.guardsPreference = guardsPreference;
-    if (submitsPreference !== undefined) updateData.submitsPreference = submitsPreference;
-    if (gender !== undefined) updateData.gender = gender;
 
     if (beltRank !== undefined && beltRank !== null) {
       const rankUpper = (beltRank as string).toUpperCase();
@@ -4431,129 +4414,6 @@ app.get("/api/certificates/:hash", async (req: any, res: any) => {
 });
 
 // GET ADMIN VIRAL & REFERRALS TELEMETRY
-// ── Daily Challenge Service (inlined) ─────────────────────────────────────────
-const CHALLENGE_THEMES_DC = [
-  'Closed Guard: Cross Collar Choke','Open Guard: De La Riva Sweeps','Spider Guard: Triangle Setup',
-  'Butterfly Guard: Hook Sweep','Half Guard: Deep Half Entry','Lasso Guard: Omoplata Finish',
-  'X-Guard: Leg Drag to Back','Rubber Guard: Mission Control','Worm Guard: Lapel Attacks',
-  'Reverse De La Riva: Kiss of Dragon','Torreando Pass: Hip Control','Knee Slice Pass: Shoulder Pressure',
-  'Leg Drag Pass: Back Take','Stack Pass: Neck Crank Defense','Over-Under Pass: Gripping Mechanics',
-  'Smash Pass: Leg Weave','Bullfighter Pass: De La Riva Counter','Double Under Pass: Posture Break',
-  'Triangle Choke: Hip Angle Adjustment','Rear Naked Choke: Finishing Details','Armbar from Mount: Hip Extension',
-  'Kimura from Side Control','Guillotine Choke: High Elbow Finish','Bow and Arrow Choke: Belt Grip',
-  'Clock Choke from Turtle Position','Omoplata: Shoulder Lock Mechanics','North-South Choke: Head Position',
-  "D Arce Choke: Arm Thread",'Anaconda Choke vs Turtle','Heel Hook: Inside vs Outside',
-  'Toe Hold: Ankle Mechanics','Kneebar: Entry from Guard','Double Leg Takedown: Level Change',
-  'Single Leg: Finish Options','Osoto Gari: Judo Throw Entry','Seoi Nage: Grip Breaking',
-  'Guard Pull: Gripping Strategy','Ankle Pick: Timing and Setup','Mount: High vs Low Mount',
-  'Back Control: Seatbelt Grip','Side Control: Kesa Gatame','Turtle Control: Breakdown Entries',
-  'Knee on Belly: Weight Distribution','IBJJF Rules: Points and Advantages','Referee Commands in Competition',
-  'Weight Classes and Registration','Stalling Penalties: Rules and Strategy','No-Gi Competition Differences',
-  'Podium Interview at World Championships','First Day at a BJJ Academy','Asking for a Roll: Dojo Etiquette',
-  'Belt Promotion Ceremony','Open Mat Sparring Protocol','Injury on the Mat: Communication',
-  'Training with Higher Belts','Tapping Out: Safety Communication','Visiting a BJJ Academy Abroad',
-  'BJJ Camp in Brazil: Daily Routine','Seminar with a World Champion','Weight Cutting for Competition',
-  'Injury Prevention: Finger Taping','Nutrition Strategy for Grapplers','Strength and Conditioning for BJJ',
-  'Mental Preparation: Visualization','Gracie Family and BJJ Origins','BJJ in MMA: UFC and Royce Gracie',
-  'Leg Locks Revolution: John Danaher','Gordon Ryan: Modern Submission Grappling','ADCC Rules and Prestige',
-  'Opening a BJJ School: First Steps','Teaching Kids BJJ Classes','Online BJJ Coaching Setup',
-];
-
-async function generateDCContent(theme: string, belt: string, level: number, apiKey: string): Promise<any> {
-  const belts: Record<string,string> = { WHITE:'White Belt',BLUE:'Blue Belt',PURPLE:'Purple Belt',BROWN:'Brown Belt',BLACK:'Black Belt' };
-  const beltName = belts[(belt||'WHITE').toUpperCase()] || 'White Belt';
-  const prompt = `You are a world-class BJJ English coach. Create a daily English challenge for a Brazilian ${beltName} (Level ${level}) student.\n\nTheme: "${theme}"\n\nCRITICAL RULES:\n- vocabulary.word = English BJJ term\n- vocabulary.translation = Portuguese translation\n- vocabulary.example = English sentence using the term\n- vocabulary.pronunciation = phonetic hint in Portuguese\n- phrase.english = English BJJ phrase\n- phrase.portuguese = Portuguese translation\n- dialogue = realistic conversation in ENGLISH with Portuguese translation for each line\n- quiz.question = question in PORTUGUESE (the student reads in PT and must know the English answer)\n- quiz.options = options in PORTUGUESE (e.g. "A: Joelho na barriga", "B: Passagem de guarda")\n- quiz.explanation = explanation in PORTUGUESE explaining why the answer is correct\n- voiceTopic = English speaking scenario description\n\nRespond ONLY with valid JSON (no markdown):\n{"vocabulary":[{"word":"English BJJ term","translation":"Tradução em português","example":"English sentence with term","pronunciation":"Dica de pronúncia em português"},{"word":"term","translation":"tradução","example":"sentence","pronunciation":"pronúncia"},{"word":"term","translation":"tradução","example":"sentence","pronunciation":"pronúncia"},{"word":"term","translation":"tradução","example":"sentence","pronunciation":"pronúncia"},{"word":"term","translation":"tradução","example":"sentence","pronunciation":"pronúncia"}],"phrase":{"english":"English BJJ phrase","portuguese":"Tradução em português","pronunciation_tip":"Dica em português","context":"Contexto BJJ em português"},"dialogue":[{"role":"Coach","text":"English text","translation":"Tradução PT"},{"role":"Athlete","text":"English text","translation":"Tradução PT"},{"role":"Coach","text":"English text","translation":"Tradução PT"},{"role":"Athlete","text":"English text","translation":"Tradução PT"},{"role":"Coach","text":"English text","translation":"Tradução PT"}],"quiz":[{"question":"Pergunta em PORTUGUÊS sobre o tema BJJ","options":["A: Opção em português","B: Opção em português","C: Opção em português","D: Opção em português"],"correct":"A","explanation":"Explicação em PORTUGUÊS do porquê esta é a resposta correta"},{"question":"Pergunta em PORTUGUÊS","options":["A: opção","B: opção","C: opção","D: opção"],"correct":"B","explanation":"Explicação em PORTUGUÊS"},{"question":"Pergunta em PORTUGUÊS","options":["A: opção","B: opção","C: opção","D: opção"],"correct":"C","explanation":"Explicação em PORTUGUÊS"}],"voiceTopic":"English speaking scenario for BJJ"}`;
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01' },
-    body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:2500, messages:[{role:'user',content:prompt}] }),
-  });
-  if (!res.ok) throw new Error(`Claude API error ${res.status}: ${await res.text().catch(()=>'')}`);
-  const data = await res.json() as any;
-  const raw = (data?.content?.[0]?.text || '').replace(/```json|```/g,'').trim();
-  try { return JSON.parse(raw); } catch {
-    const m = raw.match(/[{][\s\S]*[}]/); if (m) return JSON.parse(m[0]);
-    throw new Error('Parse error: ' + raw.substring(0,200));
-  }
-}
-
-async function getOrCreateDailyChallengeInline(prisma: any, userId: string, userBelt: string, userLevel: number, anthropicKey: string): Promise<any> {
-  if (!prisma || !prisma.dailyChallenge) throw new Error("Prisma sem modelo dailyChallenge");
-  const today = new Date().toISOString().split('T')[0];
-  const existing = await prisma.dailyChallenge.findUnique({ where: { userId_date: { userId, date: today } } });
-  if (existing) return existing;
-  const history = await prisma.dailyChallengeHistory.findMany({ where: { userId }, select: { theme: true } }).catch(()=>[]);
-  const used = new Set(history.map((h: any) => h.theme));
-  const pool = CHALLENGE_THEMES_DC.filter(t => !used.has(t));
-  const arr = pool.length > 0 ? pool : CHALLENGE_THEMES_DC;
-  const theme = arr[Math.floor(Math.random() * arr.length)];
-  const content = await generateDCContent(theme, userBelt, userLevel, anthropicKey);
-  const created = await prisma.dailyChallenge.create({
-    data: { userId, date: today, theme, beltContext: userBelt||'WHITE', levelContext: userLevel||1,
-      vocabulary: JSON.stringify(content.vocabulary||[]), phrase: JSON.stringify(content.phrase||{}),
-      dialogue: JSON.stringify(content.dialogue||[]), quiz: JSON.stringify(content.quiz||[]),
-      voiceTopic: content.voiceTopic||theme },
-  });
-  await prisma.dailyChallengeHistory.create({ data: { userId, theme, date: today } }).catch(()=>{});
-  await prisma.notification.create({ data: { userId, title:'Novo Desafio do Dia!',
-    content:'Complete as 5 secoes e ganhe 240 XP!', type:'DAILY_CHALLENGE', isRead:false, linkTo:'daily-challenge' } }).catch(()=>{});
-  return created;
-}
-
-async function completeDailyChallengeSection(prisma: any, challengeId: string, userId: string, section: string): Promise<{xpGained:number;allDone:boolean}> {
-  const ch = await prisma.dailyChallenge.findFirst({ where: { id: challengeId, userId } });
-  if (!ch) throw new Error('Desafio nao encontrado');
-  const xpMap: Record<string,number> = { vocabulary:20,phrase:15,dialogue:25,quiz:30,voice:50 };
-  const fieldMap: Record<string,string> = { vocabulary:'completedVocabulary',phrase:'completedPhrase',dialogue:'completedDialogue',quiz:'completedQuiz',voice:'completedVoice' };
-  const xpGained = xpMap[section]||0; const field = fieldMap[section];
-  if (!field || ch[field]) return { xpGained:0, allDone:false };
-  const updated = await prisma.dailyChallenge.update({ where:{id:challengeId}, data:{[field]:true,xpAwarded:{increment:xpGained}} });
-  await prisma.user.update({ where:{id:userId}, data:{xp:{increment:xpGained}} }).catch(()=>{});
-  const allDone = updated.completedVocabulary && updated.completedPhrase && updated.completedDialogue && updated.completedQuiz && updated.completedVoice;
-  if (allDone && !ch.completedAt) {
-    await prisma.dailyChallenge.update({ where:{id:challengeId}, data:{completedAt:new Date()} }).catch(()=>{});
-    await prisma.user.update({ where:{id:userId}, data:{xp:{increment:100}} }).catch(()=>{});
-  }
-  return { xpGained, allDone };
-}
-
-// GET /api/daily-challenge
-app.get("/api/daily-challenge", authenticateToken, async (req: any, res: any) => {
-  try {
-    const prisma = getPrisma() as any;
-    if (!prisma || !prisma.dailyChallenge) return res.status(503).json({ error: "Banco de dados indisponivel" });
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicKey) return res.status(503).json({ error: "ANTHROPIC_API_KEY nao configurada" });
-    const u = req.user;
-    const challenge = await getOrCreateDailyChallengeInline(prisma, u.id, u.belt || "WHITE", u.level || 1, anthropicKey);
-    return res.json({ challenge: { ...challenge,
-      vocabulary: JSON.parse(challenge.vocabulary || "[]"),
-      phrase: JSON.parse(challenge.phrase || "{}"),
-      dialogue: JSON.parse(challenge.dialogue || "[]"),
-      quiz: JSON.parse(challenge.quiz || "[]"),
-    }});
-  } catch (err: any) {
-    console.error("[DAILY CHALLENGE GET] Erro:", err.message);
-    return res.status(500).json({ error: "Erro ao gerar desafio: " + err.message });
-  }
-});
-
-// POST /api/daily-challenge/:id/complete
-app.post("/api/daily-challenge/:id/complete", authenticateToken, async (req: any, res: any) => {
-  try {
-    const prisma = getPrisma() as any;
-    if (!prisma || !prisma.dailyChallenge) return res.status(503).json({ error: "DB offline" });
-    const { section } = req.body;
-    if (!section) return res.status(400).json({ error: "Secao invalida" });
-    const result = await completeDailyChallengeSection(prisma, req.params.id, req.user.id, section);
-    return res.json({ success: true, ...result });
-  } catch (err: any) {
-    console.error("[DAILY CHALLENGE COMPLETE] Erro:", err.message);
-    return res.status(500).json({ error: err.message });
-  }
-});
-
 app.get("/api/admin/social-dashboard", authenticateToken, requireRole(["ADMIN", "admin"]), async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
@@ -9467,29 +9327,13 @@ app.post("/api/conversational/activate", authenticateToken, async (req: any, res
       balanceJT = userObj.coins || 0;
     }
 
-    // Rule: AI costs 2500 JT. Exception: INSTRUCTOR/ADMIN = free.
-    const isTeacher = userObj.role === "INSTRUCTOR" || userObj.role === "ADMIN";
-    const cost = isTeacher ? 0 : 5000;
-
-    // Allow users who still have free trial matches
-    const pvpUsedAct = (userObj as any)?.pvpFreeMatchesUsed || 0;
-    const aiExpiryAct = (userObj as any)?.aiConversationExpiresAt ? new Date((userObj as any).aiConversationExpiresAt) : null;
-    const hasActiveSubAct = aiExpiryAct && aiExpiryAct.getTime() > Date.now();
-    if (!isTeacher && !hasActiveSubAct && pvpUsedAct < 3) {
-      return res.json({
-        success: true,
-        trial: true,
-        pvpFreeMatchesUsed: pvpUsedAct,
-        pvpFreeMatchesLimit: 3,
-        message: `Você tem ${3 - pvpUsedAct} batalha(s) gratuita(s) restante(s). Aproveite!`
-      });
-    }
+    // Rule: AI costs 5.000 JT. Exception: role === "INSTRUCTOR" is 0 JT
+    const isTeacher = userObj.role === "INSTRUCTOR";
+    const cost = isTeacher ? 0 : 2500;
 
     if (balanceJT < cost) {
       return res.status(400).json({ 
-        error: `Você precisa de ${cost} JT para ativar a Arena PvP. Adquira JiuTickets para continuar.`,
-        required: cost,
-        balance: balanceJT
+        error: "Você precisa adquirir JT para utilizar a IA." 
       });
     }
 
@@ -9580,33 +9424,6 @@ app.post("/api/conversational/sessions/create", authenticateToken, async (req: a
     }
 
     const userObj = await authStore.findById(userId);
-
-    // ── Trial: 3 batalhas gratuitas ────────────────────────────────────────
-    const pvpUsed = (userObj as any)?.pvpFreeMatchesUsed || 0;
-    const aiExpiry = (userObj as any)?.aiConversationExpiresAt ? new Date((userObj as any).aiConversationExpiresAt) : null;
-    const hasActiveSub = aiExpiry && aiExpiry.getTime() > Date.now();
-    const isFreeRole = userObj?.role === 'INSTRUCTOR' || userObj?.role === 'ADMIN';
-
-    if (!isFreeRole && !hasActiveSub && pvpUsed >= 3) {
-      return res.status(403).json({
-        error: "Você já utilizou suas 3 batalhas gratuitas. Ative a Arena PvP com 5.000 JT para continuar.",
-        trialExhausted: true,
-        pvpFreeMatchesUsed: pvpUsed,
-        pvpFreeMatchesLimit: 3
-      });
-    }
-
-    // Incrementar contador se ainda em trial
-    if (!isFreeRole && !hasActiveSub && pvpUsed < 3) {
-      const newCount = pvpUsed + 1;
-      const prismaDb = getPrisma() as any;
-      if (prismaDb) {
-        await prismaDb.user.update({ where: { id: userId }, data: { pvpFreeMatchesUsed: newCount } }).catch(() => {});
-      }
-      await authStore.updateUser(userId, { pvpFreeMatchesUsed: newCount } as any);
-    }
-    // ── Fim Trial ──────────────────────────────────────────────────────────
-
     const profile = {
       name: userObj?.name || "Lutador",
       belt: userObj?.belt || "WHITE",
@@ -9617,7 +9434,7 @@ app.post("/api/conversational/sessions/create", authenticateToken, async (req: a
     const { createSession } = await import("./server/services/openaiChat");
     const session = await createSession(userId, scenario, partnerKey, profile);
 
-    res.json({ success: true, session, pvpFreeMatchesUsed: pvpUsed + ((!isFreeRole && !hasActiveSub) ? 1 : 0), pvpFreeMatchesLimit: 3 });
+    res.json({ success: true, session });
   } catch (err: any) {
     console.error("Error creating session:", err);
     res.status(500).json({ error: err.message || "Erro ao instanciar sessão conversacional." });
@@ -14412,6 +14229,56 @@ app.post("/api/social/posts/:postId/report", authenticateToken, async (req: any,
 });
 
 // 12. GET ACTIVE STORIES (< 24 HOURS OLD)
+// DELETE /api/social/posts/:postId — dono do post ou admin
+app.delete("/api/social/posts/:postId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { postId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const prisma = getPrisma() as any;
+    if (!prisma) return res.status(503).json({ error: "DB offline" });
+
+    const post = await prisma.socialPost.findUnique({ where: { id: postId } }).catch(() => null);
+    if (!post) return res.status(404).json({ error: "Post não encontrado." });
+    if (post.authorId !== userId && userRole !== 'ADMIN') {
+      return res.status(403).json({ error: "Sem permissão para excluir este post." });
+    }
+
+    // Deletar comentários e likes antes do post
+    await prisma.comment?.deleteMany({ where: { postId } }).catch(() => {});
+    await prisma.like?.deleteMany({ where: { postId } }).catch(() => {});
+    await prisma.socialPost.delete({ where: { id: postId } });
+
+    res.json({ success: true, message: "Post excluído com sucesso." });
+  } catch (err: any) {
+    console.error("DELETE post error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/social/posts/:postId/comments/:commentId — dono do comentário ou admin
+app.delete("/api/social/posts/:postId/comments/:commentId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { commentId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const prisma = getPrisma() as any;
+    if (!prisma) return res.status(503).json({ error: "DB offline" });
+
+    const comment = await prisma.comment.findUnique({ where: { id: commentId } }).catch(() => null);
+    if (!comment) return res.status(404).json({ error: "Comentário não encontrado." });
+    if (comment.authorId !== userId && userRole !== 'ADMIN') {
+      return res.status(403).json({ error: "Sem permissão para excluir este comentário." });
+    }
+
+    await prisma.comment.delete({ where: { id: commentId } });
+    res.json({ success: true, message: "Comentário excluído com sucesso." });
+  } catch (err: any) {
+    console.error("DELETE comment error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => {
   try {
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -16568,6 +16435,182 @@ app.get("/api/auth/google/callback", async (req: any, res: any) => {
 });
 
 
+// ============================================================
+// DAILY CHALLENGE — Desafio Diário com IA
+// ============================================================
+
+
+// ── Daily Challenge Service (inlined) ─────────────────────────────────────────
+const CHALLENGE_THEMES_DC = [
+  'Closed Guard: Cross Collar Choke','Open Guard: De La Riva Sweeps','Spider Guard: Triangle Setup',
+  'Butterfly Guard: Hook Sweep','Half Guard: Deep Half Entry','Lasso Guard: Omoplata Finish',
+  'X-Guard: Leg Drag to Back','Rubber Guard: Mission Control','Worm Guard: Lapel Attacks',
+  'Reverse De La Riva: Kiss of Dragon','Torreando Pass: Hip Control','Knee Slice Pass: Shoulder Pressure',
+  'Leg Drag Pass: Back Take','Stack Pass: Neck Crank Defense','Over-Under Pass: Gripping Mechanics',
+  'Smash Pass: Leg Weave','Bullfighter Pass: De La Riva Counter','Double Under Pass: Posture Break',
+  'Triangle Choke: Hip Angle Adjustment','Rear Naked Choke: Finishing Details','Armbar from Mount: Hip Extension',
+  'Kimura from Side Control','Guillotine Choke: High Elbow Finish','Bow and Arrow Choke: Belt Grip',
+  'Clock Choke from Turtle Position','Omoplata: Shoulder Lock Mechanics','North-South Choke: Head Position',
+  "D'Arce Choke: Arm Thread",'Anaconda Choke vs Turtle','Heel Hook: Inside vs Outside',
+  'Toe Hold: Ankle Mechanics','Kneebar: Entry from Guard','Double Leg Takedown: Level Change',
+  'Single Leg: Finish Options','Osoto Gari: Judo Throw Entry','Seoi Nage: Grip Breaking',
+  'Uchi Mata: Inside Leg Trip','Guard Pull: Gripping Strategy','Ankle Pick: Timing and Setup',
+  'Foot Sweep: Kuzushi','Mount: High vs Low Mount','Back Control: Seatbelt Grip',
+  'Side Control: Scarf Hold vs Kesa Gatame','North-South: Transition Options','Turtle Control: Breakdown Entries',
+  'Knee on Belly: Weight Distribution','IBJJF Rules: Points and Advantages','Referee Commands in Competition',
+  'Weight Classes and Registration','Bracket Reading and Seeding','Stalling Penalties: Rules and Strategy',
+  'Submission Only Format: EBI Rules','No-Gi Competition Differences','Absolute Division Strategy',
+  'Podium Interview at World Championships','Medal Ceremony and Protocol','First Day at a BJJ Academy',
+  'Asking for a Roll: Dojo Etiquette','Gi Care: Washing and Patch Rules','Belt Promotion Ceremony',
+  'Open Mat Sparring Protocol','Drilling Partners: Giving Feedback','Injury on the Mat: Communication',
+  'Asking Technical Questions to Coach','Training with Higher Belts','Tapping Out: Safety Communication',
+  'Visiting a BJJ Academy Abroad','Training at Gracie Barra HQ','Attending an IBJJF Pan Championship',
+  'BJJ Camp in Brazil: Daily Routine','Training with Japanese Black Belts','Seminar with a World Champion',
+  'Airport and Gi Check-in for Tournaments','Team Dinner Before Competition','Weight Cutting for Competition',
+  'Injury Prevention: Finger Taping','Physical Therapy After Mat Injury','Nutrition Strategy for Grapplers',
+  'Strength and Conditioning for BJJ','Recovery Between Training Sessions','Mental Preparation: Visualization',
+  'Warm-up Routine Before Rolling','Gracie Family and BJJ Origins','Helio Gracie vs Masahiko Kimura',
+  'BJJ in MMA: UFC and Royce Gracie','Evolution of the Guard Game','Leg Locks Revolution: John Danaher',
+  'Gordon Ryan: Modern Submission Grappling','ADCC Rules and Prestige','Marcelo Garcia: Guard Pulling Genius',
+  'Opening a BJJ School: First Steps','Teaching Kids BJJ Classes',"Women's BJJ: Growing the Sport",
+  'Online BJJ Coaching Setup','Sponsorship in BJJ: How to Approach',
+];
+
+async function generateDailyChallengeContentClaude(theme: string, belt: string, level: number, apiKey: string): Promise<any> {
+  const beltLabel: Record<string, string> = { WHITE:'White Belt',BLUE:'Blue Belt',PURPLE:'Purple Belt',BROWN:'Brown Belt',BLACK:'Black Belt' };
+  const beltName = beltLabel[(belt||'WHITE').toUpperCase()] || 'White Belt';
+  const prompt = `You are a world-class BJJ English coach. Create a daily challenge for a Brazilian ${beltName} (Level ${level}) student.\n\nTheme: "${theme}"\n\nRULES: Every word/phrase/dialogue must be 100% BJJ-specific. No generic English.\n\nRespond ONLY with valid JSON, no markdown:\n{"vocabulary":[{"word":"BJJ term","translation":"Portuguese","example":"BJJ sentence","pronunciation":"hint"},{"word":"BJJ term","translation":"Portuguese","example":"BJJ sentence","pronunciation":"hint"},{"word":"BJJ term","translation":"Portuguese","example":"BJJ sentence","pronunciation":"hint"},{"word":"BJJ term","translation":"Portuguese","example":"BJJ sentence","pronunciation":"hint"},{"word":"BJJ term","translation":"Portuguese","example":"BJJ sentence","pronunciation":"hint"}],"phrase":{"english":"BJJ phrase","portuguese":"translation","pronunciation_tip":"hint","context":"BJJ context"},"dialogue":[{"role":"Coach","text":"text","translation":"Portuguese"},{"role":"Athlete","text":"text","translation":"Portuguese"},{"role":"Coach","text":"text","translation":"Portuguese"},{"role":"Athlete","text":"text","translation":"Portuguese"},{"role":"Coach","text":"text","translation":"Portuguese"}],"quiz":[{"question":"BJJ question","options":["A: opt","B: opt","C: opt","D: opt"],"correct":"A","explanation":"BJJ explanation"},{"question":"BJJ question","options":["A: opt","B: opt","C: opt","D: opt"],"correct":"B","explanation":"BJJ explanation"},{"question":"BJJ question","options":["A: opt","B: opt","C: opt","D: opt"],"correct":"C","explanation":"BJJ explanation"}],"voiceTopic":"BJJ speaking scenario"}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01' },
+    body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:2500, messages:[{role:'user',content:prompt}] }),
+  });
+  if (!res.ok) throw new Error(`Claude API error ${res.status}: ${await res.text().catch(()=>'')}`);
+  const data = await res.json() as any;
+  const raw = (data?.content?.[0]?.text || '').replace(/```json|```/g,'').trim();
+  try { return JSON.parse(raw); } catch {
+    const m = raw.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]);
+    throw new Error(`Parse error: ${raw.substring(0,200)}`);
+  }
+}
+
+async function getOrCreateDailyChallengeInline(prismaClient: any, userId: string, userBelt: string, userLevel: number, anthropicKey: string): Promise<any> {
+  if (!prismaClient || !prismaClient.dailyChallenge) throw new Error("Prisma não conectado ao banco");
+  const prisma = prismaClient;
+  const today = new Date().toISOString().split('T')[0];
+  const existing = await prisma.dailyChallenge.findUnique({ where: { userId_date: { userId, date: today } } });
+  if (existing) return existing;
+
+  const history = await prisma.dailyChallengeHistory.findMany({ where: { userId }, select: { theme: true } });
+  const used = new Set(history.map((h: any) => h.theme));
+  const pool = CHALLENGE_THEMES_DC.filter(t => !used.has(t));
+  const theme = (pool.length > 0 ? pool : CHALLENGE_THEMES_DC)[Math.floor(Math.random() * (pool.length > 0 ? pool : CHALLENGE_THEMES_DC).length)];
+
+  const content = await generateDailyChallengeContentClaude(theme, userBelt, userLevel, anthropicKey);
+
+  return prisma.$transaction(async (tx: any) => {
+    const created = await tx.dailyChallenge.create({
+      data: { userId, date: today, theme, beltContext: userBelt||'WHITE', levelContext: userLevel||1,
+        vocabulary: JSON.stringify(content.vocabulary), phrase: JSON.stringify(content.phrase),
+        dialogue: JSON.stringify(content.dialogue), quiz: JSON.stringify(content.quiz), voiceTopic: content.voiceTopic },
+    });
+    await tx.dailyChallengeHistory.create({ data: { userId, theme, date: today } });
+    await tx.notification.create({ data: { userId, title:'🥋 Novo Desafio do Dia!',
+      content:`Seu desafio de hoje é sobre "${theme}". Complete as 5 seções e ganhe até 240 XP!`,
+      type:'DAILY_CHALLENGE', isRead:false, linkTo:'daily-challenge' } });
+    return created;
+  });
+}
+
+async function completeDailyChallengeSection(prisma: any, challengeId: string, userId: string, section: string): Promise<{ xpGained: number; allDone: boolean }> {
+  const challenge = await prisma.dailyChallenge.findFirst({ where: { id: challengeId, userId } });
+  if (!challenge) throw new Error('Desafio não encontrado');
+  const xpMap: Record<string,number> = { vocabulary:20, phrase:15, dialogue:25, quiz:30, voice:50 };
+  const fieldMap: Record<string,string> = { vocabulary:'completedVocabulary', phrase:'completedPhrase', dialogue:'completedDialogue', quiz:'completedQuiz', voice:'completedVoice' };
+  const xpGained = xpMap[section]; const field = fieldMap[section];
+  if (challenge[field]) return { xpGained:0, allDone:false };
+  const updated = await prisma.dailyChallenge.update({ where:{id:challengeId}, data:{[field]:true, xpAwarded:{increment:xpGained}} });
+  await prisma.user.update({ where:{id:userId}, data:{xp:{increment:xpGained}} });
+  const allDone = updated.completedVocabulary && updated.completedPhrase && updated.completedDialogue && updated.completedQuiz && updated.completedVoice;
+  if (allDone && !challenge.completedAt) {
+    await prisma.$transaction([
+      prisma.dailyChallenge.update({ where:{id:challengeId}, data:{completedAt:new Date()} }),
+      prisma.user.update({ where:{id:userId}, data:{xp:{increment:100}} }),
+      prisma.notification.create({ data:{userId,title:'🏆 Desafio Completo!',content:'Você ganhou +240 XP!',type:'DAILY_CHALLENGE',isRead:false,linkTo:'daily-challenge'} }),
+    ]);
+  }
+  return { xpGained, allDone };
+}
+// ── End Daily Challenge Service ────────────────────────────────────────────────
+
+// GET /api/daily-challenge — busca ou gera o desafio do dia
+app.get("/api/daily-challenge", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma() as any;
+    if (!prisma || !prisma.dailyChallenge) {
+      return res.status(503).json({ error: "Banco de dados indisponível" });
+    }
+
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      return res.status(503).json({ error: "ANTHROPIC_API_KEY não configurada" });
+    }
+
+    const user = req.user;
+    const challenge = await getOrCreateDailyChallengeInline(
+      prisma,
+      user.id,
+      user.belt || "WHITE",
+      user.level || 1,
+      anthropicKey
+    );
+
+    // Parsear campos JSON antes de retornar ao frontend
+    return res.json({
+      challenge: {
+        ...challenge,
+        vocabulary: JSON.parse(challenge.vocabulary || "[]"),
+        phrase:     JSON.parse(challenge.phrase     || "{}"),
+        dialogue:   JSON.parse(challenge.dialogue   || "[]"),
+        quiz:       JSON.parse(challenge.quiz       || "[]"),
+      },
+    });
+  } catch (err: any) {
+    console.error("[DAILY CHALLENGE GET] Erro:", err.message);
+    return res.status(500).json({ error: "Erro ao gerar desafio do dia: " + err.message });
+  }
+});
+
+// POST /api/daily-challenge/:id/complete — marca seção como concluída e concede XP
+app.post("/api/daily-challenge/:id/complete", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma() as any;
+    if (!prisma || !prisma.dailyChallenge) {
+      return res.status(503).json({ error: "Banco de dados indisponível" });
+    }
+
+    const { section } = req.body;
+    const validSections = ["vocabulary", "phrase", "dialogue", "quiz", "voice"];
+    if (!section || !validSections.includes(section)) {
+      return res.status(400).json({ error: "Seção inválida. Use: " + validSections.join(", ") });
+    }
+
+    const result = await completeDailyChallengeSection(
+      prisma,
+      req.params.id,
+      req.user.id,
+      section
+    );
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error("[DAILY CHALLENGE COMPLETE] Erro:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+
 async function startServer() {
   // Assert PostgreSQL connectivity immediately, blocking startup in production if offline
   try {
@@ -16740,13 +16783,9 @@ async function startServer() {
 
       const activeProfile = updatedProfile || profile;
 
-      // Rule: 3 free trial matches, then requires active AI subscription
-      const pvpUsedSock = (activeProfile as any).pvpFreeMatchesUsed || 0;
-      const aiExpirySock = (activeProfile as any).aiConversationExpiresAt ? new Date((activeProfile as any).aiConversationExpiresAt) : null;
-      const hasSubSock = aiExpirySock && aiExpirySock.getTime() > Date.now();
-      const isFreeRoleSock = activeProfile.role === "TEACHER" || activeProfile.role === "INSTRUCTOR" || activeProfile.role === "ADMIN";
-      if (!isFreeRoleSock && !hasSubSock && pvpUsedSock >= 3) {
-        socket.emit("matchmaking:error", { error: "Você usou suas 3 batalhas gratuitas! Ative a Arena PvP com 2500 JT para continuar." });
+      // Rule: Each PvP entry requires 5.000 JT. Charged upon match confirmation. Free for Teachers.
+      if (activeProfile.role !== "TEACHER" && (activeProfile.coins || 0) < 5000) {
+        socket.emit("matchmaking:error", { error: "Você precisa adquirir JT para entrar na Arena PvP. Cada combate custa 5.000 JT." });
         return;
       }
 

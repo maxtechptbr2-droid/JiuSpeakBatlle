@@ -39,7 +39,8 @@ import {
   Compass,
   Radio,
   Eye,
-  Play
+  Play,
+  Trash2
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { UserProfile, SocialPost, Comment, BeltRank } from '../types';
@@ -205,7 +206,10 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
     loadSocialData();
 
     const socket = io({
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: false,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 5000,
       autoConnect: true
     });
 
@@ -260,6 +264,44 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
   };
 
   // Reactions custom triggers ❤️🔥🥋⚔️🏆👏
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir este post? Esta ação é irreversível.')) return;
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+      const res = await fetch(`/api/social/posts/${postId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPosts(prev => prev.filter(p => p.id !== postId));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Erro ao excluir post.');
+      }
+    } catch (e) { console.error('Delete post error:', e); }
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!window.confirm('Excluir este comentário?')) return;
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+      const res = await fetch(`/api/social/posts/${postId}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPosts(prev => prev.map(p =>
+          p.id === postId
+            ? { ...p, comments: (p.comments || []).filter((c: any) => c.id !== commentId) }
+            : p
+        ));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Erro ao excluir comentário.');
+      }
+    } catch (e) { console.error('Delete comment error:', e); }
+  };
+
   const handleReactToPost = async (postId: string, reactionType: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -1242,6 +1284,18 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
                             >
                               <Flag className="w-3.5 h-3.5" />
                             </button>
+
+                            {/* Excluir post — dono ou admin */}
+                            {(post.authorId === user.id || (user.role as string) === 'admin' || (user.role as string) === 'ADMIN') && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePost(post.id)}
+                                className="p-1 border border-slate-850 bg-slate-950 rounded-lg text-slate-500 hover:text-red-500 hover:border-red-900 transition-colors cursor-pointer"
+                                title="Excluir Post"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
 

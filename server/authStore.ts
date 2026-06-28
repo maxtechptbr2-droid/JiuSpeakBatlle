@@ -1911,6 +1911,11 @@ export const authStore = {
       if (fields.englishLevel !== undefined) prismaData.englishLevel = fields.englishLevel;
       if (fields.spanishLevel !== undefined) prismaData.spanishLevel = fields.spanishLevel;
       if (fields.frenchLevel !== undefined) prismaData.frenchLevel = fields.frenchLevel;
+      if ((fields as any).gender !== undefined) prismaData.gender = (fields as any).gender;
+      if ((fields as any).academy !== undefined) prismaData.academy = (fields as any).academy;
+      if ((fields as any).category !== undefined) prismaData.category = (fields as any).category;
+      if ((fields as any).guardsPreference !== undefined) prismaData.guardsPreference = (fields as any).guardsPreference;
+      if ((fields as any).submitsPreference !== undefined) prismaData.submitsPreference = (fields as any).submitsPreference;
       if (fields.onboardingDone !== undefined) prismaData.onboardingDone = fields.onboardingDone;
       if (fields.username !== undefined) prismaData.username = fields.username;
       if (fields.beltRank !== undefined) prismaData.beltRank = fields.beltRank;
@@ -1969,6 +1974,17 @@ export const authStore = {
           });
         }
       }
+      // ✅ FIX: Atualizar cache em memória após salvar no banco
+      // Sem isso, mudanças de role/status não refletem até reiniciar o servidor
+      const cached = inMemoryUsers.get(id);
+      if (cached) {
+        const updated = { ...cached, ...fields };
+        inMemoryUsers.set(id, updated);
+        console.log(`[AUTH STORE] Cache inMemoryUsers atualizado para userId ${id}:`, Object.keys(fields));
+      }
+
+      // Sincronizar cache em memória
+
       return true;
     } catch (dbErr) {
       console.error("✗ PostgreSQL na atualização de usuário indisponível:", dbErr);

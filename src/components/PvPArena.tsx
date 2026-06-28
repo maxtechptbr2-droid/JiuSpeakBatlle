@@ -724,9 +724,11 @@ export default function PvPArena({
 
   // Trigger entering matchmaking queue
   const joinMatchmakingQueue = () => {
-    const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+    const pvpUsed = (user as any).pvpFreeMatchesUsed || 0;
+    const aiExpiry = user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt) : null;
+    const isAiSubscriptionActive = (aiExpiry && aiExpiry.getTime() > Date.now()) || user.role === 'admin' || user.role === 'professor' || pvpUsed < 3;
     if (!isAiSubscriptionActive) {
-      showToast("A Arena PVP em tempo real exige a assinatura ativa de IA. Ative na Central de JiuTickets!", "info");
+      showToast(`Você usou suas 3 batalhas gratuitas! Ative a Arena PvP com 5.000 JT para continuar.`, "info");
       if (setCurrentTab) setCurrentTab('subscriptions');
       return;
     }
@@ -745,9 +747,11 @@ export default function PvPArena({
 
   // Quick bot session
   const joinBotMatch = (belt?: string) => {
-    const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+    const pvpUsed = (user as any).pvpFreeMatchesUsed || 0;
+    const aiExpiry = user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt) : null;
+    const isAiSubscriptionActive = (aiExpiry && aiExpiry.getTime() > Date.now()) || user.role === 'admin' || user.role === 'professor' || pvpUsed < 3;
     if (!isAiSubscriptionActive) {
-      showToast("A Prática Conversacional contra IA exige a assinatura ativa. Ative na Central de JiuTickets!", "info");
+      showToast(`Você usou suas 3 batalhas gratuitas! Ative a Arena com 5.000 JT para continuar.`, "info");
       if (setCurrentTab) setCurrentTab('subscriptions');
       return;
     }
@@ -871,7 +875,9 @@ export default function PvPArena({
 
               {/* Conditional upgrade awareness banners invitation */}
               {(() => {
-                const isAiSubscriptionActive = (user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt).getTime() > Date.now() : false) || user.role === 'admin';
+                const pvpUsedUI = (user as any).pvpFreeMatchesUsed || 0;
+                const aiExpiryUI = user.aiConversationExpiresAt ? new Date(user.aiConversationExpiresAt) : null;
+                const isAiSubscriptionActive = (aiExpiryUI && aiExpiryUI.getTime() > Date.now()) || user.role === 'admin' || user.role === 'professor' || pvpUsedUI < 3;
                 if (!isAiSubscriptionActive) {
                   return (
                     <div className="bg-gradient-to-r from-indigo-950/40 to-slate-950 border border-indigo-500/20 p-6 rounded-xl flex flex-col md:flex-row items-center justify-between gap-6 animate-fadeIn">
@@ -881,7 +887,7 @@ export default function PvPArena({
                         </div>
                         <h4 className="font-display font-extrabold text-sm text-slate-200">Prática Conversacional Premium IA</h4>
                         <p className="text-[11px] text-slate-400 leading-relaxed">
-                          Acesse treinamentos avançados em inglês de tatame, simulações realistas e diálogos inteligentes integrados com nossa IA de última geração. O acesso ilimitado exige a contratação da assinatura mensal por apenas <strong className="text-[#009dff]">2500 JT (JiuTickets)</strong>.
+                          Acesse treinamentos avançados em inglês de tatame, simulações realistas e diálogos inteligentes integrados com nossa IA de última geração. Você tem <strong className="text-amber-400">{3 - ((user as any).pvpFreeMatchesUsed || 0)} batalha(s) gratuita(s) restante(s)</strong>. O acesso ilimitado custa <strong className="text-[#009dff]">5.000 JT / mês</strong>.
                         </p>
                       </div>
                       {setCurrentTab && (
@@ -890,6 +896,34 @@ export default function PvPArena({
                           className="px-5 py-2.5 bg-gradient-to-tr from-[#009dff] to-indigo-600 hover:from-indigo-600 hover:to-[#009dff] text-slate-900 hover:text-white font-mono font-extrabold uppercase tracking-wider text-xs rounded-lg transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(0,157,255,0.2)] shrink-0 w-full md:w-auto cursor-pointer"
                         >
                           Ativar Assinatura IA
+                        </button>
+                      )}
+                    </div>
+                  );
+                } else if (pvpUsedUI < 3 && !(aiExpiryUI && aiExpiryUI.getTime() > Date.now()) && user.role !== 'admin' && user.role !== 'professor') {
+                  // Trial ativo — mostrar contador com aviso claro
+                  const remaining = 3 - pvpUsedUI;
+                  return (
+                    <div className="bg-amber-950/20 border border-amber-500/30 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-fadeIn">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-2xl">🎁</span>
+                        <div className="flex flex-col">
+                          <span className="text-amber-400 font-black text-xs uppercase tracking-widest">Trial Gratuito</span>
+                          <span className="text-amber-300 font-mono font-black text-xl leading-none">{remaining}/3</span>
+                          <span className="text-amber-500/70 text-[9px] font-mono">batalhas restantes</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                          Você tem <strong className="text-amber-400">{remaining} batalha(s) gratuita(s)</strong> para experimentar a Arena de Conversação com IA. Após isso, o acesso custa <strong className="text-[#009dff]">5.000 JT / 30 dias</strong>.
+                        </p>
+                      </div>
+                      {setCurrentTab && remaining <= 1 && (
+                        <button
+                          onClick={() => setCurrentTab('subscriptions')}
+                          className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 font-mono font-bold uppercase tracking-wider text-[10px] rounded-lg transition-all shrink-0 cursor-pointer"
+                        >
+                          Adquirir JiuTickets
                         </button>
                       )}
                     </div>

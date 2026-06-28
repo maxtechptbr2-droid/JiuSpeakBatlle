@@ -59,6 +59,11 @@ model User {
   englishLevel      String?
   spanishLevel      String?
   frenchLevel       String?
+  gender            String?   @default("Masculino")
+  category          String?   @default("Pena (-70kg)")
+  guardsPreference  String?   @default("Guarda Fechada de Aco")
+  submitsPreference String?   @default("Estrangulamento Cruzado")
+  academy           String?   @default("Gracie Barra International")
   onboardingDone    Boolean   @default(false)
   lastLoginAt       DateTime?
   username          String?   @unique
@@ -76,6 +81,7 @@ model User {
   subscriptionType  String?   @default("FREE")
   subscriptionUntil DateTime?
   aiConversationExpiresAt DateTime?
+  pvpFreeMatchesUsed      Int?      @default(0)
   isMuted           Boolean   @default(false)
   isFrozen          Boolean   @default(false)
   deletedAt         DateTime?
@@ -111,6 +117,8 @@ model User {
   receivedMessages        PrivateMessage[]  @relation("ReceivedMessages")
   refreshTokens           RefreshToken[]
   academyProgress         AcademyProgress[]
+  dailyChallenges         DailyChallenge[]
+  dailyChallengeHistory   DailyChallengeHistory[]
   courseModuleProgress    CourseModuleProgress[]
   courseLessonProgress    CourseLessonProgress[]
   courseExamAttempts      CourseExamAttempt[]
@@ -1650,5 +1658,40 @@ model PrivateMessage {
   @@index([senderId, receiverId])
 }
 
+model DailyChallenge {
+  id                   String    @id @default(uuid())
+  userId               String
+  date                 String
+  theme                String
+  beltContext          String    @default("WHITE")
+  levelContext         Int       @default(1)
+  vocabulary           String    @default("[]")
+  phrase               String    @default("{}")
+  dialogue             String    @default("[]")
+  quiz                 String    @default("[]")
+  voiceTopic           String    @default("")
+  completedVocabulary  Boolean   @default(false)
+  completedPhrase      Boolean   @default(false)
+  completedDialogue    Boolean   @default(false)
+  completedQuiz        Boolean   @default(false)
+  completedVoice       Boolean   @default(false)
+  xpAwarded            Int       @default(0)
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, date])
+  @@index([userId])
+}
 
+model DailyChallengeHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  theme     String
+  date      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

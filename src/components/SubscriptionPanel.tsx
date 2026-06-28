@@ -123,9 +123,9 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       gradient: 'from-blue-950/30 via-slate-950 to-slate-900 border-blue-900/40 shadow-blue-950/20 hover:border-blue-500 hover:shadow-blue-500/20'
     },
     {
-      id: '2500jt',
+      id: '5000jt',
       name: 'Pacote Faixa Roxa',
-      jtAmount: 2500,
+      jtAmount: 5000,
       priceBRL: 20.00,
       description: 'Quantidade exata para ativar 1 mês inteiro de IA Conversacional.',
       badge: 'Recomendado IA',
@@ -305,9 +305,24 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
   };
 
   const isAiActive = (): boolean => {
-    if (!user.aiConversationExpiresAt) return false;
-    const expiry = new Date(user.aiConversationExpiresAt);
-    return expiry.getTime() > Date.now();
+    if (user.role === 'admin' || user.role === 'professor') return true;
+    if (user.aiConversationExpiresAt) {
+      const expiry = new Date(user.aiConversationExpiresAt);
+      if (expiry.getTime() > Date.now()) return true;
+    }
+    // Trial: até 3 batalhas gratuitas
+    const pvpUsed = (user as any).pvpFreeMatchesUsed || 0;
+    return pvpUsed < 3;
+  };
+
+  const isTrialMode = (): boolean => {
+    if (user.role === 'admin' || user.role === 'professor') return false;
+    if (user.aiConversationExpiresAt) {
+      const expiry = new Date(user.aiConversationExpiresAt);
+      if (expiry.getTime() > Date.now()) return false;
+    }
+    const pvpUsed = (user as any).pvpFreeMatchesUsed || 0;
+    return pvpUsed < 3;
   };
 
   // Safely formulate image src for PIX base64 or url fallback as requested
@@ -850,7 +865,11 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
             <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-xs relative z-10">
               <span className="text-slate-400 font-medium">Status do Servidor:</span>
               <div>
-                {isAiActive() ? (
+                {isTrialMode() ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                    🎁 TRIAL — {3 - ((user as any).pvpFreeMatchesUsed || 0)}/3 restantes
+                  </span>
+                ) : isAiActive() ? (
                   <span className="inline-flex items-center gap-1.5 px-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
                     <CheckCircle2 className="w-3 h-3 text-emerald-400" /> ATIVO até {formatDateString(user.aiConversationExpiresAt)}
                   </span>
@@ -894,10 +913,10 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-1">
-                  <span className="text-2xl font-black text-indigo-300">2.500</span>
+                  <span className="text-2xl font-black text-indigo-300">5.000</span>
                   <span className="text-xs font-bold text-indigo-400 uppercase">JT</span>
                 </div>
-                <span className="text-[10px] text-slate-500 block font-mono">cobrana não-recorrente</span>
+                <span className="text-[10px] text-slate-500 block font-mono">cobrança não-recorrente</span>
               </div>
             </div>
 
@@ -905,11 +924,11 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
             <div className="pt-2 relative z-10">
               <button 
                 onClick={handleActivateAi}
-                disabled={activatingAi || user.coins < 2500 && !isAiActive()}
+                disabled={activatingAi || user.coins < 5000 && !isAiActive()}
                 className={`w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   isAiActive() 
                     ? 'bg-slate-850 hover:bg-slate-800 text-slate-300 border border-slate-700' 
-                    : user.coins >= 2500 
+                    : user.coins >= 5000 
                       ? 'bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white hover:shadow-indigo-500/25 active:scale-98' 
                       : 'bg-slate-900 text-slate-600 border border-slate-800/80 cursor-not-allowed'
                 }`}
@@ -919,9 +938,9 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                 ) : isAiActive() ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>RENOVAR ACESSO (CUSTA 2.500 JT)</span>
+                    <span>RENOVAR ACESSO (CUSTA 5.000 JT)</span>
                   </>
-                ) : user.coins >= 2500 ? (
+                ) : user.coins >= 5000 ? (
                   <>
                     <Zap className="w-4 h-4 text-indigo-350 fill-indigo-350" />
                     <span>ATIVAR IA AGORA</span>
@@ -929,14 +948,14 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
                 ) : (
                   <>
                     <AlertTriangle className="w-4 h-4 text-rose-500" />
-                    <span>SALDO INSUFICIENTE (2.500 JT)</span>
+                    <span>SALDO INSUFICIENTE (5.000 JT)</span>
                   </>
                 )}
               </button>
               
-              {user.coins < 2500 && !isAiActive() && (
+              {user.coins < 5000 && !isAiActive() && (
                 <p className="text-center text-[10px] text-rose-450 mt-2 font-medium font-sans">
-                  Você precisa de mais {2500 - user.coins} JTs. Escolha um pacote à esquerda para ativar!
+                  Você precisa de mais {5000 - user.coins} JTs. Escolha um pacote à esquerda para ativar!
                 </p>
               )}
             </div>

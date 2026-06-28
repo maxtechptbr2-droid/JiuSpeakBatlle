@@ -23,6 +23,7 @@ export interface UserProfile {
   lastActiveDate?: string; // ISO date format
   academy: string;
   category: string; // Weight category (Pluma, Leve, Médio, Pesada, Absoluto)
+  gender?: 'Masculino' | 'Feminino'; // IBJJF weight division gender
   guardsPreference: string; // "Guarda Aberta", "Guarda Fechada", "Guarda Aranha", "Passador"
   submitsPreference: string; // "Armlock", "Mão de Vaca", "Estrangulamento", "Chave de Pé"
   inventory: string[]; // List of item IDs
@@ -49,6 +50,7 @@ export interface UserProfile {
   } | null;
   onboardingDone?: boolean;
   aiConversationExpiresAt?: string;
+  pvpFreeMatchesUsed?: number;
   bio?: string;
   city?: string;
   country?: string;

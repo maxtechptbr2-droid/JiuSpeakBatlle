@@ -1,12 +1,13 @@
 module.exports = {
   apps: [
     {
-      name: "jiuspeak-bjj-production",
+      name: "jiuspeak",
       script: "./dist/server.cjs",
       instances: 1,
       exec_mode: "fork",
       watch: false,
       max_memory_restart: "1G",
+      node_args: "--max-old-space-size=512",
       env: {
         NODE_ENV: "production",
         PORT: 3000

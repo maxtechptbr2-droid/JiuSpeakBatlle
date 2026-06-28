@@ -26,3 +26,15 @@ dist-ssr/
 public/uploads/temp/
 public/uploads/tmp/
 public/uploads/testing/
+
+# Cache e uploads de runtime
+server/cache/audio_elevenlabs/
+server/cache/conversations/
+public/uploads/profiles/
+public/uploads/covers/
+
+# Scripts de fix temporários
+fix_*.py
+fix_*.sh
+seed_*.cjs
+seed_*.js

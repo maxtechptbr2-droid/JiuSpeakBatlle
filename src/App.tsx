@@ -52,6 +52,7 @@ const PublicProfileView = React.lazy(() => import('./components/PublicProfileVie
 const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
 const HomePage = React.lazy(() => import('./components/HomePage'));
+const DailyChallengePage = React.lazy(() => import('./components/DailyChallenge'));
 
 // Spinner skeleton screen for lazy-loaded route transitions 
 const LoadingFallback = () => (
@@ -178,6 +179,9 @@ export default function App() {
       if (path === '/inventory') {
         return 'inventory';
       }
+      if (path === '/daily-challenge') {
+        return 'daily-challenge';
+      }
       if (path === '/dashboard/profile') {
         return 'profile-settings';
       }
@@ -236,6 +240,8 @@ export default function App() {
       } else if (path === '/academy' || path.startsWith('/academy/') || path.startsWith('/belt-path/') || path.startsWith('/learning-path/') || path === '/modules') {
         window.history.replaceState(null, '', '/modules');
         setCurrentTab('lessons');
+      } else if (path === '/daily-challenge') {
+        setCurrentTab('daily-challenge');
       } else if (path === '/dashboard') {
         setCurrentTab('dashboard');
       } else if (path === '/community' || path === '/comunidade') {
@@ -281,24 +287,56 @@ export default function App() {
     }
   }, []);
 
-  // Polling de mensagens não lidas a cada 15 segundos
+  // Badge de notificação do Desafio do Dia
+  const [hasDailyChallenge, setHasDailyChallenge] = useState(false);
+
+  // Gerar desafio do dia no background ao logar + polling de notificações
   useEffect(() => {
     if (!authUser) return;
+
+    const token = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
+
+    // Gerar/buscar desafio do dia imediatamente ao logar (em background, sem bloquear UI)
+    const triggerDailyChallenge = async () => {
+      try {
+        const res = await fetch('/api/daily-challenge', {
+          headers: { 'Authorization': `Bearer ${token()}` }
+        });
+        if (res.ok) {
+          // Desafio gerado — agora verificar se há notificação não lida
+          const notifRes = await fetch('/api/social/notifications', {
+            headers: { 'Authorization': `Bearer ${token()}` }
+          });
+          if (notifRes.ok) {
+            const notifData = await notifRes.json();
+            const hasUnread = (notifData.notifications || []).some(
+              (n: any) => n.type === 'DAILY_CHALLENGE' && !n.isRead
+            );
+            setHasDailyChallenge(hasUnread);
+          }
+        }
+      } catch { /* Silently fail */ }
+    };
+
+    // Polling de mensagens não lidas a cada 30 segundos
     const fetchUnreadCount = async () => {
       try {
-        const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
         const res = await fetch('/api/social/messages/recent', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token()}` }
         });
         if (res.ok) {
           const conversations = await res.json();
           const total = conversations.reduce((acc: number, conv: any) => acc + (conv.unreadCount || 0), 0);
           setUnreadMessagesCount(total);
         }
-      } catch (err) { /* Silently fail */ }
+      } catch { /* Silently fail */ }
     };
+
+    // Executar imediatamente ao logar
+    triggerDailyChallenge();
     fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 15000);
+
+    const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
   }, [authUser]);
 
@@ -323,6 +361,10 @@ export default function App() {
     } else if (currentTab === 'admin') {
       if (window.location.pathname !== '/admin') {
         window.history.pushState(null, '', '/admin');
+      }
+    } else if (currentTab === 'daily-challenge') {
+      if (window.location.pathname !== '/daily-challenge') {
+        window.history.pushState(null, '', '/daily-challenge');
       }
     } else if (currentTab === 'market') {
       if (window.location.pathname !== '/store') {
@@ -969,19 +1011,28 @@ export default function App() {
       )}
 
       {/* 2. Responsive Mobile Header */}
-      <header className="lg:hidden bg-slate-950 border-b border-slate-850 p-4 flex justify-between items-center z-40 sticky top-0">
+      <header className="lg:hidden bg-slate-950/95 backdrop-blur-md border-b border-slate-800/60 px-4 py-3 flex justify-between items-center z-40 sticky top-0">
         <div className="flex items-center gap-2.5">
-          <span className="text-xl">🥋</span>
-          <h1 className="font-display font-extrabold text-lg text-white">JiuSpeak</h1>
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{mixBlendMode:'lighten' as any}}>
+            <img src="/brand/jiuspeak-logo-main.png" alt="JiuSpeak" className="w-full h-full object-contain" style={{mixBlendMode:'lighten'}} />
+          </div>
+          <h1 className="font-extrabold text-lg tracking-tight">
+            <span style={{color:'#84cc16'}}>Jiu</span><span className="text-white">Speak</span>
+          </h1>
         </div>
         
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800 flex items-center gap-1">
-            🔥 {user.streak}d
-          </span>
+          <div className="flex items-center gap-1.5 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
+            <Flame className="w-3.5 h-3.5 text-orange-500" />
+            <span className="text-xs font-mono font-bold text-slate-200">{user.streak}d</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
+            <Coins className="w-3.5 h-3.5 text-yellow-500" />
+            <span className="text-xs font-mono font-bold text-slate-200">{user.coins} JT</span>
+          </div>
           <button 
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-300"
+            className="p-2 bg-slate-900 rounded-lg border border-slate-800 text-slate-300 hover:text-white transition-colors"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -997,10 +1048,12 @@ export default function App() {
             setCurrentTab={(tab) => {
               setCurrentTab(tab);
               setMobileMenuOpen(false);
+              if (tab === 'daily-challenge') setHasDailyChallenge(false);
             }} 
             onOpenCheatModal={() => setCheatModalOpen(true)}
             onLogout={handleLogout}
             unreadMessagesCount={unreadMessagesCount}
+            hasDailyChallenge={hasDailyChallenge}
           />
         </div>
       )}
@@ -1010,10 +1063,14 @@ export default function App() {
         <Sidebar 
           user={user} 
           currentTab={currentTab} 
-          setCurrentTab={setCurrentTab} 
+          setCurrentTab={(tab) => {
+            setCurrentTab(tab);
+            if (tab === 'daily-challenge') setHasDailyChallenge(false);
+          }}
           onOpenCheatModal={() => setCheatModalOpen(true)}
           onLogout={handleLogout}
           unreadMessagesCount={unreadMessagesCount}
+          hasDailyChallenge={hasDailyChallenge}
         />
       </div>
 
@@ -1025,10 +1082,25 @@ export default function App() {
           
           <div className="flex items-center gap-4">
             <span className="text-slate-500 font-mono">Bem-vindo(a) de volta!</span>
-            <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 px-2.5 rounded-full border border-slate-850">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] text-slate-400 font-mono">Controle de Clientes OK</span>
-            </div>
+            {user.role === 'admin' && (
+              <div className="flex items-center gap-1.5 bg-slate-950/60 p-1 px-2.5 rounded-full border border-slate-850">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] text-slate-400 font-mono">Controle de Clientes OK</span>
+              </div>
+            )}
+            {hasDailyChallenge && (
+              <button
+                onClick={() => {
+                  setCurrentTab('daily-challenge');
+                  setHasDailyChallenge(false);
+                }}
+                className="flex items-center gap-1.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 px-2.5 py-1 rounded-full transition-all cursor-pointer group"
+              >
+                <Flame className="w-3 h-3 text-amber-400 animate-pulse" />
+                <span className="text-[10px] text-amber-300 font-mono font-bold">Você tem um novo desafio!</span>
+                <ChevronRight className="w-3 h-3 text-amber-400 opacity-0 group-hover:opacity-100 transition-all" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -1095,9 +1167,17 @@ export default function App() {
               if (user.role === 'admin') return true;
               
               if (featureKey === 'conversationalSection') {
-                if (!user.aiConversationExpiresAt) return false;
-                const expiry = new Date(user.aiConversationExpiresAt);
-                return expiry.getTime() > Date.now();
+                // Allow if has active subscription
+                if (user.aiConversationExpiresAt) {
+                  const expiry = new Date(user.aiConversationExpiresAt);
+                  if (expiry.getTime() > Date.now()) return true;
+                }
+                // Allow if still has free trial matches (< 3 used)
+                const pvpUsed = (user as any).pvpFreeMatchesUsed || 0;
+                if (pvpUsed < 3) return true;
+                // Allow professors
+                if (user.role === 'professor' || user.role === 'instructor') return true;
+                return false;
               }
               
               // All other modules, store, academies and backpack features are fully unlocked for JT economy!
@@ -1130,8 +1210,12 @@ export default function App() {
                   achievements={achievements} 
                   updateUser={handleUpdateUserProfile} 
                   claimAchievement={claimAchievement}
-                  onNavigate={setCurrentTab}
+                  onNavigate={(tab) => {
+                    setCurrentTab(tab);
+                    if (tab === 'daily-challenge') setHasDailyChallenge(false);
+                  }}
                   courses={courses}
+                  hasDailyChallenge={hasDailyChallenge}
                 />
               );
             }
@@ -1163,7 +1247,7 @@ export default function App() {
                       </span>
                       <h3 className="font-display font-black text-2xl text-white uppercase tracking-tight">Treino de Conversação com IA</h3>
                       <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                        A Seção de Conversação Avançada com IA e sparrings virtuais requer ativação por JiuTickets. Ative ou renove seu passe de 30 dias por 2500 JT na Central de JiuTickets.
+                        A Seção de Conversação Avançada com IA e sparrings virtuais requer ativação por JiuTickets. Ative ou renove seu passe de 30 dias por 5.000 JT na Central de JiuTickets.
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full max-w-sm justify-center">
@@ -1210,6 +1294,25 @@ export default function App() {
               return (
                 <React.Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" /></div>}>
                   <PartnerStore user={user} showToast={showToast} onNavigate={setCurrentTab} />
+                </React.Suspense>
+              );
+            }
+
+            if (currentTab === 'daily-challenge') {
+              return (
+                <React.Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" /></div>}>
+                  <div className="p-4 md:p-6 max-w-2xl mx-auto">
+                    <DailyChallengePage
+                      user={user}
+                      onXpGain={(xp: number) => {
+                        handleUpdateUserProfile({ xp: (user.xp || 0) + xp });
+                      }}
+                      setCurrentTab={(tab: string) => {
+                        setCurrentTab(tab);
+                        if (tab === 'daily-challenge') setHasDailyChallenge(false);
+                      }}
+                    />
+                  </div>
                 </React.Suspense>
               );
             }

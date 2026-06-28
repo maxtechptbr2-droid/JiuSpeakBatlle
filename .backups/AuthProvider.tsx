@@ -136,8 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       themeColor: apiUser.themeColor || "",
       avatarFrame: apiUser.avatarFrame || "",
       followersCount: apiUser.followersCount || 0,
-      followingCount: apiUser.followingCount || 0,
-      pvpFreeMatchesUsed: apiUser.pvpFreeMatchesUsed || 0
+      followingCount: apiUser.followingCount || 0
     };
   };
 
@@ -257,7 +256,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateUser = (fields: Partial<UserProfile>) => {
-    // 1. Atualizar estado local e localStorage imediatamente
     setUser(prev => {
       if (!prev) return null;
       const updated = { ...prev, ...fields };
@@ -282,32 +280,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('[PROFILE WRITE]', mergedProfile);
       return updated;
     });
-
-    // 2. Persistir no banco via PATCH /api/profile
-    const patchableFields = [
-      'name', 'academy', 'category', 'guardsPreference', 'submitsPreference',
-      'gender', 'bio', 'city', 'country', 'nativeLanguage', 'learningGoal',
-      'instagram', 'youtube', 'facebook', 'website', 'phone',
-      'englishLevel', 'spanishLevel', 'frenchLevel', 'beltRank',
-      'favoriteTechnique', 'favoriteAthlete', 'username', 'privacyLevel', 'themeColor'
-    ];
-    const payload: any = {};
-    patchableFields.forEach(key => {
-      if ((fields as any)[key] !== undefined) payload[key] = (fields as any)[key];
-    });
-    if (Object.keys(payload).length > 0) {
-      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
-      if (token) {
-        fetch('/api/profile', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify(payload)
-        })
-          .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-          .then(() => console.log('[PROFILE PATCH OK]', Object.keys(payload)))
-          .catch(err => console.error('[PROFILE PATCH ERRO]', err));
-      }
-    }
   };
 
   // Run initial session check

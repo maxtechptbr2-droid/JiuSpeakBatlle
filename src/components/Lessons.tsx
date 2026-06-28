@@ -491,6 +491,15 @@ export default function Lessons({
     }
   };
 
+
+
+  const getBeltCoverStyle = (order: number): React.CSSProperties => {
+    if (order <= 4) return { background: "#0a1628", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.07) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(180,180,220,0.10) 0%, transparent 55%)" };
+    if (order <= 8) return { background: "#0c1e40", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(30,80,220,0.18) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(60,120,255,0.12) 0%, transparent 55%)" };
+    if (order <= 12) return { background: "#150c2a", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(100,40,200,0.22) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(150,60,255,0.12) 0%, transparent 55%)" };
+    if (order <= 16) return { background: "#1a0d06", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(130,70,20,0.28) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(180,100,30,0.14) 0%, transparent 55%)" };
+    return { background: "#050507", backgroundImage: "radial-gradient(ellipse at 30% 40%, rgba(200,160,20,0.14) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, rgba(220,180,40,0.08) 0%, transparent 55%)" };
+  };
   return (
     <div className="bg-[#0b0c10] text-[#c5c6c7] min-h-screen p-4 sm:p-6 pb-28 space-y-6 relative font-sans select-none" id="core-course-modules-root">
       
@@ -605,12 +614,7 @@ export default function Lessons({
                       >
                         {/* Thumbnail cover design */}
                         <div className="h-40 w-full relative overflow-hidden bg-slate-950 group">
-                          <img 
-                            src={mod.thumbnail || "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?w=500&auto=format&fit=crop&q=80"}
-                            alt={mod.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            referrerPolicy="no-referrer"
-                          />
+                          <div className="w-full h-full absolute inset-0" style={getBeltCoverStyle(mod.order)} />
                           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent"></div>
                           
                           {/* Top floating tags */}
@@ -1396,12 +1400,7 @@ export default function Lessons({
                   <div className="lg:col-span-1 bg-slate-900/50 p-6 rounded-3xl border border-slate-800 space-y-4 self-start">
                     {/* Thumbnail representation banner */}
                     <div className="rounded-2xl h-44 overflow-hidden relative border border-slate-800">
-                      <img 
-                        src={activeModule?.coverImage || activeModule?.thumbnail} 
-                        alt={activeModule?.title} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                      <div className="w-full h-full absolute inset-0" style={getBeltCoverStyle(activeModule?.order || 1)} />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
                       <span className="absolute bottom-3 left-3 p-1 px-2.5 bg-slate-950/80 backdrop-blur-sm rounded-lg border border-slate-800 text-[10px] font-mono text-indigo-400 font-bold">
                         Grau {activeModule?.order}

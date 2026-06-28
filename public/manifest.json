@@ -1,0 +1,29 @@
+{
+  "name": "JiuSpeak — Inglês para Jiu-Jitsu",
+  "short_name": "JiuSpeak",
+  "description": "Aprenda inglês técnico de BJJ e compete internacionalmente",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070c1b",
+  "theme_color": "#070c1b",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/brand/jiuspeak-logo-main.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/jiuspeak-logo-main.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "sports"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

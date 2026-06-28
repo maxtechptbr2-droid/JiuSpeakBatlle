@@ -13,6 +13,7 @@ interface AthleteProfileProps {
     category: string;
     guardsPreference: string;
     submitsPreference: string;
+    gender: 'Masculino' | 'Feminino';
   };
   setEditForm: React.Dispatch<React.SetStateAction<{
     name: string;
@@ -20,6 +21,7 @@ interface AthleteProfileProps {
     category: string;
     guardsPreference: string;
     submitsPreference: string;
+    gender: 'Masculino' | 'Feminino';
   }>>;
   handleSave: () => void;
   getWinRate: () => number;
@@ -91,7 +93,20 @@ export default function AthleteProfile({
             />
           </div>
           <div className="space-y-1">
-            <label className="text-zinc-500 font-mono text-[10px] uppercase">Categoria de Peso</label>
+            <label className="text-zinc-500 font-mono text-[10px] uppercase">Gênero (IBJJF)</label>
+            <select
+              value={editForm.gender}
+              onChange={(e) => setEditForm({ ...editForm, gender: e.target.value as 'Masculino' | 'Feminino', category: '' })}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-white text-xs cursor-pointer focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            >
+              <option value="Masculino">♂ Masculino</option>
+              <option value="Feminino">♀ Feminino</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-zinc-500 font-mono text-[10px] uppercase">
+              Categoria de Peso — {editForm.gender === 'Feminino' ? 'Feminino IBJJF' : 'Masculino IBJJF'}
+            </label>
             <select
               value={editForm.category}
               onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
@@ -139,6 +154,16 @@ export default function AthleteProfile({
             <p className="text-xs font-semibold text-zinc-200 truncate">{user.academy || 'Gracie Barra'}</p>
           </div>
 
+          {/* Gender */}
+          <div className="bg-zinc-950/60 p-3 rounded-xl border border-zinc-900/80">
+            <div className="flex items-center gap-1.5 text-zinc-500 font-mono text-[9px] uppercase mb-1">
+              <Scale className="w-3.5 h-3.5 text-pink-400" />
+              <span>Gênero</span>
+            </div>
+            <p className="text-xs font-semibold text-zinc-200 truncate">
+              {user.gender === 'Feminino' ? '♀ Feminino' : '♂ Masculino'}
+            </p>
+          </div>
           {/* Weight category preferred */}
           <div className="bg-zinc-950/60 p-3 rounded-xl border border-zinc-900/80">
             <div className="flex items-center gap-1.5 text-zinc-500 font-mono text-[9px] uppercase mb-1">

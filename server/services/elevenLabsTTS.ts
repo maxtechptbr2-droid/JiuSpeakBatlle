@@ -2,23 +2,22 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-// Vozes premade gratuitas da ElevenLabs (disponíveis no free tier, sem precisar da Voice Library paga).
-// IDs oficiais e estáveis da biblioteca padrão "premade" da ElevenLabs.
+// Vozes masculinas da ElevenLabs — 5 timbres completamente distintos por personagem.
 export const ELEVENLABS_VOICE_MAP: Record<string, string> = {
-  thomas:  "TxGEqnHWrfWFTfGW9XjX", // Josh — jovem, americano, grave e claro
-  tyler:   "pNInz6obpgDQGcFmaJgB", // Adam — americano, médio, caloroso e descontraído
-  yuki:    "N2lVS1w4EtoT3dr4eOWO", // Callum — tom mais contido/preciso, bom contraste para o "japonês técnico"
-  roberto: "nPczCjzI2devNBz1zQrb", // Brian — grave, narrador, sotaque mais "internacional/maduro"
-  john:    "JBFqnCBsd6RMkjVDRZzb", // George — britânico, refinado, contraste forte com os demais
+  thomas:  'TxGEqnHWrfWFTfGW9XjX', // Josh   — jovem, americano, grave e claro (White Belt USA)
+  tyler:   'pNInz6obpgDQGcFmaJgB', // Adam   — americano, caloroso e descontraído (Cali Blue Belt)
+  yuki:    'N2lVS1w4EtoT3dr4eOWO', // Callum — contido e preciso, sotaque britânico (Tokyo Purple)
+  roberto: 'nPczCjzI2devNBz1zQrb', // Brian  — grave, narrador, tom maduro internacional (London)
+  john:    'JBFqnCBsd6RMkjVDRZzb', // George — britânico refinado, autoritário (Austin Texas Master)
 };
 
-const ELEVEN_MODEL_ID = "eleven_flash_v2_5"; // baixa latência, ideal para conversa em tempo real
+const ELEVEN_MODEL_ID = 'eleven_flash_v2_5'; // baixa latência, ideal para conversa em tempo real
 const DEFAULT_VOICE_ID = ELEVENLABS_VOICE_MAP.thomas;
 
 function getApiKey(): string {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) {
-    throw new Error("ELEVENLABS_API_KEY não configurada no servidor.");
+    throw new Error('ELEVENLABS_API_KEY não configurada no servidor.');
   }
   return key;
 }
@@ -29,7 +28,6 @@ export function sanitizeText(text: string): string {
 }
 
 export function resolveVoiceId(partnerKeyOrVoice: string): string {
-  // Aceita tanto a chave do personagem ("thomas") quanto um voice_id já resolvido.
   return ELEVENLABS_VOICE_MAP[partnerKeyOrVoice] || partnerKeyOrVoice || DEFAULT_VOICE_ID;
 }
 
@@ -55,17 +53,13 @@ function saveCachedAudio(hash: string, buffer: Buffer) {
   const dir = getCacheDir();
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFile(path.join(dir, `${hash}.mp3`), buffer, (err) => {
-    if (err) console.error("[ELEVENLABS CACHE WRITE WARNING]", err);
+    if (err) console.error('[ELEVENLABS CACHE WRITE WARNING]', err);
   });
 }
 
-/**
- * Gera áudio via ElevenLabs TTS. Lança erro se a key faltar ou a chamada falhar —
- * quem chamar esta função DEVE ter um catch com fallback para OpenAI (ver passo 2).
- */
 export async function gerarAudioElevenLabs(text: string, partnerKeyOrVoice: string): Promise<Buffer> {
   const cleanText = sanitizeText(text);
-  if (!cleanText) throw new Error("Texto vazio ou inválido.");
+  if (!cleanText) throw new Error('Texto vazio ou inválido.');
 
   const voiceId = resolveVoiceId(partnerKeyOrVoice);
   const hash = generateHash(cleanText, voiceId);
@@ -76,11 +70,11 @@ export async function gerarAudioElevenLabs(text: string, partnerKeyOrVoice: stri
   const apiKey = getApiKey();
 
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "xi-api-key": apiKey,
-      "Content-Type": "application/json",
-      "Accept": "audio/mpeg",
+      'xi-api-key': apiKey,
+      'Content-Type': 'application/json',
+      'Accept': 'audio/mpeg',
     },
     body: JSON.stringify({
       text: cleanText,
@@ -90,7 +84,7 @@ export async function gerarAudioElevenLabs(text: string, partnerKeyOrVoice: stri
   });
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => "");
+    const errBody = await response.text().catch(() => '');
     throw new Error(`ElevenLabs TTS falhou (status ${response.status}): ${errBody}`);
   }
 
