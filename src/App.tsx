@@ -1556,6 +1556,42 @@ export default function App() {
         </div>
       )}
 
+
+      {/* BOTTOM NAV MOBILE */}
+      {authUser && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-slate-950/95 backdrop-blur-md border-t border-slate-800/60 flex items-center justify-around px-1 py-1">
+          {[
+            { tab: "dashboard", icon: "🏠", label: "Início" },
+            { tab: "lessons", icon: "📚", label: "Módulos" },
+            { tab: "daily-challenge", icon: "🔥", label: "Desafio" },
+            { tab: "pvp", icon: "⚔️", label: "PvP" },
+            { tab: "social", icon: "👥", label: "Social" },
+            { tab: "profile-settings", icon: "👤", label: "Perfil" },
+            { tab: "academies", icon: "🏫", label: "Mais" },
+          ].map(item => (
+            <button
+              key={item.tab}
+              onClick={() => setCurrentTab(item.tab)}
+              className={`relative flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-xl transition-all cursor-pointer min-w-[44px] ${
+                currentTab === item.tab
+                  ? "bg-violet-600/20 text-violet-400"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {item.tab === "profile-settings" ? (
+                <img
+                  src={user.profilePhoto || user.avatar}
+                  alt="perfil"
+                  className={`w-6 h-6 rounded-full object-cover border-2 ${currentTab === "profile-settings" ? "border-violet-400" : "border-slate-700"}`}
+                />
+              ) : (
+                <span className="text-lg leading-none">{item.icon}</span>
+              )}
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wide leading-none">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

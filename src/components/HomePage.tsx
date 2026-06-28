@@ -484,11 +484,26 @@ export default function HomePage({
                 A plataforma internacional premium de inglês de luta para atletas de Jiu-Jitsu alcançarem destaque global nos campeonatos e dojôs do planeta.
               </p>
             </div>
-            <div className="flex flex-col md:items-end gap-1.5">
-              <p className="text-xs font-mono font-bold text-blue-400 tracking-wide uppercase">
-                COORDENAÇÃO TÉCNICA • FLAVIO MARTINS
-              </p>
-              <p className="text-[10px] text-slate-500">Desenvolvedor & Faixa-Preta de Jiu-Jitsu. Todos os direitos reservados. © 2026</p>
+            <div className="flex flex-col md:items-end gap-3">
+              <a
+                href="https://instagram.com/jiuspeak"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-800 hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-pink-400 group-hover:text-pink-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                  <circle cx="12" cy="12" r="4"/>
+                  <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+                </svg>
+                <span className="text-xs font-mono font-bold text-pink-400 group-hover:text-pink-300 tracking-wide">@jiuspeak</span>
+              </a>
+              <div className="flex flex-col md:items-end gap-1">
+                <p className="text-xs font-mono font-bold text-blue-400 tracking-wide uppercase">
+                  COORDENAÇÃO TÉCNICA • FLAVIO MARTINS
+                </p>
+                <p className="text-[10px] text-slate-500">Desenvolvedor & Faixa-Preta de Jiu-Jitsu. Todos os direitos reservados. © 2026</p>
+              </div>
             </div>
           </div>
 
