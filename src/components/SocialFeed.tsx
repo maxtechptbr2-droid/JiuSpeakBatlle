@@ -97,6 +97,10 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
   const [newPostContent, setNewPostContent] = useState<string>('');
   const [newPostCategory, setNewPostCategory] = useState<string>('Estudos');
   const [newPostVideoUrl, setNewPostVideoUrl] = useState<string>('');
+  const [newPostImageUrl, setNewPostImageUrl] = useState<string>('');
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaPreview, setMediaPreview] = useState<{url: string, type: 'image'|'video'} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Custom interactive overlays
   const [openCommentsPostId, setOpenCommentsPostId] = useState<string | null>(null);
@@ -244,6 +248,7 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
         body: JSON.stringify({
           content: newPostContent,
           category: newPostCategory,
+          imageUrl: newPostImageUrl || undefined,
           videoUrl: newPostVideoUrl || undefined
         })
       });
@@ -253,6 +258,8 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
         setPosts(prev => [data.post, ...prev]);
         setNewPostContent('');
         setNewPostVideoUrl('');
+        setNewPostImageUrl('');
+        setMediaPreview(null);
         showToast("Sua jornada de rolamento foi publicada com sucesso!", "success");
         loadSocialData();
       } else {
@@ -300,6 +307,74 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
         alert(d.error || 'Erro ao excluir comentário.');
       }
     } catch (e) { console.error('Delete comment error:', e); }
+  };
+
+  const handleMediaUpload = async (file: File) => {
+    const maxImage = 10 * 1024 * 1024; // 10MB
+    const maxVideo = 150 * 1024 * 1024; // 150MB
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isVideo && !isImage) {
+      showToast('Tipo de arquivo não suportado. Use imagens ou vídeos MP4.', 'error');
+      return;
+    }
+    if (isImage && file.size > maxImage) {
+      showToast('Imagem muito grande. Máximo 10MB.', 'error');
+      return;
+    }
+    if (isVideo && file.size > maxVideo) {
+      showToast('Vídeo muito grande. Máximo 150MB.', 'error');
+      return;
+    }
+    // Verificar duração do vídeo (máx 60s)
+    if (isVideo) {
+      const duration = await new Promise<number>(resolve => {
+        const vid = document.createElement('video');
+        vid.preload = 'metadata';
+        vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration); };
+        vid.src = URL.createObjectURL(file);
+      });
+      if (duration > 65) {
+        showToast('Vídeo muito longo. Máximo 1 minuto.', 'error');
+        return;
+      }
+    }
+
+    setMediaUploading(true);
+    showToast('Enviando mídia...', 'info');
+
+    try {
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token') || '';
+      const formData = new FormData();
+      formData.append('media', file);
+
+      const res = await fetch('/api/social/upload-media', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const url = data.url;
+        if (isVideo) {
+          setNewPostVideoUrl(url);
+          setNewPostImageUrl('');
+        } else {
+          setNewPostImageUrl(url);
+          setNewPostVideoUrl('');
+        }
+        setMediaPreview({ url, type: isVideo ? 'video' : 'image' });
+        showToast('✅ Mídia enviada com sucesso!', 'success');
+      } else {
+        showToast(data.error || 'Erro no upload', 'error');
+      }
+    } catch (e) {
+      showToast('Erro ao enviar mídia.', 'error');
+    } finally {
+      setMediaUploading(false);
+    }
   };
 
   const handleReactToPost = async (postId: string, reactionType: string) => {
@@ -1030,17 +1105,53 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
                       className="w-full bg-slate-950 border border-slate-755 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-all font-semibold resize-none"
                     />
 
-                    {/* Exclusivo Professores & Admin */}
-                    {((user.role as string) === 'admin' || (user.role as string) === 'professor' || (user.role as string) === 'instructor' || (user.role as string) === 'teacher' || (user.role as string) === 'ADMIN' || (user.role as string) === 'TEACHER' || (user.role as string) === 'INSTRUCTOR') && (
-                      <div className="mt-2 text-left">
-                        <label className="text-[9px] font-mono text-indigo-400 uppercase font-black tracking-wider block mb-1">📽️ Vincular Vídeo (Link YouTube, Vimeo, etc):</label>
-                        <input 
-                          type="text"
-                          value={newPostVideoUrl}
-                          onChange={(e) => setNewPostVideoUrl(e.target.value)}
-                          placeholder="Cole o link do vídeo aqui (ex: https://www.youtube.com/watch?v=...)"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 px-3 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-                        />
+                    {/* Upload de mídia — todos os usuários */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaUpload(f); e.target.value = ''; }}
+                    />
+
+                    {/* Preview da mídia selecionada */}
+                    {mediaPreview && (
+                      <div className="mt-2 relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950">
+                        {mediaPreview.type === 'image' ? (
+                          <img src={mediaPreview.url} alt="preview" className="w-full max-h-48 object-cover" />
+                        ) : (
+                          <video src={mediaPreview.url} controls className="w-full max-h-48" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setMediaPreview(null); setNewPostImageUrl(''); setNewPostVideoUrl(''); }}
+                          className="absolute top-2 right-2 w-6 h-6 bg-slate-900/80 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-600/80 transition-all cursor-pointer text-xs font-bold"
+                        >✕</button>
+                      </div>
+                    )}
+
+                    {/* Botões de mídia */}
+                    {!mediaPreview && (
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          disabled={mediaUploading}
+                          onClick={() => { if (fileInputRef.current) { fileInputRef.current.accept = 'image/jpeg,image/png,image/webp,image/gif'; fileInputRef.current.click(); }}}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-[11px] text-slate-300 font-semibold cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          🖼️ Foto
+                        </button>
+                        <button
+                          type="button"
+                          disabled={mediaUploading}
+                          onClick={() => { if (fileInputRef.current) { fileInputRef.current.accept = 'video/mp4,video/webm,video/quicktime'; fileInputRef.current.click(); }}}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg text-[11px] text-slate-300 font-semibold cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          🎬 Vídeo / Reel
+                        </button>
+                        {mediaUploading && (
+                          <span className="text-[10px] text-violet-400 font-mono animate-pulse flex items-center gap-1">⏳ Enviando...</span>
+                        )}
                       </div>
                     )}
 
@@ -1304,49 +1415,58 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
                           {formatPostBody(post.content)}
                         </div>
 
-                        {/* Video Attachment Player */}
-                        {post.videoUrl && (
-                          <div className="mt-3 aspect-video bg-black rounded-xl border border-slate-800 overflow-hidden relative shadow-lg">
-                            {(() => {
-                              const url = post.videoUrl.trim();
-                              if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                                return (
-                                  <iframe 
-                                    src={`${normalizeYoutubeUrl(url)}?rel=0&modestbranding=1&enablejsapi=1`}
-                                    title="Embedded video"
-                                    className="w-full h-full border-0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowFullScreen
+                        {/* Mídia — Reels style */}
+                        {(post.imageUrl || post.videoUrl) && (
+                          <div className="relative rounded-2xl overflow-hidden bg-black border border-slate-800/60 shadow-xl"
+                            style={{ maxHeight: '520px' }}
+                          >
+                            {/* IMAGEM */}
+                            {post.imageUrl && !post.videoUrl && (
+                              <img
+                                src={post.imageUrl}
+                                alt="Mídia do post"
+                                className="w-full object-cover"
+                                style={{ maxHeight: '520px' }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            )}
+
+                            {/* VÍDEO NATIVO (videos.jiuspeak.com.br) */}
+                            {post.videoUrl && !post.videoUrl.includes('youtube') && !post.videoUrl.includes('youtu.be') && !post.videoUrl.includes('vimeo') && (
+                              <video
+                                src={post.videoUrl}
+                                className="w-full object-cover"
+                                style={{ maxHeight: '520px' }}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                poster=""
+                              />
+                            )}
+
+                            {/* YOUTUBE EMBED */}
+                            {post.videoUrl && (post.videoUrl.includes('youtube.com') || post.videoUrl.includes('youtu.be')) && (
+                              <div className="aspect-video">
+                                <iframe
+                                  src={`${normalizeYoutubeUrl(post.videoUrl)}?rel=0&modestbranding=1`}
+                                  title="Embedded video"
+                                  className="w-full h-full border-0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
                                   />
                                 );
-                              } else if (url.includes('vimeo.com')) {
-                                const match = url.match(/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+)(?:$|\/|\?)/);
-                                const id = match ? match[3] : '';
-                                if (id) {
-                                  return (
-                                    <iframe 
-                                      src={`https://player.vimeo.com/video/${id}`}
-                                      className="w-full h-full border-0"
-                                      allow="autoplay; fullscreen; picture-in-picture"
-                                      allowFullScreen
-                                    />
-                                  );
-                                }
-                              } else if (url.startsWith('http://') || url.startsWith('https://')) {
-                                return (
-                                  <video 
-                                    src={url}
-                                    controls
-                                    className="w-full h-full object-contain"
-                                  />
-                                );
-                              }
-                              return (
-                                <div className="w-full h-full flex flex-col items-center justify-center p-4 text-slate-500 font-mono text-center">
-                                  <span className="text-xs">Link de vídeo inválido ou inseguro.</span>
+                            {/* VIMEO EMBED */}
+                            {post.videoUrl && post.videoUrl.includes('vimeo.com') && (() => {
+                              const match = post.videoUrl.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+                              const id = match ? match[1] : '';
+                              return id ? (
+                                <div className="aspect-video">
+                                  <iframe src={`https://player.vimeo.com/video/${id}`} className="w-full h-full border-0" allow="autoplay; fullscreen" allowFullScreen />
                                 </div>
-                              );
+                              ) : null;
                             })()}
+                          </div>
+                        )}
                           </div>
                         )}
 

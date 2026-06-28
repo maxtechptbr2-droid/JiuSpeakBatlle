@@ -13548,6 +13548,58 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
 });
 
 // 2. CREATE A SOCIAL POST
+
+// ============================================================
+// UPLOAD DE MÍDIA PARA videos.jiuspeak.com.br
+// ============================================================
+const multerLib = require('multer');
+const FormDataLib = require('form-data');
+const mediaUploadHandler = multerLib({
+  storage: multerLib.memoryStorage(),
+  limits: { fileSize: 150 * 1024 * 1024 },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const allowed = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Tipo não permitido'));
+  }
+});
+
+app.post("/api/social/upload-media", authenticateToken, (req: any, res: any) => {
+  mediaUploadHandler.single('media')(req, res, async (err: any) => {
+    if (err) return res.status(400).json({ error: err.message || 'Erro no upload' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+    try {
+      const form = new FormDataLib();
+      form.append('media', req.file.buffer, {
+        filename: req.file.originalname || 'media',
+        contentType: req.file.mimetype,
+        knownLength: req.file.size
+      });
+
+      const axiosLib = require('axios').default || require('axios');
+      const response = await axiosLib.post('https://videos.jiuspeak.com.br/upload.php', form, {
+        headers: {
+          ...form.getHeaders(),
+          'X-Upload-Secret': 'jiuspeak_media_secret_2026'
+        },
+        maxContentLength: 150 * 1024 * 1024,
+        maxBodyLength: 150 * 1024 * 1024,
+        timeout: 120000
+      });
+
+      const data = response.data;
+      if (!data.success) return res.status(500).json({ error: data.error || 'Erro no upload' });
+
+      console.log('[UPLOAD MEDIA] Sucesso:', data.url);
+      return res.json({ success: true, url: data.url, type: data.type });
+    } catch (err: any) {
+      console.error('[UPLOAD MEDIA ERROR]', err?.response?.data || err.message);
+      return res.status(500).json({ error: 'Erro ao enviar mídia para o servidor de vídeos' });
+    }
+  });
+});
+
 app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
   try {
     const { content, category, imageUrl, videoUrl } = req.body;
@@ -13557,11 +13609,7 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
       return res.status(400).json({ error: "O conteúdo da publicação não pode ser vazio." });
     }
 
-    // Role-check constraint for video publishing
-    const isTeacherOrAdmin = req.user.role === 'ADMIN' || req.user.role === 'TEACHER' || req.user.role === 'INSTRUCTOR' || req.user.role === 'teacher' || req.user.role === 'professor';
-    if (videoUrl && !isTeacherOrAdmin) {
-      return res.status(403).json({ error: "Apenas professores, instritores credenciados ou administradores têm permissão para publicar recursos audiovisuais no feed social!" });
-    }
+    // Todos os usuários podem publicar mídia
 
     const targetCategory = category || "Treino";
     const prisma = getPrisma();

@@ -10,7 +10,7 @@ module.exports = {
       node_args: "--max-old-space-size=512",
       env: {
         NODE_ENV: "production",
-        PORT: 3000
+        PORT: "3000"
       },
       error_file: "./logs/pm2-error.log",
       out_file: "./logs/pm2-out.log",
