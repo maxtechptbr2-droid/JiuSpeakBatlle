@@ -387,7 +387,7 @@ function csrfProtection(req: any, res: any, next: any) {
   }
   
   // Rotas públicas sem CSRF
-  const publicApiPaths = ["/api/support/chat", "/api/partners/apply", "/api/partners/products", "/api/live/sessions"];
+  const publicApiPaths = ["/api/support/chat", "/api/partners/apply", "/api/partners/products", "/api/live/sessions", "/api/auth/google"];
   if (publicApiPaths.some(p => req.path.startsWith(p))) {
     return next();
   }
@@ -16248,6 +16248,139 @@ app.post("/api/live/end", authenticateToken, async (req: any, res: any) => {
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+// ============================================================
+// GOOGLE OAUTH 2.0 — Login com Google
+// ============================================================
+
+// GET /api/auth/google — iniciar fluxo OAuth
+app.get("/api/auth/google", (req: any, res: any) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const callbackUrl = process.env.GOOGLE_CALLBACK_URL || "https://jiuspeak.com.br/api/auth/google/callback";
+  const scope = "openid email profile";
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(callbackUrl)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=select_account`;
+  res.redirect(authUrl);
+});
+
+// GET /api/auth/google/callback — callback do Google
+app.get("/api/auth/google/callback", async (req: any, res: any) => {
+  try {
+    const { code, error } = req.query;
+
+    if (error) {
+      console.error("[GOOGLE AUTH] Erro:", error);
+      return res.redirect("https://jiuspeak.com.br/?auth_error=google_denied");
+    }
+
+    if (!code) {
+      return res.redirect("https://jiuspeak.com.br/?auth_error=no_code");
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const callbackUrl = process.env.GOOGLE_CALLBACK_URL || "https://jiuspeak.com.br/api/auth/google/callback";
+
+    // Trocar code por token
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: String(code),
+        client_id: clientId!,
+        client_secret: clientSecret!,
+        redirect_uri: callbackUrl,
+        grant_type: "authorization_code"
+      })
+    });
+    const tokenData = await tokenRes.json() as any;
+
+    if (!tokenData.access_token) {
+      console.error("[GOOGLE AUTH] Token error:", tokenData);
+      return res.redirect("https://jiuspeak.com.br/?auth_error=token_failed");
+    }
+
+    // Buscar dados do usuário no Google
+    const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { "Authorization": `Bearer ${tokenData.access_token}` }
+    });
+    const googleUser = await userRes.json() as any;
+
+    if (!googleUser.email) {
+      return res.redirect("https://jiuspeak.com.br/?auth_error=no_email");
+    }
+
+    const emailStr = googleUser.email.toLowerCase().trim();
+    const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString();
+    const userAgent = req.headers["user-agent"];
+
+    // Verificar se já existe conta com esse email
+    let user = await authStore.findByEmail(emailStr);
+
+    if (user) {
+      // LOGIN — conta já existe
+      if (user.isBanned) return res.redirect("https://jiuspeak.com.br/?auth_error=banned");
+      if (user.isSuspended) return res.redirect("https://jiuspeak.com.br/?auth_error=suspended");
+
+      // Atualizar dados do Google se necessário
+      if (!user.googleId) {
+        await authStore.updateUser(user.id!, {
+          googleId: googleUser.id,
+          avatar: user.avatar || googleUser.picture,
+          isEmailVerified: true
+        });
+      }
+
+      // Revogar sessões anteriores
+      try { await AuthService.revokeAllSessions(user.id!); } catch {}
+
+    } else {
+      // CADASTRO — criar nova conta via Google
+      const newUser = await authStore.createUser({
+        email: emailStr,
+        name: googleUser.name || googleUser.email.split("@")[0],
+        passwordHash: "",
+        role: "ATHLETE",
+        googleId: googleUser.id,
+        avatar: googleUser.picture || "",
+        isEmailVerified: true,
+        isAdminApproved: true,
+        subscription: "FREE",
+        xp: 0,
+        level: 1,
+        streakDays: 0,
+        jiuTickets: 0
+      });
+      user = newUser;
+      console.log(`[GOOGLE AUTH] Nova conta criada: ${emailStr}`);
+    }
+
+    // Gerar tokens JWT
+    const accessToken = generateAccessToken({
+      id: user.id!,
+      email: user.email!,
+      role: user.role!
+    });
+    const refreshToken = generateRefreshToken(user.id!);
+
+    // Registrar sessão
+    await AuthService.registerSession({ userId: user.id!, token: refreshToken, ipAddress, userAgent });
+    await authStore.updateUser(user.id!, { refreshToken, lastLoginAt: new Date() });
+
+    // Definir cookies
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("accessToken", accessToken, { httpOnly: true, sameSite: "lax", secure: isProd, path: "/", maxAge: 15 * 60 * 1000 });
+    res.cookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", secure: isProd, path: "/", maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    // Redirecionar com token na URL para o frontend pegar
+    res.redirect(`https://jiuspeak.com.br/?google_auth=success&token=${encodeURIComponent(accessToken)}&refresh=${encodeURIComponent(refreshToken)}&userId=${user.id}`);
+
+  } catch (err: any) {
+    console.error("[GOOGLE AUTH ERROR]", err.message);
+    res.redirect("https://jiuspeak.com.br/?auth_error=server_error");
   }
 });
 

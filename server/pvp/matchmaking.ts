@@ -2,7 +2,7 @@ import { getRedisClient } from "./redis";
 import { ArenaService, ArenaPlayer } from "./arena";
 import { authStore } from "../authStore";
 import { logPvP } from "../logger";
-import { prisma } from "../db";
+import { prisma, getPrisma, isDatabaseConnected } from "../db";
 
 export interface QueueUser {
   userId: string;
@@ -81,19 +81,34 @@ export class MatchmakingService {
       const userObj = await authStore.findById(userId);
       if (!userObj) return false;
 
-      // Teachers are free
-      if (userObj.role === "INSTRUCTOR") {
-        console.log(`[PVP FEE] Usuário ${userObj.name} é INSTRUCTOR, combate PvP gratuito.`);
+
+      // Admins, Teachers e Instructors são gratuitos
+      if (userObj.role === "INSTRUCTOR" || userObj.role === "TEACHER" || userObj.role === "ADMIN") {
+        console.log(`[PVP FEE] Usuário ${userObj.name} é ${userObj.role}, combate PvP gratuito.`);
+        return true;
+      }
+
+      // Trial: 3 batalhas gratuitas
+      const pvpUsed = (userObj as any).pvpFreeMatchesUsed || 0;
+      const aiExpiry = (userObj as any).aiConversationExpiresAt ? new Date((userObj as any).aiConversationExpiresAt) : null;
+      const hasActiveSub = aiExpiry && aiExpiry.getTime() > Date.now();
+      if (!hasActiveSub && pvpUsed < 3) {
+        const newCount = pvpUsed + 1;
+        const db = getPrisma();
+        if (db) {
+          await db.user.update({ where: { id: userId }, data: { pvpFreeMatchesUsed: newCount } }).catch((e: any) => console.error("[PVP TRIAL] Erro banco:", e.message));
+        }
+        await authStore.updateUser(userId, { pvpFreeMatchesUsed: newCount } as any);
+        console.log(`[PVP FEE] Trial: ${userObj.name} usou ${newCount}/3 batalhas gratuitas.`);
         return true;
       }
 
       const cost = 5000;
-      const balanceJT = userObj.coins || 0;
+      const balanceJT = (userObj as any).coins || 0;
       if (balanceJT < cost) {
-        console.log(`[PVP FEE] Usuário ${userObj.name} possui saldo de JT insuficiente (${balanceJT} JT). Requer ${cost} JT.`);
+        console.log(`[PVP FEE] Usuário ${userObj.name} possui saldo insuficiente (${balanceJT} JT). Requer ${cost} JT.`);
         return false;
       }
-
       if (prisma) {
         await prisma.$transaction(async (tx) => {
           await tx.wallet.update({

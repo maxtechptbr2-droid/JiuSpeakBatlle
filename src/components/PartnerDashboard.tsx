@@ -205,22 +205,68 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
     </div>
   );
 
-  if (noStore) return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto">
-      <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-4xl">🏪</div>
-      <div>
-        <h2 className="font-black text-white text-xl mb-2">Você ainda não tem uma loja</h2>
-        <p className="text-slate-400 text-sm leading-relaxed">
-          Para ter acesso ao painel do parceiro, sua solicitação precisa ser aprovada pela equipe JiuSpeak.
-          Se já enviou o formulário, aguarde a análise em até 48h.
-        </p>
+  if (noStore) {
+    const [setupForm, setSetupForm] = React.useState({ storeName: '', description: '', whatsapp: '', pixKey: '' });
+    const [creatingStore, setCreatingStore] = React.useState(false);
+    const handleCreateStore = async () => {
+      if (!setupForm.storeName) { showToast('Informe o nome da loja', 'error'); return; }
+      setCreatingStore(true);
+      try {
+        const res = await authFetch('/api/partner/create-store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(setupForm)
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Loja criada com sucesso!', 'success');
+          fetchStore();
+        } else {
+          showToast(data.error || 'Erro ao criar loja', 'error');
+        }
+      } catch (e) { showToast('Erro de conexão', 'error'); }
+      setCreatingStore(false);
+    };
+    return (
+      <div className="max-w-lg mx-auto space-y-6 py-8">
+        <div className="text-center space-y-3">
+          <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-4xl mx-auto">🏪</div>
+          <h2 className="font-black text-white text-xl">Configure sua loja</h2>
+          <p className="text-slate-400 text-sm">Sua solicitação foi aprovada! Agora configure sua loja para começar a vender.</p>
+        </div>
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div>
+            <label className="text-xs font-mono text-amber-400 uppercase font-bold block mb-1">Nome da Loja *</label>
+            <input value={setupForm.storeName} onChange={e => setSetupForm(p => ({...p, storeName: e.target.value}))}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+              placeholder="Ex: BJJ Store Brasil" />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-amber-400 uppercase font-bold block mb-1">Descrição</label>
+            <textarea value={setupForm.description} onChange={e => setSetupForm(p => ({...p, description: e.target.value}))}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500 resize-none h-20"
+              placeholder="Descreva sua loja em poucas palavras..." />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-amber-400 uppercase font-bold block mb-1">WhatsApp</label>
+            <input value={setupForm.whatsapp} onChange={e => setSetupForm(p => ({...p, whatsapp: e.target.value}))}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+              placeholder="(11) 99999-9999" />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-amber-400 uppercase font-bold block mb-1">Chave PIX</label>
+            <input value={setupForm.pixKey} onChange={e => setSetupForm(p => ({...p, pixKey: e.target.value}))}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+              placeholder="CPF, CNPJ, email ou chave aleatória" />
+          </div>
+          <button onClick={handleCreateStore} disabled={creatingStore}
+            className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition-all cursor-pointer disabled:opacity-50">
+            {creatingStore ? 'Criando...' : '🏪 Criar Minha Loja'}
+          </button>
+        </div>
       </div>
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 w-full text-left space-y-2">
-        <p className="text-xs font-mono text-amber-400 uppercase font-bold">Status da sua solicitação:</p>
-        <p className="text-sm text-slate-300">Aguardando aprovação pela equipe JiuSpeak</p>
-      </div>
-    </div>
-  );
+    );
+  }
 
   // FORM DE PRODUTO
   if (showProductForm) return (

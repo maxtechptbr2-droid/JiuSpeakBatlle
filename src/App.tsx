@@ -75,7 +75,7 @@ const AccessDenied403 = ({ message }: { message: string }) => (
 import { useAuth } from './hooks/useAuth';
 
 export default function App() {
-  const { user: authUser, authReady, login, logout, updateUser } = useAuth();
+  const { user: authUser, authReady, login, logout, updateUser, syncMe: syncMeAuth } = useAuth();
 
   const user = authUser || {
     id: 'guest',
@@ -908,6 +908,30 @@ export default function App() {
   }
 
   if (!authUser) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobile) {
+      return (
+        <div className="min-h-screen text-slate-200 bg-[#070a13] flex flex-col items-stretch w-full overflow-x-hidden" id="app-wrapper">
+          {toast && toast.visible && (
+            <div className="fixed top-4 right-4 z-50 animate-bounce cursor-pointer max-w-sm w-full">
+              <div className={`p-4 rounded-xl border shadow-xl flex items-center gap-3 ${
+                toast.type === 'success' 
+                  ? 'bg-emerald-950/90 border-emerald-500 text-emerald-250 shadow-emerald-500/10' 
+                  : (toast.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-250 shadow-red-500/10' : 'bg-slate-900/90 border-indigo-500 text-indigo-250 shadow-indigo-500/10')
+              }`}>
+                <span className="text-lg">
+                  {toast.type === 'success' ? '🥋' : (toast.type === 'error' ? '🚨' : '⚡')}
+                </span>
+                <p className="text-xs font-semibold leading-snug">{toast.message}</p>
+              </div>
+            </div>
+          )}
+          <React.Suspense fallback={<LoadingFallback />}>
+            <AuthPortal onLoginSuccess={handleLoginSuccess} showToast={showToast} />
+          </React.Suspense>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen text-slate-200 bg-[#070a13] flex flex-col items-stretch w-full overflow-x-hidden" id="app-wrapper">
         {toast && toast.visible && (
@@ -1264,7 +1288,8 @@ export default function App() {
               return (
                 <PvPArena 
                   user={user} 
-                  updateUser={handleUpdateUserProfile} 
+                  updateUser={handleUpdateUserProfile}
+                  syncMe={syncMeAuth}
                   onAddAuditLog={addAuditLog}
                   addXp={addXp}
                   addCoins={addCoins}

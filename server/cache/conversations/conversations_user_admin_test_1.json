@@ -128,5 +128,941 @@
     ],
     "createdAt": "2026-06-26T18:34:09.224Z",
     "updatedAt": "2026-06-26T18:34:09.224Z"
+  },
+  {
+    "id": "session_1782565205318_gwyd3ql",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:00:08.022Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:00:05.318Z",
+    "updatedAt": "2026-06-27T13:00:05.318Z"
+  },
+  {
+    "id": "session_1782566204529_38yfhn2",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:16:47.160Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:16:44.529Z",
+    "updatedAt": "2026-06-27T13:16:44.529Z"
+  },
+  {
+    "id": "session_1782566211328_fvf8930",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:16:53.148Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:16:51.328Z",
+    "updatedAt": "2026-06-27T13:16:51.328Z"
+  },
+  {
+    "id": "session_1782566224112_bapdayz",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "yuki",
+    "partnerName": "Yuki (Tokyo)",
+    "partnerVoice": "yuki",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:17:05.879Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:17:04.112Z",
+    "updatedAt": "2026-06-27T13:17:04.112Z"
+  },
+  {
+    "id": "session_1782566236426_7vp2dxv",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "roberto",
+    "partnerName": "Roberto (BJJ)",
+    "partnerVoice": "roberto",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:17:17.928Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:17:16.426Z",
+    "updatedAt": "2026-06-27T13:17:16.426Z"
+  },
+  {
+    "id": "session_1782566389043_8x1d3iw",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:19:50.688Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:19:49.043Z",
+    "updatedAt": "2026-06-27T13:19:49.043Z"
+  },
+  {
+    "id": "session_1782566402249_0qmf7n7",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:20:03.892Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:20:02.249Z",
+    "updatedAt": "2026-06-27T13:20:02.249Z"
+  },
+  {
+    "id": "session_1782566784510_h9ki395",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:26:26.203Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:26:24.510Z",
+    "updatedAt": "2026-06-27T13:26:24.510Z"
+  },
+  {
+    "id": "session_1782566798984_bdwmyn3",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:26:40.592Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:26:38.984Z",
+    "updatedAt": "2026-06-27T13:26:38.984Z"
+  },
+  {
+    "id": "session_1782566809271_ws7u6i7",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "yuki",
+    "partnerName": "Yuki (Tokyo)",
+    "partnerVoice": "yuki",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:26:50.891Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:26:49.271Z",
+    "updatedAt": "2026-06-27T13:26:49.271Z"
+  },
+  {
+    "id": "session_1782566820762_75pstad",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "roberto",
+    "partnerName": "Roberto (BJJ)",
+    "partnerVoice": "roberto",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:27:02.415Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:27:00.762Z",
+    "updatedAt": "2026-06-27T13:27:00.762Z"
+  },
+  {
+    "id": "session_1782566828220_wuzylky",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "john",
+    "partnerName": "John (Austin)",
+    "partnerVoice": "john",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:27:09.699Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:27:08.220Z",
+    "updatedAt": "2026-06-27T13:27:08.220Z"
+  },
+  {
+    "id": "session_1782566834920_5wt1az1",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:27:16.402Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:27:14.920Z",
+    "updatedAt": "2026-06-27T13:27:14.920Z"
+  },
+  {
+    "id": "session_1782566844845_0keajb0",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:27:26.496Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:27:24.845Z",
+    "updatedAt": "2026-06-27T13:27:24.845Z"
+  },
+  {
+    "id": "session_1782566852481_g9q1bdp",
+    "userId": "user_admin_test_1",
+    "scenario": "seminário",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: seminário!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: seminário!",
+        "timestamp": "2026-06-27T13:27:34.235Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:27:32.481Z",
+    "updatedAt": "2026-06-27T13:27:32.481Z"
+  },
+  {
+    "id": "session_1782567136685_ec0kh9c",
+    "userId": "user_admin_test_1",
+    "scenario": "sparring",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: sparring!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: sparring!",
+        "timestamp": "2026-06-27T13:32:18.383Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:32:16.685Z",
+    "updatedAt": "2026-06-27T13:32:16.685Z"
+  },
+  {
+    "id": "session_1782567164937_rx4rkgt",
+    "userId": "user_admin_test_1",
+    "scenario": "sparring",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: sparring!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: sparring!",
+        "timestamp": "2026-06-27T13:32:46.793Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:32:44.937Z",
+    "updatedAt": "2026-06-27T13:32:44.937Z"
+  },
+  {
+    "id": "session_1782567595662_iblzin4",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:39:57.361Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:39:55.662Z",
+    "updatedAt": "2026-06-27T13:39:55.662Z"
+  },
+  {
+    "id": "session_1782567609956_8lzzory",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:40:11.511Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:40:09.956Z",
+    "updatedAt": "2026-06-27T13:40:09.956Z"
+  },
+  {
+    "id": "session_1782567873378_08ydl4s",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:44:35.214Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:44:33.378Z",
+    "updatedAt": "2026-06-27T13:44:33.378Z"
+  },
+  {
+    "id": "session_1782567882375_non4wze",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:44:43.883Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:44:42.375Z",
+    "updatedAt": "2026-06-27T13:44:42.375Z"
+  },
+  {
+    "id": "session_1782567888392_zz3noe1",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "yuki",
+    "partnerName": "Yuki (Tokyo)",
+    "partnerVoice": "yuki",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:44:49.935Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:44:48.392Z",
+    "updatedAt": "2026-06-27T13:44:48.392Z"
+  },
+  {
+    "id": "session_1782567894300_4qr1qrm",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "roberto",
+    "partnerName": "Roberto (BJJ)",
+    "partnerVoice": "roberto",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:44:55.795Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:44:54.300Z",
+    "updatedAt": "2026-06-27T13:44:54.300Z"
+  },
+  {
+    "id": "session_1782567900252_l76pa1p",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "john",
+    "partnerName": "John (Austin)",
+    "partnerVoice": "john",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:45:01.841Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:45:00.252Z",
+    "updatedAt": "2026-06-27T13:45:00.252Z"
+  },
+  {
+    "id": "session_1782567972869_2ffw0rf",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "roberto",
+    "partnerName": "Roberto (BJJ)",
+    "partnerVoice": "roberto",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:46:14.636Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:46:12.869Z",
+    "updatedAt": "2026-06-27T13:46:12.869Z"
+  },
+  {
+    "id": "session_1782567978317_sdnygkz",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "john",
+    "partnerName": "John (Austin)",
+    "partnerVoice": "john",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:46:19.920Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:46:18.317Z",
+    "updatedAt": "2026-06-27T13:46:18.317Z"
+  },
+  {
+    "id": "session_1782568400008_pkzve7y",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:53:21.966Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:53:20.008Z",
+    "updatedAt": "2026-06-27T13:53:20.008Z"
+  },
+  {
+    "id": "session_1782568406112_6de12ff",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:53:27.868Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:53:26.112Z",
+    "updatedAt": "2026-06-27T13:53:26.112Z"
+  },
+  {
+    "id": "session_1782568411457_pnv3ei3",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "yuki",
+    "partnerName": "Yuki (Tokyo)",
+    "partnerVoice": "yuki",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:53:33.097Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:53:31.457Z",
+    "updatedAt": "2026-06-27T13:53:31.457Z"
+  },
+  {
+    "id": "session_1782568417002_p9neli9",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "roberto",
+    "partnerName": "Roberto (BJJ)",
+    "partnerVoice": "roberto",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:53:38.592Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:53:37.002Z",
+    "updatedAt": "2026-06-27T13:53:37.002Z"
+  },
+  {
+    "id": "session_1782568422554_wsc127r",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "john",
+    "partnerName": "John (Austin)",
+    "partnerVoice": "john",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T13:53:44.092Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T13:53:42.554Z",
+    "updatedAt": "2026-06-27T13:53:42.554Z"
+  },
+  {
+    "id": "session_1782584941852_lrgzi7m",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-27T18:29:04.504Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-27T18:29:01.852Z",
+    "updatedAt": "2026-06-27T18:29:01.852Z"
+  },
+  {
+    "id": "session_1782614625040_csb74zg",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-28T02:43:47.731Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-28T02:43:45.040Z",
+    "updatedAt": "2026-06-28T02:43:45.040Z"
+  },
+  {
+    "id": "session_1782696741102_jcfk5i4",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-29T01:32:23.730Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-29T01:32:21.103Z",
+    "updatedAt": "2026-06-29T01:32:21.103Z"
+  },
+  {
+    "id": "session_1782696754181_yjxg5tb",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-29T01:32:36.030Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-29T01:32:34.181Z",
+    "updatedAt": "2026-06-29T01:32:34.181Z"
+  },
+  {
+    "id": "session_1782696768511_opxchaj",
+    "userId": "user_admin_test_1",
+    "scenario": "seminário",
+    "partnerKey": "yuki",
+    "partnerName": "Yuki (Tokyo)",
+    "partnerVoice": "yuki",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: seminário!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: seminário!",
+        "timestamp": "2026-06-29T01:32:50.160Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-29T01:32:48.511Z",
+    "updatedAt": "2026-06-29T01:32:48.511Z"
   }
 ]

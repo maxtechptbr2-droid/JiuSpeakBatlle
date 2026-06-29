@@ -646,6 +646,7 @@ export default function PvPArena({
             elo: myRatingResults.elo,
             winCount: user.winCount + (won ? 1 : 0),
             lossCount: user.lossCount + (!won && data.winnerId !== null ? 1 : 0),
+            pvpFreeMatchesUsed: Math.min(3, ((user as any).pvpFreeMatchesUsed || 0) + 1),
           });
         }
       }

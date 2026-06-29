@@ -119,6 +119,12 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
   // Load Academy Lists for Step 6 Onboarding
   // Tratar retorno do Google OAuth
   useEffect(() => {
+    if (window.innerWidth < 768) {
+      setAuthModalOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const googleAuth = params.get('google_auth');
     const token = params.get('token');
@@ -603,8 +609,8 @@ export default function AuthPortal({ onLoginSuccess, showToast }: AuthPortalProp
       {/* ATHLETIC ACCESS GATEWAY MODAL OVERLAY */}
       {authModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#01040ed1]/90 backdrop-blur-md overflow-y-auto" id="auth-modal-overlay">
-          {/* Dismiss backdrop click */}
-          <div className="absolute inset-0 cursor-default" onClick={() => { if (!loading) setAuthModalOpen(false); }} />
+          {/* Dismiss backdrop click — desabilitado no mobile */}
+          <div className="absolute inset-0 cursor-default" onClick={() => { if (!loading && window.innerWidth >= 768) setAuthModalOpen(false); }} />
 
           {/* Glassmorphic Portal Card */}
           <div className="relative w-full max-w-md bg-[#04091c] border border-blue-500/20 rounded-[2rem] p-6 sm:p-8 shadow-[0_0_50px_rgba(0,132,255,0.15)] z-10 my-8">

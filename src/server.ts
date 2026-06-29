@@ -16783,9 +16783,13 @@ async function startServer() {
 
       const activeProfile = updatedProfile || profile;
 
-      // Rule: Each PvP entry requires 5.000 JT. Charged upon match confirmation. Free for Teachers.
-      if (activeProfile.role !== "TEACHER" && (activeProfile.coins || 0) < 5000) {
-        socket.emit("matchmaking:error", { error: "Você precisa adquirir JT para entrar na Arena PvP. Cada combate custa 5.000 JT." });
+      // Rule: 3 free trial matches, then requires active AI subscription
+      const pvpUsedSock = (activeProfile as any).pvpFreeMatchesUsed || 0;
+      const aiExpirySock = (activeProfile as any).aiConversationExpiresAt ? new Date((activeProfile as any).aiConversationExpiresAt) : null;
+      const hasSubSock = aiExpirySock && aiExpirySock.getTime() > Date.now();
+      const isFreeRoleSock = activeProfile.role === "TEACHER" || activeProfile.role === "INSTRUCTOR" || activeProfile.role === "ADMIN";
+      if (!isFreeRoleSock && !hasSubSock && pvpUsedSock >= 3) {
+        socket.emit("matchmaking:error", { error: "Você usou suas 3 batalhas gratuitas! Ative a Arena PvP com 5.000 JT para continuar." });
         return;
       }
 

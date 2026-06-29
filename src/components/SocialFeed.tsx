@@ -410,38 +410,55 @@ export default function SocialFeed({ user, showToast, onNavigate }: SocialFeedPr
     }
   };
 
-  // Share interaction handler with strict deduplication
+  // Share interaction handler com Web Share API nativa (mobile) e fallback clipboard
   const handleSharePost = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    const shareUrl = `${window.location.origin}/community`;
+    const shareText = post ? `${post.content}\n\n🥋 JiuSpeak — Inglês para Jiu-Jitsu` : '🥋 JiuSpeak — Inglês para Jiu-Jitsu';
+    const mediaUrl = post?.videoUrl || post?.imageUrl;
+
+    // Web Share API nativa — abre menu do celular (Instagram, TikTok, WhatsApp, etc)
+    if (navigator.share) {
+      try {
+        // Tentar compartilhar arquivo de mídia se existir no VPS
+        if (mediaUrl && mediaUrl.startsWith('/uploads/') && navigator.canShare) {
+          try {
+            const fullUrl = `${window.location.origin}${mediaUrl}`;
+            const res = await fetch(fullUrl);
+            const blob = await res.blob();
+            const ext = fullUrl.split('.').pop() || 'mp4';
+            const file = new File([blob], `jiuspeak.${ext}`, { type: blob.type });
+            if (navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], text: shareText });
+              showToast("✅ Pronto para compartilhar!", "success");
+              return;
+            }
+          } catch {}
+        }
+        // Fallback Web Share sem arquivo
+        await navigator.share({ title: 'JiuSpeak', text: shareText, url: shareUrl });
+        showToast("✅ Pronto para compartilhar!", "success");
+        return;
+      } catch (e: any) {
+        if (e.name === 'AbortError') return; // usuário cancelou
+      }
+    }
+
+    // Fallback desktop — registrar share + copiar link
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
       const response = await fetch(`/api/social/posts/${postId}/share`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setPosts(prev => prev.map(p => {
-            if (p.id === postId) {
-              return {
-                ...p,
-                sharesCount: data.sharesCount,
-                hasShared: data.shared
-              };
-            }
-            return p;
-          }));
-
-          // Copy link to clipboard
-          const shareUrl = `${window.location.origin}/social?post=${postId}`;
-          await navigator.clipboard.writeText(shareUrl);
-          
-          showToast("🥋 Link copiado! Compartilhe o rolo com seus parceiros de tatame.", "success");
+          setPosts(prev => prev.map(p => p.id === postId ? { ...p, sharesCount: data.sharesCount, hasShared: data.shared } : p));
         }
       }
+      await navigator.clipboard.writeText(shareUrl);
+      showToast("📋 Link copiado! Cole no Instagram, TikTok ou onde quiser.", "success");
     } catch (err) {
       console.error("Failed to share post:", err);
       showToast("Não foi possível processar o compartilhamento.", "error");
