@@ -534,7 +534,7 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
           {/* Info da loja */}
           {selectedProduct.store && (
             <div className="flex items-center gap-3 p-3 bg-slate-900/40 border border-slate-800 rounded-2xl cursor-pointer hover:border-amber-500/30 transition-colors"
-              onClick={() => { setSelectedStore(selectedProduct.store); setView('loja'); }}>
+              onClick={() => { setSelectedStore({...selectedProduct.store, products: products.filter((p: any) => p.storeId === selectedProduct.store?.id)}); setView('loja'); }}>
               <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center">
                 <Store className="w-5 h-5 text-amber-400" />
               </div>
