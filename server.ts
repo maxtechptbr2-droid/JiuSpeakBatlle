@@ -105,10 +105,14 @@ app.use(
   '/uploads',
   express.static(
     pathBoot.join(process.cwd(), 'public', 'uploads'),
-    {
-      maxAge: '30d',
-      etag: true
-    }
+    { maxAge: '30d', etag: true }
+  )
+);
+app.use(
+  '/parceiros',
+  express.static(
+    pathBoot.join(process.cwd(), 'public', 'parceiros'),
+    { maxAge: '30d', etag: true }
   )
 );
 
@@ -2898,7 +2902,7 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       // Fallback if postgres is down
       const { passwordHash, refreshToken, resetToken, resetTokenExpires, verificationToken, ...safeUser } = req.user;
       console.log(`[AUTH ME FALLBACK] Dispatched auth/me fallback payload for User ID: ${safeUser.id}`);
-      return res.json({ user: safeUser });
+      return res.json({ user: { ...safeUser, isPartner: false, partnerApplicationStatus: null } });
     }
 
     const dbUser = await prisma.user.findUnique({
@@ -15931,6 +15935,140 @@ app.get("/api/admin/partners/orders", authenticateToken, requireRole(["ADMIN"]),
 
 
 // ENDPOINTS — PAINEL DO PARCEIRO
+app.post("/api/partner/upload-image", authenticateToken, (req: any, res: any) => {
+  const multer = require('multer');
+  const path = require('path');
+  const fs = require('fs');
+  const { v4: uuidv4 } = require('uuid');
+
+  const storage = multer.memoryStorage();
+  const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_: any, file: any, cb: any) => {
+      if (file.mimetype.startsWith('image/')) cb(null, true);
+      else cb(new Error('Apenas imagens são permitidas'));
+    }
+  });
+
+  upload.single('image')(req, res, (err: any) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+
+    try {
+      const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'jpg';
+      const filename = `product_${uuidv4()}.${ext}`;
+      const uploadDir = path.join(process.cwd(), 'public', 'parceiros', 'media', 'photos');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+      fs.writeFileSync(path.join(uploadDir, filename), req.file.buffer);
+      const url = `/parceiros/media/photos/${filename}`;
+      return res.json({ success: true, url });
+    } catch (err: any) {
+      return res.status(500).json({ error: 'Erro ao salvar imagem: ' + err.message });
+    }
+  });
+});
+
+
+// ============================================================
+// CHECKOUT PRODUTOS PARCEIROS — PIX / CARTÃO / DÉBITO
+// ============================================================
+app.post("/api/partner/checkout", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { productId, quantity = 1, paymentMethodId = "pix", token, installments, email, firstName, lastName, identificationNumber } = req.body;
+    const userId = req.user.id;
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "Banco indisponível." });
+
+    const products: any[] = await prisma.$queryRawUnsafe(
+      `SELECT p.*, s."storeName", s.whatsapp, s."pixKey", s."userId" as "storeUserId", s.commission
+       FROM "PartnerProduct" p JOIN "PartnerStore" s ON s.id = p."storeId"
+       WHERE p.id=$1 AND p."isActive"=true LIMIT 1`, productId
+    );
+    if (!products[0]) return res.status(404).json({ error: "Produto não encontrado." });
+    const product = products[0];
+
+    const amount = Number(product.price) * Number(quantity);
+    const commissionRate = Number(product.commission || 10) / 100;
+    const partnerAmount = amount * (1 - commissionRate);
+    const platformAmount = amount * commissionRate;
+
+    const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    let resultPayment: any;
+
+    if (!mpToken) {
+      resultPayment = {
+        id: `partner_sim_${Date.now()}`,
+        status: "pending",
+        qrCode: null,
+        qrCodeCopyPaste: "00020101021226580014br.gov.bcb.pix0136jiuspeak@pix.com5204000053039865406" + amount.toFixed(2).replace('.','') + "5802BR5909JiuSpeak6009SaoPaulo6304ABCD",
+        transactionAmount: amount,
+        paymentMethodId
+      };
+    } else {
+      resultPayment = await createDirectPayment({
+        transactionAmount: amount,
+        token,
+        description: `${product.storeName} — ${product.name} (x${quantity})`,
+        installments: Number(installments) || 1,
+        paymentMethodId,
+        payerEmail: email || req.user.email,
+        payerFirstName: firstName || req.user.name?.split(' ')[0],
+        payerLastName: lastName || req.user.name?.split(' ').slice(1).join(' '),
+        identificationType: 'CPF',
+        identificationNumber: (identificationNumber || '').replace(/\D/g,''),
+        metadata: { userId, productId, quantity, storeUserId: product.storeUserId }
+      });
+    }
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "PartnerOrder" (id,"storeId","productId","buyerId","buyerEmail",status,"totalPrice","partnerAmount","platformAmount","paymentId","paymentMethod","paymentStatus","quantity","createdAt","updatedAt")
+       VALUES (gen_random_uuid()::text,$1,$2,$3,$4,'pending',$5,$6,$7,$8,$9,'pending',$10,NOW(),NOW())`,
+      product.storeId, productId, userId, email || req.user.email,
+      amount, partnerAmount, platformAmount,
+      String(resultPayment.id), paymentMethodId, Number(quantity)
+    );
+
+    return res.json({
+      success: true,
+      paymentId: String(resultPayment.id),
+      status: resultPayment.status,
+      qrCodeBase64: resultPayment.qrCode || null,
+      pixCopiaECola: resultPayment.qrCodeCopyPaste || null,
+      amount,
+      paymentMethodId,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    });
+  } catch (err: any) {
+    console.error("[PARTNER CHECKOUT]", err.message);
+    res.status(500).json({ error: err.message || "Erro ao processar pagamento." });
+  }
+});
+
+app.get("/api/partner/checkout/status/:paymentId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { paymentId } = req.params;
+    const mpToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+    if (!mpToken || paymentId.startsWith('partner_sim_')) return res.json({ status: "pending" });
+    const { MercadoPagoConfig, Payment } = require("mercadopago");
+    const client = new MercadoPagoConfig({ accessToken: mpToken });
+    const payment = new Payment(client);
+    const result = await payment.get({ id: paymentId });
+    if (result.status === "approved") {
+      const prisma = getPrisma();
+      if (prisma) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE "PartnerOrder" SET status='paid',"paymentStatus"='paid',"updatedAt"=NOW() WHERE "paymentId"=$1`,
+          paymentId
+        );
+      }
+    }
+    return res.json({ status: result.status, statusDetail: result.status_detail });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/partner/create-store", authenticateToken, async (req: any, res: any) => {
   try {
     const userId = req.user?.id;
@@ -15974,16 +16112,18 @@ app.post("/api/partner/products/save", authenticateToken, async (req: any, res: 
   try {
     const { id, storeId, name, description, price, originalPrice, category, stock, images, isFeatured, tags } = req.body;
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-') + '-' + Date.now();
+    const imagesJson = JSON.stringify(Array.isArray(images) ? images : []);
+    const tagsJson = JSON.stringify(Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []));
     if (id) {
       await prisma.$executeRawUnsafe(
         `UPDATE "PartnerProduct" SET name=$1, description=$2, price=$3, "originalPrice"=$4, category=$5, stock=$6, images=$7, "isFeatured"=$8, tags=$9, "updatedAt"=NOW() WHERE id=$10`,
-        name, description, price, originalPrice||null, category, stock, images, isFeatured, tags, id
+        name, description, price, originalPrice||null, category, stock, imagesJson, isFeatured, tagsJson, id
       );
     } else {
       await prisma.$executeRawUnsafe(
         `INSERT INTO "PartnerProduct" (id,"storeId",name,slug,description,price,"originalPrice",category,stock,images,"isFeatured",tags,"isActive","createdAt","updatedAt")
          VALUES (gen_random_uuid()::text,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true,NOW(),NOW())`,
-        storeId, name, slug, description, price, originalPrice||null, category, stock, images, isFeatured, tags
+        storeId, name, slug, description, price, originalPrice||null, category, stock, imagesJson, isFeatured, tagsJson
       );
     }
     res.json({ success: true });

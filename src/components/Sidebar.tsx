@@ -173,9 +173,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     ...(user.role === 'admin' ? [
       { id: 'admin', label: 'Painel Administrativo', icon: ShieldAlert, badge: 'Auditoria' }
     ] : []),
-    ...(user.isPartner ? [
-      { id: 'partner-dashboard', label: 'Minha Loja Parceira', icon: Store, badge: '🏪' }
-    ] : []),
+
     { id: 'marketplace', label: 'Seja Docente', icon: Award, badge: 'Novo' },
   ];
 
@@ -231,6 +229,18 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
               </div>
             </div>
           </div>
+
+          {/* Botão Minha Loja Parceira */}
+          {(user as any).isPartner && (
+            <button
+              onClick={() => setCurrentTab('partner-dashboard')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-400 text-[10px] font-bold font-mono transition-all shrink-0"
+              title="Minha Loja Parceira"
+            >
+              <Store className="w-3 h-3" />
+              LOJA
+            </button>
+          )}
 
           {/* Sino de notificação de mensagens */}
           <div className="relative">

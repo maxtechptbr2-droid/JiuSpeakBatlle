@@ -71,7 +71,11 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
     try {
       const res = await authFetch(`/api/partner/products?storeId=${storeId}`);
       const data = await res.json();
-      if (data.success) setProducts(data.products || []);
+      if (data.success) setProducts((data.products || []).map((p: any) => ({
+        ...p,
+        images: (() => { try { return Array.isArray(p.images) ? p.images : JSON.parse(p.images || '[]'); } catch { return []; } })(),
+        tags: (() => { try { return Array.isArray(p.tags) ? p.tags : JSON.parse(p.tags || '[]'); } catch { return []; } })(),
+      })));
     } catch (e) {}
   };
 
@@ -89,9 +93,8 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
     setUploadingImage(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'product');
-      const res = await fetch('/api/admin/upload-media', {
+      formData.append('image', file);
+      const res = await fetch('/api/partner/upload-image', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${getToken()}` },
         body: formData
@@ -192,9 +195,9 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
       originalPrice: product.originalPrice ? String(product.originalPrice) : '',
       category: product.category,
       stock: String(product.stock),
-      images: product.images || [],
+      images: (() => { try { const i = product.images; return Array.isArray(i) ? i : (typeof i === 'string' ? JSON.parse(i) : []); } catch { return []; } })(),
       isFeatured: product.isFeatured,
-      tags: (product.tags || []).join(', ')
+      tags: (() => { try { const t = product.tags; const arr = Array.isArray(t) ? t : (typeof t === 'string' ? JSON.parse(t) : []); return arr.join(', '); } catch { return ''; } })()
     });
     setShowProductForm(true);
   };

@@ -1454,6 +1454,44 @@ export default function App() {
               );
             }
 
+            if (currentTab === 'marketplace') {
+              const isDocente = user.role === 'admin' || user.role === 'professor' || user.role === 'INSTRUCTOR' || user.role === 'TEACHER' || user.role === 'ADMIN';
+              if (!isDocente) {
+                return (
+                  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto px-4">
+                    <div className="w-20 h-20 rounded-3xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-4xl">🎓</div>
+                    <div>
+                      <h2 className="font-black text-white text-xl mb-2">Seja um Docente JiuSpeak</h2>
+                      <p className="text-slate-400 text-sm leading-relaxed">O painel de docente é restrito a professores aprovados pela equipe JiuSpeak. Envie sua candidatura e faça parte do nosso time de instrutores.</p>
+                    </div>
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 w-full text-left space-y-3">
+                      <p className="text-xs font-mono text-violet-400 uppercase font-bold">Requisitos:</p>
+                      <ul className="text-sm text-slate-300 space-y-1">
+                        <li>✅ Faixa Preta ou Marrom de BJJ</li>
+                        <li>✅ Experiência em ensino de Inglês ou BJJ</li>
+                        <li>✅ Perfil completo na plataforma</li>
+                      </ul>
+                    </div>
+                    <a href="mailto:suporte@jiuspeak.com.br?subject=Candidatura%20Docente%20JiuSpeak"
+                      className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-black rounded-xl transition-all text-center block">
+                      📩 Enviar Candidatura
+                    </a>
+                  </div>
+                );
+              }
+              return (
+                <React.Suspense fallback={<div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" /></div>}>
+                  <CreatorPanel
+                    user={user}
+                    courses={courses}
+                    updateUser={handleUpdateUserProfile}
+                    onAddNewCourse={handleAddNewCourse}
+                    onAddAuditLog={addAuditLog}
+                    showToast={showToast}
+                  />
+                </React.Suspense>
+              );
+            }
             if (currentTab === 'creator') {
               if (user.role !== 'admin' && user.role !== 'professor') {
                 return (

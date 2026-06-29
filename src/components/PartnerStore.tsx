@@ -35,6 +35,18 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
   const [search, setSearch] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState<'method'|'processing'|'pix'|'success'>('method');
+  const [paymentData, setPaymentData] = useState<any>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'pix'|'credit_card'|'debit_card'>('pix');
+  const [buyerEmail, setBuyerEmail] = useState(user?.email || '');
+  const [buyerDoc, setBuyerDoc] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardInstallments, setCardInstallments] = useState(1);
 
   // Form de aplicação
   const [form, setForm] = useState({
@@ -55,6 +67,51 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
     fetchProducts();
   }, [category, search]);
 
+  const handleCheckout = async () => {
+    if (!selectedProduct) return;
+    setCheckoutLoading(true);
+    setCheckoutStep('processing');
+    try {
+      const res = await fetch('/api/partner/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          quantity,
+          paymentMethodId: paymentMethod,
+          email: buyerEmail,
+          identificationNumber: buyerDoc
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPaymentData(data);
+        if (paymentMethod === 'pix') {
+          setCheckoutStep('pix');
+        } else if (data.status === 'approved') {
+          setCheckoutStep('success');
+        } else {
+          setCheckoutStep('processing');
+        }
+        // Polling
+        const poll = setInterval(async () => {
+          try {
+            const sr = await fetch(`/api/partner/checkout/status/${data.paymentId}`, {
+              headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            const sd = await sr.json();
+            if (sd.status === 'approved') { clearInterval(poll); setCheckoutStep('success'); }
+          } catch {}
+        }, 5000);
+        setTimeout(() => clearInterval(poll), 15 * 60 * 1000);
+      } else {
+        showToast(data.error || 'Erro ao processar pagamento', 'error');
+        setCheckoutStep('method');
+      }
+    } catch { showToast('Erro de conexão', 'error'); setCheckoutStep('method'); }
+    setCheckoutLoading(false);
+  };
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
@@ -66,7 +123,11 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
       });
       if (res.ok) {
         const data = await res.json();
-        setProducts(data.products || []);
+        setProducts((data.products || []).map((p: any) => ({
+          ...p,
+          images: (() => { try { return Array.isArray(p.images) ? p.images : JSON.parse(p.images || '[]'); } catch { return []; } })(),
+          tags: (() => { try { return Array.isArray(p.tags) ? p.tags : JSON.parse(p.tags || '[]'); } catch { return []; } })(),
+        })));
         setStores(data.stores || []);
       }
     } catch (e) {
@@ -107,8 +168,138 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
   // ============================================================
   // VIEW: VITRINE PRINCIPAL
   // ============================================================
+  const checkoutModal = checkoutOpen && selectedProduct ? (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4" style={{zIndex:9999}}>
+        <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between p-5 border-b border-slate-800">
+            <div>
+              <p className="text-xs text-amber-400 font-mono">{selectedProduct.store?.storeName}</p>
+              <h3 className="font-black text-white truncate max-w-xs">{selectedProduct.name}</h3>
+            </div>
+            <button onClick={() => setCheckoutOpen(false)} className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white">✕</button>
+          </div>
+          <div className="p-4 space-y-3">
+            {checkoutStep === 'method' && (<>
+              <p className="text-sm text-slate-400">Total: <span className="text-white font-black text-xl">R$ {(selectedProduct.price * quantity).toFixed(2)}</span></p>
+              <div>
+                <p className="text-xs font-mono text-slate-400 uppercase mb-2">Forma de Pagamento</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([{id:'pix',icon:'⚡',label:'PIX',desc:'Instantâneo'},{id:'credit_card',icon:'💳',label:'Crédito',desc:'Parcelado'},{id:'debit_card',icon:'🏦',label:'Débito',desc:'À vista'}] as const).map(m => (
+                    <button key={m.id} onClick={() => setPaymentMethod(m.id as any)}
+                      className={`p-3 rounded-xl border text-center transition-all ${paymentMethod === m.id ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 hover:border-slate-600'}`}>
+                      <div className="text-xl">{m.icon}</div>
+                      <div className="text-xs font-bold text-white">{m.label}</div>
+                      <div className="text-[9px] text-slate-500">{m.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-mono text-slate-400 uppercase block mb-1">Email</label>
+                <input value={buyerEmail} onChange={e => setBuyerEmail(e.target.value)} type="email"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                  placeholder="seu@email.com" />
+              </div>
+              <div>
+                <label className="text-xs font-mono text-slate-400 uppercase block mb-1">CPF</label>
+                <input value={buyerDoc} onChange={e => setBuyerDoc(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                  placeholder="000.000.000-00" />
+              </div>
+              {(paymentMethod === 'credit_card' || paymentMethod === 'debit_card') && (<>
+                <div>
+                  <label className="text-xs font-mono text-slate-400 uppercase block mb-1">Número do Cartão</label>
+                  <input value={cardNumber} onChange={e => setCardNumber(e.target.value.replace(/\D/g,'').slice(0,16))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                    placeholder="0000 0000 0000 0000" maxLength={16} />
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-slate-400 uppercase block mb-1">Nome no Cartão</label>
+                  <input value={cardName} onChange={e => setCardName(e.target.value.toUpperCase())}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                    placeholder="NOME COMO NO CARTÃO" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-mono text-slate-400 uppercase block mb-1">Validade</label>
+                    <input value={cardExpiry} onChange={e => setCardExpiry(e.target.value.replace(/\D/g,'').slice(0,4).replace(/(\d{2})(\d)/,'$1/$2'))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                      placeholder="MM/AA" maxLength={5} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-mono text-slate-400 uppercase block mb-1">CVV</label>
+                    <input value={cardCvv} onChange={e => setCardCvv(e.target.value.replace(/\D/g,'').slice(0,4))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500"
+                      placeholder="000" maxLength={4} type="password" />
+                  </div>
+                </div>
+                {paymentMethod === 'credit_card' && (
+                  <div>
+                    <label className="text-xs font-mono text-slate-400 uppercase block mb-1">Parcelas</label>
+                    <select value={cardInstallments} onChange={e => setCardInstallments(Number(e.target.value))}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-amber-500">
+                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                        <option key={n} value={n}>{n}x de R$ {(selectedProduct.price * quantity / n).toFixed(2)}{n === 1 ? ' sem juros' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>)}
+              <button onClick={handleCheckout} disabled={!buyerEmail || !buyerDoc || checkoutLoading}
+                className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black rounded-xl transition-all">
+                {checkoutLoading ? 'Processando...' : `Pagar R$ ${(selectedProduct.price * quantity).toFixed(2)}`}
+              </button>
+            </>)}
+            {checkoutStep === 'processing' && (
+              <div className="text-center py-8 space-y-4">
+                <div className="w-12 h-12 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mx-auto"/>
+                <p className="text-white font-bold">Processando pagamento...</p>
+              </div>
+            )}
+            {checkoutStep === 'pix' && paymentData && (
+              <div className="text-center space-y-3">
+                <div className="text-3xl">⚡</div>
+                <p className="font-black text-white text-lg">PIX Gerado!</p>
+                <p className="text-slate-400 text-sm">Total: <strong className="text-white">R$ {paymentData.amount?.toFixed(2)}</strong></p>
+                {paymentData.qrCodeBase64 && paymentData.qrCodeBase64.length > 100 && (
+                  <div className="bg-white p-3 rounded-2xl mx-auto w-44 h-44 flex items-center justify-center">
+                    <img src={`data:image/png;base64,${paymentData.qrCodeBase64}`} className="w-full h-full object-contain" alt="QR Code PIX" />
+                  </div>
+                )}
+                {paymentData.pixCopiaECola && (
+                  <button onClick={() => { navigator.clipboard.writeText(paymentData.pixCopiaECola); showToast('Código copiado!', 'success'); }}
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-sm transition-all">
+                    📋 Copiar Código PIX
+                  </button>
+                )}
+                <p className="text-xs text-slate-500 animate-pulse">Aguardando confirmação do pagamento...</p>
+              </div>
+            )}
+            {checkoutStep === 'success' && (
+              <div className="text-center space-y-4 py-4">
+                <div className="text-5xl">✅</div>
+                <p className="font-black text-white text-xl">Pagamento Confirmado!</p>
+                <p className="text-slate-400 text-sm">Entre em contato com o vendedor para combinar a entrega.</p>
+                {selectedProduct.store?.whatsapp && (
+                  <a href={`https://wa.me/55${selectedProduct.store.whatsapp.replace(/\D/g,'')}?text=${encodeURIComponent('Olá! Paguei o produto ' + selectedProduct.name + ' pelo JiuSpeak!')}`}
+                    target="_blank"
+                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-black rounded-xl transition-all flex items-center justify-center gap-2 block text-center">
+                    📱 Contatar Vendedor no WhatsApp
+                  </a>
+                )}
+                <button onClick={() => { setCheckoutOpen(false); setView('vitrine'); }}
+                  className="w-full py-2.5 bg-slate-800 text-white rounded-xl text-sm">
+                  Voltar para a loja
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+  ) : null;
+
   if (view === 'vitrine') return (
-    <div className="space-y-6">
+    <>{checkoutModal}<div className="space-y-6">
       {/* Hero */}
       <div className="relative bg-gradient-to-br from-amber-950/60 via-slate-900 to-slate-950 border border-amber-900/30 rounded-3xl p-8 overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -238,7 +429,7 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
             {stores.map((store: any) => (
               <div
                 key={store.id}
-                onClick={() => { setSelectedStore(store); setView('loja'); }}
+                onClick={() => { setSelectedStore({...store, products: products.filter((p: any) => p.storeId === store.id)}); setView('loja'); }}
                 className="bg-slate-900/60 border border-slate-800 hover:border-amber-500/30 rounded-2xl p-4 cursor-pointer transition-all flex items-center gap-4"
               >
                 <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
@@ -263,13 +454,14 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
         </div>
       )}
     </div>
+  </>
   );
 
   // ============================================================
   // VIEW: DETALHE DO PRODUTO
   // ============================================================
   if (view === 'produto' && selectedProduct) return (
-    <div className="space-y-6">
+    <>{checkoutModal}<div className="space-y-6">
       <button onClick={() => setView('vitrine')} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-mono transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Voltar para a vitrine
@@ -333,7 +525,7 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
           {/* Botão comprar */}
           <button
             className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-black font-black text-base rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
-            onClick={() => showToast('Em breve! Checkout integrado disponível.', 'info')}
+            onClick={() => { setBuyerEmail(user?.email || ''); setCheckoutStep('method'); setPaymentData(null); setCheckoutOpen(true); }}
           >
             <ShoppingBag className="w-5 h-5" />
             Comprar Agora — R$ {(selectedProduct.price * quantity).toFixed(2)}
@@ -370,13 +562,14 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
         </div>
       </div>
     </div>
+  </>
   );
 
   // ============================================================
   // VIEW: PÁGINA DA LOJA
   // ============================================================
   if (view === 'loja' && selectedStore) return (
-    <div className="space-y-6">
+    <>{checkoutModal}<div className="space-y-6">
       <button onClick={() => setView('vitrine')} className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-mono transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Voltar
@@ -466,6 +659,7 @@ export default function PartnerStorePage({ user, showToast, onNavigate }: Partne
         )}
       </div>
     </div>
+  </>
   );
 
   // ============================================================
