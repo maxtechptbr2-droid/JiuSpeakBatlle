@@ -124,6 +124,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       followersCount: apiUser.followersCount || 0,
       followingCount: apiUser.followingCount || 0,
       pvpFreeMatchesUsed: apiUser.pvpFreeMatchesUsed || 0,
+      isPartner: apiUser.isPartner || false,
+      partnerApplicationStatus: apiUser.partnerApplicationStatus || null,
       globalTeamId: apiUser.globalTeamId || null,
       branchId: apiUser.branchId || null,
       independentAcademyId: apiUser.independentAcademyId || null,

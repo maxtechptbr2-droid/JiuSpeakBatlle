@@ -176,6 +176,7 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
     ...(user.isPartner ? [
       { id: 'partner-dashboard', label: 'Minha Loja Parceira', icon: Store, badge: '🏪' }
     ] : []),
+    { id: 'marketplace', label: 'Seja Docente', icon: Award, badge: 'Novo' },
   ];
 
   return (

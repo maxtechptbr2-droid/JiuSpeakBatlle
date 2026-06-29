@@ -1460,6 +1460,8 @@ export default function StoreMarket({
           { id: 'market', label: '🤝 STAND JIUSPEAK', desc: 'Trocas entre alunos' },
           { id: 'inventorio', label: '🎒 MOCHILA JIUSPEAK', desc: `${user.inventory.length} itens` },
           { id: 'partner-store', label: '🏪 STAND PARCEIROS', desc: 'Produtos em BRL' },
+          { id: 'seja-parceiro', label: '🤝 SEJA PARCEIRO', desc: 'Venda aqui' },
+          { id: 'verificado', label: '✅ VERIFICADO', desc: 'R$ 29,90/mês' },
           ...(user.role === 'admin' ? [{ id: 'admin_store', label: '⚙️ PAINEL DE OPERAÇÕES', desc: 'Gerenciar Catálogo' }] : [])
         ].map((sub) => {
           const isActive = activeSubTab === sub.id;
@@ -1468,6 +1470,8 @@ export default function StoreMarket({
               key={sub.id}
               onClick={() => {
                 if (sub.id === 'partner-store') {
+                  if (setCurrentTab) setCurrentTab('partner-store');
+                } else if (sub.id === 'seja-parceiro') {
                   if (setCurrentTab) setCurrentTab('partner-store');
                 } else {
                   setActiveSubTab(sub.id as any);

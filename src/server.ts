@@ -2974,6 +2974,18 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       isBanned: dbUser.isBanned,
       lastLoginAt: dbUser.lastLoginAt,
       isVerified: dbUser.isVerified,
+      isPartner: await (async () => {
+        try {
+          const ps: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "PartnerStore" WHERE "userId"=$1 AND "isActive"=true LIMIT 1`, dbUser.id);
+          return ps.length > 0;
+        } catch { return false; }
+      })(),
+      partnerApplicationStatus: await (async () => {
+        try {
+          const pa: any[] = await prisma.$queryRawUnsafe(`SELECT status FROM "PartnerApplication" WHERE email=$1 ORDER BY "createdAt" DESC LIMIT 1`, dbUser.email);
+          return pa[0]?.status || null;
+        } catch { return null; }
+      })(),
       globalTeamId: dbUser.globalTeamId,
       branchId: dbUser.branchId,
       independentAcademyId: dbUser.independentAcademyId,
@@ -15612,10 +15624,12 @@ app.post("/api/admin/partners/applications/:id/review", authenticateToken, requi
       if (apps[0]) {
         const a = apps[0];
         const slug = a.storeName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + Date.now();
+        const applicantUsers: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "User" WHERE email=$1 LIMIT 1`, a.email);
+        const applicantUserId = applicantUsers[0]?.id || null;
         await prisma.$executeRawUnsafe(
-          `INSERT INTO "PartnerStore" (id,"storeName","storeSlug",description,category,instagram,website,commission,"isActive","isVerified","createdAt","updatedAt")
-           VALUES (gen_random_uuid()::text,$1,$2,$3,$4,$5,$6,10.0,true,false,NOW(),NOW()) ON CONFLICT ("storeSlug") DO NOTHING`,
-          a.storeName, slug, a.storeDesc, a.category, a.instagram||null, a.website||null
+          `INSERT INTO "PartnerStore" (id,"storeName","storeSlug",description,category,instagram,website,commission,"isActive","isVerified","userId","createdAt","updatedAt")
+           VALUES (gen_random_uuid()::text,$1,$2,$3,$4,$5,$6,10.0,true,false,$7,NOW(),NOW()) ON CONFLICT ("storeSlug") DO NOTHING`,
+          a.storeName, slug, a.storeDesc, a.category, a.instagram||null, a.website||null, applicantUserId
         );
       }
     }
@@ -15665,6 +15679,21 @@ app.get("/api/admin/partners/orders", authenticateToken, requireRole(["ADMIN"]),
 
 
 // ENDPOINTS — PAINEL DO PARCEIRO
+app.post("/api/partner/create-store", authenticateToken, async (req: any, res: any) => {
+  try {
+    const userId = req.user?.id;
+    const { storeName, description, whatsapp, pixKey } = req.body;
+    if (!storeName) return res.status(400).json({ error: "Nome da loja obrigatório." });
+    const slug = storeName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + Date.now();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "PartnerStore" (id,"storeName","storeSlug",description,whatsapp,"pixKey",commission,"isActive","isVerified","userId","createdAt","updatedAt")
+       VALUES (gen_random_uuid()::text,$1,$2,$3,$4,$5,10.0,true,false,$6,NOW(),NOW()) ON CONFLICT ("storeSlug") DO NOTHING`,
+      storeName, slug, description||null, whatsapp||null, pixKey||null, userId
+    );
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 app.get("/api/partner/my-store", authenticateToken, async (req: any, res: any) => {
   try {
     const userId = req.user?.id;

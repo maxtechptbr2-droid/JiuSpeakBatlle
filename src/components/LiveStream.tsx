@@ -61,7 +61,7 @@ export default function LiveStream({ user, showToast, onNavigate }: LiveStreamPr
   const wsRef = useRef<WebSocket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const canBroadcast = ['PRO','ELITE','ADMIN','INSTRUCTOR'].includes(user?.subscription || user?.role) || user?.isInstructor;
+  const canBroadcast = ['PRO','ELITE','ADMIN','INSTRUCTOR'].includes(user?.subscription || user?.role) || user?.isInstructor || user?.isVerified || user?.role === 'ADMIN' || user?.role === 'INSTRUCTOR' || user?.role === 'TEACHER';
 
   useEffect(() => { fetchLives(); const i = setInterval(fetchLives, 10000); return () => clearInterval(i); }, []);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);

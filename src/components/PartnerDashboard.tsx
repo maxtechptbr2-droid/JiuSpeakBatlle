@@ -206,7 +206,9 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
   );
 
   if (noStore) {
-    const [setupForm, setSetupForm] = React.useState({ storeName: '', description: '', whatsapp: '', pixKey: '' });
+    const isApproved = (user as any).partnerApplicationStatus === 'approved';
+    const isPending = (user as any).partnerApplicationStatus === 'pending';
+    const [setupForm, setSetupForm] = React.useState({ storeName: user?.name || '', description: '', whatsapp: '', pixKey: '' });
     const [creatingStore, setCreatingStore] = React.useState(false);
     const handleCreateStore = async () => {
       if (!setupForm.storeName) { showToast('Informe o nome da loja', 'error'); return; }
@@ -219,7 +221,7 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
         });
         const data = await res.json();
         if (data.success) {
-          showToast('Loja criada com sucesso!', 'success');
+          showToast('Loja criada com sucesso! Bem-vindo ao JiuSpeak Partners! 🏪', 'success');
           fetchStore();
         } else {
           showToast(data.error || 'Erro ao criar loja', 'error');
@@ -227,6 +229,21 @@ export default function PartnerDashboard({ user, showToast }: PartnerDashboardPr
       } catch (e) { showToast('Erro de conexão', 'error'); }
       setCreatingStore(false);
     };
+    if (!isApproved) return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6 max-w-md mx-auto">
+        <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-4xl">🏪</div>
+        <div>
+          <h2 className="font-black text-white text-xl mb-2">Você ainda não tem uma loja</h2>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            {isPending ? 'Sua solicitação está em análise pela equipe JiuSpeak. Aguarde até 48h.' : 'Para ter acesso ao painel do parceiro, sua solicitação precisa ser aprovada pela equipe JiuSpeak.'}
+          </p>
+        </div>
+        <div className={`border rounded-2xl p-4 w-full text-left space-y-2 ${isPending ? 'bg-amber-500/5 border-amber-500/20' : 'bg-slate-900/60 border-slate-800'}`}>
+          <p className="text-xs font-mono text-amber-400 uppercase font-bold">Status:</p>
+          <p className="text-sm text-slate-300">{isPending ? '⏳ Em análise — aguarde até 48h' : '❌ Nenhuma solicitação. Acesse Stand Parceiros para se inscrever.'}</p>
+        </div>
+      </div>
+    );
     return (
       <div className="max-w-lg mx-auto space-y-6 py-8">
         <div className="text-center space-y-3">

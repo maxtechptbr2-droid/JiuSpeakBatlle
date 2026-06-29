@@ -2983,16 +2983,20 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       isBanned: dbUser.isBanned,
       lastLoginAt: dbUser.lastLoginAt,
       isVerified: dbUser.isVerified,
-      globalTeamId: dbUser.globalTeamId,
-      branchId: dbUser.branchId,
-      independentAcademyId: dbUser.independentAcademyId,
+      isPartner: await (async () => { try { const ps: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "PartnerStore" WHERE "userId"=$1 AND "isActive"=true LIMIT 1`, dbUser.id); return ps.length > 0; } catch { return false; } })(),
+      partnerApplicationStatus: await (async () => { try { const pa: any[] = await prisma.$queryRawUnsafe(`SELECT status FROM "PartnerApplication" WHERE email=$1 ORDER BY "createdAt" DESC LIMIT 1`, dbUser.email); return pa[0]?.status || null; } catch { return null; } })(),
+      globalTeamId: (dbUser as any).globalTeamId || null,
+      branchId: (dbUser as any).branchId || null,
+      independentAcademyId: (dbUser as any).independentAcademyId || null,
+      affiliationType: (dbUser as any).affiliationType || null,
+      academy: (dbUser as any).academy || '',
+      gender: (dbUser as any).gender || '',
+      category: (dbUser as any).category || '',
+      guardsPreference: (dbUser as any).guardsPreference || '',
+      submitsPreference: (dbUser as any).submitsPreference || '',
+      pvpFreeMatchesUsed: (dbUser as any).pvpFreeMatchesUsed || 0,
       subscription,
       inventory: inMemoryUserInventories.get(dbUser.id) || [],
-      academy: (dbUser as any).academy || '',
-      category: (dbUser as any).category || 'Pena (-70kg)',
-      guardsPreference: (dbUser as any).guardsPreference || 'Guarda Fechada de Aço',
-      submitsPreference: (dbUser as any).submitsPreference || 'Estrangulamento Cruzado',
-      gender: (dbUser as any).gender || 'Masculino'
     };
 
     res.json({ user: userPayload });
