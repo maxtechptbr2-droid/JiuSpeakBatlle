@@ -2,6 +2,38 @@ import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 
+// Helper para chamar Claude (Anthropic) como motor principal de conversação,
+// evitando depender exclusivamente de quota da OpenAI.
+async function callClaudeJSON(systemPrompt: string, userContent: string): Promise<any> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada.");
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1000,
+      system: systemPrompt + "\n\nIMPORTANTE: Responda APENAS com um objeto JSON válido, sem markdown, sem \`\`\`json, sem texto antes ou depois.",
+      messages: [{ role: "user", content: userContent }]
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Claude API falhou (status ${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const rawText = (data.content || []).map((b: any) => b.text || '').join('').trim();
+  const cleaned = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+  return JSON.parse(cleaned);
+}
+
 // Define Scenarios and partner voices
 export interface Message {
   role: 'system' | 'user' | 'assistant';
@@ -144,9 +176,8 @@ export async function createSession(
     updatedAt: new Date().toISOString()
   };
 
-  // Generate dynamic opening line using GPT-4o-mini
+  // Generate dynamic opening line using Claude Haiku
   try {
-    const openai = getOpenAIClient();
     const scenarioPrompt = SCENARIO_PROMPTS[scenario].replace('{partnerName}', partnerInfo.name);
 
     const systemPrompt = `
@@ -167,16 +198,7 @@ export async function createSession(
       }
     `;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: "Init session, coach!" }
-      ],
-      response_format: { type: "json_object" }
-    });
-
-    const body = JSON.parse(completion.choices[0].message.content || '{}');
+    const body = await callClaudeJSON(systemPrompt, "Init session, coach!");
     
     newSession.history.push({
       role: 'assistant',
@@ -275,13 +297,11 @@ export async function getGPTResponse(
       { role: "user", content: userMessageText }
     ];
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: chatMessages,
-      response_format: { type: "json_object" }
-    });
+    const userTurnContent = chatMessages[chatMessages.length - 1].content;
+    const claudeSystemPrompt = chatMessages[0].content + "\n\nConversation history so far (for context):\n" +
+      chatMessages.slice(1, -1).map((m: any) => `${m.role}: ${m.content}`).join("\n");
 
-    const body = JSON.parse(completion.choices[0].message.content || '{}');
+    const body = await callClaudeJSON(claudeSystemPrompt, userTurnContent);
 
     // 1. Store user's turn
     session.history.push({

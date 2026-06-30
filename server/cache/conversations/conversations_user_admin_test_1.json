@@ -1064,5 +1064,156 @@
     ],
     "createdAt": "2026-06-29T01:32:48.511Z",
     "updatedAt": "2026-06-29T01:32:48.511Z"
+  },
+  {
+    "id": "session_1782767948350_aigw0cv",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-29T21:19:10.949Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-29T21:19:08.350Z",
+    "updatedAt": "2026-06-29T21:19:08.350Z"
+  },
+  {
+    "id": "session_1782767957949_syn4htl",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-29T21:19:19.788Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-29T21:19:17.949Z",
+    "updatedAt": "2026-06-29T21:19:17.949Z"
+  },
+  {
+    "id": "session_1782783096910_5sl4tzy",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-30T01:31:39.539Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-30T01:31:36.910Z",
+    "updatedAt": "2026-06-30T01:31:36.910Z"
+  },
+  {
+    "id": "session_1782786873826_fl502qf",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "thomas",
+    "partnerName": "Thomas (USA)",
+    "partnerVoice": "thomas",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Welcome to the mat, Flavio Martins (ADMIN). Let's test your vocabulary and fluency under this scenario: competição!",
+        "translation": "Bem-vindo ao tatame, Flavio Martins (ADMIN). Vamos testar seu vocabulário e fluência sob o cenário: competição!",
+        "timestamp": "2026-06-30T02:34:36.224Z",
+        "pronunciationTips": "Pronunciation is standard US English. Take a deep breath.",
+        "keyVocabulary": [
+          "Welcome",
+          "Mat",
+          "Scenario"
+        ],
+        "performanceAnalysis": "Exercício inicial.",
+        "eloDelta": 0
+      }
+    ],
+    "createdAt": "2026-06-30T02:34:33.826Z",
+    "updatedAt": "2026-06-30T02:34:33.826Z"
+  },
+  {
+    "id": "session_1782787998377_2i9lj9w",
+    "userId": "user_admin_test_1",
+    "scenario": "competição",
+    "partnerKey": "tyler",
+    "partnerName": "Tyler (Cali)",
+    "partnerVoice": "tyler",
+    "history": [
+      {
+        "role": "assistant",
+        "text": "Yo Flavio, Black Belt! You ready for this? We're going LIVE in the finals, bro. Stay sharp, stay aggressive. Let's see what you're working with today. Combative positions only—no stalling. You dialed in?",
+        "translation": "Ei Flavio, Faixa Preta! Você tá pronto para isso? Estamos AO VIVO nas finais, cara. Fica afiado, fica agressivo. Vamos ver no que você está trabalhando hoje. Apenas posições combativas—sem ficar parado. Você tá ligado?",
+        "timestamp": "2026-06-30T02:53:20.771Z",
+        "pronunciationTips": "Remember: 'Oss' is pronounced as a clean underhook-breath, and keep vowels open.",
+        "keyVocabulary": [
+          "Mat",
+          "Oss",
+          "BJJ"
+        ],
+        "performanceAnalysis": "Aguardando seu primeiro avanço técnico para iniciar feedback de pronúncia.",
+        "eloDelta": 0
+      },
+      {
+        "role": "user",
+        "text": "yes",
+        "timestamp": "2026-06-30T02:53:44.395Z"
+      },
+      {
+        "role": "assistant",
+        "text": "Alright, let's GO! Positions locked, timer starts NOW. Show me that Black Belt control—pressure, passage, sweeps! What's your opening move?",
+        "translation": "Tá bom, VAMOS! Posições travadas, cronômetro iniciado AGORA. Mostre esse controle de Faixa Preta—pressão, passagem, varridas! Qual é seu primeiro movimento?",
+        "timestamp": "2026-06-30T02:53:44.395Z",
+        "pronunciationTips": "Passage = 'PA-sij' (passagem de guarda). Sweep = 'SWIP' (varrada). Mount = 'MOUNT' (montada). Focus on sharp, quick enunciation in fast-paced dialogue.",
+        "keyVocabulary": [
+          "passage",
+          "sweep",
+          "mount",
+          "control",
+          "pressure"
+        ],
+        "performanceAnalysis": "Resposta concisa e apropriada! 'Yes' mostra disposição, mas em conversação de BJJ você poderia elaborar: exemplo: 'Yes, let's lock it down!' ou 'Ready for guard work!' Isso demonstraria mais vocabulário de combate e confiança. Trabalhe respostas com termos técnicos para soar mais experiente.",
+        "eloDelta": 12
+      }
+    ],
+    "createdAt": "2026-06-30T02:53:18.377Z",
+    "updatedAt": "2026-06-30T02:53:44.395Z"
   }
 ]
