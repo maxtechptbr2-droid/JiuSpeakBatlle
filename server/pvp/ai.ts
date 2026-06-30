@@ -75,7 +75,7 @@ Seu tom deve respeitar as seguintes características do seu personagem:
 Não inclua explicações ou metadados na resposta. Escreva estritamente a fala do personagem (por exemplo: "Zoei! Você vacilou na guarda e eu passei rindo. Oss!").`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         temperature: 0.85,

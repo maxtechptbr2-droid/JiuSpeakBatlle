@@ -17114,7 +17114,7 @@ async function startServer() {
       }
       try {
         const belt = data?.belt;
-        const matchId = await MatchmakingService.spawnBotMatch(userId, belt);
+        const matchId = await MatchmakingService.spawnBotMatch(userId, belt, socket.id);
         socket.emit("matchmaking:bot_matched", { matchId });
       } catch (err: any) {
         socket.emit("matchmaking:error", { error: err.message });

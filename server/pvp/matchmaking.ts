@@ -327,9 +327,12 @@ export class MatchmakingService {
   /**
    * Spawns an instant match against an automated computer Bot
    */
-  static async spawnBotMatch(userId: string, requestedBelt?: string): Promise<string> {
+  static async spawnBotMatch(userId: string, requestedBelt?: string, liveSocketId?: string): Promise<string> {
     const user = this.queue.get(userId);
     let profile = user ? { ...user } : null;
+    if (profile && liveSocketId) {
+      profile.socketId = liveSocketId;
+    }
     
     if (!profile) {
       const dbProfile = await authStore.findById(userId);
@@ -339,7 +342,7 @@ export class MatchmakingService {
         name: dbProfile.name || "Atleta Anônimo",
         avatar: dbProfile.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde",
         elo: dbProfile.elo || 1000,
-        socketId: "direct",
+        socketId: liveSocketId || "direct",
         joinedAt: Date.now()
       };
     }
@@ -471,7 +474,6 @@ export class MatchmakingService {
     const socket = ArenaService.getSocket ? ArenaService.getSocket(profile.socketId) : null;
     if (socket) {
       socket.emit("matchmaking:bot_matched", { matchId });
-      socket.emit("arena:matched", { matchId, challenger, defender });
     }
 
     return matchId;
