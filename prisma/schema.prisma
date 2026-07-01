@@ -145,6 +145,14 @@ model User {
   @@index([belt])
   @@index([level])
   @@index([elo])
+  // Relacoes Comunidade
+  ownedCommunity      Community?        @relation("CommunityOwner")
+  communityMemberships CommunityMember[] @relation("CommunityMemberships")
+  forumTopics         ForumTopic[]      @relation("ForumTopicAuthor")
+  forumReplies        ForumReply[]      @relation("ForumReplyAuthor")
+  trainingLogs        TrainingLog[]     @relation("UserTrainingLogs")
+  savedPosts          SavedPost[]       @relation("UserSavedPosts")
+  stories             Story[]           @relation("UserStories")
   @@index([globalTeamId])
   @@index([branchId])
   @@index([independentAcademyId])
@@ -692,6 +700,8 @@ model SocialPost {
   comments Comment[]
   likes    Like[]
 
+  communityPosts CommunityPost[] @relation("PostCommunities")
+  savedBy        SavedPost[]     @relation("PostSaves")
   @@index([authorId])
   @@index([category])
   @@index([createdAt])
@@ -1695,3 +1705,154 @@ model DailyChallengeHistory {
 
   @@index([userId])
 }
+
+// ============================================================
+// COMUNIDADE — Novos modelos (append only, nao altera existentes)
+// ============================================================
+
+model Community {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  rules       String?
+  coverImage  String?
+  avatar      String?
+  category    String
+  isPrivate   Boolean  @default(false)
+  ownerId     String   @unique
+  globalTeamId        String?
+  academyBranchId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner    User              @relation("CommunityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members  CommunityMember[]
+  posts    CommunityPost[]
+  topics   ForumTopic[]
+
+  @@index([category])
+  @@index([ownerId])
+}
+
+model CommunityMember {
+  id          String   @id @default(uuid())
+  communityId String
+  userId      String
+  role        String   @default("member")
+  isBanned    Boolean  @default(false)
+  joinedAt    DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation("CommunityMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+}
+
+model CommunityPost {
+  id          String   @id @default(uuid())
+  communityId String
+  postId      String
+  createdAt   DateTime @default(now())
+
+  community Community  @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  post      SocialPost @relation("PostCommunities", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, postId])
+  @@index([communityId])
+}
+
+model ForumTopic {
+  id          String   @id @default(uuid())
+  communityId String
+  authorId    String
+  title       String
+  content     String
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  viewCount   Int      @default(0)
+  replyCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  community Community    @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author    User         @relation("ForumTopicAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  replies   ForumReply[]
+
+  @@index([communityId])
+  @@index([authorId])
+  @@index([communityId, isPinned])
+}
+
+model ForumReply {
+  id        String   @id @default(uuid())
+  topicId   String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic  ForumTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  author User       @relation("ForumReplyAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([authorId])
+}
+
+model TrainingLog {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @default(now())
+  positions String
+  fatigue   Int      @default(3)
+  duration  Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation("UserTrainingLogs", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, date])
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User       @relation("UserSavedPosts", fields: [userId], references: [id], onDelete: Cascade)
+  post SocialPost @relation("PostSaves", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+}
+
+model Story {
+  id        String   @id @default(uuid())
+  authorId  String
+  mediaUrl  String
+  mediaType String   @default("image")
+  caption   String?
+  expiresAt DateTime
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  author User @relation("UserStories", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([expiresAt])
+}
+
+// ============================================================
+// COMUNIDADE — Novos modelos (append only, nao altera existentes)
+// ============================================================
+
+
+
+
+
+
+
+

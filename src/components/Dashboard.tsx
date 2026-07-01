@@ -199,7 +199,32 @@ export default function Dashboard({
     gender: (user.gender || 'Masculino') as 'Masculino' | 'Feminino',
   });
 
-  const handleSave = () => { updateUser(editForm); setIsEditing(false); };
+  // Sempre que entrar no modo de edicao, busca os dados mais atuais do usuario (vindos do banco via auth/me),
+  // evitando reenviar valores desatualizados que exigiam F5 para refletir.
+  const startEditing = () => {
+    setEditForm({
+      name: user.name,
+      academy: user.academy || 'Gracie Barra International',
+      category: user.category || 'Médio (-82.3kg)',
+      guardsPreference: user.guardsPreference || 'Guarda Aberta Dinâmica',
+      submitsPreference: user.submitsPreference || 'Mata-Leão Pelas Costas',
+      gender: (user.gender || 'Masculino') as 'Masculino' | 'Feminino',
+    });
+    setIsEditing(true);
+  };
+  const handleSave = () => {
+    // Blindagem contra race condition: nunca envia campo vazio se o usuario ja tinha um valor salvo.
+    const safeForm = {
+      name: editForm.name || user.name,
+      academy: editForm.academy || user.academy || 'Gracie Barra International',
+      category: editForm.category || user.category || 'Medio (-82.3kg)',
+      guardsPreference: editForm.guardsPreference || user.guardsPreference || 'Guarda Aberta Dinamica',
+      submitsPreference: editForm.submitsPreference || user.submitsPreference || 'Mata-Leao Pelas Costas',
+      gender: editForm.gender || user.gender || 'Masculino',
+    };
+    updateUser(safeForm);
+    setIsEditing(false);
+  };
   const getWinRate = () => {
     const total = user.winCount + user.lossCount;
     return total === 0 ? 0 : Math.round((user.winCount / total) * 100);
@@ -593,10 +618,7 @@ export default function Dashboard({
             <BeltProgression user={user} />
 
             <AthleteProfile
-              user={user} isEditing={isEditing} setIsEditing={setIsEditing}
-              editForm={editForm} setEditForm={setEditForm} handleSave={handleSave}
-              getWinRate={getWinRate} weightCategories={weightCategories}
-              guardPreferences={guardPreferences} submissionPreferences={submissionPreferences}
+              user={user} getWinRate={getWinRate}
             />
 
             {/* Sessões Criptográficas */}

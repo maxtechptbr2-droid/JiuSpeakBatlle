@@ -36,6 +36,7 @@ const PvPArena = React.lazy(() => import('./components/PvPArena'));
 const StoreMarket = React.lazy(() => import('./components/StoreMarket'));
 const InventoryPanel = React.lazy(() => import('./components/InventoryPanel'));
 const SocialFeed = React.lazy(() => import('./components/SocialFeed'));
+const Community = React.lazy(() => import('./components/Community'));
 const CreatorPanel = React.lazy(() => import('./components/CreatorPanel'));
 const AdminPanel = React.lazy(() => import('./admin'));
 const AuthPortal = React.lazy(() => import('./components/AuthPortal'));
@@ -162,7 +163,7 @@ export default function App() {
         return 'dashboard';
       }
       if (path === '/community' || path === '/comunidade') {
-        return 'social';
+        return 'community';
       }
       if (path === '/academies' || path === '/academias-bjj' || path === '/academias') {
         return 'academies';
@@ -245,7 +246,7 @@ export default function App() {
       } else if (path === '/dashboard') {
         setCurrentTab('dashboard');
       } else if (path === '/community' || path === '/comunidade') {
-        setCurrentTab('social');
+        setCurrentTab('community');
       } else if (path === '/academies' || path === '/academias-bjj' || path === '/academias') {
         setCurrentTab('academies');
       } else if (path === '/professor') {
@@ -1405,6 +1406,14 @@ export default function App() {
                   user={user} 
                   showToast={showToast}
                   onNavigate={setCurrentTab}
+                />
+              );
+            }
+            if (currentTab === 'community') {
+              return (
+                <Community
+                  user={user}
+                  showToast={showToast}
                 />
               );
             }

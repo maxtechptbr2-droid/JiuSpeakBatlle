@@ -3649,6 +3649,421 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
 });
 
 // PATCH CURRENT USER PROFILE (Partial updates matching the requirement)
+// ================================================================
+// COMUNIDADE — ENDPOINTS
+// ================================================================
+
+// Listar comunidades (descobrir + suas comunidades)
+app.get("/api/communities", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { category, search, mine } = req.query;
+    const userId = req.user.id;
+
+    if (mine === 'true') {
+      const memberships = await prisma.$queryRawUnsafe(`
+        SELECT c.*, cm.role, cm."joinedAt",
+          (SELECT COUNT(*) FROM "CommunityMember" WHERE "communityId"=c.id AND "isBanned"=false) as "memberCount",
+          (SELECT COUNT(*) FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts"
+        FROM "Community" c
+        JOIN "CommunityMember" cm ON cm."communityId"=c.id AND cm."userId"=$1 AND cm."isBanned"=false
+        ORDER BY cm."joinedAt" DESC
+      `, userId);
+      return res.json({ success: true, communities: memberships });
+    }
+
+    let whereClause = '';
+    const params: any[] = [userId];
+    if (category && category !== 'Todos') { params.push(category); whereClause += ` AND c.category=$${params.length}`; }
+    if (search) { params.push(`%${search}%`); whereClause += ` AND c.name ILIKE $${params.length}`; }
+
+    const communities = await prisma.$queryRawUnsafe(`
+      SELECT c.*,
+        (SELECT COUNT(*) FROM "CommunityMember" WHERE "communityId"=c.id AND "isBanned"=false) as "memberCount",
+        (SELECT COUNT(*) FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts",
+        EXISTS(SELECT 1 FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1 AND "isBanned"=false) as "isMember",
+        (SELECT role FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1 LIMIT 1) as "myRole"
+      FROM "Community" c
+      WHERE (c."isPrivate"=false OR EXISTS(SELECT 1 FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1))
+      ${whereClause}
+      ORDER BY "memberCount" DESC
+      LIMIT 50
+    `, ...params);
+    res.json({ success: true, communities });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Criar comunidade (max 1 por usuario)
+app.post("/api/communities", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const userId = req.user.id;
+    const { name, description, rules, coverImage, avatar, category, isPrivate } = req.body;
+    if (!name || !category) return res.status(400).json({ error: "Nome e categoria são obrigatórios." });
+
+    const existing: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "Community" WHERE "ownerId"=$1 LIMIT 1`, userId);
+    if (existing.length > 0) return res.status(400).json({ error: "Você já possui uma comunidade. Delete a atual para criar uma nova." });
+
+    const id = require('crypto').randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "Community" (id, name, description, rules, "coverImage", avatar, category, "isPrivate", "ownerId", "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+      id, name, description||null, rules||null, coverImage||null, avatar||null, category, isPrivate||false, userId
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "CommunityMember" (id, "communityId", "userId", role, "joinedAt") VALUES ($1,$2,$3,'owner',NOW())`,
+      require('crypto').randomUUID(), id, userId
+    );
+    res.json({ success: true, communityId: id });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Buscar comunidade por ID
+app.get("/api/communities/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const comm: any[] = await prisma.$queryRawUnsafe(`
+      SELECT c.*,
+        u.name as "ownerName", u.avatar as "ownerAvatar",
+        (SELECT COUNT(*) FROM "CommunityMember" WHERE "communityId"=c.id AND "isBanned"=false) as "memberCount",
+        (SELECT COUNT(*) FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts",
+        EXISTS(SELECT 1 FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$2 AND "isBanned"=false) as "isMember",
+        (SELECT role FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$2 LIMIT 1) as "myRole"
+      FROM "Community" c
+      JOIN "User" u ON u.id=c."ownerId"
+      WHERE c.id=$1
+    `, id, userId);
+    if (!comm[0]) return res.status(404).json({ error: "Comunidade não encontrada." });
+    if (comm[0].isPrivate && !comm[0].isMember && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: "Comunidade privada." });
+    }
+    res.json({ success: true, community: comm[0] });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Entrar/sair da comunidade
+app.post("/api/communities/:id/join", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const existing: any[] = await prisma.$queryRawUnsafe(`SELECT id, "isBanned" FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2`, id, userId);
+    if (existing[0]?.isBanned) return res.status(403).json({ error: "Você foi banido desta comunidade." });
+    if (existing[0]) {
+      await prisma.$executeRawUnsafe(`DELETE FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND role!='owner'`, id, userId);
+      return res.json({ success: true, action: 'left' });
+    }
+    await prisma.$executeRawUnsafe(`INSERT INTO "CommunityMember" (id,"communityId","userId",role,"joinedAt") VALUES ($1,$2,$3,'member',NOW())`, require('crypto').randomUUID(), id, userId);
+    res.json({ success: true, action: 'joined' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Editar comunidade (owner/admin)
+app.put("/api/communities/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const comm: any[] = await prisma.$queryRawUnsafe(`SELECT "ownerId" FROM "Community" WHERE id=$1`, id);
+    if (!comm[0]) return res.status(404).json({ error: "Comunidade não encontrada." });
+    if (comm[0].ownerId !== userId && req.user.role !== 'ADMIN') return res.status(403).json({ error: "Sem permissão." });
+    const { name, description, rules, coverImage, avatar, category, isPrivate } = req.body;
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Community" SET name=$1, description=$2, rules=$3, "coverImage"=$4, avatar=$5, category=$6, "isPrivate"=$7, "updatedAt"=NOW() WHERE id=$8`,
+      name, description||null, rules||null, coverImage||null, avatar||null, category, isPrivate||false, id
+    );
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Deletar comunidade (owner/admin)
+app.delete("/api/communities/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const comm: any[] = await prisma.$queryRawUnsafe(`SELECT "ownerId" FROM "Community" WHERE id=$1`, id);
+    if (!comm[0]) return res.status(404).json({ error: "Comunidade não encontrada." });
+    if (comm[0].ownerId !== userId && req.user.role !== 'ADMIN') return res.status(403).json({ error: "Sem permissão." });
+    await prisma.$executeRawUnsafe(`DELETE FROM "Community" WHERE id=$1`, id);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Membros da comunidade
+app.get("/api/communities/:id/members", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const members = await prisma.$queryRawUnsafe(`
+      SELECT cm.*, u.name, u.avatar, u.belt, u.academy, u."isVerified", u.elo
+      FROM "CommunityMember" cm
+      JOIN "User" u ON u.id=cm."userId"
+      WHERE cm."communityId"=$1 AND cm."isBanned"=false
+      ORDER BY CASE cm.role WHEN 'owner' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END, cm."joinedAt" ASC
+    `, id);
+    res.json({ success: true, members });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Promover/rebaixar membro (owner)
+app.patch("/api/communities/:id/members/:userId/role", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, userId: targetId } = req.params;
+    const { role } = req.body;
+    const comm: any[] = await prisma.$queryRawUnsafe(`SELECT "ownerId" FROM "Community" WHERE id=$1`, id);
+    if (!comm[0] || comm[0].ownerId !== req.user.id) return res.status(403).json({ error: "Sem permissão." });
+    if (!['moderator', 'member'].includes(role)) return res.status(400).json({ error: "Role inválido." });
+    await prisma.$executeRawUnsafe(`UPDATE "CommunityMember" SET role=$1 WHERE "communityId"=$2 AND "userId"=$3 AND role!='owner'`, role, id, targetId);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Banir/desbanir membro (owner/moderator)
+app.patch("/api/communities/:id/members/:userId/ban", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, userId: targetId } = req.params;
+    const { banned } = req.body;
+    const myRole: any[] = await prisma.$queryRawUnsafe(`SELECT role FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2`, id, req.user.id);
+    if (!myRole[0] || !['owner','moderator'].includes(myRole[0].role)) return res.status(403).json({ error: "Sem permissão." });
+    await prisma.$executeRawUnsafe(`UPDATE "CommunityMember" SET "isBanned"=$1 WHERE "communityId"=$2 AND "userId"=$3 AND role!='owner'`, banned, id, targetId);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Posts da comunidade (feed visual)
+app.get("/api/communities/:id/posts", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const isMember: any[] = await prisma.$queryRawUnsafe(`SELECT 1 FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND "isBanned"=false`, id, userId);
+    const comm: any[] = await prisma.$queryRawUnsafe(`SELECT "isPrivate" FROM "Community" WHERE id=$1`, id);
+    if (comm[0]?.isPrivate && !isMember[0] && req.user.role !== 'ADMIN') return res.status(403).json({ error: "Acesso restrito a membros." });
+    const posts = await prisma.$queryRawUnsafe(`
+      SELECT sp.*, u.name as "authorName", u.avatar as "authorAvatar", u.belt as "authorBelt", u.academy as "authorAcademy", u."isVerified" as "authorVerified",
+        (SELECT COUNT(*) FROM "Like" WHERE "postId"=sp.id) as "likesCount",
+        (SELECT COUNT(*) FROM "Comment" WHERE "postId"=sp.id) as "commentsCount",
+        EXISTS(SELECT 1 FROM "Like" WHERE "postId"=sp.id AND "userId"=$2) as "isLiked",
+        EXISTS(SELECT 1 FROM "SavedPost" WHERE "postId"=sp.id AND "userId"=$2) as "isSaved"
+      FROM "SocialPost" sp
+      JOIN "CommunityPost" cp ON cp."postId"=sp.id
+      JOIN "User" u ON u.id=sp."authorId"
+      WHERE cp."communityId"=$1
+      ORDER BY sp."createdAt" DESC
+      LIMIT 30
+    `, id, userId);
+    res.json({ success: true, posts });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Criar post na comunidade
+app.post("/api/communities/:id/posts", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const isMember: any[] = await prisma.$queryRawUnsafe(`SELECT 1 FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND "isBanned"=false`, id, userId);
+    if (!isMember[0]) return res.status(403).json({ error: "Você precisa ser membro para postar." });
+    const { content, category, imageUrl, videoUrl } = req.body;
+    if (!content) return res.status(400).json({ error: "Conteúdo obrigatório." });
+    const postId = require('crypto').randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "SocialPost" (id, "authorId", content, category, "imageUrl", "videoUrl", "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())`,
+      postId, userId, content, category||'Geral', imageUrl||null, videoUrl||null
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "CommunityPost" (id, "communityId", "postId", "createdAt") VALUES ($1,$2,$3,NOW())`,
+      require('crypto').randomUUID(), id, postId
+    );
+    res.json({ success: true, postId });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Deletar post da comunidade (autor/moderador/owner/admin)
+app.delete("/api/communities/:id/posts/:postId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, postId } = req.params;
+    const userId = req.user.id;
+    const post: any[] = await prisma.$queryRawUnsafe(`SELECT "authorId" FROM "SocialPost" WHERE id=$1`, postId);
+    const myRole: any[] = await prisma.$queryRawUnsafe(`SELECT role FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2`, id, userId);
+    const canDelete = post[0]?.authorId === userId || ['owner','moderator'].includes(myRole[0]?.role) || req.user.role === 'ADMIN';
+    if (!canDelete) return res.status(403).json({ error: "Sem permissão." });
+    await prisma.$executeRawUnsafe(`DELETE FROM "CommunityPost" WHERE "communityId"=$1 AND "postId"=$2`, id, postId);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Tópicos do fórum
+app.get("/api/communities/:id/topics", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const topics = await prisma.$queryRawUnsafe(`
+      SELECT ft.*, u.name as "authorName", u.avatar as "authorAvatar", u.belt as "authorBelt"
+      FROM "ForumTopic" ft
+      JOIN "User" u ON u.id=ft."authorId"
+      WHERE ft."communityId"=$1
+      ORDER BY ft."isPinned" DESC, ft."updatedAt" DESC
+    `, id);
+    res.json({ success: true, topics });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Criar tópico
+app.post("/api/communities/:id/topics", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const isMember: any[] = await prisma.$queryRawUnsafe(`SELECT 1 FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND "isBanned"=false`, id, userId);
+    if (!isMember[0]) return res.status(403).json({ error: "Você precisa ser membro." });
+    const { title, content } = req.body;
+    if (!title || !content) return res.status(400).json({ error: "Título e conteúdo obrigatórios." });
+    const topicId = require('crypto').randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "ForumTopic" (id, "communityId", "authorId", title, content, "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,NOW(),NOW())`,
+      topicId, id, userId, title, content
+    );
+    res.json({ success: true, topicId });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Respostas de um tópico
+app.get("/api/communities/:id/topics/:topicId/replies", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { topicId } = req.params;
+    await prisma.$executeRawUnsafe(`UPDATE "ForumTopic" SET "viewCount"="viewCount"+1 WHERE id=$1`, topicId);
+    const topic: any[] = await prisma.$queryRawUnsafe(`SELECT ft.*, u.name as "authorName", u.avatar as "authorAvatar", u.belt as "authorBelt" FROM "ForumTopic" ft JOIN "User" u ON u.id=ft."authorId" WHERE ft.id=$1`, topicId);
+    const replies = await prisma.$queryRawUnsafe(`
+      SELECT fr.*, u.name as "authorName", u.avatar as "authorAvatar", u.belt as "authorBelt", u."isVerified" as "authorVerified"
+      FROM "ForumReply" fr
+      JOIN "User" u ON u.id=fr."authorId"
+      WHERE fr."topicId"=$1
+      ORDER BY fr."createdAt" ASC
+    `, topicId);
+    res.json({ success: true, topic: topic[0], replies });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Responder tópico
+app.post("/api/communities/:id/topics/:topicId/replies", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, topicId } = req.params;
+    const userId = req.user.id;
+    const isMember: any[] = await prisma.$queryRawUnsafe(`SELECT 1 FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND "isBanned"=false`, id, userId);
+    if (!isMember[0]) return res.status(403).json({ error: "Você precisa ser membro." });
+    const topic: any[] = await prisma.$queryRawUnsafe(`SELECT "isLocked" FROM "ForumTopic" WHERE id=$1`, topicId);
+    if (topic[0]?.isLocked) return res.status(403).json({ error: "Tópico bloqueado." });
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ error: "Conteúdo obrigatório." });
+    const replyId = require('crypto').randomUUID();
+    await prisma.$executeRawUnsafe(`INSERT INTO "ForumReply" (id,"topicId","authorId",content,"createdAt","updatedAt") VALUES ($1,$2,$3,$4,NOW(),NOW())`, replyId, topicId, userId, content);
+    await prisma.$executeRawUnsafe(`UPDATE "ForumTopic" SET "replyCount"="replyCount"+1, "updatedAt"=NOW() WHERE id=$1`, topicId);
+    res.json({ success: true, replyId });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Fixar/desbloquear tópico (owner/moderator)
+app.patch("/api/communities/:id/topics/:topicId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, topicId } = req.params;
+    const myRole: any[] = await prisma.$queryRawUnsafe(`SELECT role FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2`, id, req.user.id);
+    if (!myRole[0] || !['owner','moderator'].includes(myRole[0].role)) return res.status(403).json({ error: "Sem permissão." });
+    const { isPinned, isLocked } = req.body;
+    await prisma.$executeRawUnsafe(`UPDATE "ForumTopic" SET "isPinned"=$1, "isLocked"=$2, "updatedAt"=NOW() WHERE id=$3`, isPinned??false, isLocked??false, topicId);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/athlete-registry", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const u = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        academy: true, category: true, guardsPreference: true,
+        submitsPreference: true, gender: true,
+        globalTeamId: true, branchId: true, independentAcademyId: true,
+        elo: true
+      }
+    });
+    if (!u) return res.status(404).json({ error: "Usuario nao encontrado" });
+    let affiliationName: string | null = null;
+    if (u.branchId) {
+      const branch = await prisma.academyBranch.findUnique({ where: { id: u.branchId } });
+      affiliationName = branch?.name || null;
+    } else if (u.independentAcademyId) {
+      const indy = await prisma.independentAcademy.findUnique({ where: { id: u.independentAcademyId } });
+      affiliationName = indy?.name || null;
+    } else if (u.globalTeamId) {
+      const team = await prisma.globalTeam.findUnique({ where: { id: u.globalTeamId } });
+      affiliationName = team?.name || null;
+    }
+    res.json({
+      success: true,
+      registry: {
+        academy: u.academy || affiliationName || "",
+        category: u.category || "",
+        guardsPreference: u.guardsPreference || "",
+        submitsPreference: u.submitsPreference || "",
+        gender: u.gender || "Masculino",
+        elo: u.elo
+      }
+    });
+  } catch (err: any) {
+    console.error("[ATHLETE REGISTRY GET]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.patch("/api/athlete-registry", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { academy, category, guardsPreference, submitsPreference, gender } = req.body;
+    if (!academy || !category || !guardsPreference || !submitsPreference || !gender) {
+      return res.status(400).json({ error: "Todos os campos do registro sao obrigatorios." });
+    }
+    const u = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { academy, category, guardsPreference, submitsPreference, gender }
+    });
+    try { await syncUserAffiliations(req.user.id); } catch (e) { console.warn("[ATHLETE REGISTRY] sync afiliacao falhou:", e); }
+    const fresh = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { academy: true, category: true, guardsPreference: true, submitsPreference: true, gender: true }
+    });
+    res.json({ success: true, registry: fresh });
+  } catch (err: any) {
+    console.error("[ATHLETE REGISTRY PATCH]", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
   console.log(`[PROFILE PATCH] Initialized patch request for User: ${req.user.id}, fields:`, Object.keys(req.body));
   const { 
@@ -15895,10 +16310,22 @@ app.post("/api/admin/partners/applications/:id/review", authenticateToken, requi
 
 app.get("/api/admin/partners/stores", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
-    const stores = await prisma.$queryRawUnsafe(
-      `SELECT s.* FROM "PartnerStore" s ORDER BY s."createdAt" DESC`
+    const stores: any[] = await prisma.$queryRawUnsafe(
+      `SELECT s.*,
+        (SELECT COUNT(*) FROM "PartnerProduct" p WHERE p."storeId"=s.id) as "productCount",
+        (SELECT COUNT(*) FROM "PartnerOrder" o WHERE o."storeId"=s.id) as "totalOrdersCount",
+        COALESCE((SELECT SUM(o."totalPrice") FROM "PartnerOrder" o WHERE o."storeId"=s.id AND o."paymentStatus"='paid'), 0) as "totalSalesSum",
+        COALESCE((SELECT SUM(o."platformAmount") FROM "PartnerOrder" o WHERE o."storeId"=s.id AND o."paymentStatus"='paid'), 0) as "platformRevenueSum"
+       FROM "PartnerStore" s ORDER BY s."createdAt" DESC`
     );
-    res.json({ success: true, stores });
+    const formatted = stores.map(s => ({
+      ...s,
+      _count: { products: Number(s.productCount) },
+      totalOrders: Number(s.totalOrdersCount),
+      totalSales: Number(s.totalSalesSum),
+      platformRevenue: Number(s.platformRevenueSum)
+    }));
+    res.json({ success: true, stores: formatted });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -15919,6 +16346,58 @@ app.post("/api/admin/partners/stores/:id/verify", authenticateToken, requireRole
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+app.put("/api/admin/partners/stores/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { storeName, description, commission, whatsapp, pixKey, instagram, website, category } = req.body;
+    await prisma.$executeRawUnsafe(
+      `UPDATE "PartnerStore" SET "storeName"=$1, description=$2, commission=$3, whatsapp=$4, "pixKey"=$5, instagram=$6, website=$7, category=$8, "updatedAt"=NOW() WHERE id=$9`,
+      storeName, description||null, Number(commission), whatsapp||null, pixKey||null, instagram||null, website||null, category||'geral', id
+    );
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+app.delete("/api/admin/partners/stores/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    await prisma.$executeRawUnsafe(`DELETE FROM "PartnerOrder" WHERE "storeId"=$1`, id);
+    await prisma.$executeRawUnsafe(`DELETE FROM "PartnerProduct" WHERE "storeId"=$1`, id);
+    await prisma.$executeRawUnsafe(`DELETE FROM "PartnerStore" WHERE id=$1`, id);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+app.get("/api/admin/partners/stores/:id/audit", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const store: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "PartnerStore" WHERE id=$1 LIMIT 1`, id);
+    if (!store[0]) return res.status(404).json({ error: "Loja n\u00e3o encontrada." });
+    const products: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "PartnerProduct" WHERE "storeId"=$1 ORDER BY "createdAt" DESC`, id);
+    const orders: any[] = await prisma.$queryRawUnsafe(
+      `SELECT o.*, p.name as "productName" FROM "PartnerOrder" o
+       LEFT JOIN "PartnerProduct" p ON p.id = o."productId"
+       WHERE o."storeId"=$1 ORDER BY o."createdAt" DESC LIMIT 100`, id
+    );
+    const totalSales = orders.filter(o => o.paymentStatus === 'paid').reduce((a, o) => a + Number(o.totalPrice || 0), 0);
+    const totalPlatform = orders.filter(o => o.paymentStatus === 'paid').reduce((a, o) => a + Number(o.platformAmount || 0), 0);
+    const totalPartner = orders.filter(o => o.paymentStatus === 'paid').reduce((a, o) => a + Number(o.partnerAmount || 0), 0);
+    res.json({
+      success: true,
+      store: store[0],
+      products,
+      orders,
+      summary: {
+        totalProducts: products.length,
+        activeProducts: products.filter(p => p.isActive).length,
+        totalOrders: orders.length,
+        paidOrders: orders.filter(o => o.paymentStatus === 'paid').length,
+        pendingOrders: orders.filter(o => o.paymentStatus === 'pending').length,
+        totalSales,
+        totalPlatformRevenue: totalPlatform,
+        totalPartnerEarnings: totalPartner
+      }
+    });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
 app.get("/api/admin/partners/orders", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
   try {
     const orders = await prisma.$queryRawUnsafe(
