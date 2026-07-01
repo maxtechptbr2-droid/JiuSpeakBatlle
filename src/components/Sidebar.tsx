@@ -174,8 +174,6 @@ export default function Sidebar({ user, currentTab, setCurrentTab, onOpenCheatMo
       { id: 'admin', label: 'Painel Administrativo', icon: ShieldAlert, badge: 'Auditoria' }
     ] : []),
 
-    { id: 'social', label: 'Feed Social', icon: Users, badge: null },
-    { id: 'community', label: 'Comunidades', icon: Users, badge: 'Novo' },
     { id: 'marketplace', label: 'Seja Docente', icon: Award, badge: 'Novo' },
   ];
 

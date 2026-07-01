@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Plus, Search, ChevronLeft, MessageSquare, Heart, Send, Bookmark, MoreHorizontal, Pin, Lock, Trash2, Shield, Crown, CheckCircle, Globe, X, Camera, Edit2, AlertCircle } from 'lucide-react';
 import { UserProfile } from '../types';
+import FeedInstagram from './FeedInstagram';
 import { AvatarWithFrame } from './AvatarWithFrame';
 
 const getToken = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
@@ -17,6 +18,7 @@ interface CommunityProps {
 }
 
 export default function Community({ user, showToast }: CommunityProps) {
+  const [mainTab, setMainTab] = useState<'feed' | 'communities'>('feed');
   const [view, setView] = useState<'list' | 'detail' | 'create' | 'topic'>('list');
   const [communities, setCommunities] = useState<any[]>([]);
   const [myCommunities, setMyCommunities] = useState<any[]>([]);
@@ -229,6 +231,27 @@ export default function Community({ user, showToast }: CommunityProps) {
 
   return (
     <div className="min-h-screen" style={{ background: '#080a12', color: '#c0c5e0', fontFamily: 'var(--font-sans)' }}>
+
+      {/* ABAS PRINCIPAIS */}
+      <div style={{ display: 'flex', borderBottom: '0.5px solid #1e2235', background: '#0d0f1a', position: 'sticky', top: 0, zIndex: 10 }}>
+        <button onClick={() => setMainTab('feed')}
+          style={{ flex: 1, padding: '12px 0', textAlign: 'center', fontSize: 13, color: mainTab === 'feed' ? '#c9a84c' : '#4a5075', background: 'none', border: 'none', borderBottom: `2px solid ${mainTab === 'feed' ? '#c9a84c' : 'transparent'}`, cursor: 'pointer', fontFamily: 'inherit', fontWeight: mainTab === 'feed' ? 500 : 400 }}>
+          Feed Geral
+        </button>
+        <button onClick={() => { setMainTab('communities'); setView('list'); }}
+          style={{ flex: 1, padding: '12px 0', textAlign: 'center', fontSize: 13, color: mainTab === 'communities' ? '#c9a84c' : '#4a5075', background: 'none', border: 'none', borderBottom: `2px solid ${mainTab === 'communities' ? '#c9a84c' : 'transparent'}`, cursor: 'pointer', fontFamily: 'inherit', fontWeight: mainTab === 'communities' ? 500 : 400 }}>
+          Comunidades
+        </button>
+      </div>
+
+      {/* ABA: FEED GERAL */}
+      {mainTab === 'feed' && (
+        <FeedInstagram user={user} showToast={showToast} />
+      )}
+
+      {/* ABA: COMUNIDADES */}
+      {mainTab === 'communities' && (
+      <div>
 
       {/* TELA: LISTA DE COMUNIDADES */}
       {view === 'list' && (
@@ -671,6 +694,8 @@ export default function Community({ user, showToast }: CommunityProps) {
             </div>
           )}
         </div>
+      )}
+    </div>
       )}
     </div>
   );

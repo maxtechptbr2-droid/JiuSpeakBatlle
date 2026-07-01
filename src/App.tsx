@@ -165,6 +165,9 @@ export default function App() {
       if (path === '/community' || path === '/comunidade') {
         return 'community';
       }
+      if (path === '/feed' || path === '/social') {
+        return 'social';
+      }
       if (path === '/academies' || path === '/academias-bjj' || path === '/academias') {
         return 'academies';
       }
@@ -247,6 +250,8 @@ export default function App() {
         setCurrentTab('dashboard');
       } else if (path === '/community' || path === '/comunidade') {
         setCurrentTab('community');
+      } else if (path === '/feed' || path === '/social') {
+        setCurrentTab('social');
       } else if (path === '/academies' || path === '/academias-bjj' || path === '/academias') {
         setCurrentTab('academies');
       } else if (path === '/professor') {
@@ -380,7 +385,11 @@ export default function App() {
         window.history.pushState(null, '', '/dashboard/profile');
       }
     } else if (currentTab === 'social') {
-      if (window.location.pathname !== '/community' && window.location.pathname !== '/comunidade') {
+      if (window.location.pathname !== '/feed') {
+        window.history.pushState(null, '', '/feed');
+      }
+    } else if (currentTab === 'community') {
+      if (window.location.pathname !== '/community') {
         window.history.pushState(null, '', '/community');
       }
     } else if (currentTab === 'lessons') {

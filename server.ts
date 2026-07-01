@@ -3654,6 +3654,75 @@ app.put("/api/profile", authenticateToken, async (req: any, res: any) => {
 // ================================================================
 
 // Listar comunidades (descobrir + suas comunidades)
+app.post("/api/training-log", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { positions, fatigue, duration, notes } = req.body;
+    if (!positions) return res.status(400).json({ error: "Posições obrigatórias." });
+    const id = require('crypto').randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "TrainingLog" (id, "userId", positions, fatigue, duration, notes, "createdAt") VALUES ($1,$2,$3,$4,$5,$6,NOW())`,
+      id, req.user.id, typeof positions === 'string' ? positions : JSON.stringify(positions),
+      Number(fatigue)||3, Number(duration)||60, notes||null
+    );
+    res.json({ success: true, id });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+app.get("/api/training-log", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const logs = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "TrainingLog" WHERE "userId"=$1 ORDER BY "createdAt" DESC LIMIT 30`, req.user.id
+    );
+    res.json({ success: true, logs });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/social/users/:userId/followers", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const followers = await prisma.$queryRawUnsafe(`
+      SELECT u.id, u.name, u.avatar, u."profilePhoto", u.belt, u."isVerified", u.academy
+      FROM "Follower" f JOIN "User" u ON u.id=f."followerId"
+      WHERE f."followingId"=$1 ORDER BY f."createdAt" DESC
+    `, req.params.userId);
+    res.json({ success: true, followers: (followers as any[]).map(u => ({ ...u, avatar: u.profilePhoto || u.avatar })) });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/social/users/:userId/following", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const following = await prisma.$queryRawUnsafe(`
+      SELECT u.id, u.name, u.avatar, u."profilePhoto", u.belt, u."isVerified", u.academy
+      FROM "Follower" f JOIN "User" u ON u.id=f."followingId"
+      WHERE f."followerId"=$1 ORDER BY f."createdAt" DESC
+    `, req.params.userId);
+    res.json({ success: true, following: (following as any[]).map(u => ({ ...u, avatar: u.profilePhoto || u.avatar })) });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/social/users/:userId/profile", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { userId } = req.params;
+    const me = req.user.id;
+    const u: any[] = await prisma.$queryRawUnsafe(`
+      SELECT u.id, u.name, u.username, u.avatar, u.belt, u."beltRank", u.bio, u.city, u.country,
+        u."isVerified", u.elo, u."followersCount", u."followingCount", u.academy, u.role,
+        EXISTS(SELECT 1 FROM "Follower" WHERE "followerId"=$2 AND "followingId"=$1) as "isFollowing"
+      FROM "User" u WHERE u.id=$1
+    `, userId, me);
+    if (!u[0]) return res.status(404).json({ error: "Usuário não encontrado." });
+    res.json({ success: true, user: u[0] });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 app.get("/api/communities", authenticateToken, async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
