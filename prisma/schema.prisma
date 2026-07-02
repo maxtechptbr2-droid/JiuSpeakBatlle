@@ -153,6 +153,15 @@ model User {
   trainingLogs        TrainingLog[]     @relation("UserTrainingLogs")
   savedPosts          SavedPost[]       @relation("UserSavedPosts")
   stories             Story[]           @relation("UserStories")
+  communityPolls      CommunityPoll[]        @relation("CommunityPollAuthor")
+  communityPollVotes  CommunityPollVote[]    @relation("CommunityPollVoter")
+  communityEvents     CommunityEvent[]       @relation("CommunityEventAuthor")
+  communityEventRsvps CommunityEventRSVP[]   @relation("CommunityEventRSVPUser")
+  communityReports    CommunityReport[]      @relation("CommunityReporter")
+  communityInvitesSent     CommunityInvite[] @relation("CommunityInviteInviter")
+  communityInvitesReceived CommunityInvite[] @relation("CommunityInviteInvited")
+  communityPayments        CommunityPayment[]   @relation("CommunityPaymentAdmin")
+  communityRewardLogs      CommunityRewardLog[] @relation("CommunityRewardAdmin")
   @@index([globalTeamId])
   @@index([branchId])
   @@index([independentAcademyId])
@@ -691,6 +700,7 @@ model SocialPost {
   category     String // "#treinos", "#duvidas-posicoes", "#memes-tatame", "#campeonatos"
   imageUrl     String?
   videoUrl     String?
+  privacy      String?  @default("public") // "public" | "friends" | "private"
   upvotesCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1719,6 +1729,15 @@ model Community {
   avatar      String?
   category    String
   isPrivate   Boolean  @default(false)
+  locale      String?
+  location    String?
+  slug        String?
+  monthlyFee   Int       @default(5000)
+  paidUntil    DateTime?
+  isActive     Boolean   @default(true)
+  inviteReward Int       @default(100)
+  signupReward Int       @default(100)
+  deletedAt    DateTime?
   ownerId     String   @unique
   globalTeamId        String?
   academyBranchId     String?
@@ -1729,6 +1748,12 @@ model Community {
   members  CommunityMember[]
   posts    CommunityPost[]
   topics   ForumTopic[]
+  polls    CommunityPoll[]
+  events   CommunityEvent[]
+  reports  CommunityReport[]
+  invites  CommunityInvite[]
+  payments   CommunityPayment[]
+  rewardLogs CommunityRewardLog[]
 
   @@index([category])
   @@index([ownerId])
@@ -1849,7 +1874,154 @@ model Story {
 // COMUNIDADE — Novos modelos (append only, nao altera existentes)
 // ============================================================
 
+model CommunityPoll {
+  id          String    @id @default(uuid())
+  communityId String
+  authorId    String
+  question    String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
 
+  community Community             @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author    User                  @relation("CommunityPollAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  options   CommunityPollOption[]
+  votes     CommunityPollVote[]
+
+  @@index([communityId])
+  @@index([authorId])
+}
+
+model CommunityPollOption {
+  id         String @id @default(uuid())
+  pollId     String
+  text       String
+  votesCount Int    @default(0)
+
+  poll  CommunityPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes CommunityPollVote[]
+
+  @@index([pollId])
+}
+
+model CommunityPollVote {
+  id        String   @id @default(uuid())
+  pollId    String
+  optionId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  poll   CommunityPoll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option CommunityPollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User                @relation("CommunityPollVoter", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@index([pollId])
+  @@index([optionId])
+}
+
+model CommunityEvent {
+  id          String   @id @default(uuid())
+  communityId String
+  authorId    String
+  title       String
+  description String?
+  eventDate   DateTime
+  location    String?
+  createdAt   DateTime @default(now())
+
+  community Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author    User                 @relation("CommunityEventAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  rsvps     CommunityEventRSVP[]
+
+  @@index([communityId])
+  @@index([authorId])
+}
+
+model CommunityEventRSVP {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  status    String   @default("going")
+  createdAt DateTime @default(now())
+
+  event CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User           @relation("CommunityEventRSVPUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+}
+
+model CommunityReport {
+  id          String   @id @default(uuid())
+  communityId String
+  reporterId  String
+  targetType  String
+  targetId    String?
+  reason      String
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  reporter  User      @relation("CommunityReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([status])
+}
+
+model CommunityInvite {
+  id           String    @id @default(uuid())
+  communityId  String
+  inviterId    String
+  invitedId    String?
+  invitedEmail String?
+  inviteCode   String    @unique @default(uuid())
+  status       String    @default("PENDING") // PENDING | ACCEPTED | EXPIRED
+  createdAt    DateTime  @default(now())
+  acceptedAt   DateTime?
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  inviter   User      @relation("CommunityInviteInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invited   User?     @relation("CommunityInviteInvited", fields: [invitedId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([invitedId])
+  @@index([status])
+}
+
+model CommunityPayment {
+  id          String   @id @default(uuid())
+  communityId String
+  adminId     String
+  amount      Int
+  type        String   // MONTHLY_FEE | REACTIVATION
+  periodStart DateTime
+  periodEnd   DateTime
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  admin     User      @relation("CommunityPaymentAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([adminId])
+}
+
+model CommunityRewardLog {
+  id                String   @id @default(uuid())
+  communityId       String
+  adminId           String
+  rewardedForUserId String
+  inviteId          String
+  amount            Int
+  reason            String   // INVITE_ACCEPTED | SIGNUP_COMPLETED
+  createdAt         DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  admin     User      @relation("CommunityRewardAdmin", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([adminId])
+  @@index([rewardedForUserId])
+}
 
 
 

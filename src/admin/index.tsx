@@ -22,7 +22,8 @@ import {
   Package,
   Activity,
   Landmark,
-  BookOpen
+  BookOpen,
+  Users2
 } from 'lucide-react';
 import { UserProfile, AuditLog } from '../types';
 import { AdminProvider, useAdmin } from './AdminContext';
@@ -43,6 +44,7 @@ const SettingsModule = lazy(() => import('./Settings'));
 const EnterpriseFinanceModule = lazy(() => import('./EnterpriseFinance'));
 const HealthCenterModule = lazy(() => import('./HealthCenter'));
 const FinancialConfigsModule = lazy(() => import('./FinancialConfigs'));
+const CommunitiesModule = lazy(() => import('./Communities'));
 
 interface AdminEntryProps {
   user: UserProfile;
@@ -106,6 +108,8 @@ function AdminPanelShell() {
         return <EnterpriseFinanceModule />;
       case 'financial-configs':
         return <FinancialConfigsModule />;
+      case 'communities':
+        return <CommunitiesModule />;
       case 'partners':
         return <PartnersModule />;
       case 'health':
@@ -325,10 +329,26 @@ function AdminPanelShell() {
 
           <button
             type="button"
+            onClick={() => setActiveTab('communities')}
+            className={`w-full text-left p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+              activeTab === 'communities'
+                ? 'bg-indigo-650 text-white shadow-lg'
+                : 'text-slate-400 hover:text-slate-205 hover:bg-slate-900'
+            }`}
+          >
+            <span className="flex items-center gap-2.5 font-sans font-semibold">
+              <Users2 className="w-4 h-4 shrink-0 text-amber-400" />
+              <span>Comunidades</span>
+            </span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('audit-logs')}
             className={`w-full text-left p-3 rounded-xl text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
-              activeTab === 'audit-logs' 
-                ? 'bg-indigo-650 text-white shadow-lg' 
+              activeTab === 'audit-logs'
+                ? 'bg-indigo-650 text-white shadow-lg'
                 : 'text-slate-400 hover:text-slate-205 hover:bg-slate-900'
             }`}
           >

@@ -50,6 +50,7 @@ const PartnerDashboard = React.lazy(() => import('./components/PartnerDashboard'
 const SupportChat = React.lazy(() => import('./components/SupportChat'));
 const LiveStream = React.lazy(() => import('./components/LiveStream'));
 const PublicProfileView = React.lazy(() => import('./components/PublicProfileView'));
+const CommunityInviteAccept = React.lazy(() => import('./components/CommunityInviteAccept'));
 const PublicCertificateView = React.lazy(() => import('./components/PublicCertificateView'));
 const OnboardingWizard = React.lazy(() => import('./components/OnboardingWizard'));
 const HomePage = React.lazy(() => import('./components/HomePage'));
@@ -208,10 +209,8 @@ export default function App() {
         }
       }
       if (path.startsWith('/invite/')) {
-        const referrer = path.split('/invite/')[1];
-        if (referrer) {
-          localStorage.setItem('jiuspeak_referrer', referrer.trim());
-        }
+        const code = path.split('/invite/')[1];
+        if (code) return `invite-accept-${code.trim()}`;
         return isLoggedIn ? 'dashboard' : 'landing';
       }
     }
@@ -278,6 +277,11 @@ export default function App() {
         const hash = path.split('/certificate/')[1];
         if (hash) {
           setCurrentTab(`certificate-public-${hash}`);
+        }
+      } else if (path.startsWith('/invite/')) {
+        const code = path.split('/invite/')[1];
+        if (code) {
+          setCurrentTab(`invite-accept-${code}`);
         }
       }
     };
@@ -410,6 +414,11 @@ export default function App() {
       if (window.location.pathname !== `/certificate/${hash}`) {
         window.history.pushState(null, '', `/certificate/${hash}`);
       }
+    } else if (currentTab.startsWith('invite-accept-')) {
+      const code = currentTab.replace('invite-accept-', '');
+      if (window.location.pathname !== `/invite/${code}`) {
+        window.history.pushState(null, '', `/invite/${code}`);
+      }
     } else {
       if (
         window.location.pathname === '/store' || 
@@ -432,14 +441,26 @@ export default function App() {
           setCurrentTab('dashboard');
         }
       } else {
-        if (currentTab !== 'landing' && 
-            !currentTab.startsWith('profile-public-') && 
-            !currentTab.startsWith('certificate-public-')) {
+        if (currentTab !== 'landing' &&
+            !currentTab.startsWith('profile-public-') &&
+            !currentTab.startsWith('certificate-public-') &&
+            !currentTab.startsWith('invite-accept-')) {
           setCurrentTab('landing');
         }
       }
     }
   }, [authUser, authReady, currentTab]);
+
+  // Após login, se havia um convite de comunidade pendente, leva o usuário à tela de aceite
+  useEffect(() => {
+    if (authReady && authUser) {
+      const pending = localStorage.getItem('jiuspeak_pending_invite');
+      if (pending) {
+        localStorage.removeItem('jiuspeak_pending_invite');
+        setCurrentTab(`invite-accept-${pending}`);
+      }
+    }
+  }, [authUser, authReady]);
 
   // Custom Inline Toast System
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error'; visible: boolean } | null>(null);
@@ -1386,10 +1407,22 @@ export default function App() {
               );
             }
 
+            if (currentTab.startsWith('invite-accept-')) {
+              const code = currentTab.replace('invite-accept-', '');
+              return (
+                <CommunityInviteAccept
+                  code={code}
+                  currentUser={user}
+                  showToast={showToast}
+                  onNavigate={setCurrentTab}
+                />
+              );
+            }
+
             if (currentTab.startsWith('profile-public-')) {
               const username = currentTab.replace('profile-public-', '');
               return (
-                <PublicProfileView 
+                <PublicProfileView
                   username={username}
                   currentUser={user}
                   showToast={showToast}
