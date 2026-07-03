@@ -5,6 +5,7 @@ import UserProfilePage from './UserProfilePage';
 import LocationPicker, { LocationValue } from './LocationPicker';
 import { STORY_FILTERS, filterCss } from './storyFilters';
 import { MentionSearchModal, MentionEditor, MentionViewer, Mention } from './StoryMentions';
+import { StoryMusicPicker, StoryAudioPlayer, MusicChip, SelectedMusic } from './StoryMusicPicker';
 
 const getToken = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
 const authFetch = (url: string, opts: RequestInit = {}) =>
@@ -53,6 +54,9 @@ export default function FeedInstagram({ user, showToast }: Props) {
   const [storyFilter, setStoryFilter] = useState('normal');
   const [storyMentions, setStoryMentions] = useState<Mention[]>([]);
   const [showMentionSearch, setShowMentionSearch] = useState(false);
+  const [storyMusic, setStoryMusic] = useState<SelectedMusic | null>(null);
+  const [storyMusicStart, setStoryMusicStart] = useState(0);
+  const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [confirmDeleteStory, setConfirmDeleteStory] = useState(false);
   const [diary, setDiary] = useState({ positions: '', fatigue: 3, duration: 60, notes: '' });
   const [saving, setSaving] = useState(false);
@@ -223,13 +227,15 @@ export default function FeedInstagram({ user, showToast }: Props) {
       body: JSON.stringify({ mediaUrl: storyMedia, mediaType: storyMediaType, caption: storyCaption.trim() || null, expiresAt,
         locationName: storyLocation?.name || null, locationLat: storyLocation?.lat ?? null, locationLng: storyLocation?.lng ?? null,
         filter: storyFilter,
-        mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y })) })
+        mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y })),
+        musicId: storyMusic?.id || null, musicStartAt: storyMusicStart })
     });
     if (res.ok) {
       showToast('Story publicado!', 'success');
       setStoryLocation(null);
       setStoryFilter('normal');
       setStoryMentions([]);
+      setStoryMusic(null); setStoryMusicStart(0);
       resetStoryCreator();
       fetchAll();
     } else showToast('Erro ao publicar story', 'error');
@@ -519,6 +525,9 @@ export default function FeedInstagram({ user, showToast }: Props) {
                   style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
                   <AtSign size={25} color={storyMentions.length ? '#c9a84c' : '#fff'} />
                 </button>
+                <button onClick={() => setShowMusicPicker(true)} title="Música" style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center', fontSize: 22 }}>
+                  <span style={{ color: storyMusic ? '#c9a84c' : '#fff' }}>🎵</span>
+                </button>
               </div>
             )}
           </div>
@@ -588,6 +597,7 @@ export default function FeedInstagram({ user, showToast }: Props) {
           {/* RODAPÉ: legenda + publicar */}
           {storyMedia && (
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 10, padding: 16, background: 'linear-gradient(to top, #000000cc, transparent)' }}>
+              {storyMusic && <div><MusicChip title={storyMusic.title} artist={storyMusic.artist} onRemove={() => { setStoryMusic(null); setStoryMusicStart(0); }} /></div>}
               <div><LocationPicker value={storyLocation} onChange={setStoryLocation} /></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <input ref={captionRef} value={storyCaption} onChange={e => setStoryCaption(e.target.value)} placeholder="Adicionar legenda..."
@@ -609,6 +619,13 @@ export default function FeedInstagram({ user, showToast }: Props) {
                 setStoryMentions([...storyMentions, { userId: u.id, username: u.username || u.displayName, x: 0.5, y: Math.min(0.85, 0.4 + storyMentions.length * 0.07), displayName: u.displayName, avatar: u.avatar }]);
                 setShowMentionSearch(false);
               }}
+            />
+          )}
+
+          {showMusicPicker && (
+            <StoryMusicPicker
+              onClose={() => setShowMusicPicker(false)}
+              onSelect={(m, startAt) => { setStoryMusic(m); setStoryMusicStart(startAt); setShowMusicPicker(false); }}
             />
           )}
         </div>
@@ -742,6 +759,8 @@ export default function FeedInstagram({ user, showToast }: Props) {
             {storyView.mediaType === 'video' ? <video src={storyView.mediaUrl} autoPlay controls style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain', filter: filterCss(storyView.filter) }} />
               : <img src={storyView.mediaUrl} style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain', filter: filterCss(storyView.filter) }} />}
             <MentionViewer mentions={storyView.mentions || []} onOpenProfile={(uid) => { setStoryView(null); openProfile(uid); }} />
+            {storyView.music && <StoryAudioPlayer musicId={storyView.music.id} startAt={storyView.musicStartAt || 0} />}
+            {storyView.music && <div style={{ position: 'absolute', bottom: 20, left: 16, right: 16, display: 'flex', justifyContent: 'center', zIndex: 6 }}><MusicChip title={storyView.music.title} artist={storyView.music.artist} /></div>}
             {storyView.caption && <p style={{ position: 'absolute', bottom: 20, left: 16, right: 16, color: '#fff', fontSize: 14, textAlign: 'center', textShadow: '0 1px 4px #000' }}>{storyView.caption}</p>}
           </div>
         </div>

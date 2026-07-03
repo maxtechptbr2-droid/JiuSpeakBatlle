@@ -16008,6 +16008,98 @@ app.get("/api/stories/music/:id/preview", authenticateToken, async (req: any, re
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// ===== ADMIN: gestão da biblioteca de músicas de stories =====
+const audioUploadHandler = require('multer')({
+  storage: require('multer').memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const allowed = ['audio/mpeg','audio/mp3','audio/wav','audio/ogg','audio/x-m4a','audio/mp4'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Envie um arquivo de áudio (mp3/wav/ogg/m4a).'));
+  }
+});
+
+// Lista completa (admin, inclui inativas)
+app.get("/api/admin/stories/music", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const music = await prisma.storyMusic.findMany({ orderBy: { createdAt: "desc" } });
+    res.json({ success: true, music });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Upload de música (multipart: campo 'audio' + metadados)
+app.post("/api/admin/stories/music", authenticateToken, requireRole(["ADMIN"]), (req: any, res: any) => {
+  audioUploadHandler.single('audio')(req, res, async (err: any) => {
+    try {
+      if (err) return res.status(400).json({ error: err.message || 'Erro no upload' });
+      if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo de áudio enviado.' });
+      const prisma = getPrisma();
+      if (!prisma) return res.status(500).json({ error: "DB offline" });
+      const { title, artist, genre, coverUrl } = req.body;
+      if (!title || !artist || !genre) return res.status(400).json({ error: "Título, artista e gênero são obrigatórios." });
+
+      const fs = require('fs'); const pathLib = require('path'); const { execSync } = require('child_process');
+      const uploadDir = pathLib.join(process.cwd(), 'public', 'uploads', 'music');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+      const ext = (req.file.originalname.split('.').pop() || 'mp3').toLowerCase();
+      const filename = `music_${require('crypto').randomUUID()}.${ext}`;
+      const filePath = pathLib.join(uploadDir, filename);
+      fs.writeFileSync(filePath, req.file.buffer);
+
+      // duração: body ou via ffprobe
+      let duration = parseInt(req.body.duration) || 0;
+      if (!duration) {
+        try {
+          const out = execSync(`ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`, { timeout: 15000 }).toString().trim();
+          duration = Math.round(parseFloat(out)) || 0;
+        } catch { duration = 0; }
+      }
+
+      const created = await prisma.storyMusic.create({
+        data: { title: String(title).slice(0,120), artist: String(artist).slice(0,120), genre: String(genre).slice(0,40), duration, fileUrl: `/uploads/music/${filename}`, coverUrl: coverUrl || null, isActive: true }
+      });
+      res.json({ success: true, music: created });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+});
+
+// Ativar/desativar ou editar metadados
+app.patch("/api/admin/stories/music/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const { title, artist, genre, isActive, coverUrl } = req.body;
+    const data: any = {};
+    if (title !== undefined) data.title = String(title).slice(0,120);
+    if (artist !== undefined) data.artist = String(artist).slice(0,120);
+    if (genre !== undefined) data.genre = String(genre).slice(0,40);
+    if (isActive !== undefined) data.isActive = !!isActive;
+    if (coverUrl !== undefined) data.coverUrl = coverUrl || null;
+    const updated = await prisma.storyMusic.update({ where: { id }, data });
+    res.json({ success: true, music: updated });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Excluir música (remove arquivo)
+app.delete("/api/admin/stories/music/:id", authenticateToken, requireRole(["ADMIN"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const m = await prisma.storyMusic.findUnique({ where: { id }, select: { fileUrl: true } });
+    if (!m) return res.status(404).json({ error: "Música não encontrada." });
+    await prisma.storyMusic.delete({ where: { id } });
+    try {
+      const fs = require('fs'); const pathLib = require('path');
+      if (m.fileUrl && m.fileUrl.startsWith('/uploads/')) { const fp = pathLib.join(process.cwd(), 'public', m.fileUrl); if (fs.existsSync(fp)) fs.unlinkSync(fp); }
+    } catch (e) {}
+    res.status(204).send();
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 // Busca de usuários (menções em stories) — alias geral
 app.get("/api/users/search", authenticateToken, async (req: any, res: any) => {
   try {

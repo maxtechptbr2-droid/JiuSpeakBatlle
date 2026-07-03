@@ -25,6 +25,7 @@ import {
 import { UserProfile, BeltRank } from '../types';
 import { STORY_FILTERS, filterCss } from './storyFilters';
 import { MentionSearchModal, MentionEditor, MentionViewer, Mention } from './StoryMentions';
+import { StoryMusicPicker, StoryAudioPlayer, MusicChip, SelectedMusic } from './StoryMusicPicker';
 
 interface SocialStoriesProps {
   user: UserProfile;
@@ -68,6 +69,9 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
   const [storyFilter, setStoryFilter] = useState('normal');
   const [storyMentions, setStoryMentions] = useState<Mention[]>([]);
   const [showMentionSearch, setShowMentionSearch] = useState(false);
+  const [storyMusic, setStoryMusic] = useState<SelectedMusic | null>(null);
+  const [storyMusicStart, setStoryMusicStart] = useState(0);
+  const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [storyPreview, setStoryPreview] = useState<string | null>(null);
   const [storyCaption, setStoryCaption] = useState<string>('');
   const [uploading, setUploading] = useState<boolean>(false);
@@ -204,6 +208,9 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
     setStoryFilter('normal');
     setStoryMentions([]);
     setShowMentionSearch(false);
+    setStoryMusic(null);
+    setStoryMusicStart(0);
+    setShowMusicPicker(false);
   };
 
   const handleCreateStory = async () => {
@@ -218,7 +225,9 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
           mediaUrl: storyMediaUrl,
           caption: storyCaption.trim() || undefined,
           filter: storyFilter,
-          mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y }))
+          mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y })),
+          musicId: storyMusic?.id || null,
+          musicStartAt: storyMusicStart
         };
       } else {
         // Card de conquista (opção extra) — persistimos imagem temática + legenda-resumo
@@ -516,6 +525,14 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                     mentions={((currentActiveStory as any).mentions) || []}
                     onOpenProfile={(_uid, username) => { if (username) window.location.href = '/u/' + username; }}
                   />
+                  {(currentActiveStory as any).music && (
+                    <StoryAudioPlayer musicId={(currentActiveStory as any).music.id} startAt={(currentActiveStory as any).musicStartAt || 0} />
+                  )}
+                  {(currentActiveStory as any).music && (
+                    <div className="absolute bottom-6 inset-x-6 flex justify-center z-[6]">
+                      <MusicChip title={(currentActiveStory as any).music.title} artist={(currentActiveStory as any).music.artist} />
+                    </div>
+                  )}
                   {currentActiveStory.caption && (
                     <div className="absolute bottom-6 inset-x-6 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 select-text text-slate-100 text-sm text-center backdrop-blur-sm font-semibold">
                       {currentActiveStory.caption}
@@ -573,6 +590,7 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                 </button>
                 <button onClick={() => setShowStoryEmoji(v => !v)} title="Figurinhas" className="cursor-pointer"><Smile className="w-6 h-6" style={{ color: showStoryEmoji ? '#c9a84c' : '#fff' }} /></button>
                 <button onClick={() => setShowMentionSearch(true)} title="Mencionar" className="cursor-pointer"><AtSign className="w-6 h-6" style={{ color: storyMentions.length ? '#c9a84c' : '#fff' }} /></button>
+                <button onClick={() => setShowMusicPicker(true)} title="Música" className="cursor-pointer text-xl leading-none" style={{ color: storyMusic ? '#c9a84c' : '#fff' }}>🎵</button>
               </div>
             ) : (
               <span className="w-16 shrink-0" />
@@ -657,7 +675,9 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
 
           {/* RODAPÉ: legenda + publicar */}
           {(storyType === 'achievement_card' || storyMediaUrl) && (
-            <div className="absolute bottom-0 inset-x-0 z-20 flex items-center gap-3 p-4 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="absolute bottom-0 inset-x-0 z-20 flex flex-col gap-2 p-4 bg-gradient-to-t from-black/80 to-transparent">
+              {storyMusic && <div><MusicChip title={storyMusic.title} artist={storyMusic.artist} onRemove={() => { setStoryMusic(null); setStoryMusicStart(0); }} /></div>}
+              <div className="flex items-center gap-3">
               {storyType === 'photo' ? (
                 <input ref={captionRef} value={storyCaption} onChange={e => setStoryCaption(e.target.value)} placeholder="Adicionar legenda..."
                   className="flex-1 bg-slate-800/80 border border-slate-700 rounded-full px-4 py-3 text-white text-sm outline-none placeholder-slate-400" />
@@ -669,6 +689,7 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                 style={{ width: 52, height: 52 }}>
                 <Send className="w-5 h-5 text-black" />
               </button>
+              </div>
             </div>
           )}
 
@@ -681,6 +702,13 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                 setStoryMentions([...storyMentions, { userId: u.id, username: u.username || u.displayName, x: 0.5, y: Math.min(0.85, 0.4 + storyMentions.length * 0.07), displayName: u.displayName, avatar: u.avatar }]);
                 setShowMentionSearch(false);
               }}
+            />
+          )}
+
+          {showMusicPicker && (
+            <StoryMusicPicker
+              onClose={() => setShowMusicPicker(false)}
+              onSelect={(m, startAt) => { setStoryMusic(m); setStoryMusicStart(startAt); setShowMusicPicker(false); }}
             />
           )}
         </div>
