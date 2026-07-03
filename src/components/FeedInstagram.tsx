@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Plus, X, Globe, Users, Lock, Dumbbell, CheckCircle, Trash2, Edit2 } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Plus, X, Globe, Users, Lock, Dumbbell, CheckCircle, Trash2, Edit2, Image as ImageIcon, Smile, AtSign, MapPin } from 'lucide-react';
 import { UserProfile } from '../types';
 import UserProfilePage from './UserProfilePage';
+import LocationPicker, { LocationValue } from './LocationPicker';
 
 const getToken = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
 const authFetch = (url: string, opts: RequestInit = {}) =>
@@ -38,8 +39,15 @@ export default function FeedInstagram({ user, showToast }: Props) {
   const [storyMediaType, setStoryMediaType] = useState<'image' | 'video'>('image');
   const [storyCaption, setStoryCaption] = useState('');
   const [storyPreview, setStoryPreview] = useState<string | null>(null);
+  const [storyTextColor, setStoryTextColor] = useState('#ffffff');
+  const [showStoryEmoji, setShowStoryEmoji] = useState(false);
   const storyFileRef = useRef<HTMLInputElement>(null);
+  const captionRef = useRef<HTMLInputElement>(null);
+  const STORY_TEXT_COLORS = ['#ffffff', '#c9a84c', '#e74c3c', '#1a5aad', '#22c55e', '#111111'];
+  const STORY_EMOJIS = ['🥋','🔥','💪','🏆','😤','👊','🤙','⚔️','🙏','🎯','🥇','🐍','🦵','🫡','😅','💥'];
   const [newPost, setNewPost] = useState({ content: '', imageUrl: '', videoUrl: '', privacy: 'public', category: 'Treinos' });
+  const [postLocation, setPostLocation] = useState<LocationValue | null>(null);
+  const [storyLocation, setStoryLocation] = useState<LocationValue | null>(null);
   const [diary, setDiary] = useState({ positions: '', fatigue: 3, duration: 60, notes: '' });
   const [saving, setSaving] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
@@ -68,15 +76,24 @@ export default function FeedInstagram({ user, showToast }: Props) {
         authorAcademy: p.author?.branch?.name || p.author?.independentAcademy?.name || p.authorAcademy,
         authorVerified: p.author?.isVerified || p.authorVerified,
         authorId: p.author?.id || p.authorId,
-        isLiked: Array.isArray(p.likes) ? p.likes.some((l: any) => l.userId === user.id) : !!p.isLiked,
+        isLiked: Array.isArray(p.likes) ? p.likes.some((l: any) => l.userId === user.id) : (p.hasUpvoted ?? !!p.isLiked),
         isFollowing: !!p.isFollowing,
-        isSaved: Array.isArray(p.savedBy) ? p.savedBy.some((s: any) => s.userId === user.id) : !!p.isSaved,
-        upvotesCount: Array.isArray(p.likes) ? p.likes.length : (p.upvotesCount || 0),
+        isSaved: Array.isArray(p.savedBy) ? p.savedBy.some((s: any) => s.userId === user.id) : (p.hasSaved ?? !!p.isSaved),
+        upvotesCount: Array.isArray(p.likes) ? p.likes.length : (p.upvotes ?? p.upvotesCount ?? 0),
         commentsCount: Array.isArray(p.comments) ? p.comments.length : (p.commentsCount || 0),
       }));
       setPosts(mapped);
     }
-    if (sr.ok) { const d = await sr.json(); setStories(d.stories || []); }
+    if (sr.ok) {
+      const d = await sr.json();
+      // O backend devolve userName/userAvatar/userBelt — normalizar para os campos usados no render
+      setStories((d.stories || []).map((s: any) => ({
+        ...s,
+        authorName: s.authorName || s.userName,
+        authorAvatar: s.authorAvatar || s.userAvatar,
+        authorBelt: s.authorBelt || s.userBelt,
+      })));
+    }
     setLoading(false);
   };
 
@@ -175,20 +192,28 @@ export default function FeedInstagram({ user, showToast }: Props) {
     setUploadingMedia(false);
   };
 
+  const resetStoryCreator = () => {
+    setShowCreateStory(false);
+    setStoryMedia(null);
+    setStoryPreview(null);
+    setStoryCaption('');
+    setShowStoryEmoji(false);
+    setStoryTextColor('#ffffff');
+  };
+
   const handleCreateStory = async () => {
     if (!storyMedia) { showToast('Selecione uma mídia', 'error'); return; }
     setSaving(true);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     const res = await authFetch('/api/social/stories', {
       method: 'POST',
-      body: JSON.stringify({ mediaUrl: storyMedia, mediaType: storyMediaType, caption: storyCaption, expiresAt })
+      body: JSON.stringify({ mediaUrl: storyMedia, mediaType: storyMediaType, caption: storyCaption.trim() || null, expiresAt,
+        locationName: storyLocation?.name || null, locationLat: storyLocation?.lat ?? null, locationLng: storyLocation?.lng ?? null })
     });
     if (res.ok) {
       showToast('Story publicado!', 'success');
-      setShowCreateStory(false);
-      setStoryMedia(null);
-      setStoryPreview(null);
-      setStoryCaption('');
+      setStoryLocation(null);
+      resetStoryCreator();
       fetchAll();
     } else showToast('Erro ao publicar story', 'error');
     setSaving(false);
@@ -216,11 +241,12 @@ export default function FeedInstagram({ user, showToast }: Props) {
   const handlePost = async () => {
     if (!newPost.content.trim()) return;
     setSaving(true);
-    const res = await authFetch('/api/social/posts', { method: 'POST', body: JSON.stringify(newPost) });
+    const res = await authFetch('/api/social/posts', { method: 'POST', body: JSON.stringify({ ...newPost, locationName: postLocation?.name || null, locationLat: postLocation?.lat ?? null, locationLng: postLocation?.lng ?? null }) });
     if (res.ok) {
       showToast('Publicado!', 'success');
       setShowNewPost(false);
       setNewPost({ content: '', imageUrl: '', videoUrl: '', privacy: 'public', category: 'Treinos' });
+      setPostLocation(null);
       setMediaPreview(null);
       fetchAll();
     } else showToast('Erro ao publicar', 'error');
@@ -255,23 +281,28 @@ export default function FeedInstagram({ user, showToast }: Props) {
     <div style={S.wrap}>
       {/* STORIES */}
       <div style={{ ...S.center, display: 'flex', gap: 14, padding: '12px 14px', overflowX: 'auto', borderBottom: '0.5px solid #1e2235', scrollbarWidth: 'none' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <div onClick={() => setShowCreateStory(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, cursor: 'pointer' }}>
           <div style={{ position: 'relative', width: 58, height: 58 }}>
             <div style={{ ...S.avatar(58), border: '1.5px solid #2a2d45' }}>
               {user.avatar ? <img src={user.avatar} style={{ width: 58, height: 58, objectFit: 'cover' }} /> : user.name[0]}
             </div>
-            <button onClick={() => setShowNewPost(true)} style={{ ...S.btn, position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, background: '#c9a84c', borderRadius: '50%', border: '2px solid #080a12', justifyContent: 'center' }}>
+            <button onClick={(e) => { e.stopPropagation(); setShowCreateStory(true); }} style={{ ...S.btn, position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, background: '#c9a84c', borderRadius: '50%', border: '2px solid #080a12', justifyContent: 'center' }}>
               <Plus size={12} color="#000" />
             </button>
           </div>
-          <span style={{ fontSize: 10, color: '#7b83b0' }}>Seu post</span>
+          <span style={{ fontSize: 10, color: '#7b83b0' }}>Seu story</span>
         </div>
         {stories.map((s: any) => (
           <div key={s.id} onClick={() => setStoryView(s)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, cursor: 'pointer' }}>
-            <div style={{ width: 58, height: 58, borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #c9a84c, #f59e0b)' }}>
+            <div style={{ position: 'relative', width: 58, height: 58, borderRadius: '50%', padding: 2, background: 'linear-gradient(135deg, #c9a84c, #f59e0b)' }}>
               <div style={{ ...S.avatar(50), border: '2px solid #080a12' }}>
                 {s.authorAvatar ? <img src={s.authorAvatar} style={{ width: 50, height: 50, objectFit: 'cover' }} /> : s.authorName?.[0]}
               </div>
+              {s.locationName && (
+                <div title={s.locationName} style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, background: '#c9a84c', borderRadius: '50%', border: '2px solid #080a12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MapPin size={11} color="#000" />
+                </div>
+              )}
             </div>
             <span style={{ fontSize: 10, color: '#c0c5e0', maxWidth: 58, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.authorName?.split(' ')[0]}</span>
           </div>
@@ -321,6 +352,13 @@ export default function FeedInstagram({ user, showToast }: Props) {
                       </button>
                     )}
                   </div>
+                  {post.locationName && (
+                    <a href={post.locationLat != null ? `https://www.google.com/maps?q=${post.locationLat},${post.locationLng}` : undefined}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#7b83b0', textDecoration: 'none', cursor: 'pointer' }}>
+                      <MapPin size={11} style={{ color: '#c9a84c' }} /> {String(post.locationName).split(',').slice(0, 2).join(',')}
+                    </a>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#4a5075' }}>
                     {post.authorAcademy && <span>{post.authorAcademy}</span>}
                     {post.authorAcademy && <span>·</span>}
@@ -439,32 +477,93 @@ export default function FeedInstagram({ user, showToast }: Props) {
         </div>
       )}
 
-      {/* MODAL CRIAR STORY */}
+      {/* CRIAR STORY — TELA FULLSCREEN ESTILO INSTAGRAM */}
       {showCreateStory && (
-        <div style={S.modal}>
-          <div style={{ ...S.modalBox }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <span style={{ fontSize: 15, fontWeight: 500, color: '#c0c5e0' }}>Criar Story</span>
-              <button onClick={() => { setShowCreateStory(false); setStoryPreview(null); setStoryMedia(null); }} style={S.btn}><X size={20} color="#7b83b0" /></button>
-            </div>
-            <input ref={storyFileRef} type="file" accept="image/*,video/*" onChange={handleStoryUpload} style={{ display: 'none' }} />
-            {!storyPreview ? (
-              <button onClick={() => storyFileRef.current?.click()} disabled={uploadingMedia}
-                style={{ width: '100%', height: 200, background: '#1a1d2e', border: '1px dashed #2a2d45', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', color: '#4a5075', fontSize: 13 }}>
-                {uploadingMedia ? 'Enviando...' : <><span style={{ fontSize: 32 }}>📷</span> Toque para adicionar foto ou vídeo</>}
-              </button>
-            ) : (
-              <div style={{ position: 'relative', marginBottom: 10 }}>
-                {storyMediaType === 'image' ? <img src={storyPreview} style={{ width: '100%', borderRadius: 12, maxHeight: 300, objectFit: 'cover' }} /> : <video src={storyPreview} controls style={{ width: '100%', borderRadius: 12, maxHeight: 300 }} />}
-                <button onClick={() => { setStoryPreview(null); setStoryMedia(null); }}
-                  style={{ position: 'absolute', top: 8, right: 8, background: '#000000aa', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: '#fff', fontSize: 16 }}>×</button>
+        <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 300, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <input ref={storyFileRef} type="file" accept="image/*,video/*" onChange={handleStoryUpload} style={{ display: 'none' }} />
+
+          {/* TOPO: fechar + ferramentas */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'linear-gradient(to bottom, #000000aa, transparent)' }}>
+            <button onClick={resetStoryCreator} style={S.btn}><X size={28} color="#fff" /></button>
+            {storyMedia && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+                <button
+                  onClick={() => { setStoryTextColor(c => STORY_TEXT_COLORS[(STORY_TEXT_COLORS.indexOf(c) + 1) % STORY_TEXT_COLORS.length]); captionRef.current?.focus(); }}
+                  title="Texto"
+                  style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
+                  <span style={{ fontSize: 21, fontWeight: 700, color: storyTextColor, textShadow: '0 1px 3px #000', fontFamily: 'Georgia, serif' }}>Aa</span>
+                </button>
+                <button onClick={() => setShowStoryEmoji(v => !v)} title="Figurinhas" style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
+                  <Smile size={26} color={showStoryEmoji ? '#c9a84c' : '#fff'} />
+                </button>
+                <button
+                  onClick={() => { setStoryCaption(c => (c + ' @').trimStart()); captionRef.current?.focus(); }}
+                  title="Mencionar"
+                  style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
+                  <AtSign size={25} color="#fff" />
+                </button>
               </div>
             )}
-            <input value={storyCaption} onChange={e => setStoryCaption(e.target.value)} placeholder="Adicionar legenda..." style={{ ...S.input, marginTop: 10, marginBottom: 12 }} />
-            <button onClick={handleCreateStory} disabled={saving || !storyMedia} style={{ ...S.goldBtn, opacity: !storyMedia || saving ? 0.5 : 1 }}>
-              {saving ? 'Publicando...' : 'Publicar Story'}
-            </button>
           </div>
+
+          {/* ÁREA DA MÍDIA */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', minHeight: 0 }}>
+            {!storyMedia ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: 24, textAlign: 'center' }}>
+                <div style={{ width: 84, height: 84, borderRadius: '50%', background: 'linear-gradient(135deg, #c9a84c, #f59e0b)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ImageIcon size={38} color="#000" />
+                </div>
+                <div>
+                  <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, margin: '0 0 6px' }}>Criar novo story</p>
+                  <p style={{ color: '#7b83b0', fontSize: 13, margin: 0, maxWidth: 260 }}>Selecione uma foto ou vídeo do seu dispositivo. Seu story fica visível por 24 horas.</p>
+                </div>
+                <button onClick={() => storyFileRef.current?.click()} disabled={uploadingMedia}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#c9a84c', border: 'none', borderRadius: 24, padding: '12px 28px', color: '#000', fontSize: 15, fontWeight: 600, cursor: 'pointer', opacity: uploadingMedia ? 0.6 : 1 }}>
+                  <ImageIcon size={18} /> {uploadingMedia ? 'Enviando...' : 'Galeria'}
+                </button>
+              </div>
+            ) : (
+              <>
+                {storyMediaType === 'image'
+                  ? <img src={storyPreview!} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  : <video src={storyPreview!} autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />}
+
+                {/* legenda sobreposta (preview ao vivo) */}
+                {storyCaption.trim() && (
+                  <div style={{ position: 'absolute', left: 20, right: 20, top: '45%', transform: 'translateY(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
+                    <span style={{ color: storyTextColor, fontSize: 26, fontWeight: 700, textShadow: '0 2px 8px #000c', lineHeight: 1.3, wordBreak: 'break-word' }}>{storyCaption}</span>
+                  </div>
+                )}
+
+                {/* seletor de figurinhas/emoji */}
+                {showStoryEmoji && (
+                  <div style={{ position: 'absolute', bottom: 90, left: 16, right: 16, background: '#0d0f1aee', border: '0.5px solid #2a2d45', borderRadius: 14, padding: 12, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+                    {STORY_EMOJIS.map(em => (
+                      <button key={em} onClick={() => { setStoryCaption(c => c + em); captionRef.current?.focus(); }}
+                        style={{ ...S.btn, fontSize: 26, width: 40, height: 40, justifyContent: 'center', borderRadius: 8 }}>
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* RODAPÉ: legenda + publicar */}
+          {storyMedia && (
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 10, padding: 16, background: 'linear-gradient(to top, #000000cc, transparent)' }}>
+              <div><LocationPicker value={storyLocation} onChange={setStoryLocation} /></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input ref={captionRef} value={storyCaption} onChange={e => setStoryCaption(e.target.value)} placeholder="Adicionar legenda..."
+                style={{ flex: 1, background: '#1a1d2ecc', border: '0.5px solid #2a2d45', borderRadius: 24, padding: '12px 18px', color: '#fff', fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
+              <button onClick={handleCreateStory} disabled={saving} title="Publicar story"
+                style={{ width: 52, height: 52, borderRadius: '50%', background: '#c9a84c', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, opacity: saving ? 0.6 : 1 }}>
+                <Send size={22} color="#000" />
+              </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -496,6 +595,9 @@ export default function FeedInstagram({ user, showToast }: Props) {
                   Remover
                 </button>
               )}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <LocationPicker value={postLocation} onChange={setPostLocation} />
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
               {[{ val: 'public', icon: <Globe size={13} />, label: 'Público' }, { val: 'friends', icon: <Users size={13} />, label: 'Amigos' }, { val: 'private', icon: <Lock size={13} />, label: 'Privado' }].map(opt => (
@@ -564,7 +666,14 @@ export default function FeedInstagram({ user, showToast }: Props) {
           <div style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
             <div style={{ position: 'absolute', top: 16, left: 16, right: 48, display: 'flex', alignItems: 'center', gap: 10, zIndex: 5 }}>
               <div style={S.avatar(34)}>{storyView.authorAvatar ? <img src={storyView.authorAvatar} style={{ width: 34, height: 34, objectFit: 'cover' }} /> : storyView.authorName?.[0]}</div>
-              <span style={{ fontSize: 14, color: '#fff', fontWeight: 500 }}>{storyView.authorName}</span>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 14, color: '#fff', fontWeight: 500 }}>{storyView.authorName}</span>
+                {storyView.locationName && (
+                  <a href={storyView.locationLat != null ? `https://www.google.com/maps?q=${storyView.locationLat},${storyView.locationLng}` : undefined} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, color: '#ffffffcc', textDecoration: 'none' }}>
+                    <MapPin size={10} /> {String(storyView.locationName).split(',').slice(0, 2).join(',')}
+                  </a>
+                )}
+              </div>
               <span style={{ fontSize: 11, color: '#ffffff88', marginLeft: 'auto' }}>{timeAgo(storyView.createdAt)}</span>
             </div>
             {storyView.mediaType === 'video' ? <video src={storyView.mediaUrl} autoPlay controls style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain' }} />

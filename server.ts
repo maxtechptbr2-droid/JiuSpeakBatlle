@@ -181,6 +181,9 @@ export function getSocialPostSelect(requesterId?: string) {
     upvotesCount: true,
     createdAt: true,
     updatedAt: true,
+    ...(physicalSocialPostColumns.includes("locationName") ? { locationName: true } : {}),
+    ...(physicalSocialPostColumns.includes("locationLat") ? { locationLat: true } : {}),
+    ...(physicalSocialPostColumns.includes("locationLng") ? { locationLng: true } : {}),
     author: {
       select: { 
         id: true, 
@@ -3754,6 +3757,7 @@ app.get("/api/social/users/:userId/profile", authenticateToken, async (req: any,
     const me = req.user.id;
     const u: any[] = await prisma.$queryRawUnsafe(`
       SELECT u.id, u.name, u.username, u.avatar, u.belt, u."beltRank", u.bio, u.city, u.country,
+        u."learningGoal", u.links,
         u."isVerified", u.elo, u."followersCount", u."followingCount", u.academy, u.role,
         EXISTS(SELECT 1 FROM "Follower" WHERE "followerId"=$2 AND "followingId"=$1) as "isFollowing"
       FROM "User" u WHERE u.id=$1
@@ -3996,12 +4000,14 @@ app.post("/api/communities/:id/posts", authenticateToken, async (req: any, res: 
     const userId = req.user.id;
     const isMember: any[] = await prisma.$queryRawUnsafe(`SELECT 1 FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND "isBanned"=false`, id, userId);
     if (!isMember[0]) return res.status(403).json({ error: "Você precisa ser membro para postar." });
-    const { content, category, imageUrl, videoUrl } = req.body;
+    const { content, category, imageUrl, videoUrl, locationName, locationLat, locationLng } = req.body;
     if (!content) return res.status(400).json({ error: "Conteúdo obrigatório." });
     const postId = require('crypto').randomUUID();
+    const lat = (locationLat !== undefined && locationLat !== null && locationLat !== '') ? Number(locationLat) : null;
+    const lng = (locationLng !== undefined && locationLng !== null && locationLng !== '') ? Number(locationLng) : null;
     await prisma.$executeRawUnsafe(
-      `INSERT INTO "SocialPost" (id, "authorId", content, category, "imageUrl", "videoUrl", "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())`,
-      postId, userId, content, category||'Geral', imageUrl||null, videoUrl||null
+      `INSERT INTO "SocialPost" (id, "authorId", content, category, "imageUrl", "videoUrl", "locationName", "locationLat", "locationLng", "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())`,
+      postId, userId, content, category||'Geral', imageUrl||null, videoUrl||null, locationName||null, lat, lng
     );
     await prisma.$executeRawUnsafe(
       `INSERT INTO "CommunityPost" (id, "communityId", "postId", "createdAt") VALUES ($1,$2,$3,NOW())`,
@@ -4749,6 +4755,51 @@ app.post("/api/admin/communities/:id/moderate", authenticateToken, requireRole([
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// ============================================================
+// LOCALIZAÇÃO — proxy Nominatim / OpenStreetMap (sem API key)
+// ============================================================
+const nominatimCache = new Map<string, { data: any; exp: number }>();
+const NOMINATIM_UA = "JiuSpeak/1.0 (jiuspeak.com.br)";
+
+app.get("/api/locations/search", authenticateToken, async (req: any, res: any) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) return res.json({ success: true, results: [] });
+    const key = 's:' + q.toLowerCase();
+    const now = Date.now();
+    const cached = nominatimCache.get(key);
+    if (cached && cached.exp > now) return res.json({ success: true, results: cached.data, cached: true });
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=8&accept-language=pt-BR`;
+    const r = await fetch(url, { headers: { 'User-Agent': NOMINATIM_UA } });
+    if (!r.ok) return res.status(502).json({ error: 'Serviço de localização indisponível.' });
+    const arr: any = await r.json();
+    const results = (Array.isArray(arr) ? arr : []).map((x: any) => ({
+      displayName: x.display_name, lat: parseFloat(x.lat), lng: parseFloat(x.lon), type: x.type || x.class || 'place'
+    }));
+    nominatimCache.set(key, { data: results, exp: now + 5 * 60 * 1000 });
+    res.json({ success: true, results });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get("/api/locations/reverse", authenticateToken, async (req: any, res: any) => {
+  try {
+    const lat = parseFloat(String(req.query.lat));
+    const lng = parseFloat(String(req.query.lng));
+    if (isNaN(lat) || isNaN(lng)) return res.status(400).json({ error: 'Coordenadas inválidas.' });
+    const key = `r:${lat.toFixed(4)},${lng.toFixed(4)}`;
+    const now = Date.now();
+    const cached = nominatimCache.get(key);
+    if (cached && cached.exp > now) return res.json({ success: true, ...cached.data, cached: true });
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt-BR`;
+    const r = await fetch(url, { headers: { 'User-Agent': NOMINATIM_UA } });
+    if (!r.ok) return res.status(502).json({ error: 'Serviço de localização indisponível.' });
+    const x: any = await r.json();
+    const data = { displayName: x.display_name || 'Local atual', lat, lng };
+    nominatimCache.set(key, { data, exp: now + 5 * 60 * 1000 });
+    res.json({ success: true, ...data });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 app.get("/api/athlete-registry", authenticateToken, async (req: any, res: any) => {
   try {
     const prisma = getPrisma();
@@ -4815,14 +4866,15 @@ app.patch("/api/athlete-registry", authenticateToken, async (req: any, res: any)
 });
 app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
   console.log(`[PROFILE PATCH] Initialized patch request for User: ${req.user.id}, fields:`, Object.keys(req.body));
-  const { 
-    name, bio, city, country, nativeLanguage, learningGoal, 
+  const {
+    name, bio, city, country, nativeLanguage, learningGoal,
     profilePhoto, coverPhoto, instagram, youtube, facebook, website,
     birthDate, phone, englishLevel, spanishLevel, frenchLevel,
     onboardingDone, username, beltRank, favoriteTechnique, favoriteAthlete,
     privacyLevel, themeColor, avatarFrame,
     globalTeamId, branchId, independentAcademyId,
-    academy, category, guardsPreference, submitsPreference, gender
+    academy, category, guardsPreference, submitsPreference, gender,
+    avatar, links
   } = req.body;
   
   try {
@@ -4841,6 +4893,9 @@ app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
     
     if (username) {
       const sanitizedUsername = username.trim().toLowerCase();
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(sanitizedUsername)) {
+        return res.status(400).json({ error: "Username inválido: use 3 a 30 caracteres (letras, números e _)." });
+      }
       const existing = await prisma.user.findFirst({
         where: {
           username: sanitizedUsername,
@@ -4848,7 +4903,7 @@ app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
         }
       });
       if (existing) {
-        return res.status(400).json({ error: "Este nome de usuário já está em uso." });
+        return res.status(409).json({ error: "Este nome de usuário já está em uso." });
       }
     }
     
@@ -4865,6 +4920,20 @@ app.patch("/api/profile", authenticateToken, async (req: any, res: any) => {
     if (youtube !== undefined) updateData.youtube = youtube;
     if (facebook !== undefined) updateData.facebook = facebook;
     if (website !== undefined) updateData.website = website;
+    if (avatar !== undefined && typeof avatar === 'string' && avatar) updateData.avatar = avatar;
+    if (links !== undefined) {
+      // Normaliza e valida: array de { title, url }, máximo 5
+      let arr: any[] = [];
+      try { arr = Array.isArray(links) ? links : JSON.parse(links); } catch { arr = []; }
+      const clean = (Array.isArray(arr) ? arr : [])
+        .filter((l: any) => l && typeof l.url === 'string' && l.url.trim())
+        .slice(0, 5)
+        .map((l: any) => ({
+          title: String(l.title || '').trim().slice(0, 40) || 'Link',
+          url: (/^https?:\/\//i.test(l.url.trim()) ? l.url.trim() : 'https://' + l.url.trim()).slice(0, 300)
+        }));
+      updateData.links = clean;
+    }
     if (birthDate !== undefined) updateData.birthDate = birthDate ? new Date(birthDate) : null;
     if (phone !== undefined) updateData.phone = phone;
     if (englishLevel !== undefined) updateData.englishLevel = englishLevel;
@@ -14687,6 +14756,9 @@ app.get("/api/social/posts", authenticateToken, async (req: any, res: any) => {
         imageUrl: post.imageUrl || null,
         videoUrl: post.videoUrl || null,
         privacy: post.privacy || "public",
+        locationName: post.locationName || null,
+        locationLat: post.locationLat ?? null,
+        locationLng: post.locationLng ?? null,
         upvotes: post.likes ? post.likes.length : (post.upvotes || 0),
         hasUpvoted: hasLiked,
         timestamp: getRelativeTime(post.createdAt || new Date()),
@@ -14815,7 +14887,7 @@ app.post("/api/social/upload-media", authenticateToken, (req: any, res: any) => 
 
 app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
   try {
-    const { content, category, imageUrl, videoUrl, privacy } = req.body;
+    const { content, category, imageUrl, videoUrl, privacy, locationName, locationLat, locationLng } = req.body;
     const userId = req.user.id;
 
     if (!content || !content.trim()) {
@@ -14845,6 +14917,9 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
       const allowedPrivacy = ["public", "friends", "private"];
       postData.privacy = allowedPrivacy.includes(privacy) ? privacy : "public";
     }
+    if (physicalSocialPostColumns.includes("locationName")) postData.locationName = locationName || null;
+    if (physicalSocialPostColumns.includes("locationLat")) postData.locationLat = (locationLat !== undefined && locationLat !== null && locationLat !== '') ? Number(locationLat) : null;
+    if (physicalSocialPostColumns.includes("locationLng")) postData.locationLng = (locationLng !== undefined && locationLng !== null && locationLng !== '') ? Number(locationLng) : null;
 
     const created = await prisma.socialPost.create({
       data: postData as any,
@@ -14890,6 +14965,9 @@ app.post("/api/social/posts", authenticateToken, async (req: any, res: any) => {
       imageUrl: created.imageUrl || null,
       videoUrl: created.videoUrl || null,
       privacy: created.privacy || "public",
+      locationName: created.locationName || null,
+      locationLat: created.locationLat ?? null,
+      locationLng: created.locationLng ?? null,
       upvotes: 0,
       hasUpvoted: false,
       timestamp: "Agora mesmo",
@@ -15745,6 +15823,9 @@ app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => 
       mediaUrl: s.mediaUrl,
       mediaType: s.mediaType,
       caption: s.caption,
+      locationName: s.locationName || null,
+      locationLat: s.locationLat ?? null,
+      locationLng: s.locationLng ?? null,
       viewCount: s.viewCount,
       createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt
     }));
@@ -15758,7 +15839,7 @@ app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => 
 // 13. CREATE A NEW STORY — PERSISTIDO NO BANCO
 app.post("/api/social/stories", authenticateToken, async (req: any, res: any) => {
   try {
-    const { mediaUrl, mediaType, caption, expiresAt } = req.body;
+    const { mediaUrl, mediaType, caption, expiresAt, locationName, locationLat, locationLng } = req.body;
     const userId = req.user.id;
     if (!mediaType) return res.status(400).json({ error: "O tipo de conteudo do story e obrigatorio." });
     if (!mediaUrl) return res.status(400).json({ error: "A midia do story e obrigatoria." });
@@ -15771,6 +15852,9 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
         mediaUrl,
         mediaType: mediaType || "image",
         caption: caption || null,
+        locationName: locationName || null,
+        locationLat: (locationLat !== undefined && locationLat !== null && locationLat !== '') ? Number(locationLat) : null,
+        locationLng: (locationLng !== undefined && locationLng !== null && locationLng !== '') ? Number(locationLng) : null,
         expiresAt: storyExpiry
       },
       include: { author: { select: { id: true, name: true, avatar: true, belt: true } } }
@@ -15784,6 +15868,9 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
       mediaUrl: created.mediaUrl,
       mediaType: created.mediaType,
       caption: created.caption,
+      locationName: created.locationName || null,
+      locationLat: created.locationLat ?? null,
+      locationLng: created.locationLng ?? null,
       createdAt: created.createdAt instanceof Date ? created.createdAt.toISOString() : created.createdAt
     };
     // Notificar seguidores via Socket.IO

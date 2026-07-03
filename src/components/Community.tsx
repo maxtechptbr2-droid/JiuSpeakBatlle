@@ -5,6 +5,7 @@ import FeedInstagram from './FeedInstagram';
 import UserProfilePage from './UserProfilePage';
 import { authFetch as authFetchBase } from '../utils/authFetch';
 import CommunityInviteModal from './CommunityInviteModal';
+import LocationPicker, { LocationValue } from './LocationPicker';
 
 // Delega ao authFetch oficial (auto-refresh de JWT em 401). Injeta Content-Type JSON;
 // para uploads (FormData) usa-se authFetchBase diretamente, sem Content-Type.
@@ -50,6 +51,7 @@ export default function Community({ user, showToast }: CommunityProps) {
   const [search, setSearch] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostImage, setNewPostImage] = useState('');
+  const [newPostLocation, setNewPostLocation] = useState<LocationValue | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState('');
   const [newTopicContent, setNewTopicContent] = useState('');
   const [newReply, setNewReply] = useState('');
@@ -215,8 +217,8 @@ export default function Community({ user, showToast }: CommunityProps) {
   const handleCreatePost = async () => {
     if (!newPostContent.trim() || !selected) return;
     setSaving(true);
-    const res = await authFetch(`/api/communities/${selected.id}/posts`, { method: 'POST', body: JSON.stringify({ content: newPostContent, imageUrl: newPostImage || null, category: 'Geral' }) });
-    if (res.ok) { showToast('Post publicado!', 'success'); setNewPostContent(''); setNewPostImage(''); setShowCreatePost(false); fetchPosts(selected.id); }
+    const res = await authFetch(`/api/communities/${selected.id}/posts`, { method: 'POST', body: JSON.stringify({ content: newPostContent, imageUrl: newPostImage || null, category: 'Geral', locationName: newPostLocation?.name || null, locationLat: newPostLocation?.lat ?? null, locationLng: newPostLocation?.lng ?? null }) });
+    if (res.ok) { showToast('Post publicado!', 'success'); setNewPostContent(''); setNewPostImage(''); setNewPostLocation(null); setShowCreatePost(false); fetchPosts(selected.id); }
     else { const d = await res.json(); showToast(d.error || 'Erro ao publicar', 'error'); }
     setSaving(false);
   };
@@ -482,6 +484,7 @@ export default function Community({ user, showToast }: CommunityProps) {
                 </button>
               )}
               <input ref={postImageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadPostImage(f); e.target.value = ''; }} />
+              <div style={{ marginBottom: 8 }}><LocationPicker value={newPostLocation} onChange={setNewPostLocation} /></div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowCreatePost(false)} style={btnGhost}>Cancelar</button>
                 <button onClick={handleCreatePost} disabled={saving} style={btnGold}>{saving ? 'Publicando...' : 'Publicar'}</button>
@@ -501,7 +504,12 @@ export default function Community({ user, showToast }: CommunityProps) {
                   <BeltTag belt={post.authorBelt} />
                   {post.authorVerified && <CheckCircle size={11} style={{ color: C.gold }} />}
                 </div>
-                <span style={{ fontSize: 10, color: C.faint }}>{timeAgo(post.createdAt)}</span>
+                {post.locationName && (
+                  <a href={post.locationLat != null ? `https://www.google.com/maps?q=${post.locationLat},${post.locationLng}` : undefined} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, color: C.muted, textDecoration: 'none' }}>
+                    <MapPin size={10} style={{ color: C.gold }} /> {String(post.locationName).split(',').slice(0, 2).join(',')}
+                  </a>
+                )}
+                <span style={{ fontSize: 10, color: C.faint, display: 'block' }}>{timeAgo(post.createdAt)}</span>
               </div>
             </div>
             {(post.authorId === user.id || canModerate) && (
@@ -981,7 +989,7 @@ export default function Community({ user, showToast }: CommunityProps) {
               <div style={{ padding: isDesktop ? '0 4px' : '0 16px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: -28, marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-                    <div style={{ border: '3px solid #0d0f1a', borderRadius: '50%' }}><Avatar src={selected.avatar} name={selected.name} size={64} /></div>
+                    <div style={{ position: 'relative', zIndex: 10, border: '4px solid #080a12', borderRadius: '50%', lineHeight: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}><Avatar src={selected.avatar} name={selected.name} size={64} /></div>
                     <div style={{ paddingBottom: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <p style={{ fontSize: 17, color: C.text, fontWeight: 600, margin: 0 }}>{selected.name}</p>

@@ -54,6 +54,7 @@ model User {
   youtube           String?   @default("")
   facebook          String?   @default("")
   website           String?   @default("")
+  links             Json?     @default("[]")
   birthDate         DateTime?
   phone             String?
   englishLevel      String?
@@ -701,6 +702,9 @@ model SocialPost {
   imageUrl     String?
   videoUrl     String?
   privacy      String?  @default("public") // "public" | "friends" | "private"
+  locationName String?
+  locationLat  Float?
+  locationLng  Float?
   upvotesCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1860,6 +1864,9 @@ model Story {
   mediaUrl  String
   mediaType String   @default("image")
   caption   String?
+  locationName String?
+  locationLat  Float?
+  locationLng  Float?
   expiresAt DateTime
   viewCount Int      @default(0)
   createdAt DateTime @default(now())
