@@ -6,6 +6,8 @@ import LocationPicker, { LocationValue } from './LocationPicker';
 import { STORY_FILTERS, filterCss } from './storyFilters';
 import { MentionSearchModal, MentionEditor, MentionViewer, Mention } from './StoryMentions';
 import { StoryMusicPicker, StoryAudioPlayer, MusicChip, SelectedMusic } from './StoryMusicPicker';
+import { StickerPicker, StickerEditor, StickerViewer, Sticker, makeSticker } from './StoryStickers';
+import StoryDrawing from './StoryDrawing';
 
 const getToken = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
 const authFetch = (url: string, opts: RequestInit = {}) =>
@@ -57,6 +59,10 @@ export default function FeedInstagram({ user, showToast }: Props) {
   const [storyMusic, setStoryMusic] = useState<SelectedMusic | null>(null);
   const [storyMusicStart, setStoryMusicStart] = useState(0);
   const [showMusicPicker, setShowMusicPicker] = useState(false);
+  const [storyStickers, setStoryStickers] = useState<Sticker[]>([]);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [storyDrawing, setStoryDrawing] = useState<string | null>(null);
+  const [showDrawing, setShowDrawing] = useState(false);
   const [confirmDeleteStory, setConfirmDeleteStory] = useState(false);
   const [diary, setDiary] = useState({ positions: '', fatigue: 3, duration: 60, notes: '' });
   const [saving, setSaving] = useState(false);
@@ -228,7 +234,8 @@ export default function FeedInstagram({ user, showToast }: Props) {
         locationName: storyLocation?.name || null, locationLat: storyLocation?.lat ?? null, locationLng: storyLocation?.lng ?? null,
         filter: storyFilter,
         mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y })),
-        musicId: storyMusic?.id || null, musicStartAt: storyMusicStart })
+        musicId: storyMusic?.id || null, musicStartAt: storyMusicStart,
+        stickers: storyStickers, drawingUrl: storyDrawing })
     });
     if (res.ok) {
       showToast('Story publicado!', 'success');
@@ -236,6 +243,7 @@ export default function FeedInstagram({ user, showToast }: Props) {
       setStoryFilter('normal');
       setStoryMentions([]);
       setStoryMusic(null); setStoryMusicStart(0);
+      setStoryStickers([]); setStoryDrawing(null);
       resetStoryCreator();
       fetchAll();
     } else showToast('Erro ao publicar story', 'error');
@@ -516,8 +524,8 @@ export default function FeedInstagram({ user, showToast }: Props) {
                   style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
                   <span style={{ fontSize: 21, fontWeight: 700, color: storyTextColor, textShadow: '0 1px 3px #000', fontFamily: 'Georgia, serif' }}>Aa</span>
                 </button>
-                <button onClick={() => setShowStoryEmoji(v => !v)} title="Figurinhas" style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
-                  <Smile size={26} color={showStoryEmoji ? '#c9a84c' : '#fff'} />
+                <button onClick={() => setShowStickerPicker(true)} title="Adesivos" style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
+                  <Smile size={26} color={storyStickers.length ? '#c9a84c' : '#fff'} />
                 </button>
                 <button
                   onClick={() => setShowMentionSearch(true)}
@@ -527,6 +535,9 @@ export default function FeedInstagram({ user, showToast }: Props) {
                 </button>
                 <button onClick={() => setShowMusicPicker(true)} title="Música" style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center', fontSize: 22 }}>
                   <span style={{ color: storyMusic ? '#c9a84c' : '#fff' }}>🎵</span>
+                </button>
+                <button onClick={() => setShowDrawing(true)} title="Desenhar" style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center', fontSize: 22 }}>
+                  <span style={{ color: storyDrawing ? '#c9a84c' : '#fff' }}>✏️</span>
                 </button>
               </div>
             )}
@@ -554,6 +565,8 @@ export default function FeedInstagram({ user, showToast }: Props) {
                   ? <img src={storyPreview!} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: filterCss(storyFilter) }} />
                   : <video src={storyPreview!} autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', filter: filterCss(storyFilter) }} />}
 
+                {storyDrawing && <img src={storyDrawing} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', zIndex: 14 }} />}
+                <StickerEditor stickers={storyStickers} setStickers={setStoryStickers} />
                 <MentionEditor mentions={storyMentions} setMentions={setStoryMentions} />
 
                 {/* legenda sobreposta (preview ao vivo) */}
@@ -627,6 +640,14 @@ export default function FeedInstagram({ user, showToast }: Props) {
               onClose={() => setShowMusicPicker(false)}
               onSelect={(m, startAt) => { setStoryMusic(m); setStoryMusicStart(startAt); setShowMusicPicker(false); }}
             />
+          )}
+
+          {showStickerPicker && (
+            <StickerPicker onClose={() => setShowStickerPicker(false)} onSelect={(c) => setStoryStickers(prev => [...prev, makeSticker(c, prev.length)])} />
+          )}
+
+          {showDrawing && (
+            <StoryDrawing onClose={() => setShowDrawing(false)} onDone={(d) => { setStoryDrawing(d); setShowDrawing(false); }} />
           )}
         </div>
       )}
@@ -758,6 +779,8 @@ export default function FeedInstagram({ user, showToast }: Props) {
             </div>
             {storyView.mediaType === 'video' ? <video src={storyView.mediaUrl} autoPlay controls style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain', filter: filterCss(storyView.filter) }} />
               : <img src={storyView.mediaUrl} style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain', filter: filterCss(storyView.filter) }} />}
+            {storyView.drawingUrl && <img src={storyView.drawingUrl} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', zIndex: 5 }} />}
+            <StickerViewer stickers={storyView.stickers || []} />
             <MentionViewer mentions={storyView.mentions || []} onOpenProfile={(uid) => { setStoryView(null); openProfile(uid); }} />
             {storyView.music && <StoryAudioPlayer musicId={storyView.music.id} startAt={storyView.musicStartAt || 0} />}
             {storyView.music && <div style={{ position: 'absolute', bottom: 20, left: 16, right: 16, display: 'flex', justifyContent: 'center', zIndex: 6 }}><MusicChip title={storyView.music.title} artist={storyView.music.artist} /></div>}

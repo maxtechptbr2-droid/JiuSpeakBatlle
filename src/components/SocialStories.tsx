@@ -26,6 +26,8 @@ import { UserProfile, BeltRank } from '../types';
 import { STORY_FILTERS, filterCss } from './storyFilters';
 import { MentionSearchModal, MentionEditor, MentionViewer, Mention } from './StoryMentions';
 import { StoryMusicPicker, StoryAudioPlayer, MusicChip, SelectedMusic } from './StoryMusicPicker';
+import { StickerPicker, StickerEditor, StickerViewer, Sticker, makeSticker } from './StoryStickers';
+import StoryDrawing from './StoryDrawing';
 
 interface SocialStoriesProps {
   user: UserProfile;
@@ -72,6 +74,10 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
   const [storyMusic, setStoryMusic] = useState<SelectedMusic | null>(null);
   const [storyMusicStart, setStoryMusicStart] = useState(0);
   const [showMusicPicker, setShowMusicPicker] = useState(false);
+  const [storyStickers, setStoryStickers] = useState<Sticker[]>([]);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [storyDrawing, setStoryDrawing] = useState<string | null>(null);
+  const [showDrawing, setShowDrawing] = useState(false);
   const [storyPreview, setStoryPreview] = useState<string | null>(null);
   const [storyCaption, setStoryCaption] = useState<string>('');
   const [uploading, setUploading] = useState<boolean>(false);
@@ -211,6 +217,10 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
     setStoryMusic(null);
     setStoryMusicStart(0);
     setShowMusicPicker(false);
+    setStoryStickers([]);
+    setShowStickerPicker(false);
+    setStoryDrawing(null);
+    setShowDrawing(false);
   };
 
   const handleCreateStory = async () => {
@@ -227,7 +237,9 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
           filter: storyFilter,
           mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y })),
           musicId: storyMusic?.id || null,
-          musicStartAt: storyMusicStart
+          musicStartAt: storyMusicStart,
+          stickers: storyStickers,
+          drawingUrl: storyDrawing
         };
       } else {
         // Card de conquista (opção extra) — persistimos imagem temática + legenda-resumo
@@ -521,6 +533,8 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                       style={{ filter: filterCss((currentActiveStory as any).filter) }}
                     />
                   )}
+                  {(currentActiveStory as any).drawingUrl && <img src={(currentActiveStory as any).drawingUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none rounded-xl" style={{ zIndex: 5 }} />}
+                  <StickerViewer stickers={((currentActiveStory as any).stickers) || []} />
                   <MentionViewer
                     mentions={((currentActiveStory as any).mentions) || []}
                     onOpenProfile={(_uid, username) => { if (username) window.location.href = '/u/' + username; }}
@@ -588,9 +602,10 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                 <button onClick={() => { setStoryTextColor(c => STORY_TEXT_COLORS[(STORY_TEXT_COLORS.indexOf(c) + 1) % STORY_TEXT_COLORS.length]); captionRef.current?.focus(); }} title="Texto" className="cursor-pointer">
                   <span className="text-xl font-bold" style={{ color: storyTextColor, textShadow: '0 1px 3px #000', fontFamily: 'Georgia, serif' }}>Aa</span>
                 </button>
-                <button onClick={() => setShowStoryEmoji(v => !v)} title="Figurinhas" className="cursor-pointer"><Smile className="w-6 h-6" style={{ color: showStoryEmoji ? '#c9a84c' : '#fff' }} /></button>
+                <button onClick={() => setShowStickerPicker(true)} title="Adesivos" className="cursor-pointer"><Smile className="w-6 h-6" style={{ color: storyStickers.length ? '#c9a84c' : '#fff' }} /></button>
                 <button onClick={() => setShowMentionSearch(true)} title="Mencionar" className="cursor-pointer"><AtSign className="w-6 h-6" style={{ color: storyMentions.length ? '#c9a84c' : '#fff' }} /></button>
                 <button onClick={() => setShowMusicPicker(true)} title="Música" className="cursor-pointer text-xl leading-none" style={{ color: storyMusic ? '#c9a84c' : '#fff' }}>🎵</button>
+                <button onClick={() => setShowDrawing(true)} title="Desenhar" className="cursor-pointer text-xl leading-none" style={{ color: storyDrawing ? '#c9a84c' : '#fff' }}>✏️</button>
               </div>
             ) : (
               <span className="w-16 shrink-0" />
@@ -638,6 +653,8 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                   ? <img src={storyPreview!} alt="Preview" className="w-full h-full object-contain" style={{ filter: filterCss(storyFilter) }} />
                   : <video src={storyPreview!} autoPlay loop playsInline className="w-full h-full object-contain bg-black" style={{ filter: filterCss(storyFilter) }} />}
 
+                {storyDrawing && <img src={storyDrawing} className="absolute inset-0 w-full h-full object-contain pointer-events-none" style={{ zIndex: 14 }} />}
+                <StickerEditor stickers={storyStickers} setStickers={setStoryStickers} />
                 <MentionEditor mentions={storyMentions} setMentions={setStoryMentions} />
 
                 {/* Faixa de filtros */}
@@ -710,6 +727,14 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
               onClose={() => setShowMusicPicker(false)}
               onSelect={(m, startAt) => { setStoryMusic(m); setStoryMusicStart(startAt); setShowMusicPicker(false); }}
             />
+          )}
+
+          {showStickerPicker && (
+            <StickerPicker onClose={() => setShowStickerPicker(false)} onSelect={(c) => setStoryStickers(prev => [...prev, makeSticker(c, prev.length)])} />
+          )}
+
+          {showDrawing && (
+            <StoryDrawing onClose={() => setShowDrawing(false)} onDone={(d) => { setStoryDrawing(d); setShowDrawing(false); }} />
           )}
         </div>
       )}

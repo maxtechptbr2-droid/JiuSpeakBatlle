@@ -15878,6 +15878,21 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
       const mus = await prisma.storyMusic.findFirst({ where: { id: String(musicId), isActive: true }, select: { id: true } });
       validMusicId = mus?.id || null;
     }
+    // Desenho: se vier como dataURL (canvas.toDataURL), persistir como arquivo PNG
+    let savedDrawingUrl: string | null = drawingUrl || null;
+    if (typeof drawingUrl === 'string' && drawingUrl.startsWith('data:image/')) {
+      try {
+        const m = drawingUrl.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/);
+        if (m) {
+          const fs = require('fs'); const pathLib = require('path');
+          const dir = pathLib.join(process.cwd(), 'public', 'uploads', 'photos');
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          const fn = `drawing_${require('crypto').randomUUID()}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`;
+          fs.writeFileSync(pathLib.join(dir, fn), Buffer.from(m[2], 'base64'));
+          savedDrawingUrl = `/uploads/photos/${fn}`;
+        }
+      } catch (e) { console.warn('[STORY] falha ao salvar desenho:', (e as any)?.message); savedDrawingUrl = null; }
+    }
     const created = await prisma.story.create({
       data: {
         authorId: userId,
@@ -15890,7 +15905,7 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
         mentions: cleanMentions as any,
         stickers: cleanStickers as any,
         filter: typeof filter === 'string' ? filter.slice(0, 30) : 'normal',
-        drawingUrl: drawingUrl || null,
+        drawingUrl: savedDrawingUrl,
         musicId: validMusicId,
         musicStartAt: (musicStartAt !== undefined && musicStartAt !== null) ? Math.max(0, parseInt(musicStartAt) || 0) : 0,
         expiresAt: storyExpiry
