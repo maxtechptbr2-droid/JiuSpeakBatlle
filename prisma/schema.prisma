@@ -1867,14 +1867,39 @@ model Story {
   locationName String?
   locationLat  Float?
   locationLng  Float?
+  mentions     Json?    @default("[]")
+  stickers     Json?    @default("[]")
+  filter       String?  @default("normal")
+  drawingUrl   String?
+  musicId      String?
+  musicStartAt Int?     @default(0)
   expiresAt DateTime
   viewCount Int      @default(0)
   createdAt DateTime @default(now())
 
-  author User @relation("UserStories", fields: [authorId], references: [id], onDelete: Cascade)
+  author User        @relation("UserStories", fields: [authorId], references: [id], onDelete: Cascade)
+  music  StoryMusic? @relation(fields: [musicId], references: [id], onDelete: SetNull)
 
   @@index([authorId])
   @@index([expiresAt])
+  @@index([createdAt])
+}
+
+model StoryMusic {
+  id        String   @id @default(uuid())
+  title     String
+  artist    String
+  genre     String
+  duration  Int
+  fileUrl   String
+  coverUrl  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  stories Story[]
+
+  @@index([genre])
+  @@index([isActive])
 }
 
 // ============================================================

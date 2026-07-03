@@ -3,6 +3,8 @@ import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Plus, X, Globe, U
 import { UserProfile } from '../types';
 import UserProfilePage from './UserProfilePage';
 import LocationPicker, { LocationValue } from './LocationPicker';
+import { STORY_FILTERS, filterCss } from './storyFilters';
+import { MentionSearchModal, MentionEditor, MentionViewer, Mention } from './StoryMentions';
 
 const getToken = () => localStorage.getItem('jiuspeak_access_token') || localStorage.getItem('token');
 const authFetch = (url: string, opts: RequestInit = {}) =>
@@ -48,6 +50,10 @@ export default function FeedInstagram({ user, showToast }: Props) {
   const [newPost, setNewPost] = useState({ content: '', imageUrl: '', videoUrl: '', privacy: 'public', category: 'Treinos' });
   const [postLocation, setPostLocation] = useState<LocationValue | null>(null);
   const [storyLocation, setStoryLocation] = useState<LocationValue | null>(null);
+  const [storyFilter, setStoryFilter] = useState('normal');
+  const [storyMentions, setStoryMentions] = useState<Mention[]>([]);
+  const [showMentionSearch, setShowMentionSearch] = useState(false);
+  const [confirmDeleteStory, setConfirmDeleteStory] = useState(false);
   const [diary, setDiary] = useState({ positions: '', fatigue: 3, duration: 60, notes: '' });
   const [saving, setSaving] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
@@ -201,6 +207,13 @@ export default function FeedInstagram({ user, showToast }: Props) {
     setStoryTextColor('#ffffff');
   };
 
+  const handleDeleteStory = async () => {
+    if (!storyView) return;
+    const res = await authFetch(`/api/social/stories/${storyView.id}`, { method: 'DELETE' });
+    if (res.ok || res.status === 204) { showToast('Story excluído.', 'success'); setConfirmDeleteStory(false); setStoryView(null); fetchAll(); }
+    else showToast('Erro ao excluir story', 'error');
+  };
+
   const handleCreateStory = async () => {
     if (!storyMedia) { showToast('Selecione uma mídia', 'error'); return; }
     setSaving(true);
@@ -208,11 +221,15 @@ export default function FeedInstagram({ user, showToast }: Props) {
     const res = await authFetch('/api/social/stories', {
       method: 'POST',
       body: JSON.stringify({ mediaUrl: storyMedia, mediaType: storyMediaType, caption: storyCaption.trim() || null, expiresAt,
-        locationName: storyLocation?.name || null, locationLat: storyLocation?.lat ?? null, locationLng: storyLocation?.lng ?? null })
+        locationName: storyLocation?.name || null, locationLat: storyLocation?.lat ?? null, locationLng: storyLocation?.lng ?? null,
+        filter: storyFilter,
+        mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y })) })
     });
     if (res.ok) {
       showToast('Story publicado!', 'success');
       setStoryLocation(null);
+      setStoryFilter('normal');
+      setStoryMentions([]);
       resetStoryCreator();
       fetchAll();
     } else showToast('Erro ao publicar story', 'error');
@@ -497,10 +514,10 @@ export default function FeedInstagram({ user, showToast }: Props) {
                   <Smile size={26} color={showStoryEmoji ? '#c9a84c' : '#fff'} />
                 </button>
                 <button
-                  onClick={() => { setStoryCaption(c => (c + ' @').trimStart()); captionRef.current?.focus(); }}
+                  onClick={() => setShowMentionSearch(true)}
                   title="Mencionar"
                   style={{ ...S.btn, width: 30, height: 30, justifyContent: 'center' }}>
-                  <AtSign size={25} color="#fff" />
+                  <AtSign size={25} color={storyMentions.length ? '#c9a84c' : '#fff'} />
                 </button>
               </div>
             )}
@@ -525,8 +542,10 @@ export default function FeedInstagram({ user, showToast }: Props) {
             ) : (
               <>
                 {storyMediaType === 'image'
-                  ? <img src={storyPreview!} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  : <video src={storyPreview!} autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />}
+                  ? <img src={storyPreview!} style={{ width: '100%', height: '100%', objectFit: 'contain', filter: filterCss(storyFilter) }} />
+                  : <video src={storyPreview!} autoPlay loop playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', filter: filterCss(storyFilter) }} />}
+
+                <MentionEditor mentions={storyMentions} setMentions={setStoryMentions} />
 
                 {/* legenda sobreposta (preview ao vivo) */}
                 {storyCaption.trim() && (
@@ -550,6 +569,22 @@ export default function FeedInstagram({ user, showToast }: Props) {
             )}
           </div>
 
+          {/* FAIXA DE FILTROS (acima do rodapé) */}
+          {storyMedia && storyPreview && (
+            <div style={{ position: 'absolute', bottom: 120, left: 0, right: 0, zIndex: 21, display: 'flex', gap: 8, overflowX: 'auto', padding: '0 12px' }}>
+              {STORY_FILTERS.map(f => (
+                <div key={f.id} onClick={() => setStoryFilter(f.id)} style={{ flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}>
+                  <div style={{ width: 54, height: 54, borderRadius: 8, overflow: 'hidden', border: `2px solid ${storyFilter === f.id ? '#c9a84c' : 'transparent'}` }}>
+                    {storyMediaType === 'image'
+                      ? <img src={storyPreview} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: f.css }} />
+                      : <video src={storyPreview} muted style={{ width: '100%', height: '100%', objectFit: 'cover', filter: f.css }} />}
+                  </div>
+                  <span style={{ fontSize: 9, color: storyFilter === f.id ? '#c9a84c' : '#c0c5e0', display: 'block', marginTop: 2 }}>{f.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* RODAPÉ: legenda + publicar */}
           {storyMedia && (
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 10, padding: 16, background: 'linear-gradient(to top, #000000cc, transparent)' }}>
@@ -563,6 +598,18 @@ export default function FeedInstagram({ user, showToast }: Props) {
               </button>
               </div>
             </div>
+          )}
+
+          {showMentionSearch && (
+            <MentionSearchModal
+              existing={storyMentions.map(m => m.userId)}
+              onClose={() => setShowMentionSearch(false)}
+              onSelect={(u) => {
+                if (storyMentions.length >= 10) { showToast('Máximo de 10 menções por story.', 'error'); return; }
+                setStoryMentions([...storyMentions, { userId: u.id, username: u.username || u.displayName, x: 0.5, y: Math.min(0.85, 0.4 + storyMentions.length * 0.07), displayName: u.displayName, avatar: u.avatar }]);
+                setShowMentionSearch(false);
+              }}
+            />
           )}
         </div>
       )}
@@ -663,6 +710,22 @@ export default function FeedInstagram({ user, showToast }: Props) {
       {storyView && (
         <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <button onClick={() => setStoryView(null)} style={{ ...S.btn, position: 'absolute', top: 16, right: 16, zIndex: 10 }}><X size={28} color="#fff" /></button>
+          {storyView.userId === user.id && (
+            <button onClick={() => setConfirmDeleteStory(true)} title="Excluir story" style={{ ...S.btn, position: 'absolute', top: 18, right: 56, zIndex: 10 }}><Trash2 size={22} color="#fff" /></button>
+          )}
+          {confirmDeleteStory && (
+            <div onClick={() => setConfirmDeleteStory(false)} style={{ position: 'absolute', inset: 0, background: '#000a', zIndex: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: '#1a1d2e', border: '0.5px solid #2a2d45', borderRadius: 14, padding: 20, width: 300, textAlign: 'center' }}>
+                <Trash2 size={26} color="#e74c3c" style={{ margin: '0 auto 10px', display: 'block' }} />
+                <p style={{ fontSize: 15, color: '#c0c5e0', fontWeight: 600, margin: '0 0 4px' }}>Excluir este story?</p>
+                <p style={{ fontSize: 12, color: '#7b83b0', margin: '0 0 16px' }}>Essa ação não pode ser desfeita.</p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setConfirmDeleteStory(false)} style={{ flex: 1, background: 'none', border: '0.5px solid #2a2d45', borderRadius: 8, padding: '9px 0', color: '#c0c5e0', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={handleDeleteStory} style={{ flex: 1, background: '#e74c3c', border: 'none', borderRadius: 8, padding: '9px 0', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Excluir</button>
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
             <div style={{ position: 'absolute', top: 16, left: 16, right: 48, display: 'flex', alignItems: 'center', gap: 10, zIndex: 5 }}>
               <div style={S.avatar(34)}>{storyView.authorAvatar ? <img src={storyView.authorAvatar} style={{ width: 34, height: 34, objectFit: 'cover' }} /> : storyView.authorName?.[0]}</div>
@@ -676,8 +739,9 @@ export default function FeedInstagram({ user, showToast }: Props) {
               </div>
               <span style={{ fontSize: 11, color: '#ffffff88', marginLeft: 'auto' }}>{timeAgo(storyView.createdAt)}</span>
             </div>
-            {storyView.mediaType === 'video' ? <video src={storyView.mediaUrl} autoPlay controls style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain' }} />
-              : <img src={storyView.mediaUrl} style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain' }} />}
+            {storyView.mediaType === 'video' ? <video src={storyView.mediaUrl} autoPlay controls style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain', filter: filterCss(storyView.filter) }} />
+              : <img src={storyView.mediaUrl} style={{ width: '100%', maxHeight: '85vh', objectFit: 'contain', filter: filterCss(storyView.filter) }} />}
+            <MentionViewer mentions={storyView.mentions || []} onOpenProfile={(uid) => { setStoryView(null); openProfile(uid); }} />
             {storyView.caption && <p style={{ position: 'absolute', bottom: 20, left: 16, right: 16, color: '#fff', fontSize: 14, textAlign: 'center', textShadow: '0 1px 4px #000' }}>{storyView.caption}</p>}
           </div>
         </div>

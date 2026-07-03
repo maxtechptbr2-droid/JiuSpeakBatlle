@@ -10368,11 +10368,12 @@ app.post("/api/payments/mercadopago/create-jt-payment", authenticateToken, async
     const userId = req.user.id;
 
     const JT_PACKAGES: any = {
-      "500jt": { jtAmount: 500, priceBRL: 5.00, name: "Pacote 500 JT" },
-      "1200jt": { jtAmount: 1200, priceBRL: 10.00, name: "Pacote 1.200 JT" },
+      "500jt": { jtAmount: 500, priceBRL: 7.00, name: "Pacote Faixa Branca" },
+      "1200jt": { jtAmount: 1200, priceBRL: 22.00, name: "Pacote Faixa Azul" },
       "2500jt": { jtAmount: 2500, priceBRL: 20.00, name: "Pacote 2.500 JT" },
-      "5000jt": { jtAmount: 5000, priceBRL: 35.00, name: "Pacote 5.000 JT" },
-      "12000jt": { jtAmount: 12000, priceBRL: 75.00, name: "Pacote 12.000 JT" },
+      "5000jt": { jtAmount: 5000, priceBRL: 31.00, name: "Pacote Faixa Roxa" },
+      "6500jt": { jtAmount: 6500, priceBRL: 40.00, name: "Pacote Faixa Marrom" },
+      "12000jt": { jtAmount: 12000, priceBRL: 85.00, name: "Pacote Faixa Preta" },
       "1k": { jtAmount: 1000, priceBRL: 10.00, name: "Pacote 1.000 JT" },
       "5k": { jtAmount: 5000, priceBRL: 45.00, name: "Pacote 5.000 JT" },
       "10k": { jtAmount: 10000, priceBRL: 80.00, name: "Pacote 10.000 JT" }
@@ -15809,11 +15810,26 @@ app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => 
   try {
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const stories = await prisma.story.findMany({
-      where: { expiresAt: { gt: new Date() } },
+      // Só stories dentro da janela de 24h (dupla proteção: expiresAt E createdAt)
+      where: { expiresAt: { gt: new Date() }, createdAt: { gte: cutoff24h } },
       orderBy: { createdAt: "desc" },
-      include: { author: { select: { id: true, name: true, avatar: true, belt: true } } }
+      include: {
+        author: { select: { id: true, name: true, avatar: true, belt: true } },
+        music: { select: { id: true, title: true, artist: true, fileUrl: true, coverUrl: true, duration: true } }
+      }
     });
+
+    // Enriquecer menções com displayName/avatar
+    const mentionIds = new Set<string>();
+    stories.forEach((s: any) => { (Array.isArray(s.mentions) ? s.mentions : []).forEach((m: any) => { if (m?.userId) mentionIds.add(m.userId); }); });
+    let userMap: Record<string, any> = {};
+    if (mentionIds.size > 0) {
+      const us = await prisma.user.findMany({ where: { id: { in: Array.from(mentionIds) } }, select: { id: true, name: true, username: true, avatar: true } });
+      us.forEach((u: any) => { userMap[u.id] = u; });
+    }
+
     const formatted = stories.map((s: any) => ({
       id: s.id,
       userId: s.authorId,
@@ -15826,6 +15842,12 @@ app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => 
       locationName: s.locationName || null,
       locationLat: s.locationLat ?? null,
       locationLng: s.locationLng ?? null,
+      mentions: (Array.isArray(s.mentions) ? s.mentions : []).map((m: any) => ({ ...m, displayName: userMap[m.userId]?.name || m.username, username: userMap[m.userId]?.username || m.username, avatar: userMap[m.userId]?.avatar || null })),
+      stickers: Array.isArray(s.stickers) ? s.stickers : [],
+      filter: s.filter || 'normal',
+      drawingUrl: s.drawingUrl || null,
+      musicStartAt: s.musicStartAt ?? 0,
+      music: s.music ? { id: s.music.id, title: s.music.title, artist: s.music.artist, fileUrl: s.music.fileUrl, coverUrl: s.music.coverUrl, duration: s.music.duration } : null,
       viewCount: s.viewCount,
       createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt
     }));
@@ -15839,13 +15861,23 @@ app.get("/api/social/stories", authenticateToken, async (req: any, res: any) => 
 // 13. CREATE A NEW STORY — PERSISTIDO NO BANCO
 app.post("/api/social/stories", authenticateToken, async (req: any, res: any) => {
   try {
-    const { mediaUrl, mediaType, caption, expiresAt, locationName, locationLat, locationLng } = req.body;
+    const { mediaUrl, mediaType, caption, expiresAt, locationName, locationLat, locationLng, mentions, stickers, filter, drawingUrl, musicId, musicStartAt } = req.body;
     const userId = req.user.id;
     if (!mediaType) return res.status(400).json({ error: "O tipo de conteudo do story e obrigatorio." });
     if (!mediaUrl) return res.status(400).json({ error: "A midia do story e obrigatoria." });
     const prisma = getPrisma();
     if (!prisma) return res.status(500).json({ error: "DB offline" });
     const storyExpiry = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Normaliza menções (máx 10) e stickers
+    const cleanMentions = (Array.isArray(mentions) ? mentions : []).slice(0, 10)
+      .filter((m: any) => m && m.userId)
+      .map((m: any) => ({ userId: String(m.userId), username: String(m.username || ''), x: Number(m.x) || 0, y: Number(m.y) || 0 }));
+    const cleanStickers = (Array.isArray(stickers) ? stickers : []).slice(0, 30);
+    let validMusicId: string | null = null;
+    if (musicId) {
+      const mus = await prisma.storyMusic.findFirst({ where: { id: String(musicId), isActive: true }, select: { id: true } });
+      validMusicId = mus?.id || null;
+    }
     const created = await prisma.story.create({
       data: {
         authorId: userId,
@@ -15855,6 +15887,12 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
         locationName: locationName || null,
         locationLat: (locationLat !== undefined && locationLat !== null && locationLat !== '') ? Number(locationLat) : null,
         locationLng: (locationLng !== undefined && locationLng !== null && locationLng !== '') ? Number(locationLng) : null,
+        mentions: cleanMentions as any,
+        stickers: cleanStickers as any,
+        filter: typeof filter === 'string' ? filter.slice(0, 30) : 'normal',
+        drawingUrl: drawingUrl || null,
+        musicId: validMusicId,
+        musicStartAt: (musicStartAt !== undefined && musicStartAt !== null) ? Math.max(0, parseInt(musicStartAt) || 0) : 0,
         expiresAt: storyExpiry
       },
       include: { author: { select: { id: true, name: true, avatar: true, belt: true } } }
@@ -15901,6 +15939,91 @@ app.post("/api/social/stories", authenticateToken, async (req: any, res: any) =>
     console.error("POST /api/social/stories error:", error);
     res.status(500).json({ error: "Erro ao publicar story." });
   }
+});
+
+// DELETAR PRÓPRIO STORY (autor apenas) — remove do banco + arquivo de mídia
+app.delete("/api/social/stories/:id", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const story = await prisma.story.findUnique({ where: { id }, select: { authorId: true, mediaUrl: true, drawingUrl: true } });
+    if (!story) return res.status(404).json({ error: "Story não encontrado." });
+    if (story.authorId !== userId && req.user.role !== 'ADMIN') return res.status(403).json({ error: "Você só pode excluir seus próprios stories." });
+    await prisma.story.delete({ where: { id } });
+    // remove arquivos locais (best-effort)
+    try {
+      const fs = require('fs'); const pathLib = require('path');
+      for (const url of [story.mediaUrl, story.drawingUrl]) {
+        if (url && typeof url === 'string' && url.startsWith('/uploads/')) {
+          const fp = pathLib.join(process.cwd(), 'public', url);
+          if (fs.existsSync(fp)) fs.unlinkSync(fp);
+        }
+      }
+    } catch (e) { console.warn("[STORY DELETE] falha ao remover mídia:", (e as any)?.message); }
+    res.status(204).send();
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Biblioteca de músicas para stories (royalty-free)
+app.get("/api/stories/music", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const genre = req.query.genre ? String(req.query.genre) : null;
+    const where: any = { isActive: true };
+    if (genre && genre !== 'Todos') where.genre = genre;
+    const music = await prisma.storyMusic.findMany({ where, orderBy: { createdAt: "desc" } });
+    res.json({ success: true, music });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Preview/stream do áudio (com suporte a Range)
+app.get("/api/stories/music/:id/preview", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const m = await prisma.storyMusic.findUnique({ where: { id: req.params.id }, select: { fileUrl: true } });
+    if (!m || !m.fileUrl) return res.status(404).json({ error: "Música não encontrada." });
+    const fs = require('fs'); const pathLib = require('path');
+    const fp = m.fileUrl.startsWith('/uploads/') ? pathLib.join(process.cwd(), 'public', m.fileUrl) : m.fileUrl;
+    if (!fs.existsSync(fp)) return res.status(404).json({ error: "Arquivo de áudio indisponível." });
+    const stat = fs.statSync(fp);
+    const range = req.headers.range;
+    res.setHeader('Content-Type', 'audio/mpeg');
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', end - start + 1);
+      fs.createReadStream(fp, { start, end }).pipe(res);
+    } else {
+      res.setHeader('Content-Length', stat.size);
+      fs.createReadStream(fp).pipe(res);
+    }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Busca de usuários (menções em stories) — alias geral
+app.get("/api/users/search", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const q = String(req.query.q || '').trim();
+    if (q.length < 2) return res.json({ success: true, users: [] });
+    const like = `%${q}%`;
+    const users = await prisma.$queryRawUnsafe(`
+      SELECT id, username, name as "displayName", avatar
+      FROM "User"
+      WHERE id<>$1 AND "isBanned"=false AND (name ILIKE $2 OR username ILIKE $2)
+      ORDER BY name ASC LIMIT 15
+    `, req.user.id, like);
+    res.json({ success: true, users });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // 14. GET ADVANCED SOCIAL AND PERFORMANCE RANKINGS (Global, Belt, State/Category, Academy, PvP, XP, ELO, Wins, Studies, Social)
@@ -21191,7 +21314,23 @@ Sitemap: https://www.jiuspeak.com.br/sitemap.xml`);
     // Boot verificador de vencimento de comunidades (roda a cada hora)
     checkCommunityExpiration();
     setInterval(checkCommunityExpiration, 60 * 60 * 1000);
+
+    // Limpeza de stories expirados (>48h): 24h de exibição + 24h de margem
+    cleanupExpiredStories();
+    setInterval(cleanupExpiredStories, 60 * 60 * 1000);
   });
+}
+
+async function cleanupExpiredStories() {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const result = await prisma.story.deleteMany({ where: { createdAt: { lt: cutoff } } });
+    if (result.count > 0) console.log("[CRON] Stories expirados removidos:", result.count);
+  } catch (err: any) {
+    console.error("[CRON] Erro na limpeza de stories:", err?.message || err);
+  }
 }
 
 /**

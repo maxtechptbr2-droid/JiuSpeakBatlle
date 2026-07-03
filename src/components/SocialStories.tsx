@@ -3,22 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
-  Play, 
-  Pause, 
-  Sparkles, 
-  Trophy, 
-  Flame, 
-  Award, 
-  Zap, 
-  Dumbbell 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Plus,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
+  Sparkles,
+  Trophy,
+  Flame,
+  Award,
+  Zap,
+  Image as ImageIcon,
+  Smile,
+  AtSign,
+  Send,
+  Trash2
 } from 'lucide-react';
 import { UserProfile, BeltRank } from '../types';
+import { STORY_FILTERS, filterCss } from './storyFilters';
+import { MentionSearchModal, MentionEditor, MentionViewer, Mention } from './StoryMentions';
 
 interface SocialStoriesProps {
   user: UserProfile;
@@ -32,7 +38,8 @@ interface Story {
   userAvatar: string;
   userBelt: string;
   mediaUrl?: string;
-  mediaType: 'photo' | 'video' | 'achievement_card';
+  mediaType: 'photo' | 'image' | 'video' | 'achievement_card';
+  caption?: string | null;
   cardData?: {
     title: string;
     description: string;
@@ -45,16 +52,32 @@ interface Story {
 
 export function SocialStories({ user, showToast }: SocialStoriesProps) {
   const [stories, setStories] = useState<Story[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [slideIndex, setSlideIndex] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
-  const [mediaUrlInput, setMediaUrlInput] = useState<string>('');
   const [storyType, setStoryType] = useState<'photo' | 'achievement_card'>('photo');
-  
   const [achievementType, setAchievementType] = useState<string>('streak');
+
+  // Upload de mídia via /api/social/upload-media (estilo Instagram)
+  const [storyMediaUrl, setStoryMediaUrl] = useState<string>('');
+  const [storyMediaType, setStoryMediaType] = useState<'image' | 'video'>('image');
+  const [storyFilter, setStoryFilter] = useState('normal');
+  const [storyMentions, setStoryMentions] = useState<Mention[]>([]);
+  const [showMentionSearch, setShowMentionSearch] = useState(false);
+  const [storyPreview, setStoryPreview] = useState<string | null>(null);
+  const [storyCaption, setStoryCaption] = useState<string>('');
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [storyTextColor, setStoryTextColor] = useState<string>('#ffffff');
+  const [showStoryEmoji, setShowStoryEmoji] = useState<boolean>(false);
+  const [publishing, setPublishing] = useState<boolean>(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const captionRef = useRef<HTMLInputElement>(null);
+  const STORY_TEXT_COLORS = ['#ffffff', '#c9a84c', '#e74c3c', '#1a5aad', '#22c55e', '#111111'];
+  const STORY_EMOJIS = ['🥋','🔥','💪','🏆','😤','👊','🤙','⚔️','🙏','🎯','🥇','🐍','🦵','🫡','😅','💥'];
 
   // Load backend active stories
   const fetchStories = async () => {
@@ -74,6 +97,21 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
     } catch (err) {
       console.error("Failed to load stories:", err);
     }
+  };
+
+  const handleDeleteStory = async () => {
+    const cur = activeStoryIndex !== null ? stories[activeStoryIndex] : null;
+    if (!cur) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/social/stories/${cur.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok || res.status === 204) {
+        showToast?.('Story excluído.', 'success');
+        setConfirmDelete(false);
+        setActiveStoryIndex(null);
+        fetchStories();
+      } else showToast?.('Erro ao excluir story', 'error');
+    } catch { showToast?.('Erro ao excluir story', 'error'); }
   };
 
   useEffect(() => {
@@ -123,16 +161,67 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
     }
   };
 
-  const handleCreateStory = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Upload de foto/vídeo do dispositivo — usa o endpoint que já existe
+  const handleStoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
     try {
       const token = localStorage.getItem('token');
-      let payload: any = {
-        mediaType: storyType,
-        mediaUrl: mediaUrlInput || undefined
-      };
+      const formData = new FormData();
+      formData.append('media', file);
+      const res = await fetch('/api/social/upload-media', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const url = data.url || data.mediaUrl || data.imageUrl || data.videoUrl;
+        setStoryMediaUrl(url);
+        setStoryMediaType(file.type.startsWith('video/') ? 'video' : 'image');
+        setStoryPreview(URL.createObjectURL(file));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Erro ao enviar mídia.', 'error');
+      }
+    } catch (err) {
+      showToast('Erro de rede no upload.', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
 
-      if (storyType === 'achievement_card') {
+  const resetCreator = () => {
+    setShowCreateModal(false);
+    setStoryType('photo');
+    setStoryMediaUrl('');
+    setStoryPreview(null);
+    setStoryCaption('');
+    setShowStoryEmoji(false);
+    setStoryTextColor('#ffffff');
+    setPublishing(false);
+    setStoryFilter('normal');
+    setStoryMentions([]);
+    setShowMentionSearch(false);
+  };
+
+  const handleCreateStory = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      let payload: any;
+
+      if (storyType === 'photo') {
+        if (!storyMediaUrl) { showToast('Selecione uma foto ou vídeo da galeria.', 'error'); return; }
+        payload = {
+          mediaType: storyMediaType,
+          mediaUrl: storyMediaUrl,
+          caption: storyCaption.trim() || undefined,
+          filter: storyFilter,
+          mentions: storyMentions.map(m => ({ userId: m.userId, username: m.username, x: m.x, y: m.y }))
+        };
+      } else {
+        // Card de conquista (opção extra) — persistimos imagem temática + legenda-resumo
         let cardDataObj: {
           title: string;
           description: string;
@@ -143,7 +232,7 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
           title: "Sequência Extrema",
           description: "Praticando Jiu-Jitsu sem parar no Tatame Conectado!",
           metricLabel: "Duração",
-          metricValue: `${user.streak || 5} Dias Secutivos`,
+          metricValue: `${user.streak || 5} Dias Consecutivos`,
           bgTheme: 'gold'
         };
 
@@ -173,10 +262,15 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
           };
         }
 
-        payload.cardData = cardDataObj;
-        payload.mediaUrl = "https://images.unsplash.com/photo-1517438476312-10d79c07750d?auto=format&fit=crop&q=80&w=600";
+        payload = {
+          mediaType: 'achievement_card',
+          mediaUrl: "https://images.unsplash.com/photo-1517438476312-10d79c07750d?auto=format&fit=crop&q=80&w=600",
+          caption: `${cardDataObj.title} • ${cardDataObj.metricValue}`,
+          cardData: cardDataObj
+        };
       }
 
+      setPublishing(true);
       const res = await fetch('/api/social/stories', {
         method: 'POST',
         headers: {
@@ -189,14 +283,15 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
       if (res.ok) {
         const data = await res.json();
         showToast(data.message || "Story publicado no diário!", "success");
-        setShowCreateModal(false);
-        setMediaUrlInput('');
+        resetCreator();
         fetchStories();
       } else {
         showToast("Erro ao publicar story.", "error");
       }
     } catch (err) {
       showToast("Erro de rede.", "error");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -317,14 +412,23 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
               
               {/* Controls */}
               <div className="flex items-center gap-2.5">
-                <button 
+                {currentActiveStory.userId === user.id && (
+                  <button
+                    onClick={() => { setIsPaused(true); setConfirmDelete(true); }}
+                    className="p-1 rounded-lg bg-black/35 text-slate-300 hover:text-white cursor-pointer"
+                    title="Excluir story"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button
                   onClick={() => setIsPaused(!isPaused)}
                   className="p-1 rounded-lg bg-black/35 text-slate-300 hover:text-white cursor-pointer"
                   title={isPaused ? "Play" : "Pause"}
                 >
                   {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
                 </button>
-                <button 
+                <button
                   onClick={() => setActiveStoryIndex(null)}
                   className="p-1 rounded-lg bg-black/35 text-slate-350 hover:text-white cursor-pointer"
                 >
@@ -332,6 +436,20 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                 </button>
               </div>
             </div>
+
+            {confirmDelete && (
+              <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 p-6" onClick={() => setConfirmDelete(false)}>
+                <div className="w-full max-w-[300px] rounded-2xl border border-slate-700 bg-slate-900 p-5 text-center" onClick={e => e.stopPropagation()}>
+                  <Trash2 className="w-6 h-6 text-rose-500 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-100 mb-1">Excluir este story?</p>
+                  <p className="text-xs text-slate-400 mb-4">Essa ação não pode ser desfeita.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmDelete(false)} className="flex-1 rounded-lg border border-slate-700 py-2 text-xs text-slate-200 cursor-pointer">Cancelar</button>
+                    <button onClick={handleDeleteStory} className="flex-1 rounded-lg bg-rose-600 py-2 text-xs font-bold text-white cursor-pointer">Excluir</button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* BODY SLIDE DISPLAY */}
             <div className="flex-1 relative flex items-center justify-center p-6 select-none">
@@ -376,16 +494,33 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
                   </div>
                 </div>
               ) : (
-                // Standard visual unsplash image
+                // Mídia enviada pelo atleta (foto ou vídeo)
                 <div className="absolute inset-x-0 inset-y-0 p-3 h-full">
-                  <img 
-                    src={currentActiveStory.mediaUrl} 
-                    alt="Story image" 
-                    className="w-full h-full object-cover rounded-xl"
+                  {currentActiveStory.mediaType === 'video' ? (
+                    <video
+                      src={currentActiveStory.mediaUrl}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover rounded-xl bg-black"
+                      style={{ filter: filterCss((currentActiveStory as any).filter) }}
+                    />
+                  ) : (
+                    <img
+                      src={currentActiveStory.mediaUrl}
+                      alt="Story"
+                      className="w-full h-full object-cover rounded-xl"
+                      style={{ filter: filterCss((currentActiveStory as any).filter) }}
+                    />
+                  )}
+                  <MentionViewer
+                    mentions={((currentActiveStory as any).mentions) || []}
+                    onOpenProfile={(_uid, username) => { if (username) window.location.href = '/u/' + username; }}
                   />
-                  <div className="absolute bottom-6 inset-x-6 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 select-text text-slate-300 text-xs text-center backdrop-blur-sm">
-                    Estudo de transições no quimono pesado e treinos contínuos de Jiu-Jitsu. Oss! 🥋🔥
-                  </div>
+                  {currentActiveStory.caption && (
+                    <div className="absolute bottom-6 inset-x-6 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 select-text text-slate-100 text-sm text-center backdrop-blur-sm font-semibold">
+                      {currentActiveStory.caption}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -417,99 +552,137 @@ export function SocialStories({ user, showToast }: SocialStoriesProps) {
         </div>
       )}
 
-      {/* CREATE STORY DIALOG MODAL */}
+      {/* CRIAR STORY — TELA FULLSCREEN ESTILO INSTAGRAM */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-xs flex items-center justify-center z-[990] p-4 text-left">
-          <div className="w-full max-w-md bg-slate-900 rounded-2xl border border-slate-800 p-6 space-y-4 animate-scaleUp">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-              <h3 className="text-sm font-mono font-black text-white flex items-center gap-1.5 uppercase">
-                <Sparkles className="w-4.5 h-4.5 text-amber-400" />
-                <span>Adicionar ao Diário</span>
-              </h3>
-              <button 
-                onClick={() => setShowCreateModal(false)}
-                className="text-slate-450 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 bg-black z-[990] flex flex-col text-left overflow-hidden animate-fadeIn">
+          <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleStoryUpload} className="hidden" />
+
+          {/* TOPO: fechar + toggle + ferramentas */}
+          <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/70 to-transparent">
+            <button onClick={resetCreator} className="text-white cursor-pointer shrink-0"><X className="w-7 h-7" /></button>
+
+            <div className="flex bg-black/40 rounded-full p-1 border border-white/10">
+              <button onClick={() => setStoryType('photo')} className={`px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors ${storyType === 'photo' ? 'bg-white text-black' : 'text-white/80'}`}>Foto/Vídeo</button>
+              <button onClick={() => setStoryType('achievement_card')} className={`px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-colors ${storyType === 'achievement_card' ? 'bg-white text-black' : 'text-white/80'}`}>Conquista</button>
             </div>
 
-            <form onSubmit={handleCreateStory} className="space-y-4">
-              <div className="space-y-2">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tipo do Story:</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setStoryType('photo')}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
-                      storyType === 'photo' 
-                        ? 'bg-violet-605/10 border-violet-500 text-violet-400' 
-                        : 'bg-slate-950 border-slate-800 text-slate-450'
-                    }`}
-                  >
-                    <Dumbbell className="w-4 h-4" />
-                    <span>Foto de Treino</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setStoryType('achievement_card')}
-                    className={`p-2.5 rounded-xl border text-[11px] font-bold flex flex-col items-center gap-1.5 transition-colors cursor-pointer ${
-                      storyType === 'achievement_card' 
-                        ? 'bg-violet-605/10 border-violet-500 text-violet-400' 
-                        : 'bg-slate-950 border-slate-800 text-slate-450'
-                    }`}
-                  >
-                    <Trophy className="w-4 h-4" />
-                    <span>Card de Conquista</span>
-                  </button>
+            {storyType === 'photo' && storyMediaUrl ? (
+              <div className="flex items-center gap-4 shrink-0">
+                <button onClick={() => { setStoryTextColor(c => STORY_TEXT_COLORS[(STORY_TEXT_COLORS.indexOf(c) + 1) % STORY_TEXT_COLORS.length]); captionRef.current?.focus(); }} title="Texto" className="cursor-pointer">
+                  <span className="text-xl font-bold" style={{ color: storyTextColor, textShadow: '0 1px 3px #000', fontFamily: 'Georgia, serif' }}>Aa</span>
+                </button>
+                <button onClick={() => setShowStoryEmoji(v => !v)} title="Figurinhas" className="cursor-pointer"><Smile className="w-6 h-6" style={{ color: showStoryEmoji ? '#c9a84c' : '#fff' }} /></button>
+                <button onClick={() => setShowMentionSearch(true)} title="Mencionar" className="cursor-pointer"><AtSign className="w-6 h-6" style={{ color: storyMentions.length ? '#c9a84c' : '#fff' }} /></button>
+              </div>
+            ) : (
+              <span className="w-16 shrink-0" />
+            )}
+          </div>
+
+          {/* CORPO */}
+          <div className="flex-1 flex items-center justify-center relative min-h-0">
+            {storyType === 'achievement_card' ? (
+              <div className="w-full max-w-sm px-6 space-y-3">
+                <span className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-400 uppercase tracking-widest">
+                  <Sparkles className="w-4 h-4" /> Escolher conquista de tatame
+                </span>
+                <div className="space-y-2">
+                  {[
+                    { id: 'streak', label: '🔥 ' + (user.streak || 5) + ' Dias Consecutivos (Duolingo Style)' },
+                    { id: 'p_belt', label: `🥋 Graduação Faixa ${user.belt} (LinkedIn Style)` },
+                    { id: 'lvl', label: `🎯 Evolução Nível ${user.level} (XP Milestone)` },
+                    { id: 'pvp', label: `⚔️ ${user.winCount || 4} Vitórias na Arena PVP (Strava Style)` }
+                  ].map(ach => (
+                    <label key={ach.id} className={`flex items-center gap-2.5 p-3 rounded-xl border text-[12px] select-none cursor-pointer transition-colors ${achievementType === ach.id ? 'bg-amber-500/10 border-amber-500 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+                      <input type="radio" name="achievement_choice" checked={achievementType === ach.id} onChange={() => setAchievementType(ach.id)} className="accent-amber-500" />
+                      <span>{ach.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-
-              {storyType === 'photo' ? (
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">URL da Foto do Quimono:</label>
-                  <input 
-                    type="url" 
-                    placeholder="https://images.unsplash.com/your-bjj-photo"
-                    value={mediaUrlInput}
-                    onChange={(e) => setMediaUrlInput(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 text-xs p-2.5 rounded-xl text-slate-205 placeholder-slate-500"
-                  />
-                  <p className="text-[9.5px] text-slate-500 leading-normal">Selecione uma imagem válida da internet para exibir aos seguidores.</p>
+            ) : !storyMediaUrl ? (
+              <div className="flex flex-col items-center gap-5 px-8 text-center">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+                  <ImageIcon className="w-9 h-9 text-black" />
                 </div>
-              ) : (
-                <div className="space-y-1.5 bg-slate-950 p-3 rounded-xl border border-slate-850">
-                  <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest pb-1.5">Escolher conquista de tatame:</span>
-                  <div className="space-y-1">
-                    {[
-                      { id: 'streak', label: '🔥 ' + (user.streak || 5) + ' Dias Consecutivos (Duolingo Style)' },
-                      { id: 'p_belt', label: `🥋 Graduação Faixa ${user.belt} (LinkedIn Style)` },
-                      { id: 'lvl', label: `🎯 Evolução Nível ${user.level} (XP Milestone)` },
-                      { id: 'pvp', label: `⚔️ ${user.winCount || 4} Vitórias na Arena PVP (Strava Style)` }
-                    ].map(ach => (
-                      <label key={ach.id} className="flex items-center gap-2.5 p-1.5 hover:bg-slate-900 rounded text-[11px] text-slate-350 select-none cursor-pointer">
-                        <input 
-                          type="radio" 
-                          name="achievement_choice"
-                          checked={achievementType === ach.id}
-                          onChange={() => setAchievementType(ach.id)}
-                          className="accent-violet-500"
-                        />
-                        <span>{ach.label}</span>
-                      </label>
+                <div>
+                  <p className="text-white text-lg font-bold mb-1">Criar novo story</p>
+                  <p className="text-slate-400 text-xs max-w-[260px] leading-relaxed">Selecione uma foto ou vídeo do dispositivo. Seu story fica visível por 24 horas.</p>
+                </div>
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="flex items-center gap-2 bg-amber-500 text-black font-bold text-sm px-7 py-3 rounded-full cursor-pointer disabled:opacity-60">
+                  <ImageIcon className="w-4 h-4" /> {uploading ? 'Enviando...' : 'Galeria'}
+                </button>
+              </div>
+            ) : (
+              <>
+                {storyMediaType === 'image'
+                  ? <img src={storyPreview!} alt="Preview" className="w-full h-full object-contain" style={{ filter: filterCss(storyFilter) }} />
+                  : <video src={storyPreview!} autoPlay loop playsInline className="w-full h-full object-contain bg-black" style={{ filter: filterCss(storyFilter) }} />}
+
+                <MentionEditor mentions={storyMentions} setMentions={setStoryMentions} />
+
+                {/* Faixa de filtros */}
+                {storyPreview && (
+                  <div className="absolute bottom-24 inset-x-0 z-20 flex gap-2 overflow-x-auto px-3">
+                    {STORY_FILTERS.map(f => (
+                      <div key={f.id} onClick={() => setStoryFilter(f.id)} className="shrink-0 text-center cursor-pointer">
+                        <div className="w-[52px] h-[52px] rounded-lg overflow-hidden" style={{ border: `2px solid ${storyFilter === f.id ? '#c9a84c' : 'transparent'}` }}>
+                          {storyMediaType === 'image'
+                            ? <img src={storyPreview} className="w-full h-full object-cover" style={{ filter: f.css }} />
+                            : <video src={storyPreview} muted className="w-full h-full object-cover" style={{ filter: f.css }} />}
+                        </div>
+                        <span className="text-[9px] block mt-0.5" style={{ color: storyFilter === f.id ? '#c9a84c' : '#c0c5e0' }}>{f.name}</span>
+                      </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-extrabold text-xs rounded-xl shadow cursor-pointer transition-colors"
-              >
-                Publicar no Diário de Tatame
-              </button>
-            </form>
+                {storyCaption.trim() && (
+                  <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 text-center pointer-events-none">
+                    <span className="text-2xl font-bold break-words" style={{ color: storyTextColor, textShadow: '0 2px 8px rgba(0,0,0,0.8)', lineHeight: 1.3 }}>{storyCaption}</span>
+                  </div>
+                )}
+
+                {showStoryEmoji && (
+                  <div className="absolute bottom-24 inset-x-4 bg-slate-900/95 border border-slate-800 rounded-2xl p-3 flex flex-wrap gap-1.5 justify-center backdrop-blur">
+                    {STORY_EMOJIS.map(em => (
+                      <button key={em} onClick={() => { setStoryCaption(c => c + em); captionRef.current?.focus(); }} className="text-2xl w-10 h-10 flex items-center justify-center rounded-lg hover:bg-slate-800 cursor-pointer">{em}</button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
+
+          {/* RODAPÉ: legenda + publicar */}
+          {(storyType === 'achievement_card' || storyMediaUrl) && (
+            <div className="absolute bottom-0 inset-x-0 z-20 flex items-center gap-3 p-4 bg-gradient-to-t from-black/80 to-transparent">
+              {storyType === 'photo' ? (
+                <input ref={captionRef} value={storyCaption} onChange={e => setStoryCaption(e.target.value)} placeholder="Adicionar legenda..."
+                  className="flex-1 bg-slate-800/80 border border-slate-700 rounded-full px-4 py-3 text-white text-sm outline-none placeholder-slate-400" />
+              ) : (
+                <span className="flex-1 text-slate-400 text-xs">Publicar card de conquista no seu diário de tatame.</span>
+              )}
+              <button onClick={handleCreateStory} disabled={publishing} title="Publicar story"
+                className="shrink-0 rounded-full bg-amber-500 flex items-center justify-center cursor-pointer disabled:opacity-60"
+                style={{ width: 52, height: 52 }}>
+                <Send className="w-5 h-5 text-black" />
+              </button>
+            </div>
+          )}
+
+          {showMentionSearch && (
+            <MentionSearchModal
+              existing={storyMentions.map(m => m.userId)}
+              onClose={() => setShowMentionSearch(false)}
+              onSelect={(u) => {
+                if (storyMentions.length >= 10) { showToast('Máximo de 10 menções por story.', 'error'); return; }
+                setStoryMentions([...storyMentions, { userId: u.id, username: u.username || u.displayName, x: 0.5, y: Math.min(0.85, 0.4 + storyMentions.length * 0.07), displayName: u.displayName, avatar: u.avatar }]);
+                setShowMentionSearch(false);
+              }}
+            />
+          )}
         </div>
       )}
 

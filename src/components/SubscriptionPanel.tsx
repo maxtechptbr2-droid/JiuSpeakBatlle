@@ -109,7 +109,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       id: '500jt',
       name: 'Pacote Faixa Branca',
       jtAmount: 500,
-      priceBRL: 5.00,
+      priceBRL: 7.00,
       description: 'Ideal para um início básico e experimentar os diálogos táticos.',
       gradient: 'from-slate-900 via-slate-950 to-slate-900 border-slate-800 shadow-slate-950/40 hover:border-violet-500/50 hover:shadow-violet-950/20'
     },
@@ -117,7 +117,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       id: '1200jt',
       name: 'Pacote Faixa Azul',
       jtAmount: 1200,
-      priceBRL: 10.05,
+      priceBRL: 22.00,
       description: 'Excelente custo-benefício com 20% de bônus extra de JT incluso.',
       badge: '20% EXTRA',
       gradient: 'from-blue-950/30 via-slate-950 to-slate-900 border-blue-900/40 shadow-blue-950/20 hover:border-blue-500 hover:shadow-blue-500/20'
@@ -126,16 +126,16 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       id: '5000jt',
       name: 'Pacote Faixa Roxa',
       jtAmount: 5000,
-      priceBRL: 20.00,
+      priceBRL: 31.00,
       description: 'Quantidade exata para ativar 1 mês inteiro de IA Conversacional.',
       badge: 'Recomendado IA',
       gradient: 'from-purple-950/40 via-slate-950 to-slate-900 border-purple-900/40 shadow-purple-950/35 hover:border-purple-500 hover:shadow-purple-500/25'
     },
     {
-      id: '5000jt',
+      id: '6500jt',
       name: 'Pacote Faixa Marrom',
-      jtAmount: 5000,
-      priceBRL: 35.00,
+      jtAmount: 6500,
+      priceBRL: 40.00,
       description: 'Economia ideal para atletas focados no aprendizado avançado tático.',
       badge: 'Melhor Custo',
       gradient: 'from-amber-950/30 via-slate-950 to-slate-900 border-amber-900/40 shadow-amber-950/20 hover:border-amber-500 hover:shadow-amber-500/25'
@@ -144,7 +144,7 @@ export default function SubscriptionPanel({ user, updateUser, showToast }: Subsc
       id: '12000jt',
       name: 'Pacote Faixa Preta',
       jtAmount: 12000,
-      priceBRL: 75.00,
+      priceBRL: 85.00,
       description: 'O ápice da economia de JiuTickets para lutadores de elite.',
       badge: 'Elite Valiosa',
       gradient: 'from-emerald-950/30 via-slate-940 to-slate-950 border-emerald-900/40 shadow-emerald-950/20 hover:border-emerald-500 hover:shadow-emerald-500/30'
