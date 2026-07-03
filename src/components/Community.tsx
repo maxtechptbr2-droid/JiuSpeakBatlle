@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Plus, Search, ChevronLeft, ChevronRight, MessageSquare, Heart, Send, Bookmark, Pin, Lock, Trash2, Shield, Crown, CheckCircle, Globe, Camera, Edit2, AlertCircle, BarChart2, Calendar, MapPin, Flag, UserPlus, Clock, X } from 'lucide-react';
+import { Users, Plus, Search, ChevronLeft, ChevronRight, MessageSquare, Heart, Send, Bookmark, Pin, Lock, Trash2, Shield, Crown, CheckCircle, Globe, Camera, Edit2, AlertCircle, BarChart2, Calendar, MapPin, Flag, UserPlus, Clock, X, Radio } from 'lucide-react';
 import { UserProfile } from '../types';
 import FeedInstagram from './FeedInstagram';
+import CommunityLives from './CommunityLives';
 import UserProfilePage from './UserProfilePage';
 import { authFetch as authFetchBase } from '../utils/authFetch';
 import CommunityInviteModal from './CommunityInviteModal';
@@ -24,7 +25,7 @@ interface CommunityProps {
   showToast: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
-type InnerTab = 'feed' | 'forum' | 'polls' | 'events' | 'members' | 'admin';
+type InnerTab = 'feed' | 'forum' | 'polls' | 'events' | 'members' | 'lives' | 'admin';
 
 export default function Community({ user, showToast }: CommunityProps) {
   const [mainTab, setMainTab] = useState<'feed' | 'communities'>('feed');
@@ -791,6 +792,7 @@ export default function Community({ user, showToast }: CommunityProps) {
     if (innerTab === 'polls') return PollsTab();
     if (innerTab === 'events') return EventsTab();
     if (innerTab === 'members') return MembersTab();
+    if (innerTab === 'lives') return <CommunityLives community={selected} user={user} canModerate={canModerate} isOwner={isOwner} myRole={myRole} showToast={showToast} />;
     if (innerTab === 'admin') return AdminTab();
     return null;
   };
@@ -800,6 +802,7 @@ export default function Community({ user, showToast }: CommunityProps) {
     { id: 'forum', label: 'Fórum', icon: <MessageSquare size={13} /> },
     { id: 'polls', label: 'Enquetes', icon: <BarChart2 size={13} /> },
     { id: 'events', label: 'Eventos', icon: <Calendar size={13} /> },
+    { id: 'lives', label: 'Lives', icon: <Radio size={13} /> },
     { id: 'members', label: 'Membros', icon: <Users size={13} /> },
     ...(isOwner ? [{ id: 'admin' as InnerTab, label: 'Painel Admin', icon: <Shield size={13} /> }] : []),
   ];
@@ -867,6 +870,7 @@ export default function Community({ user, showToast }: CommunityProps) {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                                 <p style={{ fontSize: 13, color: C.text, fontWeight: 500, margin: 0 }}>{c.name}</p>
                                 {c.isPrivate && <Lock size={10} style={{ color: C.muted }} />}
+                                {c.hasActiveLive && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: '#e0245e', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 5, padding: '1px 5px' }}><Radio size={9} /> AO VIVO</span>}
                               </div>
                               <p style={{ fontSize: 10, color: C.faint, margin: 0 }}>{c.category} · {Number(c.memberCount || 0).toLocaleString()} membros · {Number(c.weeklyPosts || 0)} posts esta semana</p>
                             </div>
@@ -1005,6 +1009,17 @@ export default function Community({ user, showToast }: CommunityProps) {
                   </div>
                 </div>
               </div>
+
+              {/* banner de live acontecendo agora */}
+              {selected.hasActiveLive && innerTab !== 'lives' && (
+                <div onClick={() => setInnerTab('lives')} style={{ margin: isDesktop ? '12px 0 0' : '12px 14px 0', background: '#e0245e1a', border: '0.5px solid #e0245e55', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Radio size={16} style={{ color: '#e0245e', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, color: '#f0b8c4' }}>Live acontecendo agora nesta comunidade!</span>
+                  </div>
+                  <span style={{ background: '#e0245e', color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>Assistir</span>
+                </div>
+              )}
 
               {/* banner de comunidade inativa (pagamento vencido) */}
               {selected.isActive === false && (

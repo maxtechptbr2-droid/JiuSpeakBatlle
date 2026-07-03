@@ -3778,7 +3778,8 @@ app.get("/api/communities", authenticateToken, async (req: any, res: any) => {
       const memberships = await prisma.$queryRawUnsafe(`
         SELECT c.*, cm.role, cm."joinedAt",
           (SELECT COUNT(*)::int FROM "CommunityMember" WHERE "communityId"=c.id AND "isBanned"=false) as "memberCount",
-          (SELECT COUNT(*)::int FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts"
+          (SELECT COUNT(*)::int FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts",
+          EXISTS(SELECT 1 FROM "CommunityLive" WHERE "communityId"=c.id AND status='LIVE') as "hasActiveLive"
         FROM "Community" c
         JOIN "CommunityMember" cm ON cm."communityId"=c.id AND cm."userId"=$1 AND cm."isBanned"=false
         WHERE c."deletedAt" IS NULL
@@ -3797,7 +3798,8 @@ app.get("/api/communities", authenticateToken, async (req: any, res: any) => {
         (SELECT COUNT(*)::int FROM "CommunityMember" WHERE "communityId"=c.id AND "isBanned"=false) as "memberCount",
         (SELECT COUNT(*)::int FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts",
         EXISTS(SELECT 1 FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1 AND "isBanned"=false) as "isMember",
-        (SELECT role FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1 LIMIT 1) as "myRole"
+        (SELECT role FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1 LIMIT 1) as "myRole",
+        EXISTS(SELECT 1 FROM "CommunityLive" WHERE "communityId"=c.id AND status='LIVE') as "hasActiveLive"
       FROM "Community" c
       WHERE c."deletedAt" IS NULL AND (c."isPrivate"=false OR EXISTS(SELECT 1 FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$1))
       ${whereClause}
@@ -3847,7 +3849,8 @@ app.get("/api/communities/:id", authenticateToken, async (req: any, res: any) =>
         (SELECT COUNT(*)::int FROM "CommunityMember" WHERE "communityId"=c.id AND "isBanned"=false) as "memberCount",
         (SELECT COUNT(*)::int FROM "CommunityPost" cp JOIN "SocialPost" sp ON sp.id=cp."postId" WHERE cp."communityId"=c.id AND sp."createdAt" > NOW() - INTERVAL '7 days') as "weeklyPosts",
         EXISTS(SELECT 1 FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$2 AND "isBanned"=false) as "isMember",
-        (SELECT role FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$2 LIMIT 1) as "myRole"
+        (SELECT role FROM "CommunityMember" WHERE "communityId"=c.id AND "userId"=$2 LIMIT 1) as "myRole",
+        EXISTS(SELECT 1 FROM "CommunityLive" WHERE "communityId"=c.id AND status='LIVE') as "hasActiveLive"
       FROM "Community" c
       JOIN "User" u ON u.id=c."ownerId"
       WHERE c.id=$1 AND c."deletedAt" IS NULL
@@ -3862,7 +3865,16 @@ app.get("/api/communities/:id", authenticateToken, async (req: any, res: any) =>
       WHERE cm."communityId"=$1 AND cm.role IN ('owner','moderator') AND cm."isBanned"=false
       ORDER BY CASE cm.role WHEN 'owner' THEN 0 ELSE 1 END, cm."joinedAt" ASC
     `, id);
-    res.json({ success: true, community: comm[0], moderators });
+    let activeLive: any = null;
+    if (comm[0].hasActiveLive) {
+      const al: any[] = await prisma.$queryRawUnsafe(`
+        SELECT l.id, l.title, l.type, l.price, l."viewerCount", l."hostId", u.name as "hostName", u.avatar as "hostAvatar"
+        FROM "CommunityLive" l JOIN "User" u ON u.id=l."hostId"
+        WHERE l."communityId"=$1 AND l.status='LIVE' ORDER BY l."startedAt" DESC LIMIT 1
+      `, id);
+      activeLive = al[0] || null;
+    }
+    res.json({ success: true, community: comm[0], moderators, activeLive });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -4614,6 +4626,523 @@ app.get("/api/communities/:id/admin-dashboard", authenticateToken, async (req: a
       paidUntil: comm[0].paidUntil, isActive: comm[0].isActive, monthlyFee: comm[0].monthlyFee,
       recentRewards, paymentHistory
     });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// LIVE STREAMING NAS COMUNIDADES
+// Hierarquia: ADMIN JiuSpeak (role ADMIN) > owner da comunidade >
+// moderator > membro autorizado (LivePermission) > membro comum.
+// Acesso a dados via SQL cru, seguindo o padrão do subsistema.
+// ============================================================
+
+// Lista de palavrões para filtro básico do chat da live
+const LIVE_BADWORDS = ["caralho", "porra", "buceta", "puta", "fdp", "merda", "arrombado", "corno", "piroca", "babaca", "viado", "cuzao", "cuzão"];
+function filterLiveBadwords(text: string): string {
+  let out = text;
+  for (const w of LIVE_BADWORDS) {
+    out = out.replace(new RegExp(w, "gi"), (m) => m[0] + "*".repeat(Math.max(1, m.length - 1)));
+  }
+  return out;
+}
+
+// Mapa liveId -> socketId do host transmitindo (signaling WebRTC P2P, sem dependência externa)
+const liveHostSockets = new Map<string, string>();
+
+// IMPORTANTE: neste servidor io.to(room).emit() e RemoteSocket.emit() (via fetchSockets)
+// NÃO entregam de forma confiável (passam pelo adapter). O único primitivo garantido é
+// socket.emit() no objeto local do socket. Mantemos um registro dos objetos reais e
+// emitimos direto neles. Sockets são "tagueados" via socket.data.liveId / communityId.
+const liveSocketRegistry = new Map<string, any>();
+
+// Emite um evento para todos os sockets de uma live específica
+function emitToLive(liveId: string, event: string, payload: any) {
+  try {
+    for (const s of liveSocketRegistry.values()) if (s.data && s.data.liveId === liveId) s.emit(event, payload);
+  } catch (e) {}
+}
+// Emite para todos os sockets inscritos em uma comunidade
+function emitToCommunity(communityId: string, event: string, payload: any) {
+  try {
+    for (const s of liveSocketRegistry.values()) if (s.data && s.data.communityId === communityId) s.emit(event, payload);
+  } catch (e) {}
+}
+// Emite para um socket específico pelo id
+function emitToSocketId(socketId: string, event: string, payload: any) {
+  try {
+    const s = liveSocketRegistry.get(socketId);
+    if (s) s.emit(event, payload);
+  } catch (e) {}
+}
+
+// Contexto de permissão do ator dentro da comunidade
+async function liveActorCtx(prisma: any, communityId: string, userId: string, platformRole: string) {
+  const isPlatformAdmin = platformRole === "ADMIN" || platformRole === "admin";
+  const comm: any[] = await prisma.$queryRawUnsafe(`SELECT "ownerId" FROM "Community" WHERE id=$1 AND "deletedAt" IS NULL`, communityId);
+  const exists = !!comm[0];
+  const isOwner = exists && comm[0].ownerId === userId;
+  const mem: any[] = await prisma.$queryRawUnsafe(`SELECT role FROM "CommunityMember" WHERE "communityId"=$1 AND "userId"=$2 AND "isBanned"=false`, communityId, userId);
+  const myRole = mem[0]?.role || null;
+  const isModerator = myRole === "moderator";
+  const isMember = isOwner || !!mem[0];
+  const perm: any[] = await prisma.$queryRawUnsafe(`SELECT type, "expiresAt" FROM "LivePermission" WHERE "communityId"=$1 AND "userId"=$2`, communityId, userId);
+  const hasLivePermission = !!perm[0] && (perm[0].type === "PERMANENT" || (perm[0].expiresAt && new Date(perm[0].expiresAt).getTime() > Date.now()));
+  return { exists, isPlatformAdmin, isOwner, myRole, isModerator, isMember, hasLivePermission };
+}
+
+// POST criar live
+app.post("/api/communities/:id/lives", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    if (!ctx.exists) return res.status(404).json({ error: "Comunidade não encontrada." });
+    if (!(ctx.isPlatformAdmin || ctx.isOwner || ctx.isModerator || ctx.hasLivePermission)) {
+      return res.status(403).json({ error: "Você não tem permissão para transmitir nesta comunidade." });
+    }
+    const { title, description, type, price, scheduledAt } = req.body;
+    if (!title || !String(title).trim()) return res.status(400).json({ error: "Título obrigatório." });
+    const liveType = type === "PAID" ? "PAID" : "FREE";
+    let livePrice: number | null = null;
+    if (liveType === "PAID") {
+      livePrice = parseInt(price, 10);
+      if (!Number.isFinite(livePrice) || livePrice <= 0) return res.status(400).json({ error: "Preço em JT obrigatório para live paga." });
+    }
+    const now = new Date();
+    let status = "LIVE";
+    let scheduled: Date | null = null;
+    let startedAt: Date | null = now;
+    if (scheduledAt) {
+      const s = new Date(scheduledAt);
+      if (!isNaN(s.getTime()) && s.getTime() > now.getTime()) { status = "SCHEDULED"; scheduled = s; startedAt = null; }
+    }
+    const liveId = require("crypto").randomUUID();
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "CommunityLive" (id,"communityId","hostId",title,description,type,price,status,"viewerCount","peakViewers","scheduledAt","startedAt","totalTips","notified30","notified5","notifiedStart","createdAt")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,0,$9,$10,0,false,false,false,NOW())`,
+      liveId, id, userId, String(title).trim(), description || null, liveType, livePrice, status, scheduled, startedAt
+    );
+    const created: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "CommunityLive" WHERE id=$1`, liveId);
+    if (status === "LIVE") {
+      emitToCommunity(id, "live:started", { liveId, communityId: id, title: String(title).trim(), hostId: userId });
+    }
+    res.json({ success: true, live: created[0] });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// GET listar lives da comunidade (filtros: status, hostId)
+app.get("/api/communities/:id/lives", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const { status, hostId } = req.query;
+    const params: any[] = [id];
+    let where = `l."communityId"=$1`;
+    if (status) { params.push(status); where += ` AND l.status=$${params.length}`; }
+    if (hostId) { params.push(hostId); where += ` AND l."hostId"=$${params.length}`; }
+    const lives = await prisma.$queryRawUnsafe(`
+      SELECT l.*, u.name as "hostName", u.avatar as "hostAvatar", u.belt as "hostBelt"
+      FROM "CommunityLive" l JOIN "User" u ON u.id=l."hostId"
+      WHERE ${where}
+      ORDER BY CASE l.status WHEN 'LIVE' THEN 0 WHEN 'SCHEDULED' THEN 1 ELSE 2 END, l."createdAt" DESC
+      LIMIT 100
+    `, ...params);
+    res.json({ success: true, lives });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// GET detalhes de uma live (gate de pagamento se PAID)
+app.get("/api/communities/:id/lives/:liveId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId } = req.params;
+    const userId = req.user.id;
+    const rows: any[] = await prisma.$queryRawUnsafe(`
+      SELECT l.*, u.name as "hostName", u.avatar as "hostAvatar", u.belt as "hostBelt"
+      FROM "CommunityLive" l JOIN "User" u ON u.id=l."hostId"
+      WHERE l.id=$1 AND l."communityId"=$2
+    `, liveId, id);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    const live = rows[0];
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    const isHost = live.hostId === userId;
+    // Gate de pagamento: live PAID exige pagamento (exceto host/owner/mod/admin)
+    if (live.type === "PAID" && !isHost && !ctx.isOwner && !ctx.isModerator && !ctx.isPlatformAdmin) {
+      const paid: any[] = await prisma.$queryRawUnsafe(`SELECT paid FROM "LiveViewer" WHERE "liveId"=$1 AND "userId"=$2 AND paid=true LIMIT 1`, liveId, userId);
+      if (!paid[0]) return res.json({ success: true, requiresPayment: true, price: live.price, live: { id: live.id, title: live.title, type: live.type, status: live.status, hostName: live.hostName, hostAvatar: live.hostAvatar } });
+    }
+    res.json({ success: true, live });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// PATCH editar live (host, owner ou ADMIN JiuSpeak)
+app.patch("/api/communities/:id/lives/:liveId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId } = req.params;
+    const userId = req.user.id;
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT "hostId" FROM "CommunityLive" WHERE id=$1 AND "communityId"=$2`, liveId, id);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    const isHost = rows[0].hostId === userId;
+    if (!(isHost || ctx.isOwner || ctx.isPlatformAdmin)) return res.status(403).json({ error: "Sem permissão para editar esta live." });
+    const { title, description, type, price, status } = req.body;
+    const sets: string[] = []; const vals: any[] = [];
+    const push = (col: string, val: any) => { vals.push(val); sets.push(`"${col}"=$${vals.length}`); };
+    if (title !== undefined) push("title", String(title).trim());
+    if (description !== undefined) push("description", description || null);
+    if (type !== undefined) push("type", type === "PAID" ? "PAID" : "FREE");
+    if (price !== undefined) push("price", price === null ? null : parseInt(price, 10));
+    if (status !== undefined && ["SCHEDULED", "LIVE", "ENDED", "CANCELLED"].includes(status)) push("status", status);
+    if (!sets.length) return res.status(400).json({ error: "Nada para atualizar." });
+    vals.push(liveId);
+    await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET ${sets.join(", ")} WHERE id=$${vals.length}`, ...vals);
+    const updated: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "CommunityLive" WHERE id=$1`, liveId);
+    res.json({ success: true, live: updated[0] });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE encerrar live (host, owner, moderator, ADMIN JiuSpeak)
+app.delete("/api/communities/:id/lives/:liveId/end", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId } = req.params;
+    const userId = req.user.id;
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT "hostId", status FROM "CommunityLive" WHERE id=$1 AND "communityId"=$2`, liveId, id);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    const isHost = rows[0].hostId === userId;
+    if (!(isHost || ctx.isOwner || ctx.isModerator || ctx.isPlatformAdmin)) return res.status(403).json({ error: "Sem permissão para encerrar esta live." });
+    const replayExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET status='ENDED', "endedAt"=NOW(), "replayExpiresAt"=COALESCE("replayExpiresAt",$2) WHERE id=$1`, liveId, replayExpires);
+    emitToLive(liveId, "live:ended", { liveId });
+    try { if (globalIo) await globalIo.in(`live:${liveId}`).socketsLeave(`live:${liveId}`); } catch (e) {}
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST entrar como viewer (debita JT se live paga)
+app.post("/api/communities/:id/lives/:liveId/join", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId } = req.params;
+    const userId = req.user.id;
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT * FROM "CommunityLive" WHERE id=$1 AND "communityId"=$2`, liveId, id);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    const live = rows[0];
+    if (live.status === "ENDED" || live.status === "CANCELLED") return res.status(400).json({ error: "Esta live já foi encerrada." });
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    const isHost = live.hostId === userId;
+    const exempt = isHost || ctx.isOwner || ctx.isModerator || ctx.isPlatformAdmin;
+    const crypto = require("crypto");
+
+    // Já é viewer ativo?
+    const existing: any[] = await prisma.$queryRawUnsafe(`SELECT id, paid FROM "LiveViewer" WHERE "liveId"=$1 AND "userId"=$2 ORDER BY "joinedAt" DESC LIMIT 1`, liveId, userId);
+    const alreadyPaid = existing[0]?.paid === true;
+
+    if (live.type === "PAID" && !exempt && !alreadyPaid) {
+      const amount = Number(live.price) || 0;
+      const wallet: any[] = await prisma.$queryRawUnsafe(`SELECT "balanceJT" FROM "Wallet" WHERE "userId"=$1`, userId);
+      const balance = wallet[0] ? Number(wallet[0].balanceJT) : 0;
+      if (balance < amount) return res.status(400).json({ error: `Saldo insuficiente. Ingresso custa ${amount} JT (saldo: ${balance} JT).`, required: amount, balance });
+      const hostShare = Math.floor(amount * 0.9);
+      await prisma.$transaction(async (tx: any) => {
+        const n: number = await tx.$executeRawUnsafe(`UPDATE "Wallet" SET "balanceJT"="balanceJT"-$1, "updatedAt"=NOW() WHERE "userId"=$2 AND "balanceJT">=$1`, amount, userId);
+        if (!n) throw new Error("Saldo insuficiente.");
+        await tx.$executeRawUnsafe(`INSERT INTO "Wallet" (id,"userId","balanceJT","createdAt","updatedAt") VALUES ($1,$2,$3,NOW(),NOW()) ON CONFLICT ("userId") DO UPDATE SET "balanceJT"="Wallet"."balanceJT"+$3, "updatedAt"=NOW()`, crypto.randomUUID(), live.hostId, hostShare);
+        await tx.$executeRawUnsafe(`INSERT INTO "LiveViewer" (id,"liveId","userId","joinedAt",paid) VALUES ($1,$2,$3,NOW(),true)`, crypto.randomUUID(), liveId, userId);
+        await tx.$executeRawUnsafe(`UPDATE "CommunityLive" SET "viewerCount"="viewerCount"+1, "peakViewers"=GREATEST("peakViewers","viewerCount"+1) WHERE id=$1`, liveId);
+        await tx.$executeRawUnsafe(`INSERT INTO "AuditLog" (id,"actorId",action,description,"amountJT","createdAt") VALUES ($1,$2,'LIVE_ENTRY_PAID',$3,$4,NOW())`, crypto.randomUUID(), userId, `Entrada paga na live ${liveId} (${amount} JT; host recebeu ${hostShare} JT).`, amount);
+      });
+      try { const w: any[] = await prisma.$queryRawUnsafe(`SELECT "balanceJT" FROM "Wallet" WHERE "userId"=$1`, userId); if (w[0]) await authStore.updateUser(userId, { coins: Number(w[0].balanceJT) }); } catch (e) {}
+      try { const w: any[] = await prisma.$queryRawUnsafe(`SELECT "balanceJT" FROM "Wallet" WHERE "userId"=$1`, live.hostId); if (w[0]) await authStore.updateUser(live.hostId, { coins: Number(w[0].balanceJT) }); } catch (e) {}
+    } else {
+      await prisma.$executeRawUnsafe(`INSERT INTO "LiveViewer" (id,"liveId","userId","joinedAt",paid) VALUES ($1,$2,$3,NOW(),$4)`, crypto.randomUUID(), liveId, userId, alreadyPaid);
+      await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET "viewerCount"="viewerCount"+1, "peakViewers"=GREATEST("peakViewers","viewerCount"+1) WHERE id=$1`, liveId);
+    }
+    const fresh: any[] = await prisma.$queryRawUnsafe(`SELECT "viewerCount" FROM "CommunityLive" WHERE id=$1`, liveId);
+    const viewerCount = fresh[0]?.viewerCount || 0;
+    emitToLive(liveId, "live:viewer-joined", { viewerCount, username: req.user.name || "Espectador" });
+    res.json({ success: true, viewerCount });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST sair (viewer)
+app.post("/api/communities/:id/lives/:liveId/leave", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { liveId } = req.params;
+    const userId = req.user.id;
+    const upd: number = await prisma.$executeRawUnsafe(`UPDATE "LiveViewer" SET "leftAt"=NOW() WHERE id=(SELECT id FROM "LiveViewer" WHERE "liveId"=$1 AND "userId"=$2 AND "leftAt" IS NULL ORDER BY "joinedAt" DESC LIMIT 1)`, liveId, userId);
+    if (upd > 0) await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET "viewerCount"=GREATEST(0,"viewerCount"-1) WHERE id=$1`, liveId);
+    const fresh: any[] = await prisma.$queryRawUnsafe(`SELECT "viewerCount" FROM "CommunityLive" WHERE id=$1`, liveId);
+    const viewerCount = fresh[0]?.viewerCount || 0;
+    emitToLive(liveId, "live:viewer-left", { viewerCount });
+    res.json({ success: true, viewerCount });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST enviar gorjeta (mínimo 10 JT; 90% host, 10% comissão JiuSpeak)
+app.post("/api/communities/:id/lives/:liveId/tip", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId } = req.params;
+    const userId = req.user.id;
+    const { amount, message } = req.body;
+    const amt = parseInt(amount, 10);
+    if (!Number.isFinite(amt) || amt < 10) return res.status(400).json({ error: "Gorjeta mínima é de 10 JT." });
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT "hostId", status FROM "CommunityLive" WHERE id=$1 AND "communityId"=$2`, liveId, id);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    if (rows[0].hostId === userId) return res.status(400).json({ error: "Você não pode enviar gorjeta para si mesmo." });
+    const hostId = rows[0].hostId;
+    const msg = message ? String(message).slice(0, 200) : null;
+    const wallet: any[] = await prisma.$queryRawUnsafe(`SELECT "balanceJT" FROM "Wallet" WHERE "userId"=$1`, userId);
+    const balance = wallet[0] ? Number(wallet[0].balanceJT) : 0;
+    if (balance < amt) return res.status(400).json({ error: `Saldo insuficiente. Você tem ${balance} JT.`, required: amt, balance });
+    const hostShare = Math.floor(amt * 0.9);
+    const crypto = require("crypto");
+    await prisma.$transaction(async (tx: any) => {
+      const n: number = await tx.$executeRawUnsafe(`UPDATE "Wallet" SET "balanceJT"="balanceJT"-$1, "updatedAt"=NOW() WHERE "userId"=$2 AND "balanceJT">=$1`, amt, userId);
+      if (!n) throw new Error("Saldo insuficiente.");
+      await tx.$executeRawUnsafe(`INSERT INTO "Wallet" (id,"userId","balanceJT","createdAt","updatedAt") VALUES ($1,$2,$3,NOW(),NOW()) ON CONFLICT ("userId") DO UPDATE SET "balanceJT"="Wallet"."balanceJT"+$3, "updatedAt"=NOW()`, crypto.randomUUID(), hostId, hostShare);
+      await tx.$executeRawUnsafe(`INSERT INTO "LiveTip" (id,"liveId","senderId",amount,message,"createdAt") VALUES ($1,$2,$3,$4,$5,NOW())`, crypto.randomUUID(), liveId, userId, amt, msg);
+      await tx.$executeRawUnsafe(`UPDATE "CommunityLive" SET "totalTips"="totalTips"+$1 WHERE id=$2`, amt, liveId);
+      await tx.$executeRawUnsafe(`INSERT INTO "AuditLog" (id,"actorId",action,description,"amountJT","createdAt") VALUES ($1,$2,'LIVE_TIP',$3,$4,NOW())`, crypto.randomUUID(), userId, `Gorjeta de ${amt} JT na live ${liveId} (host recebeu ${hostShare} JT; comissão ${amt - hostShare} JT).`, amt);
+    });
+    try { const w: any[] = await prisma.$queryRawUnsafe(`SELECT "balanceJT" FROM "Wallet" WHERE "userId"=$1`, userId); if (w[0]) await authStore.updateUser(userId, { coins: Number(w[0].balanceJT) }); } catch (e) {}
+    try { const w: any[] = await prisma.$queryRawUnsafe(`SELECT "balanceJT" FROM "Wallet" WHERE "userId"=$1`, hostId); if (w[0]) await authStore.updateUser(hostId, { coins: Number(w[0].balanceJT) }); } catch (e) {}
+    const newBalance = balance - amt;
+    emitToLive(liveId, "live:tip-received", { senderName: req.user.name || "Apoiador", amount: amt, message: msg });
+    res.json({ success: true, newBalance, hostShare });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST enviar mensagem no chat (máx 300 chars, filtro de palavrões)
+app.post("/api/communities/:id/lives/:liveId/chat", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId } = req.params;
+    const userId = req.user.id;
+    const { content } = req.body;
+    if (!content || !String(content).trim()) return res.status(400).json({ error: "Mensagem vazia." });
+    const live: any[] = await prisma.$queryRawUnsafe(`SELECT id FROM "CommunityLive" WHERE id=$1 AND "communityId"=$2`, liveId, id);
+    if (!live[0]) return res.status(404).json({ error: "Live não encontrada." });
+    const clean = filterLiveBadwords(String(content).trim().slice(0, 300));
+    const msgId = require("crypto").randomUUID();
+    await prisma.$executeRawUnsafe(`INSERT INTO "LiveChatMessage" (id,"liveId","userId",content,"isDeleted","createdAt") VALUES ($1,$2,$3,$4,false,NOW())`, msgId, liveId, userId, clean);
+    const u: any[] = await prisma.$queryRawUnsafe(`SELECT name, avatar FROM "User" WHERE id=$1`, userId);
+    const payload = { msgId, userId, username: u[0]?.name || "Atleta", avatar: u[0]?.avatar || null, content: clean, createdAt: new Date().toISOString() };
+    emitToLive(liveId, "live:chat-message", payload);
+    res.json({ success: true, message: payload });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE soft-delete de mensagem (owner, moderator, ADMIN JiuSpeak)
+app.delete("/api/communities/:id/lives/:liveId/chat/:msgId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, liveId, msgId } = req.params;
+    const userId = req.user.id;
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    if (!(ctx.isOwner || ctx.isModerator || ctx.isPlatformAdmin)) return res.status(403).json({ error: "Sem permissão para moderar o chat." });
+    await prisma.$executeRawUnsafe(`UPDATE "LiveChatMessage" SET "isDeleted"=true WHERE id=$1 AND "liveId"=$2`, msgId, liveId);
+    emitToLive(liveId, "live:chat-deleted", { msgId });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST conceder permissão de live (owner/moderator)
+app.post("/api/communities/:id/live-permissions", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const granterId = req.user.id;
+    const ctx = await liveActorCtx(prisma, id, granterId, req.user.role);
+    if (!ctx.exists) return res.status(404).json({ error: "Comunidade não encontrada." });
+    if (!(ctx.isOwner || ctx.isModerator || ctx.isPlatformAdmin)) return res.status(403).json({ error: "Apenas admin/moderador da comunidade." });
+    const { userId, type, expiresAt } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId obrigatório." });
+    const permType = type === "PERMANENT" ? "PERMANENT" : "TEMPORARY";
+    let expires: Date | null = null;
+    if (permType === "TEMPORARY") {
+      expires = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+      if (isNaN(expires.getTime())) expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+    const crypto = require("crypto");
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "LivePermission" (id,"communityId","userId","grantedById",type,"expiresAt","createdAt")
+       VALUES ($1,$2,$3,$4,$5,$6,NOW())
+       ON CONFLICT ("communityId","userId") DO UPDATE SET type=$5, "expiresAt"=$6, "grantedById"=$4, "createdAt"=NOW()`,
+      crypto.randomUUID(), id, userId, granterId, permType, expires
+    );
+    try {
+      await prisma.$executeRawUnsafe(`INSERT INTO "Notification" (id,"userId",title,content,type,"isRead","linkTo","createdAt") VALUES ($1,$2,$3,$4,'COMMUNITY',false,$5,NOW())`,
+        crypto.randomUUID(), userId, "Permissão de transmissão concedida", "Você agora pode fazer lives nesta comunidade!", `community-${id}`);
+    } catch (e) {}
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE remover permissão de live (owner/moderator)
+app.delete("/api/communities/:id/live-permissions/:userId", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id, userId: targetId } = req.params;
+    const ctx = await liveActorCtx(prisma, id, req.user.id, req.user.role);
+    if (!(ctx.isOwner || ctx.isModerator || ctx.isPlatformAdmin)) return res.status(403).json({ error: "Sem permissão." });
+    await prisma.$executeRawUnsafe(`DELETE FROM "LivePermission" WHERE "communityId"=$1 AND "userId"=$2`, id, targetId);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// GET listar permissões de live (owner/moderator)
+app.get("/api/communities/:id/live-permissions", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const ctx = await liveActorCtx(prisma, id, req.user.id, req.user.role);
+    if (!(ctx.isOwner || ctx.isModerator || ctx.isPlatformAdmin)) return res.status(403).json({ error: "Sem permissão." });
+    const perms = await prisma.$queryRawUnsafe(`
+      SELECT p.*, u.name, u.avatar, u.belt, g.name as "grantedByName"
+      FROM "LivePermission" p
+      JOIN "User" u ON u.id=p."userId"
+      LEFT JOIN "User" g ON g.id=p."grantedById"
+      WHERE p."communityId"=$1
+      ORDER BY p."createdAt" DESC
+    `, id);
+    res.json({ success: true, permissions: perms });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST solicitar autorização para transmitir (qualquer membro) -> notifica o owner
+app.post("/api/communities/:id/live-requests", authenticateToken, async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { id } = req.params;
+    const userId = req.user.id;
+    const ctx = await liveActorCtx(prisma, id, userId, req.user.role);
+    if (!ctx.exists) return res.status(404).json({ error: "Comunidade não encontrada." });
+    if (!ctx.isMember && !ctx.isPlatformAdmin) return res.status(403).json({ error: "Apenas membros podem solicitar." });
+    const { title, description, reason } = req.body;
+    const owner: any[] = await prisma.$queryRawUnsafe(`SELECT "ownerId" FROM "Community" WHERE id=$1`, id);
+    const crypto = require("crypto");
+    const content = `${req.user.name || "Um membro"} quer transmitir: "${String(title || "Live").slice(0, 80)}". Motivo: ${String(reason || description || "-").slice(0, 160)}`;
+    if (owner[0]?.ownerId) {
+      await prisma.$executeRawUnsafe(`INSERT INTO "Notification" (id,"userId",title,content,type,"isRead","linkTo","createdAt") VALUES ($1,$2,$3,$4,'COMMUNITY',false,$5,NOW())`,
+        crypto.randomUUID(), owner[0].ownerId, "Nova solicitação de live", content, `community-${id}`);
+    }
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// ADMIN JIUSPEAK — CONTROLE TOTAL DE LIVES (role ADMIN)
+// ============================================================
+
+// GET todas as lives de todas as comunidades (filtros: status, communityId, hostId)
+app.get("/api/admin/lives", authenticateToken, requireRole(["ADMIN", "admin"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { status, communityId, hostId } = req.query;
+    const params: any[] = [];
+    let where = "1=1";
+    if (status) { params.push(status); where += ` AND l.status=$${params.length}`; }
+    if (communityId) { params.push(communityId); where += ` AND l."communityId"=$${params.length}`; }
+    if (hostId) { params.push(hostId); where += ` AND l."hostId"=$${params.length}`; }
+    const lives = await prisma.$queryRawUnsafe(`
+      SELECT l.*, u.name as "hostName", u.avatar as "hostAvatar", c.name as "communityName",
+        EXTRACT(EPOCH FROM (COALESCE(l."endedAt", NOW()) - l."startedAt"))::int as "durationSeconds"
+      FROM "CommunityLive" l
+      JOIN "User" u ON u.id=l."hostId"
+      JOIN "Community" c ON c.id=l."communityId"
+      WHERE ${where}
+      ORDER BY CASE l.status WHEN 'LIVE' THEN 0 WHEN 'SCHEDULED' THEN 1 ELSE 2 END, l."createdAt" DESC
+      LIMIT 200
+    `, ...params);
+    const active: any[] = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::int as n FROM "CommunityLive" WHERE status='LIVE'`);
+    res.json({ success: true, lives, activeCount: active[0]?.n || 0 });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST forçar encerramento de qualquer live (motivo obrigatório)
+app.post("/api/admin/lives/:liveId/force-end", authenticateToken, requireRole(["ADMIN", "admin"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { liveId } = req.params;
+    const { reason } = req.body;
+    if (!reason || !String(reason).trim()) return res.status(400).json({ error: "Motivo obrigatório." });
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT "hostId","communityId",title FROM "CommunityLive" WHERE id=$1`, liveId);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET status='ENDED', "endedAt"=NOW() WHERE id=$1`, liveId);
+    const crypto = require("crypto");
+    try {
+      await prisma.$executeRawUnsafe(`INSERT INTO "Notification" (id,"userId",title,content,type,"isRead","linkTo","createdAt") VALUES ($1,$2,$3,$4,'SYSTEM',false,$5,NOW())`,
+        crypto.randomUUID(), rows[0].hostId, "Sua live foi encerrada pela administração", `Motivo: ${String(reason).slice(0, 200)}`, `community-${rows[0].communityId}`);
+      await prisma.$executeRawUnsafe(`INSERT INTO "AuditLog" (id,"actorId",action,description,"createdAt") VALUES ($1,$2,'LIVE_FORCE_END',$3,NOW())`,
+        crypto.randomUUID(), req.user.id, `ADMIN encerrou live ${liveId} ("${rows[0].title}"). Motivo: ${String(reason).slice(0, 200)}`);
+    } catch (e) {}
+    emitToLive(liveId, "live:force-ended", { reason: String(reason) });
+    try { if (globalIo) await globalIo.in(`live:${liveId}`).socketsLeave(`live:${liveId}`); } catch (e) {}
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// DELETE remover live e replay completamente
+app.delete("/api/admin/lives/:liveId", authenticateToken, requireRole(["ADMIN", "admin"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { liveId } = req.params;
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe(`DELETE FROM "LiveChatMessage" WHERE "liveId"=$1`, liveId);
+      await tx.$executeRawUnsafe(`DELETE FROM "LiveTip" WHERE "liveId"=$1`, liveId);
+      await tx.$executeRawUnsafe(`DELETE FROM "LiveViewer" WHERE "liveId"=$1`, liveId);
+      await tx.$executeRawUnsafe(`DELETE FROM "CommunityLive" WHERE id=$1`, liveId);
+    });
+    emitToLive(liveId, "live:force-ended", { reason: "Live removida pela administração." });
+    try { if (globalIo) await globalIo.in(`live:${liveId}`).socketsLeave(`live:${liveId}`); } catch (e) {}
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// POST banir host: encerra a live + remove permissão + (opcional) suspende o usuário
+app.post("/api/admin/lives/:liveId/ban-host", authenticateToken, requireRole(["ADMIN", "admin"]), async (req: any, res: any) => {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return res.status(500).json({ error: "DB offline" });
+    const { liveId } = req.params;
+    const { suspend, reason } = req.body;
+    const rows: any[] = await prisma.$queryRawUnsafe(`SELECT "hostId","communityId" FROM "CommunityLive" WHERE id=$1`, liveId);
+    if (!rows[0]) return res.status(404).json({ error: "Live não encontrada." });
+    const hostId = rows[0].hostId;
+    const crypto = require("crypto");
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe(`UPDATE "CommunityLive" SET status='ENDED', "endedAt"=NOW() WHERE id=$1`, liveId);
+      await tx.$executeRawUnsafe(`DELETE FROM "LivePermission" WHERE "communityId"=$1 AND "userId"=$2`, rows[0].communityId, hostId);
+      if (suspend === true) await tx.$executeRawUnsafe(`UPDATE "User" SET "isSuspended"=true WHERE id=$1`, hostId);
+      await tx.$executeRawUnsafe(`INSERT INTO "AuditLog" (id,"actorId",action,description,"createdAt") VALUES ($1,$2,'LIVE_BAN_HOST',$3,NOW())`,
+        crypto.randomUUID(), req.user.id, `ADMIN baniu host ${hostId} da live ${liveId}${suspend ? " + suspensão de conta" : ""}. Motivo: ${String(reason || "-").slice(0, 200)}`);
+    });
+    emitToLive(liveId, "live:force-ended", { reason: String(reason || "Host banido pela administração.") });
+    try { if (globalIo) await globalIo.in(`live:${liveId}`).socketsLeave(`live:${liveId}`); } catch (e) {}
+    res.json({ success: true, suspended: suspend === true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -18539,6 +19068,7 @@ async function startServer() {
   // Socket.IO Events Orchestrator
   io.on("connection", (socket) => {
     console.log(`🔌 Novo socket conectado: ${socket.id}`);
+    liveSocketRegistry.set(socket.id, socket);
 
     // Dynamic JWT verify of active connection
     socket.on("auth:register", async ({ token }) => {
@@ -18691,6 +19221,71 @@ async function startServer() {
       ArenaService.handlePlayerSubmit(matchId, userId, selectedOption, responseTimeMs);
     });
 
+    // ===== LIVE STREAMING (tempo real via fetchSockets + s.emit) =====
+    // Entrar em uma live: tagueia o socket para receber broadcasts da live
+    socket.on("live:join", ({ liveId }: any) => {
+      if (!liveId) return;
+      socket.data.liveId = liveId;
+    });
+    // Sair de uma live
+    socket.on("live:leave", ({ liveId }: any) => {
+      if (!liveId) return;
+      if (socket.data.liveId === liveId) socket.data.liveId = null;
+    });
+    // Inscrever-se em uma comunidade (banner "AO VIVO")
+    socket.on("community:subscribe", ({ communityId }: any) => {
+      if (!communityId) return;
+      socket.data.communityId = communityId;
+    });
+    socket.on("community:unsubscribe", ({ communityId }: any) => {
+      if (socket.data.communityId === communityId) socket.data.communityId = null;
+    });
+
+    // ===== WebRTC signaling P2P (host <-> viewers), relay puro, sem Cloudflare =====
+    // Host anuncia que está transmitindo: registra o socket e avisa os viewers.
+    socket.on("live:host-online", async ({ liveId }: any) => {
+      if (!liveId) return;
+      liveHostSockets.set(liveId, socket.id);
+      socket.data.hostLiveId = liveId;
+      socket.data.liveId = liveId;
+      await emitToLive(liveId, "live:host-online", { hostSocketId: socket.id });
+    });
+    // Host encerrou a transmissão: limpa o mapa e avisa os viewers.
+    socket.on("live:host-offline", async ({ liveId }: any) => {
+      if (!liveId) return;
+      if (liveHostSockets.get(liveId) === socket.id) liveHostSockets.delete(liveId);
+      socket.data.hostLiveId = null;
+      await emitToLive(liveId, "live:host-offline", { liveId });
+    });
+    // Viewer pronto para receber: o servidor avisa o host para iniciar a oferta.
+    socket.on("live:viewer-ready", async ({ liveId }: any) => {
+      if (!liveId) return;
+      socket.data.liveId = liveId;
+      const hostSock = liveHostSockets.get(liveId);
+      if (hostSock) await emitToSocketId(hostSock, "live:viewer-ready", { viewerSocketId: socket.id });
+    });
+    // Relay genérico de SDP/ICE para um socket específico.
+    socket.on("live:signal", async ({ to, data }: any) => {
+      if (!to) return;
+      await emitToSocketId(to, "live:signal", { from: socket.id, data });
+    });
+    // Chat em tempo real (persiste e re-emite para a sala). Requer socket autenticado.
+    socket.on("live:send-chat", async ({ liveId, content }: any) => {
+      try {
+        const userId = socket.data.userId;
+        const profile = socket.data.userProfile;
+        if (!userId || !liveId || !content || !String(content).trim()) return;
+        const prisma = getPrisma();
+        if (!prisma) return;
+        const clean = filterLiveBadwords(String(content).trim().slice(0, 300));
+        const msgId = require("crypto").randomUUID();
+        await prisma.$executeRawUnsafe(`INSERT INTO "LiveChatMessage" (id,"liveId","userId",content,"isDeleted","createdAt") VALUES ($1,$2,$3,$4,false,NOW())`, msgId, liveId, userId, clean);
+        await emitToLive(liveId, "live:chat-message", {
+          msgId, userId, username: profile?.name || "Atleta", avatar: profile?.avatar || null, content: clean, createdAt: new Date().toISOString()
+        });
+      } catch (e) { /* silencioso: chat não deve derrubar o socket */ }
+    });
+
     // Disconnect event cleanup checks
     socket.on("disconnect", async () => {
       const userId = socket.data.userId;
@@ -18698,6 +19293,13 @@ async function startServer() {
         await MatchmakingService.leaveQueue(userId);
         ArenaService.handlePlayerDisconnect(userId);
       }
+      // Se era host de uma live, libera o mapa e avisa os viewers
+      const hostLiveId = socket.data.hostLiveId;
+      if (hostLiveId) {
+        if (liveHostSockets.get(hostLiveId) === socket.id) liveHostSockets.delete(hostLiveId);
+        try { emitToLive(hostLiveId, "live:host-offline", { liveId: hostLiveId }); } catch (e) {}
+      }
+      liveSocketRegistry.delete(socket.id);
       console.log(`🔌 Conexão de socket desfeita: ${socket.id}`);
     });
   });
@@ -21425,7 +22027,76 @@ Sitemap: https://www.jiuspeak.com.br/sitemap.xml`);
     // Limpeza de stories expirados (>48h): 24h de exibição + 24h de margem
     cleanupExpiredStories();
     setInterval(cleanupExpiredStories, 60 * 60 * 1000);
+
+    // Lives: notificações de lives agendadas (a cada minuto)
+    setInterval(checkScheduledLives, 60 * 1000);
+
+    // Lives: limpeza de replays expirados (a cada hora)
+    cleanupExpiredLiveReplays();
+    setInterval(cleanupExpiredLiveReplays, 60 * 60 * 1000);
   });
+}
+
+/**
+ * Verifica lives agendadas e envia notificações (30 min antes, 5 min antes e na hora).
+ * Idempotente via flags notified30/notified5/notifiedStart. Roda a cada minuto.
+ */
+async function checkScheduledLives() {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    const crypto = require("crypto");
+    const now = Date.now();
+    const upcoming: any[] = await prisma.$queryRawUnsafe(`
+      SELECT l.id, l."communityId", l."hostId", l.title, l."scheduledAt", l."notified30", l."notified5", l."notifiedStart"
+      FROM "CommunityLive" l
+      WHERE l.status='SCHEDULED' AND l."scheduledAt" IS NOT NULL
+        AND l."scheduledAt" BETWEEN NOW() - INTERVAL '2 minutes' AND NOW() + INTERVAL '35 minutes'
+    `);
+    for (const l of upcoming) {
+      const diffMin = (new Date(l.scheduledAt).getTime() - now) / 60000;
+      // Membros da comunidade (para broadcast das notificações)
+      const notifyMembers = async (title: string, content: string) => {
+        const members: any[] = await prisma.$queryRawUnsafe(`SELECT "userId" FROM "CommunityMember" WHERE "communityId"=$1 AND "isBanned"=false`, l.communityId);
+        for (const m of members) {
+          await prisma.$executeRawUnsafe(`INSERT INTO "Notification" (id,"userId",title,content,type,"isRead","linkTo","createdAt") VALUES ($1,$2,$3,$4,'COMMUNITY',false,$5,NOW())`,
+            crypto.randomUUID(), m.userId, title, content, `community-${l.communityId}`).catch(() => {});
+        }
+        emitToCommunity(l.communityId, "live:reminder", { liveId: l.id, title: l.title, minutes: Math.max(0, Math.round(diffMin)) });
+      };
+      if (diffMin <= 30 && diffMin > 5 && !l.notified30) {
+        await notifyMembers(`Live em breve: ${l.title}`, `Começa em cerca de 30 minutos na comunidade.`);
+        await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET "notified30"=true WHERE id=$1`, l.id);
+      } else if (diffMin <= 5 && diffMin > 0.2 && !l.notified5) {
+        await notifyMembers(`Live em 5 minutos: ${l.title}`, `Prepare-se, a transmissão está quase começando!`);
+        await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET "notified5"=true WHERE id=$1`, l.id);
+      } else if (diffMin <= 0.2 && !l.notifiedStart) {
+        await prisma.$executeRawUnsafe(`INSERT INTO "Notification" (id,"userId",title,content,type,"isRead","linkTo","createdAt") VALUES ($1,$2,$3,$4,'SYSTEM',false,$5,NOW())`,
+          crypto.randomUUID(), l.hostId, "Hora de começar sua live!", `"${l.title}" está agendada para agora.`, `community-${l.communityId}`).catch(() => {});
+        emitToCommunity(l.communityId, "live:reminder", { liveId: l.id, title: l.title, minutes: 0 });
+        await prisma.$executeRawUnsafe(`UPDATE "CommunityLive" SET "notifiedStart"=true WHERE id=$1`, l.id);
+      }
+    }
+  } catch (err: any) {
+    console.error("[LIVE CRON] Erro ao verificar lives agendadas:", err?.message || err);
+  }
+}
+
+/**
+ * Marca replays expirados como indisponíveis (replayUrl = null) após replayExpiresAt.
+ * replayExpiresAt = null significa replay permanente. Roda a cada hora.
+ */
+async function cleanupExpiredLiveReplays() {
+  try {
+    const prisma = getPrisma();
+    if (!prisma) return;
+    const affected: number = await prisma.$executeRawUnsafe(
+      `UPDATE "CommunityLive" SET "replayUrl"=NULL WHERE "replayUrl" IS NOT NULL AND "replayExpiresAt" IS NOT NULL AND "replayExpiresAt" < NOW()`
+    );
+    if (affected > 0) console.log(`⏰ [LIVES] ${affected} replay(s) expirado(s) marcado(s) como indisponível.`);
+  } catch (err: any) {
+    console.error("[LIVE CRON] Erro na limpeza de replays:", err?.message || err);
+  }
 }
 
 async function cleanupExpiredStories() {

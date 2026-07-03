@@ -2055,6 +2055,86 @@ model CommunityRewardLog {
   @@index([rewardedForUserId])
 }
 
+// ============================================================
+// LIVE STREAMING NAS COMUNIDADES
+// Models standalone (FKs escalares, acesso via SQL cru como o restante
+// do subsistema de comunidades). Aditivos: prisma db push é seguro.
+// ============================================================
+model CommunityLive {
+  id              String    @id @default(uuid())
+  communityId     String
+  hostId          String
+  title           String
+  description     String?
+  type            String    @default("FREE") // FREE | PAID
+  price           Int? // custo em JT para assistir (se PAID)
+  status          String    @default("SCHEDULED") // SCHEDULED | LIVE | ENDED | CANCELLED
+  viewerCount     Int       @default(0)
+  peakViewers     Int       @default(0)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  replayUrl       String?
+  replayExpiresAt DateTime? // null = permanente
+  totalTips       Int       @default(0) // total de gorjetas recebidas em JT
+  cfSessionId     String? // sessão Cloudflare Realtime (WebRTC), preenchido na Fase 2
+  notified30      Boolean   @default(false) // controle idempotente do cron de agendamento
+  notified5       Boolean   @default(false)
+  notifiedStart   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  @@index([communityId, status])
+  @@index([hostId])
+  @@index([status])
+}
+
+model LivePermission {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  grantedById String // admin/mod que autorizou
+  type        String    @default("TEMPORARY") // TEMPORARY | PERMANENT
+  expiresAt   DateTime? // null se PERMANENT
+  createdAt   DateTime  @default(now())
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+}
+
+model LiveViewer {
+  id       String    @id @default(uuid())
+  liveId   String
+  userId   String
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+  paid     Boolean   @default(false) // true se pagou JT para entrar
+
+  @@index([liveId])
+  @@index([userId])
+}
+
+model LiveTip {
+  id        String   @id @default(uuid())
+  liveId    String
+  senderId  String
+  amount    Int // valor em JT
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([liveId])
+}
+
+model LiveChatMessage {
+  id        String   @id @default(uuid())
+  liveId    String
+  userId    String
+  content   String
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([liveId, createdAt])
+}
+
 
 
 
