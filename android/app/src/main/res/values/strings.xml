@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">JiuSpeak</string>
+    <string name="title_activity_main">JiuSpeak</string>
+    <string name="package_name">com.jiuspeak.app</string>
+    <string name="custom_url_scheme">com.jiuspeak.app</string>
+</resources>
