@@ -20,6 +20,12 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Casar com a variante das libs (plugins do Capacitor) se faltar a exata
+            matchingFallbacks = ['release']
+        }
+        debug {
+            // O build debug do app pode consumir a variante release dos plugins
+            matchingFallbacks = ['debug', 'release']
         }
     }
 }

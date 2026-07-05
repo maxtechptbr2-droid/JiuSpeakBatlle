@@ -1,0 +1,12 @@
+diff --git a/node_modules/@capacitor/splash-screen/android/build.gradle b/node_modules/@capacitor/splash-screen/android/build.gradle
+index f37654d..db4b7a3 100644
+--- a/node_modules/@capacitor/splash-screen/android/build.gradle
++++ b/node_modules/@capacitor/splash-screen/android/build.gradle
+@@ -55,6 +55,7 @@ android {
+     }
+     publishing {
+         singleVariant("release")
++        singleVariant("debug")
+     }
+ }
+ 

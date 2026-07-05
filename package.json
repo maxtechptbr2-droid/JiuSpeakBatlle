@@ -14,7 +14,8 @@
     "seed": "tsx scripts/seed.ts",
     "generate": "tsx scripts/generate-assets.ts",
     "seed:academies": "tsx scripts/generate-real-bjj-seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1069.0",
@@ -81,6 +82,7 @@
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "patch-package": "^8.0.1",
     "prisma": "^5.20.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",

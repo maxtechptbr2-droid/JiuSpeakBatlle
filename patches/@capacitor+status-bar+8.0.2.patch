@@ -1,0 +1,12 @@
+diff --git a/node_modules/@capacitor/status-bar/android/build.gradle b/node_modules/@capacitor/status-bar/android/build.gradle
+index 53e290a..484380d 100644
+--- a/node_modules/@capacitor/status-bar/android/build.gradle
++++ b/node_modules/@capacitor/status-bar/android/build.gradle
+@@ -55,6 +55,7 @@ android {
+     }
+     publishing {
+         singleVariant("release")
++        singleVariant("debug")
+     }
+ }
+ 
